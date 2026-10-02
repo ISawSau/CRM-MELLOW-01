@@ -1,4 +1,4 @@
-import { SECTION_GROUPS, SETTINGS_SECTION, type Section } from './sections'
+import { SECTION_GROUPS, SETTINGS_SECTION, TRASH_SECTION, type Section } from './sections'
 import { BrandEye } from '../ui/BrandEye'
 
 function NavItem({
@@ -71,6 +71,7 @@ export function Sidebar({
         ))}
       </nav>
       <div className="sidebar-foot">
+        <NavItem section={TRASH_SECTION} current={current} onSelect={onSelect} />
         <NavItem section={SETTINGS_SECTION} current={current} onSelect={onSelect} />
         <button
           type="button"

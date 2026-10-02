@@ -69,3 +69,18 @@ export function formatDate(date: Date | number, timeZone = DEFAULT_TIME_ZONE): s
 export function formatDateTime(date: Date | number, timeZone = DEFAULT_TIME_ZONE): string {
   return df(timeZone, true).format(date).replace(',', '')
 }
+
+/**
+ * Lee un número escrito a la española: "1.234,56", "1234,56", "-3,5", "1.000".
+ * También acepta el punto decimal ("12.5") cuando no puede ser separador de miles.
+ * Devuelve null si el texto no es un número.
+ */
+export function parseNumberEs(raw: string): number | null {
+  let s = raw.trim().replace(/[\s\u00a0\u20ac%]/g, '')
+  if (s === '') return null
+  if (s.includes(',')) s = s.replace(/\./g, '').replace(',', '.')
+  else if (/^-?\d{1,3}(\.\d{3})+$/.test(s)) s = s.replace(/\./g, '')
+  if (!/^-?(\d+\.?\d*|\.\d+)$/.test(s)) return null
+  const n = Number(s)
+  return Number.isFinite(n) ? n : null
+}

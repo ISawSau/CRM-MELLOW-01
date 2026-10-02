@@ -5,6 +5,7 @@ import { call } from '../lib/ipc'
 import { useAction } from '../lib/hooks'
 import { RecoveryKeyPanel } from '../screens/RecoveryKey'
 import { BUILT_IN_THEMES } from '../theme/themes'
+import { DataSettings, FieldsSettings } from '../data/FieldsSettings'
 import { Alert } from '../ui/Alert'
 import { PasswordField } from '../ui/PasswordField'
 
@@ -236,6 +237,8 @@ export function Settings({ status }: { status: VaultStatus }) {
       </div>
       <div>
         <Appearance status={status} />
+        <FieldsSettings />
+        <DataSettings />
         <AutoLock status={status} />
         <ChangePassword />
         <RotateKey />

@@ -36,6 +36,7 @@ describe('temas', () => {
     expect(vars['--bg']).toBe('#0d0908')
     expect(vars['--on-accent']).toBe('#0d0908')
     expect(vars['--accent-text']).toBe('#e0a47c')
+    expect(vars['--opt-azul-bg']).toBe('#16253a')
   })
 
   it('rechaza colores no válidos (los temas propios futuros se validan igual)', () => {
@@ -56,6 +57,9 @@ describe('temas', () => {
       expect(contrast(c.index, c.bg)).toBeGreaterThanOrEqual(4.5)
       for (const s of [c.success, c.danger, c.warning]) {
         expect(contrast(s, c.bg)).toBeGreaterThanOrEqual(4.5)
+      }
+      for (const [name, o] of Object.entries(t.options)) {
+        expect(contrast(o.text, o.bg), name).toBeGreaterThanOrEqual(4.5)
       }
     },
   )

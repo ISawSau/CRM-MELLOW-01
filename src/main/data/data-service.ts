@@ -1217,6 +1217,7 @@ export class DataService {
   setTrashDays(days: number): void {
     this.putSetting(TRASH_DAYS_KEY, days)
     this.purgeExpired()
+    this.emit(null)
   }
 
   listTrash(entity?: string): TrashItem[] {

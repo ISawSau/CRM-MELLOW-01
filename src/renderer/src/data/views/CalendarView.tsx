@@ -1,0 +1,215 @@
+import {
+  DndContext,
+  KeyboardSensor,
+  PointerSensor,
+  useDraggable,
+  useDroppable,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core'
+import { useState } from 'react'
+import {
+  fromLocalInput,
+  localDateOf,
+  monthGrid,
+  shiftMonth,
+  todayIn,
+  toLocalInput,
+} from '@shared/data/dates'
+import type { FieldDef } from '@shared/data/fields'
+import type { RecordRow } from '@shared/data/records'
+import { DEFAULT_TIME_ZONE, LOCALE } from '@shared/format'
+import { useRecordActions } from '../actions'
+import { DND_ACCESSIBILITY } from './dnd'
+
+const WEEKDAYS = ['lun', 'mar', 'mié', 'jue', 'vie', 'sáb', 'dom']
+const MAX_PER_DAY = 4
+const monthName = new Intl.DateTimeFormat(LOCALE, {
+  month: 'long',
+  year: 'numeric',
+  timeZone: 'UTC',
+})
+
+function dayOf(field: FieldDef, v: unknown): string | null {
+  if (typeof v !== 'string') return null
+  return field.type === 'datetime' ? localDateOf(v, DEFAULT_TIME_ZONE) : v
+}
+
+function Event({ row, onOpen }: { row: RecordRow; onOpen: (id: string) => void }) {
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: row.id })
+  return (
+    <button
+      type="button"
+      ref={setNodeRef}
+      className="cal-event"
+      data-dragging={isDragging}
+      data-testid="cal-event"
+      style={transform ? { transform: `translate(${transform.x}px, ${transform.y}px)` } : undefined}
+      {...listeners}
+      {...attributes}
+      onClick={(e) => {
+        e.stopPropagation()
+        onOpen(row.id)
+      }}
+    >
+      {row.title}
+    </button>
+  )
+}
+
+function Day({
+  day,
+  inMonth,
+  isToday,
+  rows,
+  onOpen,
+  onCreate,
+}: {
+  day: string
+  inMonth: boolean
+  isToday: boolean
+  rows: RecordRow[]
+  onOpen: (id: string) => void
+  onCreate: () => void
+}) {
+  const { setNodeRef, isOver } = useDroppable({ id: day })
+  const [expanded, setExpanded] = useState(false)
+  const shown = expanded ? rows : rows.slice(0, MAX_PER_DAY)
+  const [y, m, d] = day.split('-')
+  return (
+    <div
+      ref={setNodeRef}
+      className="cal-day"
+      data-outside={!inMonth}
+      data-today={isToday}
+      data-over={isOver}
+      data-day={day}
+      role="gridcell"
+      aria-label={`${d}/${m}/${y}`}
+      onDoubleClick={onCreate}
+    >
+      <span className="cal-num num">{Number(d)}</span>
+      {shown.map((r) => (
+        <Event key={r.id} row={r} onOpen={onOpen} />
+      ))}
+      {rows.length > shown.length && (
+        <button
+          type="button"
+          className="btn-link cal-more"
+          onClick={(e) => {
+            e.stopPropagation()
+            setExpanded(true)
+          }}
+        >
+          +{rows.length - shown.length} más
+        </button>
+      )}
+    </div>
+  )
+}
+
+/** Calendario mensual propio (la semana empieza en lunes). Doble clic en un día crea. */
+export function CalendarView({
+  rows,
+  dateField,
+  onOpen,
+  onCreate,
+}: {
+  rows: RecordRow[]
+  dateField: FieldDef | undefined
+  onOpen: (id: string) => void
+  onCreate: (values: Record<string, unknown>) => void
+}) {
+  const today = todayIn(DEFAULT_TIME_ZONE)
+  const [month, setMonth] = useState(today.slice(0, 7))
+  const { setValue } = useRecordActions()
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor),
+  )
+  if (!dateField || (dateField.type !== 'date' && dateField.type !== 'datetime')) {
+    return (
+      <div className="empty">
+        <p className="muted">Elige en «Campo de fecha» qué fecha se usa para el calendario.</p>
+      </div>
+    )
+  }
+
+  const byDay = new Map<string, RecordRow[]>()
+  let undated = 0
+  for (const r of rows) {
+    const day = dayOf(dateField, r.values[dateField.id])
+    if (!day) {
+      undated++
+      continue
+    }
+    byDay.set(day, [...(byDay.get(day) ?? []), r])
+  }
+
+  const valueFor = (day: string, previous: unknown): string | null => {
+    if (dateField.type === 'date') return day
+    const time =
+      typeof previous === 'string' ? toLocalInput(previous, DEFAULT_TIME_ZONE).slice(11) : '09:00'
+    return fromLocalInput(`${day}T${time}`, DEFAULT_TIME_ZONE)
+  }
+
+  const onDragEnd = (e: DragEndEvent) => {
+    if (!e.over) return
+    const row = rows.find((r) => r.id === e.active.id)
+    const day = String(e.over.id)
+    if (!row || dayOf(dateField, row.values[dateField.id]) === day) return
+    void setValue(row.id, dateField, valueFor(day, row.values[dateField.id]))
+  }
+
+  const [y, m] = month.split('-').map(Number) as [number, number]
+  return (
+    <div className="calendar" data-testid="calendar">
+      <div className="cal-head">
+        <h2 className="cal-title">{monthName.format(new Date(Date.UTC(y, m - 1, 1)))}</h2>
+        <div className="form-actions">
+          <button
+            type="button"
+            className="btn"
+            onClick={() => setMonth(shiftMonth(month, -1))}
+            aria-label="Mes anterior"
+          >
+            ←
+          </button>
+          <button type="button" className="btn" onClick={() => setMonth(today.slice(0, 7))}>
+            Hoy
+          </button>
+          <button
+            type="button"
+            className="btn"
+            onClick={() => setMonth(shiftMonth(month, 1))}
+            aria-label="Mes siguiente"
+          >
+            →
+          </button>
+        </div>
+        {undated > 0 && <span className="faint">{undated} sin fecha</span>}
+      </div>
+      <DndContext sensors={sensors} onDragEnd={onDragEnd} accessibility={DND_ACCESSIBILITY}>
+        <div className="cal-grid" role="grid" aria-label="Calendario">
+          {WEEKDAYS.map((w) => (
+            <div key={w} className="cal-weekday" role="columnheader">
+              {w}
+            </div>
+          ))}
+          {monthGrid(month).map((day) => (
+            <Day
+              key={day}
+              day={day}
+              inMonth={day.startsWith(month)}
+              isToday={day === today}
+              rows={byDay.get(day) ?? []}
+              onOpen={onOpen}
+              onCreate={() => onCreate({ [dateField.id]: valueFor(day, null) })}
+            />
+          ))}
+        </div>
+      </DndContext>
+    </div>
+  )
+}
