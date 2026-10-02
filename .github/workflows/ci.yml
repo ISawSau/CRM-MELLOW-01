@@ -5,7 +5,8 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    # TEMPORAL: la rama también genera y prueba instaladores. Se quita antes de fusionar.
+    branches: [main, claude/spec-reorganize-phase-0-dfs32y]
   pull_request:
     branches: [main]
   workflow_dispatch:
