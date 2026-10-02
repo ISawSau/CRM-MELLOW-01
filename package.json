@@ -1,9 +1,9 @@
 {
   "name": "crm-mellow",
   "productName": "CRM-Mellow",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "CRM personal de media buying, local-first",
-  "author": "Joan Sau",
+  "author": "yellowmellow",
   "license": "UNLICENSED",
   "private": true,
   "main": "./out/main/index.js",

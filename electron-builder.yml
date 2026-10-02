@@ -1,9 +1,11 @@
 # Empaquetado (ver docs/DECISIONS.md, D-010 a D-012).
+# El editor que muestra Windows (Configuración → Aplicaciones, propiedades del .exe)
+# sale de "author" en package.json: yellowmellow.
 appId: cc.yellowmellow.crm
 # Sin espacios: una ruta "/opt/CRM Mellow" rompe el sandbox SUID de Chromium en Linux.
 productName: CRM-Mellow
 executableName: crm-mellow
-copyright: Copyright © 2026 Joan Sau
+copyright: Copyright © 2026 yellowmellow
 
 directories:
   output: release
@@ -76,8 +78,8 @@ linux:
   category: Office
   synopsis: CRM personal de media buying
   description: CRM personal de media buying, local-first y cifrado.
-  maintainer: Joan Sau <joan@aureva.es>
-  vendor: Joan Sau
+  maintainer: yellowmellow <joan@aureva.es>
+  vendor: yellowmellow
   artifactName: CRM-Mellow-${version}-linux-${arch}.${ext}
   desktop:
     entry:
