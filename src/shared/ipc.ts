@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { appearanceSchema, type Appearance } from './appearance'
 
 /**
  * Contrato IPC entre la interfaz (renderer) y el proceso principal.
@@ -34,6 +35,8 @@ export interface VaultStatus {
   name: string | null
   /** Minutos de inactividad antes del bloqueo automático (solo si está desbloqueada). */
   autoLockMinutes: number | null
+  /** Apariencia guardada en la bóveda (solo si está desbloqueada). */
+  appearance: Appearance | null
 }
 
 export interface AppInfo {
@@ -67,6 +70,7 @@ export const ipcSchemas = {
       .min(1)
       .max(24 * 60),
   }),
+  'settings:setAppearance': appearanceSchema,
   'clipboard:writeSecret': z.object({ text: z.string().min(1).max(500) }),
 } as const
 
@@ -84,6 +88,7 @@ export interface IpcOutputs {
   'vault:changePassword': void
   'vault:rotateKey': { recoveryKey: string }
   'settings:setAutoLock': VaultStatus
+  'settings:setAppearance': VaultStatus
   'clipboard:writeSecret': void
 }
 

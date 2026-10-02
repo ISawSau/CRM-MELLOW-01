@@ -17,6 +17,7 @@ export const IPC_CHANNELS = [
   'vault:changePassword',
   'vault:rotateKey',
   'settings:setAutoLock',
+  'settings:setAppearance',
   'clipboard:writeSecret',
 ] as const
 

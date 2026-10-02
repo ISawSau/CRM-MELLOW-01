@@ -113,6 +113,8 @@ export function createHandlers({ vault, config, autoLock, getWindow }: HandlerDe
 
     'settings:setAutoLock': ({ minutes }) => vault.setAutoLockMinutes(minutes),
 
+    'settings:setAppearance': (appearance) => vault.setAppearance(appearance),
+
     // La clave de recuperación se copia desde el proceso principal y se borra del
     // portapapeles al minuto si sigue ahí.
     'clipboard:writeSecret': async ({ text }) => {

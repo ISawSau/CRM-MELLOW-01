@@ -4,6 +4,7 @@ import { basename, join, resolve } from 'node:path'
 import { eq } from 'drizzle-orm'
 import { AppError } from '@shared/errors'
 import type { VaultStatus } from '@shared/ipc'
+import { appearanceSchema, DEFAULT_APPEARANCE, type Appearance } from '@shared/appearance'
 import { backupVault } from '../db/backup'
 import {
   closeDb,
@@ -44,6 +45,7 @@ import {
 
 export const DEFAULT_AUTO_LOCK_MINUTES = 15
 const AUTO_LOCK_KEY = 'security.autoLockMinutes'
+const APPEARANCE_KEY = 'appearance'
 const DB_KEY_PURPOSE = 'db/v1'
 /** Manifiesto nuevo mientras se rota la clave (ver rotateKey). */
 const PENDING_MANIFEST = 'vault.json.pending'
@@ -102,6 +104,7 @@ export class VaultService {
       path: this.path,
       name: this.path ? basename(this.path) : null,
       autoLockMinutes: this.unlocked ? this.getAutoLockMinutes() : null,
+      appearance: this.unlocked ? this.getAppearance() : null,
     }
   }
 
@@ -436,19 +439,36 @@ export class VaultService {
   // --- Ajustes dentro de la bóveda --------------------------------------------
 
   getAutoLockMinutes(): number {
-    const row = this.db.select().from(settings).where(eq(settings.key, AUTO_LOCK_KEY)).get()
-    const v = row?.value
-    return typeof v === 'number' && v >= 1 ? v : DEFAULT_AUTO_LOCK_MINUTES
+    const v = this.getSetting(AUTO_LOCK_KEY)
+    return typeof v === 'number' && Number.isInteger(v) && v >= 1 ? v : DEFAULT_AUTO_LOCK_MINUTES
   }
 
   setAutoLockMinutes(minutes: number): VaultStatus {
+    this.putSetting(AUTO_LOCK_KEY, minutes)
+    return this.emit()
+  }
+
+  getAppearance(): Appearance {
+    const parsed = appearanceSchema.safeParse(this.getSetting(APPEARANCE_KEY))
+    return parsed.success ? parsed.data : DEFAULT_APPEARANCE
+  }
+
+  setAppearance(appearance: Appearance): VaultStatus {
+    this.putSetting(APPEARANCE_KEY, appearanceSchema.parse(appearance))
+    return this.emit()
+  }
+
+  private getSetting(key: string): unknown {
+    return this.db.select().from(settings).where(eq(settings.key, key)).get()?.value
+  }
+
+  private putSetting(key: string, value: unknown): void {
     const now = new Date().toISOString()
     this.db
       .insert(settings)
-      .values({ key: AUTO_LOCK_KEY, value: minutes, updatedAt: now })
-      .onConflictDoUpdate({ target: settings.key, set: { value: minutes, updatedAt: now } })
+      .values({ key, value, updatedAt: now })
+      .onConflictDoUpdate({ target: settings.key, set: { value, updatedAt: now } })
       .run()
-    return this.emit()
   }
 
   // --- Utilidades -------------------------------------------------------------

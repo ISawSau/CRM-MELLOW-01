@@ -14,6 +14,13 @@ describe('contrato IPC', () => {
     expect(vaultNameSchema.safeParse('Mi bóveda').success).toBe(true)
   })
 
+  it('solo exige la longitud: contraseñas repetitivas o solo de números valen', () => {
+    for (const password of ['aaaaaaaaaa', '11111111', 'ññññññññ', '        ']) {
+      const r = ipcSchemas['vault:create'].safeParse({ parentPath: '/tmp', name: 'x', password })
+      expect(r.success, password).toBe(true)
+    }
+  })
+
   it('exige la longitud mínima de contraseña al crear', () => {
     const r = ipcSchemas['vault:create'].safeParse({
       parentPath: '/tmp',

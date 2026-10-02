@@ -127,6 +127,23 @@ describe('bloquear y desbloquear', () => {
   })
 })
 
+describe('apariencia', () => {
+  it('por defecto: tema oscuro y densidad compacta', async () => {
+    const { svc } = await newVault()
+    expect(svc.status().appearance).toEqual({ theme: 'oscuro', density: 'compacta' })
+    svc.dispose()
+  })
+
+  it('se guarda dentro de la bóveda y sobrevive al bloqueo', async () => {
+    const { svc } = await newVault()
+    svc.setAppearance({ theme: 'claro', density: 'comoda' })
+    svc.lock()
+    expect(svc.status().appearance).toBeNull()
+    expect((await svc.unlock(PASSWORD)).appearance).toEqual({ theme: 'claro', density: 'comoda' })
+    svc.dispose()
+  })
+})
+
 describe('recuperación y cambio de contraseña', () => {
   it('la clave de recuperación permite poner una contraseña nueva', async () => {
     const { svc, recoveryKey } = await newVault()
