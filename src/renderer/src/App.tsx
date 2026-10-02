@@ -1,25 +1,58 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useEffect } from 'react'
-import { call, subscribe } from './lib/ipc'
+import { useEffect, useState } from 'react'
+import { DEFAULT_APPEARANCE } from '@shared/appearance'
+import { useVaultStatus } from './lib/hooks'
+import { CreateVault } from './screens/CreateVault'
+import { Gate } from './screens/Gate'
+import { RecoveryKeyPanel } from './screens/RecoveryKey'
+import { Unlock } from './screens/Unlock'
+import { Welcome } from './screens/Welcome'
+import { Shell } from './shell/Shell'
+import { applyAppearance } from './theme/apply'
+import { findTheme } from './theme/themes'
 
-/**
- * Pantalla provisional de la fase 0. Las pantallas reales (bienvenida, desbloqueo,
- * barra lateral, barra de estado, Ctrl+K) se construyen cuando se aprueben los
- * tokens de docs/DESIGN.md (SPEC §8).
- */
 export function App() {
-  const qc = useQueryClient()
-  const info = useQuery({ queryKey: ['app:info'], queryFn: () => call('app:info') })
-  const status = useQuery({ queryKey: ['vault:status'], queryFn: () => call('vault:status') })
+  const status = useVaultStatus()
+  const [creating, setCreating] = useState(false)
+  /** Clave de recuperación recién creada: se muestra antes de entrar. */
+  const [newRecoveryKey, setNewRecoveryKey] = useState<string | null>(null)
 
-  useEffect(() => subscribe('vault:changed', (s) => qc.setQueryData(['vault:status'], s)), [qc])
+  // Antes de desbloquear se usa la apariencia por defecto (tema oscuro, densidad compacta).
+  const appearance = status.data?.appearance ?? DEFAULT_APPEARANCE
+  useEffect(() => {
+    applyAppearance(findTheme(appearance.theme), appearance.density)
+  }, [appearance.theme, appearance.density])
 
-  return (
-    <main data-testid="placeholder">
-      <h1>CRM Mellow</h1>
-      <p>Interfaz pendiente de aprobar los tokens de diseño (docs/DESIGN.md).</p>
-      <p data-testid="version">Versión {info.data?.version ?? '…'}</p>
-      <p data-testid="vault-state">Bóveda: {status.data?.state ?? '…'}</p>
-    </main>
-  )
+  if (!status.data) return null
+  const s = status.data
+
+  if (newRecoveryKey && s.state === 'unlocked') {
+    return (
+      <Gate step="03 · clave de recuperación">
+        <div className="section-head">
+          <span className="eyebrow">
+            <span className="num">03</span> imprescindible
+          </span>
+          <h1 className="title">Tu clave de recuperación</h1>
+          <p className="muted">
+            Sirve para entrar si olvidas la contraseña. Cópiala y guárdala ahora.
+          </p>
+        </div>
+        <RecoveryKeyPanel
+          recoveryKey={newRecoveryKey}
+          onDone={() => {
+            setNewRecoveryKey(null)
+            setCreating(false)
+          }}
+          doneLabel="Entrar en la bóveda"
+        />
+      </Gate>
+    )
+  }
+
+  if (s.state === 'unlocked') return <Shell status={s} />
+  if (s.state === 'locked') return <Unlock status={s} />
+  if (creating) {
+    return <CreateVault onCancel={() => setCreating(false)} onCreated={setNewRecoveryKey} />
+  }
+  return <Welcome onCreate={() => setCreating(true)} />
 }
