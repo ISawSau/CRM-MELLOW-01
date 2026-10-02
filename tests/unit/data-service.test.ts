@@ -75,7 +75,7 @@ describe('registros', () => {
     const tipo = byKey('tipo')
     const r = svc.create('nota', { [titulo.id]: 'Campaña de verano', [tipo.id]: opt(tipo, 'Idea') })
     expect(r.title).toBe('Campaña de verano')
-    expect(changes.at(-1)).toEqual({ entity: 'nota' })
+    expect(changes.at(-1)).toMatchObject({ entity: 'nota', undo: { canUndo: true } })
 
     const r2 = svc.update(r.id, { [tipo.id]: opt(tipo, 'Reunión') })
     expect(r2.values[tipo.id]).toBe(opt(tipo, 'Reunión'))

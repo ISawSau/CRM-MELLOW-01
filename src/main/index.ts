@@ -27,6 +27,9 @@ if (refuseDebugSwitches()) {
   app.exit(1)
 }
 
+// Interfaz en español de España (formatos de Intl y controles nativos de fecha).
+app.commandLine.appendSwitch('lang', 'es-ES')
+
 // Fuerza el sandbox de Chromium en todos los renderers.
 app.enableSandbox()
 registerPrivilegedScheme()
@@ -46,6 +49,7 @@ if (process.argv.includes('--autoprueba')) {
 
   const vault = new VaultService({
     onChange: (status) => mainWindow?.webContents.send('vault:changed', status),
+    data: { onChange: (change) => mainWindow?.webContents.send('data:changed', change) },
   })
   const autoLock = new AutoLock(vault)
 

@@ -62,6 +62,8 @@ export interface UndoState {
   redoLabel: string | null
 }
 
+/** Aviso de cambio. entity null: puede haber cambiado cualquiera (p. ej. tras deshacer). */
 export interface DataChange {
   entity: string | null
+  undo: UndoState
 }

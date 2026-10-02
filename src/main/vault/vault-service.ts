@@ -5,6 +5,7 @@ import { eq } from 'drizzle-orm'
 import { AppError } from '@shared/errors'
 import type { VaultStatus } from '@shared/ipc'
 import { appearanceSchema, DEFAULT_APPEARANCE, type Appearance } from '@shared/appearance'
+import { DataService, type DataServiceOptions } from '../data/data-service'
 import { backupVault } from '../db/backup'
 import {
   closeDb,
@@ -56,11 +57,14 @@ export interface VaultServiceOptions {
   instanceId?: string
   hostname?: string
   onChange?: (status: VaultStatus) => void
+  /** Opciones del motor de datos que se crea al desbloquear. */
+  data?: DataServiceOptions
 }
 
 interface Unlocked {
   sqlite: SqliteDb
   db: Db
+  data: DataService
   masterKey: Buffer
   lock: LockInfo
   heartbeat: NodeJS.Timeout
@@ -77,6 +81,7 @@ export class VaultService {
   private readonly instanceId: string
   private readonly hostname: string | undefined
   private readonly onChange: ((s: VaultStatus) => void) | undefined
+  private readonly dataOptions: DataServiceOptions
   private path: string | null = null
   private unlocked: Unlocked | null = null
   /** Evita dos operaciones de desbloqueo o rotación a la vez. */
@@ -88,6 +93,7 @@ export class VaultService {
     this.instanceId = opts.instanceId ?? randomUUID()
     this.hostname = opts.hostname
     this.onChange = opts.onChange
+    this.dataOptions = opts.data ?? {}
   }
 
   get schemaVersion(): number {
@@ -112,6 +118,12 @@ export class VaultService {
   get db(): Db {
     if (!this.unlocked) throw new AppError('VAULT_IS_LOCKED')
     return this.unlocked.db
+  }
+
+  /** Motor de datos de la bóveda desbloqueada (lanza si está bloqueada). */
+  get data(): DataService {
+    if (!this.unlocked) throw new AppError('VAULT_IS_LOCKED')
+    return this.unlocked.data
   }
 
   // --- Crear y abrir --------------------------------------------------------------
@@ -268,11 +280,12 @@ export class VaultService {
       if (manifest.schemaVersion !== result.to) {
         writeManifest(vaultPath, { ...manifest, schemaVersion: result.to })
       }
+      const data = new DataService(sqlite, this.dataOptions)
       const heartbeat = setInterval(() => {
         if (this.unlocked) this.unlocked.lock = refreshLock(vaultPath, this.unlocked.lock)
       }, HEARTBEAT_MS)
       heartbeat.unref()
-      this.unlocked = { sqlite, db: toDrizzle(sqlite), masterKey, lock, heartbeat }
+      this.unlocked = { sqlite, db: toDrizzle(sqlite), data, masterKey, lock, heartbeat }
     } catch (e) {
       if (sqlite?.open) sqlite.close()
       if (lock) releaseLock(vaultPath, this.instanceId)

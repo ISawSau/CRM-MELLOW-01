@@ -239,6 +239,25 @@ describe('rotar la clave maestra', () => {
   })
 })
 
+describe('motor de datos', () => {
+  it('los registros sobreviven a bloquear, rotar la clave y volver a abrir', async () => {
+    const { svc, path } = await newVault()
+    const titulo = svc.data.listFields('nota').find((f) => f.key === 'titulo')!
+    const r = svc.data.create('nota', { [titulo.id]: 'Reunión con el cliente' })
+    await svc.rotateKey(PASSWORD)
+    svc.lock()
+    expect(() => svc.data).toThrowError(expectCode('VAULT_IS_LOCKED'))
+    await svc.unlock(PASSWORD)
+    expect(svc.data.get(r.id).title).toBe('Reunión con el cliente')
+    expect(svc.data.search('reunion').map((h) => h.id)).toEqual([r.id])
+    // Deshacer no sobrevive al bloqueo: es solo de la sesión.
+    expect(svc.data.undoState().canUndo).toBe(false)
+    svc.dispose()
+    const raw = readFileSync(join(path, 'crm.db'))
+    expect(raw.includes(Buffer.from('cliente'))).toBe(false)
+  })
+})
+
 describe('migraciones', () => {
   it('hace copia de seguridad antes de migrar una base de datos con datos', async () => {
     const { svc, path } = await newVault()

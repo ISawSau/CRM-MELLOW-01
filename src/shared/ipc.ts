@@ -1,5 +1,15 @@
 import { z } from 'zod'
 import { appearanceSchema, type Appearance } from './appearance'
+import { FIELD_TYPES, idSchema, type FieldDef } from './data/fields'
+import type {
+  DataChange,
+  HistoryEntry,
+  RecordRow,
+  SearchHit,
+  TrashItem,
+  UndoState,
+} from './data/records'
+import { filterSchema, sortSchema, VIEW_KINDS, type View } from './data/views'
 
 /**
  * Contrato IPC entre la interfaz (renderer) y el proceso principal.
@@ -39,6 +49,22 @@ export interface VaultStatus {
   appearance: Appearance | null
 }
 
+export interface EntityInfo {
+  id: string
+  label: string
+  singular: string
+  gender: 'f' | 'm'
+}
+
+/** Valores por id de campo; el proceso principal los valida contra cada campo. */
+const values = z
+  .record(idSchema, z.unknown())
+  .refine((v) => Object.keys(v).length <= 300, 'Demasiados campos')
+/** Configuración libre: el proceso principal la valida según el tipo de campo o vista. */
+const config = z.record(z.string().max(40), z.unknown())
+const ids = z.array(idSchema).min(1).max(5000)
+const label = z.string().max(120)
+
 export interface AppInfo {
   version: string
   platform: string
@@ -72,6 +98,65 @@ export const ipcSchemas = {
   }),
   'settings:setAppearance': appearanceSchema,
   'clipboard:writeSecret': z.object({ text: z.string().min(1).max(500) }),
+
+  // --- Motor de datos (fase 1) ---
+  'data:entities': z.void(),
+  'data:fields': z.object({ entity: idSchema, includeDeleted: z.boolean().default(false) }),
+  'data:createField': z.object({
+    entity: idSchema,
+    label,
+    type: z.enum(FIELD_TYPES),
+    config: config.optional(),
+  }),
+  'data:updateField': z.object({
+    id: idSchema,
+    label: label.optional(),
+    key: z.string().max(40).optional(),
+    config: config.optional(),
+    visible: z.boolean().optional(),
+    required: z.boolean().optional(),
+  }),
+  'data:reorderFields': z.object({ entity: idSchema, ids: z.array(idSchema).max(300) }),
+  'data:deleteField': z.object({ id: idSchema }),
+  'data:restoreField': z.object({ id: idSchema }),
+  'data:formulaProblem': z.object({
+    entity: idSchema,
+    expression: z.string().max(5000),
+    fieldId: idSchema.optional(),
+  }),
+  'data:views': z.object({ entity: idSchema }),
+  'data:createView': z.object({ entity: idSchema, name: label, kind: z.enum(VIEW_KINDS) }),
+  'data:updateView': z.object({ id: idSchema, name: label.optional(), config: config.optional() }),
+  'data:deleteView': z.object({ id: idSchema }),
+  'data:query': z.object({
+    entity: idSchema,
+    filters: z.array(filterSchema).max(50).default([]),
+    match: z.enum(['all', 'any']).default('all'),
+    sorts: z.array(sortSchema).max(5).default([]),
+  }),
+  'data:get': z.object({ id: idSchema }),
+  'data:create': z.object({ entity: idSchema, values: values.default({}) }),
+  'data:update': z.object({ id: idSchema, patch: values }),
+  'data:setLinks': z.object({
+    fieldId: idSchema,
+    fromId: idSchema,
+    toIds: z.array(idSchema).max(1000),
+  }),
+  'data:duplicate': z.object({ id: idSchema }),
+  'data:trash': z.object({ ids }),
+  'data:restore': z.object({ ids }),
+  'data:purge': z.object({ ids }),
+  'data:trashList': z.object({ entity: idSchema.optional() }),
+  'data:setTrashDays': z.object({ days: z.number().int().min(1).max(3650) }),
+  'data:history': z.object({ id: idSchema }),
+  'data:search': z.object({
+    text: z.string().max(200),
+    limit: z.number().int().min(1).max(100).default(20),
+  }),
+  'data:undo': z.void(),
+  'data:redo': z.void(),
+  'data:undoState': z.void(),
+  'data:exportCsv': z.object({ viewId: idSchema }),
 } as const
 
 export interface IpcOutputs {
@@ -90,6 +175,36 @@ export interface IpcOutputs {
   'settings:setAutoLock': VaultStatus
   'settings:setAppearance': VaultStatus
   'clipboard:writeSecret': void
+  'data:entities': EntityInfo[]
+  'data:fields': FieldDef[]
+  'data:createField': FieldDef
+  'data:updateField': FieldDef
+  'data:reorderFields': FieldDef[]
+  'data:deleteField': void
+  'data:restoreField': FieldDef
+  'data:formulaProblem': string | null
+  'data:views': View[]
+  'data:createView': View
+  'data:updateView': View
+  'data:deleteView': void
+  'data:query': RecordRow[]
+  'data:get': RecordRow
+  'data:create': RecordRow
+  'data:update': RecordRow
+  'data:setLinks': RecordRow
+  'data:duplicate': RecordRow
+  'data:trash': void
+  'data:restore': void
+  'data:purge': void
+  'data:trashList': { items: TrashItem[]; days: number }
+  'data:setTrashDays': { items: TrashItem[]; days: number }
+  'data:history': HistoryEntry[]
+  'data:search': SearchHit[]
+  'data:undo': string | null
+  'data:redo': string | null
+  'data:undoState': UndoState
+  /** Ruta donde se guardó el CSV, o null si se canceló. */
+  'data:exportCsv': string | null
 }
 
 export type IpcChannel = keyof typeof ipcSchemas
@@ -100,5 +215,6 @@ export type IpcOutput<C extends IpcChannel> = IpcOutputs[C]
 /** Eventos que el proceso principal envía a la interfaz. */
 export interface IpcEvents {
   'vault:changed': VaultStatus
+  'data:changed': DataChange
 }
 export type IpcEvent = keyof IpcEvents

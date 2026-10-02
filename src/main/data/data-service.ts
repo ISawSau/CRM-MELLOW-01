@@ -150,7 +150,7 @@ export class DataService {
   }
 
   private emit(entity: string | null): void {
-    this.onChange?.({ entity })
+    this.onChange?.({ entity, undo: this.undoStack.state() })
   }
 
   private tx<T>(fn: () => T): T {
