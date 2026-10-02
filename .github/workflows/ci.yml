@@ -1,0 +1,203 @@
+# Tests en cada pull request y en cada push a main; instaladores de Windows y
+# Linux (Arch) en cada push a main o al lanzarlo a mano desde la pestaña Actions.
+# Los instaladores se descargan desde la ejecución correspondiente en Actions.
+name: CI
+
+on:
+  push:
+    # TEMPORAL: la rama de la fase 0 también genera instaladores para poder
+    # verificarlos en Windows antes del PR. Se quita antes de fusionar.
+    branches: [main, claude/spec-reorganize-phase-0-dfs32y]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  calidad:
+    name: Lint, tipos y tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Instalar dependencias
+        run: |
+          npm ci
+          node node_modules/electron/install.js
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Tipos
+        run: npm run typecheck
+
+      - name: Formato
+        run: npx prettier --check .
+
+      - name: Tests unitarios
+        run: npm test
+
+      # Ubuntu 24.04 restringe los user namespaces con AppArmor, y el sandbox de
+      # Chromium los necesita. Se permiten en el runner en lugar de usar --no-sandbox,
+      # para que los tests comprueben la app con el sandbox activado.
+      - name: Permitir el sandbox de Chromium en el runner
+        run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+
+      - name: Tests de interfaz (Playwright + Electron)
+        run: xvfb-run -a npm run test:e2e
+
+      - name: Informe de Playwright
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: informe-playwright
+          path: playwright-report/
+          retention-days: 5
+
+  instaladores:
+    name: Instalador ${{ matrix.nombre }}
+    needs: calidad
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - nombre: Windows
+            os: windows-latest
+          - nombre: Linux
+            os: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      # En Windows se usa el mismo script de instalación que en tu ordenador, para
+      # que quede probado en un Windows real en cada build.
+      - name: Instalar dependencias (script de Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: powershell -ExecutionPolicy Bypass -File scripts\instalar-windows.ps1 -SinPreguntas
+
+      - name: Instalar dependencias (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          # bsdtar hace falta para generar el paquete pacman.
+          sudo apt-get update
+          sudo apt-get install -y libarchive-tools
+          npm ci
+          npm test
+
+      - name: Generar instalador de Windows
+        if: runner.os == 'Windows'
+        run: npm run dist:win
+
+      - name: Generar paquetes de Linux (pacman y AppImage)
+        if: runner.os == 'Linux'
+        run: npm run dist:linux
+
+      - name: Verificar fuses de seguridad
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            node scripts/verificar-fuses.mjs release/win-unpacked/crm-mellow.exe
+          else
+            node scripts/verificar-fuses.mjs release/linux-unpacked/crm-mellow
+          fi
+
+      - name: Autoprueba de la app empaquetada (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $p = Start-Process -FilePath release\win-unpacked\crm-mellow.exe -ArgumentList '--autoprueba' `
+            -Wait -PassThru -NoNewWindow -RedirectStandardOutput autoprueba.txt
+          Get-Content autoprueba.txt
+          if ($p.ExitCode -ne 0) { throw "La autoprueba ha fallado (código $($p.ExitCode))" }
+
+      - name: Autoprueba de la app empaquetada (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          xvfb-run -a release/linux-unpacked/crm-mellow --autoprueba
+
+      - name: Subir instalador de Windows
+        if: runner.os == 'Windows'
+        uses: actions/upload-artifact@v7
+        with:
+          name: CRM-Mellow-windows
+          path: release/*.exe
+          if-no-files-found: error
+          retention-days: 5
+          compression-level: 0
+
+      - name: Subir paquetes de Linux
+        if: runner.os == 'Linux'
+        uses: actions/upload-artifact@v7
+        with:
+          name: CRM-Mellow-linux
+          path: |
+            release/*.pacman
+            release/*.AppImage
+          if-no-files-found: error
+          retention-days: 5
+          compression-level: 0
+
+  arch:
+    name: Prueba en Arch Linux
+    needs: instaladores
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    container:
+      image: archlinux:latest
+      # El sandbox de Chromium crea namespaces; dentro de Docker hace falta permitirlo.
+      options: --cap-add SYS_ADMIN --security-opt seccomp=unconfined
+    steps:
+      - name: Preparar Arch (git, sudo y un usuario normal)
+        run: |
+          pacman -Syu --noconfirm --needed git sudo
+          useradd -m dev
+          echo 'dev ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/dev
+
+      - uses: actions/checkout@v6
+
+      - name: Script de instalación de Arch
+        run: |
+          chown -R dev:dev "$GITHUB_WORKSPACE"
+          su dev -c "cd '$GITHUB_WORKSPACE' && bash scripts/instalar-arch.sh --sin-preguntas"
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: CRM-Mellow-linux
+          path: paquetes
+
+      - name: Instalar el paquete pacman y lanzar la autoprueba
+        run: |
+          pacman -S --noconfirm --needed xorg-server-xvfb xorg-xauth
+          pacman -U --noconfirm paquetes/*.pacman
+          su dev -c 'xvfb-run -a crm-mellow --autoprueba'
+
+      - name: Autoprueba del AppImage
+        run: |
+          cp paquetes/*.AppImage /home/dev/crm.AppImage
+          chown dev /home/dev/crm.AppImage
+          chmod +x /home/dev/crm.AppImage
+          su dev -c 'APPIMAGE_EXTRACT_AND_RUN=1 xvfb-run -a /home/dev/crm.AppImage --autoprueba > /dev/null 2>&1 || exit 1; echo "AppImage: autoprueba correcta"'
+
+      - name: Desinstalar
+        run: pacman -R --noconfirm crm-mellow
