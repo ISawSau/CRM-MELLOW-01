@@ -146,3 +146,13 @@ Esa compilación no sirve para nada: el paquete carga primero su binario N-API p
 - Ventaja de seguridad: los scripts de instalación son el vector típico de los ataques a la cadena de suministro de npm. npm 12 ya los bloquea por defecto.
 - Comprobado tras una instalación limpia: sin carpeta `build/` de SQLite, con tests unitarios y de interfaz, empaquetado, fuses y autoprueba correctos.
 - No hace falta Visual Studio ni Python para desarrollar.
+
+### D-022 · Página de descarga en GitHub Releases
+
+El usuario no quiere escribir comandos de desarrollo para usar la app. Los instaladores ya existían, pero solo estaban en Actions (dentro de un zip y durante 5 días).
+
+- Al cerrar cada fase se sube la versión en `package.json` (fase 0 → 0.1.0, fase 1 → 0.2.0…). En el siguiente push a `main`, si la versión no está publicada y han pasado todos los tests e instaladores, el CI crea la versión `vX.Y.Z` en Releases con el `.exe`, el `.pacman`, el AppImage, `SHA256SUMS.txt` y las instrucciones de `.github/notas-version.md`.
+- Los Releases son gratis y no cuentan para los 500 MB de almacenamiento de Actions.
+- Arch: el usuario prefiere el paquete pacman (una línea, `sudo pacman -U`) al AppImage. El AppImage se publica como alternativa sin instalación.
+- **Prueba del instalador de Windows en CI** (`scripts/probar-instalador-windows.ps1`): instala el `.exe` en silencio, comprueba el ejecutable y los accesos directos del escritorio y del menú Inicio, abre la app instalada con `--autoprueba`, desinstala y comprueba que no queda nada.
+- Sin actualización automática: con el repositorio privado, la app necesitaría un token para consultar Releases, y CLAUDE.md prohíbe guardar credenciales fuera de la base de datos cifrada (y tampoco tendría sentido ponerlo en el código). Se puede reconsiderar si el repositorio pasa a público.

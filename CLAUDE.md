@@ -28,7 +28,7 @@ La especificación completa está en `docs/SPEC.md`. Léela antes de cualquier t
 ## Entorno de trabajo (Claude Code en la nube)
 
 - Trabajas en una máquina Linux en la nube, sin pantalla. No puedes ver la ventana de la app, así que verifica con tests (Vitest y, si el entorno lo permite, Playwright con Electron en modo sin pantalla). En cada entrega dime los comandos exactos para probarla en mi ordenador con Windows y con Linux, y qué debería ver.
-- En la fase 0 crea un workflow de GitHub Actions que ejecute los tests y genere los instaladores en Windows y Linux reales en cada push a main. Los instaladores se descargan desde la pestaña Actions.
+- En la fase 0 crea un workflow de GitHub Actions que ejecute los tests y genere los instaladores en Windows y Linux reales en cada push a main. Los instaladores se descargan desde la pestaña Actions. Además, al cerrar cada fase se sube la versión en `package.json` (fase 0 → 0.1.0, fase 1 → 0.2.0…) y el CI publica la versión en Releases con los instaladores y las instrucciones (`.github/notas-version.md`).
 - El repositorio nunca contiene datos reales: añade a `.gitignore` cualquier bóveda, base de datos, archivo `.env`, credenciales y carpetas de build. Ningún token ni credencial en el repositorio ni en las variables del entorno de la nube.
 - Si una tarea necesita un dominio bloqueado por la red del entorno, dime cuál para que lo añada en lugar de buscar rodeos.
 - Al terminar una fase, resumen de cambios y pull request hacia main.

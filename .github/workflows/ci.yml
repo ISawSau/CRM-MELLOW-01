@@ -5,7 +5,9 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    # TEMPORAL: la rama también genera y prueba instaladores para verificar la
+    # prueba del instalador de Windows antes del PR. Se quita antes de fusionar.
+    branches: [main, claude/spec-reorganize-phase-0-dfs32y]
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -128,6 +130,13 @@ jobs:
           Get-Content autoprueba.txt
           if ($p.ExitCode -ne 0) { throw "La autoprueba ha fallado (código $($p.ExitCode))" }
 
+      - name: Probar el instalador (instalar, abrir, desinstalar)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $instalador = (Get-ChildItem release\*-instalador.exe | Select-Object -First 1).FullName
+          powershell -ExecutionPolicy Bypass -File scripts\probar-instalador-windows.ps1 $instalador
+
       - name: Autoprueba de la app empaquetada (Linux)
         if: runner.os == 'Linux'
         run: |
@@ -199,3 +208,51 @@ jobs:
 
       - name: Desinstalar
         run: pacman -R --noconfirm crm-mellow
+
+  publicar:
+    name: Publicar versión
+    needs: [instaladores, arch]
+    # Solo en main y solo si package.json tiene una versión que aún no está publicada
+    # (la versión se sube al cerrar cada fase).
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Comprobar si la versión ya está publicada
+        id: version
+        run: |
+          v="$(node -p "require('./package.json').version")"
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+          if gh release view "v$v" > /dev/null 2>&1; then
+            echo "nueva=false" >> "$GITHUB_OUTPUT"
+            echo "La versión v$v ya está publicada: no se hace nada."
+          else
+            echo "nueva=true" >> "$GITHUB_OUTPUT"
+            echo "Se publicará la versión v$v."
+          fi
+
+      - uses: actions/download-artifact@v8
+        if: steps.version.outputs.nueva == 'true'
+        with:
+          pattern: CRM-Mellow-*
+          path: paquetes
+          merge-multiple: true
+
+      - name: Crear la página de descarga
+        if: steps.version.outputs.nueva == 'true'
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          ls -la paquetes
+          (cd paquetes && sha256sum * > SHA256SUMS.txt && cat SHA256SUMS.txt)
+          sed "s/{{VERSION}}/$VERSION/g" .github/notas-version.md > notas.md
+          gh release create "v$VERSION" paquetes/* \
+            --target "$GITHUB_SHA" \
+            --title "CRM Mellow $VERSION" \
+            --notes-file notas.md

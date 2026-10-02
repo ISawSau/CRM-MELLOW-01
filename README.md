@@ -6,7 +6,16 @@ CRM personal de media buying: app de escritorio local-first para Windows y Linux
 - Decisiones técnicas: [`docs/DECISIONS.md`](docs/DECISIONS.md)
 - Diseño: [`docs/DESIGN.md`](docs/DESIGN.md)
 
-## Instalar para desarrollar
+## Instalar la app
+
+No hace falta ningún comando de desarrollo. En la página **[Releases](https://github.com/ISawSau/CRM-MELLOW-01/releases)** de este repositorio hay una versión por cada fase terminada, con el instalador de cada sistema y las instrucciones:
+
+- **Windows:** descargar el `.exe`, doble clic y seguir el asistente. Está sin firmar: si sale «Windows protegió su PC», pulsar «Más información» → «Ejecutar de todas formas».
+- **Arch Linux:** descargar el `.pacman` e instalarlo con `sudo pacman -U <archivo>`. Después, abrir «CRM Mellow» desde el menú de aplicaciones.
+
+Actualizar es instalar la versión nueva encima. Los datos viven en la bóveda, así que instalar o desinstalar la app nunca los toca.
+
+## Instalar para desarrollar (solo para tocar el código)
 
 Los scripts de instalación están dentro del repositorio, así que primero hay que descargarlo (es privado: la primera vez Git abrirá el navegador para iniciar sesión en GitHub).
 
@@ -40,11 +49,6 @@ Los scripts instalan Node.js si falta, las dependencias del proyecto y ejecutan 
 
 Para probar una rama que aún no está en `main`: `git checkout <rama>` antes de ejecutar el script.
 
-## Instaladores
+## Builds intermedios
 
-Cada push a `main` genera en GitHub Actions el instalador de Windows (`.exe`) y los paquetes de Linux (`.pacman` para Arch y `.AppImage`). Se descargan desde la pestaña **Actions** → la ejecución → **Artifacts** (se guardan 5 días).
-
-- Arch: `sudo pacman -U CRM-Mellow-*-linux-x64.pacman`
-- Windows: ejecutar el `.exe` (está sin firmar: SmartScreen avisará; "Más información" → "Ejecutar de todas formas").
-
-Para comprobar una instalación: `crm-mellow --autoprueba`.
+Cada push a `main` genera también los instaladores en GitHub Actions (pestaña **Actions** → la ejecución → **Artifacts**, se guardan 5 días). Para comprobar una instalación: `crm-mellow --autoprueba`.
