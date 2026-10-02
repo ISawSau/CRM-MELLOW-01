@@ -1,0 +1,40 @@
+# Dependencias y builds
+node_modules/
+out/
+dist/
+release/
+coverage/
+test-results/
+playwright-report/
+*.tsbuildinfo
+
+# Datos de usuario: nunca en el repositorio
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+vault.json
+.lock
+*Boveda*/
+*boveda*/
+*Bóveda*/
+*bóveda*/
+*.vault/
+
+# Credenciales y entorno
+.env
+.env.*
+*.pem
+*.key
+*.p12
+*.pfx
+credentials*.json
+token*.json
+
+# Sistema y editores
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
