@@ -107,7 +107,7 @@ Cambia la SPEC §2: el usuario usará Arch, así que el `.deb` se sustituye por 
 - `scripts/instalar-arch.sh`: pacman (repositorios oficiales) + `npm ci` + descarga verificada de Electron + tests. Usa `-Syu` porque Arch no admite actualizaciones parciales. No se ejecuta como root.
 - `scripts/instalar-windows.ps1`: winget (Git y Node.js LTS solo si faltan) + `npm ci` + Electron + tests. Guardado en UTF-8 con BOM para que Windows PowerShell 5.1 lea bien las tildes.
 - Los dos se prueban en CI (Windows real y contenedor de Arch).
-- npm 12 (el de Arch) bloquea por defecto los scripts de instalación de los paquetes. No afecta: Electron 44 descarga su binario al usarse (y el script lo descarga explícitamente), y el bloqueo impide que npm intente compilar SQLite desde el código fuente.
+- Los scripts de instalación de las dependencias están desactivados (D-021). Electron 44 descarga su binario al usarse por primera vez, y los dos scripts lo descargan explícitamente al instalar.
 
 ### D-015 · Formato español
 
@@ -135,3 +135,14 @@ cmdk trae `Command.Dialog`, basado en Radix Dialog, que inyecta una etiqueta `<s
 ### D-020 · Navegación sin router
 
 En la fase 0 la sección activa es un estado de React. Las secciones futuras muestran en qué fase llegan. Se añadirá un router cuando el motor de datos (fase 1) necesite rutas con parámetros.
+
+### D-021 · `ignore-scripts=true` en `.npmrc`
+
+Detectado al instalar en el Windows del usuario: npm 11 ejecuta `node-gyp rebuild` en `better-sqlite3` (deduce ese script porque el paquete trae un `binding.gyp`) e intenta compilar SQLite con Visual Studio. Sin las herramientas de C++, `npm ci` falla. En el CI no se notaba porque los runners de GitHub sí tienen compilador.
+
+Esa compilación no sirve para nada: el paquete carga primero su binario N-API precompilado (`prebuilds/win32-x64.node`, `linux-x64.node`). Así que en `.npmrc`:
+
+- `ignore-scripts=true`: ninguna dependencia ejecuta scripts al instalarse. `npm run …` y `npm test` siguen funcionando.
+- Ventaja de seguridad: los scripts de instalación son el vector típico de los ataques a la cadena de suministro de npm. npm 12 ya los bloquea por defecto.
+- Comprobado tras una instalación limpia: sin carpeta `build/` de SQLite, con tests unitarios y de interfaz, empaquetado, fuses y autoprueba correctos.
+- No hace falta Visual Studio ni Python para desarrollar.
