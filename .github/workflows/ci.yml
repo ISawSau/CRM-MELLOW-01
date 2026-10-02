@@ -249,7 +249,10 @@ jobs:
         run: |
           ls -la paquetes
           (cd paquetes && sha256sum * > SHA256SUMS.txt && cat SHA256SUMS.txt)
-          sed "s/{{VERSION}}/$VERSION/g" .github/notas-version.md > notas.md
+          {
+            if [ -f .github/novedades.md ]; then cat .github/novedades.md; fi
+            sed "s/{{VERSION}}/$VERSION/g" .github/notas-version.md
+          } > notas.md
           gh release create "v$VERSION" paquetes/* \
             --target "$GITHUB_SHA" \
             --title "CRM Mellow $VERSION" \

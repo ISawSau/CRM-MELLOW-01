@@ -57,14 +57,14 @@ export interface VaultServiceOptions {
   instanceId?: string
   hostname?: string
   onChange?: (status: VaultStatus) => void
-  /** Opciones del motor de datos que se crea al desbloquear. */
-  data?: DataServiceOptions
+  /** Opciones del motor de datos que se crea al desbloquear (false: sin motor, para simular la v0.1 en tests). */
+  data?: DataServiceOptions | false
 }
 
 interface Unlocked {
   sqlite: SqliteDb
   db: Db
-  data: DataService
+  data: DataService | null
   masterKey: Buffer
   lock: LockInfo
   heartbeat: NodeJS.Timeout
@@ -81,7 +81,7 @@ export class VaultService {
   private readonly instanceId: string
   private readonly hostname: string | undefined
   private readonly onChange: ((s: VaultStatus) => void) | undefined
-  private readonly dataOptions: DataServiceOptions
+  private readonly dataOptions: DataServiceOptions | false
   private path: string | null = null
   private unlocked: Unlocked | null = null
   /** Evita dos operaciones de desbloqueo o rotación a la vez. */
@@ -122,7 +122,7 @@ export class VaultService {
 
   /** Motor de datos de la bóveda desbloqueada (lanza si está bloqueada). */
   get data(): DataService {
-    if (!this.unlocked) throw new AppError('VAULT_IS_LOCKED')
+    if (!this.unlocked?.data) throw new AppError('VAULT_IS_LOCKED')
     return this.unlocked.data
   }
 
@@ -280,7 +280,7 @@ export class VaultService {
       if (manifest.schemaVersion !== result.to) {
         writeManifest(vaultPath, { ...manifest, schemaVersion: result.to })
       }
-      const data = new DataService(sqlite, this.dataOptions)
+      const data = this.dataOptions === false ? null : new DataService(sqlite, this.dataOptions)
       const heartbeat = setInterval(() => {
         if (this.unlocked) this.unlocked.lock = refreshLock(vaultPath, this.unlocked.lock)
       }, HEARTBEAT_MS)
