@@ -302,7 +302,7 @@ El negocio actual es ecommerce y no usa formularios de leads. Si en el futuro se
 
 ### 7.14 Ajustes
 
-Perfil · bóveda · seguridad (contraseña, autobloqueo, clave de recuperación) · sincronización y copias · conexiones (Meta, Google, X, LinkedIn) · monedas y zonas horarias · formato regional · apariencia (claro, oscuro, densidad) · campos, etiquetas, estados y pipelines · presets de columnas · atajos de teclado.
+Perfil · bóveda · seguridad (contraseña, autobloqueo, clave de recuperación) · sincronización y copias · conexiones (Meta, Google, X, LinkedIn) · monedas y zonas horarias · formato regional · apariencia (selector de temas con los predefinidos claro y oscuro, temas propios creados y editados desde la app, densidad compacta o cómoda) · campos, etiquetas, estados y pipelines · presets de columnas · atajos de teclado.
 
 ---
 
@@ -310,7 +310,8 @@ Perfil · bóveda · seguridad (contraseña, autobloqueo, clave de recuperación
 
 - Debe parecerse al portfolio del usuario: https://yellowmellow.cc
 - **Primera tarea de diseño (fase 0):** abrir la web, extraer colores, tipografías, radios, espaciados, tono de los textos y elementos característicos, y documentarlos como tokens en `docs/DESIGN.md`. Si la web no se puede leer, pedir capturas al usuario. No construir pantallas antes de que el usuario apruebe esos tokens.
-- Adaptación a una app con mucha densidad de datos: cifras con números tabulares, dos densidades (compacta y cómoda), tema claro y oscuro, contraste accesible. Si el color de marca es claro (p. ej. un amarillo), usarlo como fondo de acento o en superficies con texto oscuro, nunca como color de texto sobre blanco.
+- Adaptación a una app con mucha densidad de datos: cifras con números tabulares, dos densidades (compacta por defecto y cómoda), tema oscuro por defecto y tema claro, contraste accesible.
+- **Temas:** el diseño se define con tokens. Cada tema da un valor a cada token y la app tiene un selector de temas. Más adelante (fase 12) el usuario podrá crear temas propios y editarlos desde la propia app. Si el color de marca es claro (p. ej. un amarillo), usarlo como fondo de acento o en superficies con texto oscuro, nunca como color de texto sobre blanco.
 - Evitar el aspecto genérico de SaaS (todo en tarjetas iguales con sombra gris y degradados). La identidad del portfolio manda.
 - Textos de interfaz en español, en minúscula inicial, con verbos claros en los botones ("Guardar cambios", no "Enviar"). Los estados vacíos indican qué hacer a continuación.
 
@@ -334,7 +335,7 @@ Cada fase termina con algo que funciona, tests y build verificado en Windows y L
 | 9. Negocio | Facturación y cobros, informes PDF, herramientas de compresión de archivos. |
 | 10. Gmail | Hilos por cliente y contacto. |
 | 11. X y LinkedIn | Conectores por API si son gratuitos; si no, importación de CSV con mapeo guardado. |
-| 12. Personalización avanzada | Colecciones personalizadas, plantillas de brief definitivas, widgets de inicio configurables. |
+| 12. Personalización avanzada | Colecciones personalizadas, plantillas de brief definitivas, widgets de inicio configurables, editor de temas (crear y modificar temas desde la app). |
 | 13. Móvil | Se decide el enfoque cuando el escritorio esté completo. |
 
 Hasta la fase 5, el traslado entre ordenadores se hace copiando la carpeta de la bóveda manualmente.

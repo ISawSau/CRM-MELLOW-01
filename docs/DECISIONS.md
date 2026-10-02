@@ -46,9 +46,9 @@ Cambia la SPEC §5 (aprobado por el usuario el 02/10/2026):
 
 160 bits aleatorios en base32 de Crockford: 32 caracteres en 8 grupos de 4 (`XXXX-XXXX-…`). Sin letras ambiguas; al escribirla se aceptan minúsculas, espacios y guiones, y se corrigen I/L→1 y O→0.
 
-### D-007 · Contraseña mínima de 8 caracteres
+### D-007 · Contraseña: solo un mínimo de 8 caracteres
 
-`MIN_PASSWORD_LENGTH = 8` en `src/shared/ipc.ts`. **Pendiente de confirmar con el usuario**, que propuso "2021" como contraseña. Una contraseña de 4 cifras solo tiene 10.000 combinaciones: con el archivo de la bóveda en la mano (USB perdido, copia en Drive), se prueban todas en pocas horas aunque Argon2id tarde 1 s por intento. El cifrado quedaría en la práctica sin efecto.
+`MIN_PASSWORD_LENGTH = 8` en `src/shared/ipc.ts`, sin ninguna otra regla (ni mayúsculas, ni números, ni símbolos): "aaaaaaaaaa" o "11111111" son válidas. Confirmado por el usuario el 02/10/2026, después de explicarle que una contraseña de 4 cifras ("2021") solo tiene 10.000 combinaciones y se podría adivinar en pocas horas con el archivo de la bóveda en la mano. Un test cubre los dos ejemplos.
 
 ### D-008 · `.lock` con latido
 
@@ -116,3 +116,22 @@ Cambia la SPEC §2: el usuario usará Arch, así que el `.deb` se sustituye por 
 ### D-016 · Avisos de `npm audit`
 
 4 avisos moderados en esbuild antiguo dentro de drizzle-kit (servidor de desarrollo de esbuild). drizzle-kit solo se usa en desarrollo para generar el SQL y no arranca ese servidor; no llega a la app. Se revisará al actualizar drizzle-kit.
+
+### D-017 · Sistema de temas
+
+- Un tema es un objeto `{ id, name, scheme, colors }` con un valor para cada token semántico de `docs/DESIGN.md`, validado con zod (los colores solo pueden ser `#rrggbb` o `rgba(...)`). Se aplica escribiendo variables CSS en `<html>` (CSSOM, compatible con la CSP sin `unsafe-inline`).
+- Predefinidos: `oscuro` (por defecto) y `claro`. Un test exige contraste AA en ambos.
+- Pensado para el editor de temas de la fase 12: un tema propio será un objeto más, guardado en la bóveda y validado con el mismo esquema.
+- La apariencia (tema y densidad) se guarda dentro de la bóveda, no en `config.json`, porque CLAUDE.md solo permite guardar fuera la ruta de la bóveda. Antes de desbloquear se usa la apariencia por defecto.
+
+### D-018 · Cifras con Archivo
+
+La versión empaquetada de DM Sans no tiene cifras tabulares (se comprobó con fontTools: no tiene la función `tnum` y los dígitos tienen anchos distintos). Las cifras que deben alinearse usan Archivo, que sí las tiene (`--font-numeric`, clase `.num`).
+
+### D-019 · Paleta Ctrl+K sin el diálogo de Radix
+
+cmdk trae `Command.Dialog`, basado en Radix Dialog, que inyecta una etiqueta `<style>` (react-remove-scroll) que la CSP bloquearía. Se usa `Command` dentro de un modal propio (overlay, Escape y devolución del foco). Los tests de interfaz fallan si aparece cualquier error de consola o violación de la CSP durante el flujo completo.
+
+### D-020 · Navegación sin router
+
+En la fase 0 la sección activa es un estado de React. Las secciones futuras muestran en qué fase llegan. Se añadirá un router cuando el motor de datos (fase 1) necesite rutas con parámetros.

@@ -1,6 +1,6 @@
 # Diseño visual · tokens
 
-Estado: **propuesta pendiente de aprobación**. No se construyen pantallas hasta que se apruebe (SPEC §8).
+Estado: **aprobado por el usuario el 02/10/2026**, con tema oscuro por defecto y densidad compacta por defecto.
 
 Fuente: https://yellowmellow.cc (HTML, `style.css` y `growth.css` leídos el 02/10/2026). No hay capturas en el repositorio; los valores salen directamente de las hojas de estilo de la web.
 
@@ -111,6 +111,8 @@ Las tres familias de la web, todas con licencia SIL Open Font License (gratuitas
 
 Cifras: `font-variant-numeric: tabular-nums` en tablas, totales, KPIs y barra de estado, para que las columnas de números queden alineadas.
 
+**Ajuste tras comprobar las fuentes:** la versión empaquetada de DM Sans no tiene cifras tabulares (la función `tnum` no existe y los dígitos tienen anchos distintos). Las cifras que deben alinearse usan Archivo (`--font-numeric`, clase `.num`), que sí las tiene.
+
 Escala (la web usa 17 px de base; una app densa necesita menos):
 
 | Token | Compacta | Cómoda | Uso |
@@ -167,8 +169,15 @@ En la app (en español de España):
 
 ---
 
-## 8. Pendiente de tu decisión
+## 8. Decisiones del usuario (02/10/2026)
 
-1. ¿Tema oscuro por defecto (como la web) o seguir el tema del sistema?
-2. ¿Densidad por defecto compacta o cómoda?
-3. Colores añadidos (`danger`, `warn` y sus versiones `-deep`): ¿te encajan o prefieres otros tonos?
+1. **Tema oscuro por defecto.** El claro se elige en Ajustes o con Ctrl+K.
+2. **Densidad compacta por defecto** (más filas a la vista en tablas tipo Ads Manager). La cómoda se elige en Ajustes.
+3. Los colores añadidos para error y aviso se aprueban tal cual.
+4. **Temas editables en el futuro:** el usuario quiere poder modificar el diseño desde la propia app y crear temas propios con un selector de temas. Por eso cada tema es un objeto con un valor para cada token semántico (`src/renderer/src/theme/themes.ts`), validado con un esquema, que se aplica como variables CSS. El editor de temas llegará en la fase 12 (SPEC §7.14 y §9).
+
+## 9. Implementación
+
+- Tokens fijos (espaciado, tipografía, densidad): `src/renderer/src/styles/tokens.css`.
+- Colores por tema: `src/renderer/src/theme/themes.ts` (temas `oscuro` y `claro`). Un test comprueba el contraste mínimo de cada tema.
+- La apariencia elegida se guarda dentro de la bóveda. Antes de desbloquear se usa la de por defecto.
