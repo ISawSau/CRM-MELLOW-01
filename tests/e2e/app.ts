@@ -11,8 +11,11 @@ export interface Launched {
 }
 
 /** Arranca la app compilada (out/) con una carpeta de datos temporal. */
-export async function launchApp(extraArgs: string[] = []): Promise<Launched> {
-  const userData = mkdtempSync(join(tmpdir(), 'crm-e2e-'))
+export async function launchApp(
+  extraArgs: string[] = [],
+  existingUserData?: string,
+): Promise<Launched> {
+  const userData = existingUserData ?? mkdtempSync(join(tmpdir(), 'crm-e2e-'))
   const env = Object.fromEntries(
     Object.entries(process.env).filter(
       (e): e is [string, string] => e[1] !== undefined && e[0] !== 'ELECTRON_RENDERER_URL',
@@ -30,7 +33,25 @@ export async function launchApp(extraArgs: string[] = []): Promise<Launched> {
     userData,
     close: async () => {
       await app.close()
-      rmSync(userData, { recursive: true, force: true })
+      if (!existingUserData) rmSync(userData, { recursive: true, force: true })
     },
   }
+}
+
+/** Sustituye el selector nativo de carpetas por uno que devuelve `dir`. */
+export async function stubFolderPicker(app: ElectronApplication, dir: string): Promise<void> {
+  await app.evaluate(({ dialog }, picked) => {
+    dialog.showOpenDialog = (async () => ({ canceled: false, filePaths: [picked] })) as never
+  }, dir)
+}
+
+/** Recoge errores de consola (incluidas las violaciones de la CSP) de la interfaz. */
+export function collectConsoleErrors(page: Page): string[] {
+  const errors: string[] = []
+  page.on('console', (msg) => {
+    if (msg.type() === 'error' || /Content Security Policy/i.test(msg.text()))
+      errors.push(msg.text())
+  })
+  page.on('pageerror', (err) => errors.push(err.message))
+  return errors
 }

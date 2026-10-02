@@ -12,8 +12,7 @@ test.afterAll(async () => {
 })
 
 test('arranca y muestra la interfaz desde app://crm', async () => {
-  await expect(ctx.page.getByTestId('placeholder')).toBeVisible()
-  await expect(ctx.page.getByTestId('vault-state')).toHaveText('Bóveda: none')
+  await expect(ctx.page.getByTestId('welcome-create')).toBeVisible()
   expect(ctx.page.url()).toBe('app://crm/index.html')
   expect(await ctx.page.title()).toBe('CRM Mellow')
 })

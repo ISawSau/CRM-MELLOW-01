@@ -8,7 +8,7 @@ test('la app no se conecta a internet al arrancar', async () => {
   const dir = mkdtempSync(join(tmpdir(), 'crm-netlog-'))
   const netlog = join(dir, 'net.json')
   const ctx = await launchApp([`--log-net-log=${netlog}`])
-  await expect(ctx.page.getByTestId('placeholder')).toBeVisible()
+  await expect(ctx.page.getByTestId('welcome-create')).toBeVisible()
   await ctx.page.waitForTimeout(3000)
   await ctx.close()
 
