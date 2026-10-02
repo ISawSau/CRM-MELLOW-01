@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { useAppInfo } from '../lib/hooks'
+import { BrandEye } from '../ui/BrandEye'
 
 /** Marco común de las pantallas previas al desbloqueo. */
 export function Gate({
@@ -16,7 +17,7 @@ export function Gate({
     <div className="gate">
       <header className="gate-top">
         <span className="brand">
-          <span className="marker" aria-hidden="true" />
+          <BrandEye />
           CRM Mellow
         </span>
         <span>{step}</span>

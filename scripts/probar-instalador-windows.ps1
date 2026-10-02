@@ -6,7 +6,7 @@
 .DESCRIPTION
     1. Instala CRM Mellow en modo silencioso (/S), para el usuario actual.
     2. Comprueba que existen el ejecutable y los accesos directos del escritorio y
-       del menú Inicio.
+       del menú Inicio, y que el editor es yellowmellow.
     3. Abre la app instalada con --autoprueba (crea, bloquea y desbloquea una
        bóveda temporal cifrada).
     4. Desinstala en modo silencioso y comprueba que no queda ni el programa ni
@@ -52,6 +52,20 @@ Wait-Hasta { $null -ne (Find-Exe) } 60 'el ejecutable instalado'
 $exe = (Find-Exe).FullName
 $carpeta = Split-Path -Parent $exe
 Write-Host "ok  instalado en $carpeta"
+
+Write-Paso 'Comprobando el editor (yellowmellow)'
+$entrada = Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*' -ErrorAction SilentlyContinue |
+    Where-Object { $_.PSObject.Properties['DisplayName'] -and $_.DisplayName -like 'CRM Mellow*' } |
+    Select-Object -First 1
+if (-not $entrada) { Stop-ConError 'no aparece en Configuración → Aplicaciones (registro de desinstalación)' }
+$editor = $entrada.PSObject.Properties['Publisher']
+if (-not $editor -or $editor.Value -ne 'yellowmellow') {
+    Stop-ConError "el editor en Aplicaciones es '$($editor.Value)' en lugar de 'yellowmellow'"
+}
+Write-Host "ok  Aplicaciones: $($entrada.DisplayName), editor $($editor.Value)"
+$empresa = (Get-Item $exe).VersionInfo.CompanyName
+if ($empresa -ne 'yellowmellow') { Stop-ConError "el .exe tiene como empresa '$empresa' en lugar de 'yellowmellow'" }
+Write-Host "ok  propiedades del .exe: empresa $empresa"
 
 Write-Paso 'Comprobando accesos directos'
 Wait-Hasta { Test-Path $accesoEscritorio } 30 'el acceso directo del escritorio'

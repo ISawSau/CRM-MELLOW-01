@@ -1,4 +1,5 @@
 import { SECTION_GROUPS, SETTINGS_SECTION, type Section } from './sections'
+import { BrandEye } from '../ui/BrandEye'
 
 function NavItem({
   section,
@@ -43,7 +44,7 @@ export function Sidebar({
     <aside className="sidebar" aria-label="Navegación">
       <div className="sidebar-head">
         <span className="brand">
-          <span className="marker" aria-hidden="true" />
+          <BrandEye />
           <span className="sidebar-brand-text">CRM Mellow</span>
         </span>
         <button
