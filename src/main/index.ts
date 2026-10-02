@@ -4,6 +4,7 @@ import { AutoLock } from './auto-lock'
 import { ConfigStore } from './config'
 import { createHandlers } from './ipc/handlers'
 import { registerIpc } from './ipc/register'
+import { runSelfTest } from './self-test'
 import {
   APP_ORIGIN,
   hardenSession,
@@ -31,8 +32,14 @@ app.enableSandbox()
 registerPrivilegedScheme()
 disableSpellcheckOnEverySession()
 
-// Una sola instancia: abrir la app dos veces enfoca la ventana existente.
-if (!app.requestSingleInstanceLock()) {
+if (process.argv.includes('--autoprueba')) {
+  // Autoprueba de la instalación: sin ventana, sin tocar la configuración.
+  void app.whenReady().then(async () => {
+    const ok = await runSelfTest()
+    app.exit(ok ? 0 : 1)
+  })
+} else if (!app.requestSingleInstanceLock()) {
+  // Una sola instancia: abrir la app dos veces enfoca la ventana existente.
   app.quit()
 } else {
   let mainWindow: BrowserWindow | null = null

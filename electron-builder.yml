@@ -1,0 +1,100 @@
+# Empaquetado (ver docs/DECISIONS.md, D-010 a D-012).
+appId: cc.yellowmellow.crm
+# Sin espacios: una ruta "/opt/CRM Mellow" rompe el sandbox SUID de Chromium en Linux.
+productName: CRM-Mellow
+executableName: crm-mellow
+copyright: Copyright © 2026 Joan Sau
+
+directories:
+  output: release
+  buildResources: build
+
+# Solo lo que la app necesita en tiempo de ejecución.
+files:
+  - out/**
+  - package.json
+  - '!**/*.map'
+  - '!node_modules/better-sqlite3/deps/**'
+  - '!node_modules/better-sqlite3/src/**'
+  - '!node_modules/better-sqlite3/prebuilds/{darwin,linuxmusl}-*'
+  - '!node_modules/better-sqlite3/prebuilds/*-arm64.node'
+  - '!node_modules/hash-wasm/dist/*.umd.min.js.map'
+
+# Sin autoactualización: los instaladores se descargan a mano desde Actions.
+publish: null
+
+asar: true
+# Los binarios nativos no se pueden cargar desde dentro del asar.
+asarUnpack:
+  - '**/*.node'
+
+# better-sqlite3-multiple-ciphers trae binarios N-API precompilados válidos para
+# Node y Electron: no hay que recompilar nada (y así no hace falta compilador).
+npmRebuild: false
+buildDependenciesFromSource: false
+nodeGypRebuild: false
+
+# Interruptores de seguridad grabados en el ejecutable de Electron.
+electronFuses:
+  runAsNode: false
+  enableCookieEncryption: true
+  enableNodeOptionsEnvironmentVariable: false
+  enableNodeCliInspectArguments: false
+  enableEmbeddedAsarIntegrityValidation: true
+  onlyLoadAppFromAsar: true
+  loadBrowserProcessSpecificV8Snapshot: false
+  grantFileProtocolExtraPrivileges: false
+
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+  files:
+    - '!node_modules/better-sqlite3/prebuilds/linux-*'
+  artifactName: CRM-Mellow-${version}-windows-x64-instalador.${ext}
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowElevation: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: CRM Mellow
+  uninstallDisplayName: CRM Mellow
+  # Desinstalar nunca borra datos: la bóveda vive fuera de la carpeta de la app.
+  deleteAppDataOnUninstall: false
+
+linux:
+  target:
+    - target: pacman
+      arch: [x64]
+    - target: AppImage
+      arch: [x64]
+  files:
+    - '!node_modules/better-sqlite3/prebuilds/win32-*'
+  category: Office
+  synopsis: CRM personal de media buying
+  description: CRM personal de media buying, local-first y cifrado.
+  maintainer: Joan Sau <joan@aureva.es>
+  vendor: Joan Sau
+  artifactName: CRM-Mellow-${version}-linux-${arch}.${ext}
+  desktop:
+    entry:
+      Name: CRM Mellow
+      Comment: CRM personal de media buying
+      StartupWMClass: crm-mellow
+
+pacman:
+  # Dependencias de Electron en Arch (paquetes de los repositorios oficiales).
+  depends:
+    - gtk3
+    - nss
+    - alsa-lib
+    - libxss
+    - libxtst
+    - libnotify
+    - xdg-utils
+    - at-spi2-core
+    - util-linux-libs
+    - libsecret

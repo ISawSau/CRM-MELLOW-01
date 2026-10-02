@@ -6,7 +6,7 @@ import { writeFileAtomic } from './fs-utils'
 /**
  * Única información que la app guarda fuera de la bóveda (CLAUDE.md): qué bóveda
  * abrir al arrancar. Vive en la carpeta de datos de la app del sistema
- * (Linux: ~/.config/CRM Mellow, Windows: %APPDATA%\CRM Mellow).
+ * (Linux: ~/.config/CRM-Mellow, Windows: %APPDATA%\CRM-Mellow).
  */
 const configSchema = z.object({
   lastVaultPath: z.string().nullable().default(null),
