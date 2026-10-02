@@ -5,9 +5,7 @@ name: CI
 
 on:
   push:
-    # TEMPORAL: la rama también genera y prueba instaladores para verificar la
-    # prueba del instalador de Windows antes del PR. Se quita antes de fusionar.
-    branches: [main, claude/spec-reorganize-phase-0-dfs32y]
+    branches: [main]
   pull_request:
     branches: [main]
   workflow_dispatch:
