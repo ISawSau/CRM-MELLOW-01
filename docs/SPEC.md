@@ -39,19 +39,20 @@ Principios que guían cualquier decisión:
 | Contenedor de escritorio | Electron + electron-builder | Usa el mismo Chromium en Windows y Linux, así que la app se ve y se comporta igual en ambos. Todo el proyecto en un solo lenguaje. |
 | Instaladores | NSIS (Windows); paquete pacman y AppImage (Linux, el sistema del usuario es Arch) | Formatos estándar, gratuitos. El paquete pacman se instala con `sudo pacman -U`; el AppImage funciona sin instalar. |
 | Interfaz | React + TypeScript + Vite (electron-vite) | Ecosistema enorme y bien documentado. |
-| Tablas | TanStack Table + virtualización | Tablas tipo Ads Manager con miles de filas y columnas configurables. |
+| Tablas | Tabla propia + TanStack Virtual (solo se pintan las filas visibles) | Tablas tipo Ads Manager con miles de filas y columnas configurables. Filtros y orden los hace el motor de datos (D-028). |
 | Estado de datos en la UI | TanStack Query sobre IPC | Caché y recarga sencillas. |
 | Kanban | dnd-kit | Arrastrar y soltar accesible. |
-| Calendario | FullCalendar (núcleo MIT) o componente propio | Vista calendario de tareas y entregas. |
+| Calendario | Componente propio (vista mensual, semana de lunes a domingo) | Vista calendario de tareas y entregas. FullCalendar inyecta estilos que la CSP bloquea (D-029). |
 | Gráficas | Apache ECharts | Rinde bien con muchos datos y permite comparativas. |
 | Base de datos | SQLite con cifrado compatible con SQLCipher (better-sqlite3-multiple-ciphers, instalado con el alias `better-sqlite3`) | Un archivo, rápido, sin servidor, cifrado completo. |
 | ORM y migraciones | Drizzle ORM | Tipado, ligero, migraciones versionadas. |
 | Búsqueda global | SQLite FTS5 | Búsqueda instantánea en todo el CRM sin dependencias externas. |
 | Derivación de clave | Argon2id (hash-wasm; el Node de Electron no lo incluye) | Estándar actual para derivar claves a partir de contraseñas. |
 | Cifrado de archivos | AES-256-GCM por bloques (crypto de Node) | Cifra creatividades y documentos de la bóveda sin cargar archivos enteros en memoria. |
-| Fechas y zonas | date-fns + date-fns-tz, locale es | Formato español y zonas horarias por cliente. |
+| Fechas y zonas | date-fns + @date-fns/tz, locale es | Formato español y zonas horarias por cliente. |
 | Recurrencias | rrule | Tareas recurrentes con reglas estándar. |
-| Fórmulas | Parser de expresiones seguro (p. ej. expr-eval) | Métricas calculadas sin riesgo de ejecutar código. |
+| Fórmulas | Parser propio, sin dependencias, con funciones en español (SI, Y, O, REDONDEAR…) | Métricas calculadas sin riesgo de ejecutar código (D-027). |
+| Texto con formato | Tiptap (ProseMirror), sin estilos inyectados | Notas, briefs y descripciones con formato; enlaces solo https y mailto (D-030). |
 | Imágenes | sharp | Miniaturas y compresión. |
 | Vídeo | ffmpeg y ffprobe empaquetados | Miniaturas, metadatos y compresión de vídeo. |
 | PDF | pdf-lib (unir, dividir), Ghostscript empaquetado (comprimir), printToPDF de Electron (informes) | Cubre generación y compresión de PDF gratis. |
@@ -136,18 +137,22 @@ Es la pieza más importante: todo lo demás se construye encima. Inspirado en No
 
 Entidades de sistema: perfil, cliente, contacto, pipeline y etapa, oportunidad, tarea, brief, creatividad, copy, factura, nota, archivo, cuenta publicitaria, campaña, ad set y anuncio (estas cuatro últimas sincronizadas desde las plataformas).
 
+En la fase 1 el motor se activa con **Notas** (título, contenido con formato, tipo, etiquetas, fecha y fijada), elegida por el usuario para probarlo con algo real. El resto de entidades se activan en su fase (clientes y contactos en la 2, tareas y briefs en la 3…).
+
 Más adelante (fase 12), colecciones personalizadas: el usuario crea sus propias tablas con los campos que quiera.
 
 ### Campos personalizados
 
 - Tabla de definiciones: entidad, clave, etiqueta, tipo, configuración, orden, visible, obligatorio.
 - Tipos: texto, texto largo con formato, número, moneda, porcentaje, fecha, fecha y hora, casilla, selección, selección múltiple (opciones con color, editables), URL, email, teléfono, archivos, relación con otra entidad, valoración, fórmula y resumen (agregado sobre una relación, p. ej. "gasto total de las campañas de este cliente").
-- Los valores se guardan en una columna JSON por registro. Si un campo se usa mucho para filtrar u ordenar, se le crea un índice sobre la expresión JSON.
+- Los valores se guardan en una columna JSON por registro, con el id del campo como clave (así renombrar un campo no toca los datos). Cuando una vista filtra por un campo numérico, de fecha, de selección o casilla, se le crea un índice sobre la expresión JSON.
+- Fórmulas: usan la clave del campo (p. ej. `SI(gasto > 0; valor / gasto; 0)`), argumentos separados por «;» como en Excel en español y decimales con punto. Se detectan los errores de sintaxis, los campos inexistentes y las referencias circulares al guardar.
+- Eliminar un campo es reversible: los valores se conservan y el campo se puede restaurar.
 - Los campos de sistema también se pueden renombrar, ocultar y reordenar.
 
 ### Relaciones
 
-Tabla genérica de vínculos (tipo y id de origen, tipo y id de destino, tipo de relación). Así una tarea puede estar vinculada a un cliente, a una campaña, a una creatividad, a varias cosas a la vez o a nada.
+Tabla genérica de vínculos (campo de relación, id de origen, id de destino, posición). Cada campo de tipo relación indica a qué entidad apunta y si admite uno o varios registros. Así una tarea puede estar vinculada a un cliente, a una campaña, a una creatividad, a varias cosas a la vez o a nada.
 
 ### Vistas
 
@@ -164,7 +169,8 @@ Tabla genérica de vínculos (tipo y id de origen, tipo y id de destino, tipo de
 - Deshacer y rehacer (Ctrl+Z, Ctrl+Mayús+Z) para las acciones recientes.
 - Paleta de comandos (Ctrl+K) y búsqueda global.
 - Historial de cambios por registro.
-- Exportar cualquier vista a CSV. Importar CSV con mapeo de columnas (necesario más adelante para X y LinkedIn).
+- Exportar cualquier vista a CSV (separador «;», coma decimal y BOM, para abrirlo con Excel en español; protegido contra la inyección de fórmulas). Importar CSV con mapeo de columnas llega con X y LinkedIn (fase 11).
+- Ctrl+Z deshace las acciones de la sesión (hasta 100). Mientras se escribe en un campo de texto, Ctrl+Z deshace el texto, como en cualquier programa.
 
 ---
 

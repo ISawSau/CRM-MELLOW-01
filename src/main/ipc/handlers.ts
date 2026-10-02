@@ -5,6 +5,7 @@ import { AppError } from '@shared/errors'
 import type { AutoLock } from '../auto-lock'
 import type { ConfigStore } from '../config'
 import type { VaultService } from '../vault/vault-service'
+import { createDataHandlers } from './data-handlers'
 import type { IpcHandlers } from './register'
 
 const CLIPBOARD_CLEAR_MS = 60_000
@@ -125,5 +126,7 @@ export function createHandlers({ vault, config, autoLock, getWindow }: HandlerDe
         })
       }, CLIPBOARD_CLEAR_MS).unref()
     },
+
+    ...createDataHandlers(vault, getWindow),
   }
 }

@@ -134,7 +134,7 @@ cmdk trae `Command.Dialog`, basado en Radix Dialog, que inyecta una etiqueta `<s
 
 ### D-020 · Navegación sin router
 
-En la fase 0 la sección activa es un estado de React. Las secciones futuras muestran en qué fase llegan. Se añadirá un router cuando el motor de datos (fase 1) necesite rutas con parámetros.
+En la fase 0 la sección activa es un estado de React. Las secciones futuras muestran en qué fase llegan. Se añadirá un router cuando el motor de datos (fase 1) necesite rutas con parámetros. *Fase 1:* no hizo falta; basta con la sección y el registro abierto en el estado (ver D-035).
 
 ### D-021 · `ignore-scripts=true` en `.npmrc`
 
@@ -164,3 +164,73 @@ El usuario no quiere escribir comandos de desarrollo para usar la app. Los insta
 - El aviso de SmartScreen seguirá diciendo «Editor: desconocido»: ese nombre solo aparece con un instalador firmado, y el certificado cuesta dinero (CLAUDE.md: cero costes).
 - La prueba del instalador de Windows comprueba también el editor en el registro de desinstalación y en las propiedades del `.exe`.
 - Se publica como v0.1.1 (versión de corrección dentro de la fase 0).
+
+## Fase 1 · Motor de datos
+
+### D-024 · Una tabla genérica de registros con valores en JSON
+
+- `records` guarda todos los registros de todas las entidades; los valores van en una columna JSON con el **id** del campo como clave. Renombrar un campo o cambiar su clave para fórmulas no toca los datos.
+- `field_defs` define los campos (tipo, configuración, orden, visible, obligatorio, de sistema). `links` guarda las relaciones; `views`, las vistas; `history`, el historial de cada registro.
+- Los campos de sistema (el título y el contenido de una nota) se pueden renombrar y ocultar, pero no borrar.
+- Borrar un campo lo marca como eliminado; sus valores se conservan y se puede restaurar. Ninguna acción de la interfaz destruye datos sin pasar por la papelera.
+- Las dos migraciones nuevas solo crean tablas. Al abrir una bóveda de la v0.1.x, la copia de seguridad automática previa a migrar se hace igualmente (`backups/antes-de-migrar-v1-a-v3`).
+
+### D-025 · Filtros en SQL y en JavaScript, con un test que los compara
+
+- Los filtros sobre campos guardados se traducen a SQL (aprovechan los índices). Los de fórmulas, resúmenes y relaciones se evalúan en JavaScript tras calcular los valores.
+- Las dos implementaciones deben dar exactamente el mismo resultado: un test recorre todos los tipos de campo y operadores sobre datos de ejemplo (tildes, `%` y `_`, negativos, cambio de día en Madrid…) y compara ambos caminos.
+- El orden se hace siempre en JavaScript con `Intl.Collator('es')`: «Ñu» va detrás de «nube», las tildes no cuentan y los vacíos van al final en ambos sentidos.
+- Las comparaciones de texto no distinguen mayúsculas ni tildes («campana» encuentra «Campaña»): en SQL con la función `crm_norm`, registrada en cada conexión.
+
+### D-026 · Búsqueda global con FTS5 sin tildes
+
+- Tabla `search_fts` con `tokenize='unicode61 remove_diacritics 2'`, actualizada en cada escritura. Indexa el título y los campos de texto, texto largo y las etiquetas de las opciones.
+- Cada palabra se busca como prefijo y entre comillas, así lo que escribe el usuario nunca se interpreta como sintaxis de FTS5.
+- Lo que está en la papelera no sale en la búsqueda.
+
+### D-027 · Parser de fórmulas propio
+
+- En lugar de una librería genérica (SPEC mencionaba expr-eval), un parser pequeño propio. Así se garantiza por diseño lo que pide CLAUDE.md: no existe acceso a propiedades (`.` o `[]`), campos y funciones se buscan en `Map` (nombres como `constructor` no existen), las funciones son una lista cerrada y hay límites de longitud, tokens y profundidad.
+- Sintaxis cercana a Excel en español: funciones `SI`, `Y`, `O`, `NO`, `REDONDEAR`, `ABS`, `MIN`, `MAX`, `SUMA`, `PROMEDIO`, `LARGO`, `CONCATENAR`, `MAYUSC`, `MINUSC`, `HOY`, `DIAS`, `ESBLANCO`; argumentos con `;` (o `,`); `&` une textos; `VERDADERO` y `FALSO`.
+- Los decimales se escriben con punto (`1.21`): la coma ya separa argumentos. Se explica en el propio editor de fórmulas.
+- Dividir entre cero da error («#ERROR» en la tabla, con el motivo al pasar el ratón), no infinito.
+
+### D-028 · Tabla propia con TanStack Virtual
+
+- SPEC preveía TanStack Table. Su versión actual (v9) es nueva y su valor está en ordenar, filtrar y agrupar en el cliente, que aquí hace el motor. Lo que queda (columnas, anchos, selección, teclado) es poco código propio.
+- `@tanstack/react-virtual` pinta solo las filas visibles: miles de registros sin perder fluidez.
+- Teclado: flechas para moverse, Intro para editar, Escape para cancelar, Espacio para las casillas. El título y la selección quedan fijos al desplazar en horizontal.
+
+### D-029 · Calendario propio
+
+- FullCalendar añade sus estilos con JavaScript en `<head>`, que la CSP estricta bloquea. La vista mensual propia es poco código y respeta el diseño: semana de lunes a domingo, hoy resaltado, doble clic en un día crea un registro con esa fecha y arrastrar cambia la fecha (en «fecha y hora» se conserva la hora local de Madrid).
+
+### D-030 · Texto con formato con Tiptap
+
+- Tiptap 3 (MIT) con `injectCSS: false`: sus estilos base van en `data.css`, sin `<style>` inyectado. Barra con negrita, cursiva, tachado, títulos, listas, cita, código y enlace.
+- Los enlaces solo pueden ser `https:` o `mailto:`. Se abren con Ctrl+clic en el navegador del sistema (el proceso principal vuelve a comprobar el protocolo).
+- Se guarda el documento JSON y su texto plano (para buscar, exportar y las tarjetas). El proceso principal recalcula el texto plano desde el documento.
+
+### D-031 · Deshacer y rehacer en memoria
+
+- Pila de 100 acciones en el proceso principal: crear, editar, relacionar, duplicar, enviar a la papelera y restaurar. Borrar para siempre no se puede deshacer y lo avisa un diálogo de confirmación.
+- La pila vive mientras la bóveda está desbloqueada; al bloquear se vacía, como en cualquier editor.
+- Ctrl+Z dentro de un campo de texto deshace el texto, no los datos.
+
+### D-032 · Exportar CSV fuera de la bóveda
+
+- CLAUDE.md dice que los datos solo viven en la bóveda. La exportación a CSV (SPEC §6) es la excepción explícita: solo ocurre cuando el usuario pulsa «Exportar CSV» y elige dónde guardarlo en el diálogo del sistema. La app nunca escribe ese archivo por su cuenta.
+- Formato para Excel en español: `;`, coma decimal sin separador de miles, UTF-8 con BOM y saltos CRLF. Los textos que empiezan por `=`, `+`, `-` o `@` se escapan con un apóstrofo para que Excel no los ejecute como fórmula.
+
+### D-033 · Colores de las opciones como tokens del tema
+
+- Las opciones de selección guardan un nombre de color (gris, melocotón, terracota, vino, ámbar, verde, azul, lila), no un valor. Cada tema define el fondo y el texto de cada color, y un test comprueba el contraste AA en todos los temas. Los temas propios de la fase 12 tendrán que definirlos también.
+
+### D-034 · Chromium en español de España
+
+- `--lang=es-ES` al arrancar: los selectores nativos de fecha muestran dd/mm/aaaa y la semana empieza en lunes. Los números se escriben a la española (`1.234,56`) y se leen con `parseNumberEs`.
+
+### D-035 · Navegación y ficha sin router
+
+- La sección activa y el registro abierto son estado de React. La búsqueda de Ctrl+K abre un resultado yendo a su sección con la ficha abierta. Suficiente mientras no haya enlaces profundos entre secciones.
+

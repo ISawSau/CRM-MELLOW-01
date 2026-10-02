@@ -2,10 +2,10 @@ import type { Section } from './sections'
 
 export function Home({
   onOpenPalette,
-  onSettings,
+  onNotes,
 }: {
   onOpenPalette: () => void
-  onSettings: () => void
+  onNotes: () => void
 }) {
   return (
     <div className="page" data-testid="page-inicio">
@@ -17,15 +17,17 @@ export function Home({
       </div>
       <div className="empty">
         <p className="muted">
-          Los cimientos están en marcha: la bóveda está cifrada y se bloquea sola si no la usas. El
-          resumen de gasto, ROAS, alertas y tareas del día llega en la fase 2.
+          La bóveda está cifrada y se bloquea sola si no la usas. Ya puedes trabajar con Notas:
+          tabla, kanban, calendario y galería, con filtros, búsqueda (<kbd>Ctrl K</kbd>) y deshacer
+          (<kbd>Ctrl Z</kbd>). El resumen de gasto, ROAS, alertas y tareas del día llega en la fase
+          2.
         </p>
         <div className="form-actions">
-          <button type="button" className="btn btn-primary" onClick={onOpenPalette}>
-            Abrir la paleta de comandos <kbd>Ctrl K</kbd>
+          <button type="button" className="btn btn-primary" onClick={onNotes}>
+            Ir a Notas →
           </button>
-          <button type="button" className="btn" onClick={onSettings}>
-            Revisar los ajustes →
+          <button type="button" className="btn" onClick={onOpenPalette}>
+            Buscar o ejecutar un comando <kbd>Ctrl K</kbd>
           </button>
         </div>
       </div>

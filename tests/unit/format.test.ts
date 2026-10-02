@@ -5,8 +5,10 @@ import {
   formatDateTime,
   formatNumber,
   formatPercent,
+  parseNumberEs,
   WEEK_STARTS_ON,
 } from '../../src/shared/format'
+import { fromLocalInput, monthGrid, shiftMonth, toLocalInput } from '../../src/shared/data/dates'
 
 // Intl usa espacios especiales (U+00A0, U+202F); se normalizan para comparar.
 const n = (s: string) => s.replace(/[\u00a0\u202f]/g, ' ')
@@ -35,5 +37,48 @@ describe('formato español', () => {
 
   it('la semana empieza en lunes', () => {
     expect(WEEK_STARTS_ON).toBe(1)
+  })
+})
+
+describe('lectura de números y fechas escritos por el usuario', () => {
+  it('entiende números a la española', () => {
+    expect(parseNumberEs('1.234,56')).toBe(1234.56)
+    expect(parseNumberEs('1234,5')).toBe(1234.5)
+    expect(parseNumberEs('-3,5')).toBe(-3.5)
+    expect(parseNumberEs('1.000')).toBe(1000)
+    expect(parseNumberEs('1.000.000')).toBe(1_000_000)
+    expect(parseNumberEs('12.5')).toBe(12.5)
+    expect(parseNumberEs('1 234,56 €')).toBe(1234.56)
+    expect(parseNumberEs('15 %')).toBe(15)
+    expect(parseNumberEs('')).toBeNull()
+    expect(parseNumberEs('abc')).toBeNull()
+    expect(parseNumberEs('1,2,3')).toBeNull()
+    expect(parseNumberEs('1e400')).toBeNull()
+  })
+
+  it('fecha y hora local en Madrid, ida y vuelta (también en el cambio de hora)', () => {
+    expect(fromLocalInput('2026-06-15T10:00', 'Europe/Madrid')).toBe('2026-06-15T08:00:00.000Z')
+    expect(fromLocalInput('2026-01-15T10:00', 'Europe/Madrid')).toBe('2026-01-15T09:00:00.000Z')
+    expect(toLocalInput('2026-06-15T08:00:00.000Z', 'Europe/Madrid')).toBe('2026-06-15T10:00')
+    expect(toLocalInput('2026-10-25T00:30:00.000Z', 'Europe/Madrid')).toBe('2026-10-25T02:30')
+    expect(fromLocalInput('15/06/2026', 'Europe/Madrid')).toBeNull()
+  })
+})
+
+describe('calendario', () => {
+  it('la cuadrícula del mes empieza en lunes y cubre semanas completas', () => {
+    const oct = monthGrid('2026-10') // 1/10/2026 es jueves
+    expect(oct[0]).toBe('2026-09-28')
+    expect(oct).toHaveLength(35)
+    expect(oct.at(-1)).toBe('2026-11-01')
+    const feb = monthGrid('2027-02') // 1/2/2027 es lunes, 28 días
+    expect(feb[0]).toBe('2027-02-01')
+    expect(feb).toHaveLength(28)
+    expect(monthGrid('2026-03')).toHaveLength(42) // 1/3/2026 es domingo
+  })
+
+  it('cambia de mes y de año', () => {
+    expect(shiftMonth('2026-12', 1)).toBe('2027-01')
+    expect(shiftMonth('2026-01', -1)).toBe('2025-12')
   })
 })

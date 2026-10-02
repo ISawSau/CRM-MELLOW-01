@@ -5,6 +5,8 @@ export interface Section {
   letter: string
   phase: number | null
   summary: string
+  /** Si la sección es una entidad del motor de datos, su id. */
+  entity?: string
 }
 
 export interface SectionGroup {
@@ -19,6 +21,7 @@ export const SECTION_GROUPS: SectionGroup[] = [
     title: 'trabajo',
     sections: [
       { id: 'inicio', label: 'Inicio', letter: 'I', phase: null, summary: '' },
+      { id: 'notas', label: 'Notas', letter: 'O', phase: null, summary: '', entity: 'nota' },
       {
         id: 'clientes',
         label: 'Clientes',
@@ -106,7 +109,16 @@ export const SETTINGS_SECTION: Section = {
   summary: '',
 }
 
+export const TRASH_SECTION: Section = {
+  id: 'papelera',
+  label: 'Papelera',
+  letter: '⌫',
+  phase: null,
+  summary: '',
+}
+
 export const ALL_SECTIONS: Section[] = [
   ...SECTION_GROUPS.flatMap((g) => g.sections),
+  TRASH_SECTION,
   SETTINGS_SECTION,
 ]

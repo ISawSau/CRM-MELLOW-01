@@ -239,7 +239,42 @@ describe('rotar la clave maestra', () => {
   })
 })
 
+describe('motor de datos', () => {
+  it('los registros sobreviven a bloquear, rotar la clave y volver a abrir', async () => {
+    const { svc, path } = await newVault()
+    const titulo = svc.data.listFields('nota').find((f) => f.key === 'titulo')!
+    const r = svc.data.create('nota', { [titulo.id]: 'Reunión con el cliente' })
+    await svc.rotateKey(PASSWORD)
+    svc.lock()
+    expect(() => svc.data).toThrowError(expectCode('VAULT_IS_LOCKED'))
+    await svc.unlock(PASSWORD)
+    expect(svc.data.get(r.id).title).toBe('Reunión con el cliente')
+    expect(svc.data.search('reunion').map((h) => h.id)).toEqual([r.id])
+    // Deshacer no sobrevive al bloqueo: es solo de la sesión.
+    expect(svc.data.undoState().canUndo).toBe(false)
+    svc.dispose()
+    const raw = readFileSync(join(path, 'crm.db'))
+    expect(raw.includes(Buffer.from('cliente'))).toBe(false)
+  })
+})
+
 describe('migraciones', () => {
+  it('una bóveda de la v0.1 se actualiza con copia de seguridad y conserva sus ajustes', async () => {
+    const old = service({ migrations: MIGRATIONS.slice(0, 1), data: false })
+    const { path } = await newVault(old)
+    old.setAutoLockMinutes(7)
+    old.dispose()
+
+    const svc = service()
+    svc.open(path)
+    expect((await svc.unlock(PASSWORD)).autoLockMinutes).toBe(7)
+    const backups = readdirSync(join(path, 'backups'))
+    expect(backups.some((d) => d.includes(`antes-de-migrar-v1-a-v${MIGRATIONS.length}`))).toBe(true)
+    expect(svc.data.listFields('nota').length).toBeGreaterThan(0)
+    expect(svc.data.create('nota').title).toBe('Sin título')
+    svc.dispose()
+  })
+
   it('hace copia de seguridad antes de migrar una base de datos con datos', async () => {
     const { svc, path } = await newVault()
     svc.setAutoLockMinutes(3)

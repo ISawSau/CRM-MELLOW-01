@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { themeIdSchema } from '@shared/appearance'
+import { OPTION_COLORS, type OptionColor } from '@shared/data/fields'
 
 /**
  * Temas de la interfaz (docs/DESIGN.md §3).
@@ -36,11 +37,20 @@ export const themeColorsSchema = z.object({
 })
 export type ThemeColors = z.infer<typeof themeColorsSchema>
 
+/** Colores de las etiquetas de opciones (fondo y texto), con contraste AA. */
+const hex = z.string().regex(/^#[0-9a-f]{6}$/i, 'Color no válido')
+const chip = z.object({ bg: hex, text: hex })
+export const themeOptionsSchema = z.object(
+  Object.fromEntries(OPTION_COLORS.map((c) => [c, chip])) as Record<OptionColor, typeof chip>,
+)
+export type ThemeOptions = z.infer<typeof themeOptionsSchema>
+
 export const themeSchema = z.object({
   id: themeIdSchema,
   name: z.string().min(1).max(60),
   scheme: z.enum(['dark', 'light']),
   colors: themeColorsSchema,
+  options: themeOptionsSchema,
 })
 export type Theme = z.infer<typeof themeSchema>
 
@@ -89,6 +99,16 @@ export const BUILT_IN_THEMES: readonly Theme[] = [
       focus: PALETTE.peach,
       shadow: 'rgba(0, 0, 0, 0.35)',
     },
+    options: {
+      gris: { bg: '#2a2422', text: '#d9cec7' },
+      melocoton: { bg: '#3a2619', text: '#f0c3a3' },
+      terracota: { bg: '#3d1f15', text: '#eb9c7d' },
+      vino: { bg: '#3a1614', text: '#f0a39b' },
+      ambar: { bg: '#3a2e12', text: '#ecd08a' },
+      verde: { bg: '#1f2c17', text: '#b9d69a' },
+      azul: { bg: '#16253a', text: '#9fc2ea' },
+      lila: { bg: '#2b1d3a', text: '#cfb2ee' },
+    },
   },
   {
     id: 'claro',
@@ -114,6 +134,16 @@ export const BUILT_IN_THEMES: readonly Theme[] = [
       focus: PALETTE.wine,
       shadow: 'rgba(13, 9, 8, 0.12)',
     },
+    options: {
+      gris: { bg: '#ece4dc', text: '#4a3f39' },
+      melocoton: { bg: '#f7dcc7', text: '#7a3f1c' },
+      terracota: { bg: '#f3d0c2', text: '#85361b' },
+      vino: { bg: '#f0cfcb', text: '#7a2e27' },
+      ambar: { bg: '#f5e5b8', text: '#6b4a0c' },
+      verde: { bg: '#dcebc9', text: '#3b5321' },
+      azul: { bg: '#d3e3f5', text: '#1f4470' },
+      lila: { bg: '#e6daf3', text: '#4f2f78' },
+    },
   },
 ]
 
@@ -127,5 +157,11 @@ const kebab = (k: string) => k.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`)
 
 /** Variables CSS de un tema: { '--bg': '#0d0908', … } */
 export function themeToCssVars(theme: Theme): Record<string, string> {
-  return Object.fromEntries(Object.entries(theme.colors).map(([k, v]) => [`--${kebab(k)}`, v]))
+  return Object.fromEntries([
+    ...Object.entries(theme.colors).map(([k, v]) => [`--${kebab(k)}`, v]),
+    ...Object.entries(theme.options).flatMap(([k, v]) => [
+      [`--opt-${k}-bg`, v.bg],
+      [`--opt-${k}-text`, v.text],
+    ]),
+  ])
 }
