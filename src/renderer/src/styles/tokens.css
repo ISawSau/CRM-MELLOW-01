@@ -1,0 +1,77 @@
+/*
+ * Tokens de diseño (docs/DESIGN.md). Los colores los pone el tema activo desde
+ * theme/themes.ts; aquí van los valores del tema oscuro solo para el primer pintado.
+ */
+:root {
+  --bg: #0d0908;
+  --bg-raised: #17100e;
+  --bg-hover: #211815;
+  --text: #fdf6ee;
+  --text-muted: #cbbeb5;
+  --text-faint: #a8978d;
+  --line: rgba(224, 164, 124, 0.22);
+  --line-strong: rgba(224, 164, 124, 0.45);
+  --accent: #e0a47c;
+  --on-accent: #0d0908;
+  --accent-text: #e0a47c;
+  --index: #bc6b4a;
+  --marker: #bc6b4a;
+  --success: #9fbf7a;
+  --danger: #e8806a;
+  --warning: #e6c06a;
+  --focus: #e0a47c;
+  --shadow: rgba(0, 0, 0, 0.35);
+
+  --font-display: 'Archivo Variable', 'Arial Narrow', Arial, sans-serif;
+  --font-body: 'DM Sans Variable', 'Helvetica Neue', Arial, sans-serif;
+  --font-mono: 'JetBrains Mono Variable', ui-monospace, Consolas, monospace;
+  /* DM Sans no tiene cifras tabulares: las cifras alineadas usan Archivo (DESIGN.md §4). */
+  --font-numeric: 'Archivo Variable', Arial, sans-serif;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+
+  --radius: 0;
+  --radius-round: 50%;
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --dur: 150ms;
+
+  --sidebar-width: 224px;
+  --sidebar-collapsed: 48px;
+  --statusbar-height: 24px;
+}
+
+/* Densidad compacta (por defecto) */
+:root,
+:root[data-density='compacta'] {
+  --text-xs: 11px;
+  --text-sm: 12px;
+  --text-md: 13px;
+  --text-lg: 16px;
+  --text-xl: 22px;
+  --text-kpi: 28px;
+  --row-height: 28px;
+  --control-height: 28px;
+}
+
+:root[data-density='comoda'] {
+  --text-xs: 12px;
+  --text-sm: 13px;
+  --text-md: 14px;
+  --text-lg: 17px;
+  --text-xl: 24px;
+  --text-kpi: 32px;
+  --row-height: 36px;
+  --control-height: 34px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur: 0ms;
+  }
+}

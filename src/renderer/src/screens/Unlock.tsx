@@ -1,0 +1,222 @@
+import { useState, type FormEvent } from 'react'
+import { formatDateTime } from '@shared/format'
+import { MIN_PASSWORD_LENGTH, type VaultStatus } from '@shared/ipc'
+import { call, type IpcCallError } from '../lib/ipc'
+import { useAction } from '../lib/hooks'
+import { Alert } from '../ui/Alert'
+import { PasswordField } from '../ui/PasswordField'
+import { Gate } from './Gate'
+
+/** Datos del lock de otro equipo que devuelve el error VAULT_LOCKED_ELSEWHERE. */
+function lockInfo(error: IpcCallError | null): { hostname: string; since: string } | null {
+  if (error?.code !== 'VAULT_LOCKED_ELSEWHERE') return null
+  const d = error.details ?? {}
+  const hostname = typeof d['hostname'] === 'string' ? d['hostname'] : 'otro equipo'
+  const at = typeof d['heartbeatAt'] === 'string' ? Date.parse(d['heartbeatAt']) : NaN
+  return { hostname, since: Number.isNaN(at) ? '' : formatDateTime(at) }
+}
+
+function LockedElsewhere({
+  error,
+  onForce,
+  onCancel,
+  pending,
+}: {
+  error: IpcCallError
+  onForce: () => void
+  onCancel: () => void
+  pending: boolean
+}) {
+  const info = lockInfo(error)!
+  return (
+    <>
+      <div className="overlay" />
+      <div className="dialog" role="alertdialog" aria-labelledby="locked-title">
+        <h2 id="locked-title">La bóveda parece abierta en otro equipo</h2>
+        <p className="muted">
+          <span className="mono">{info.hostname}</span> la tenía abierta
+          {info.since && <> (última señal: {info.since})</>}. Si la abres aquí a la vez, los cambios
+          de un equipo pueden perderse al sincronizar.
+        </p>
+        <div className="form-actions">
+          <button type="button" className="btn btn-primary" onClick={onForce} disabled={pending}>
+            Abrir igualmente
+          </button>
+          <button type="button" className="btn" onClick={onCancel}>
+            Cancelar
+          </button>
+        </div>
+      </div>
+    </>
+  )
+}
+
+function UnlockForm({ status, onForgot }: { status: VaultStatus; onForgot: () => void }) {
+  const [password, setPassword] = useState('')
+  const unlock = useAction((force: boolean) => call('vault:unlock', { password, force }))
+  const close = useAction(() => call('vault:close'))
+
+  const submit = (e: FormEvent) => {
+    e.preventDefault()
+    if (password) void unlock.run(false)
+  }
+  const elsewhere = lockInfo(unlock.error) !== null
+
+  return (
+    <>
+      <div className="section-head">
+        <span className="eyebrow">
+          <span className="marker" aria-hidden="true" /> bóveda bloqueada
+        </span>
+        <h1 className="title" data-testid="unlock-name">
+          {status.name}
+        </h1>
+        <span className="faint mono">{status.path}</span>
+      </div>
+      <form className="form" onSubmit={submit}>
+        <PasswordField
+          label="Contraseña"
+          value={password}
+          onChange={setPassword}
+          autoFocus
+          large
+          testId="unlock-password"
+        />
+        {unlock.error && !elsewhere && <Alert>{unlock.error.message}</Alert>}
+        <div className="form-actions">
+          <button
+            type="submit"
+            className="btn btn-primary btn-large"
+            disabled={unlock.pending || !password}
+            data-testid="unlock-submit"
+          >
+            {unlock.pending ? 'Desbloqueando…' : 'Desbloquear'}
+          </button>
+          <button type="button" className="btn btn-link" onClick={onForgot}>
+            He olvidado la contraseña
+          </button>
+          <button
+            type="button"
+            className="btn btn-link"
+            onClick={() => void close.run()}
+            data-testid="unlock-other"
+          >
+            Abrir otra bóveda
+          </button>
+        </div>
+      </form>
+      {elsewhere && unlock.error && (
+        <LockedElsewhere
+          error={unlock.error}
+          pending={unlock.pending}
+          onForce={() => void unlock.run(true)}
+          onCancel={unlock.clearError}
+        />
+      )}
+    </>
+  )
+}
+
+function RecoverForm({ onBack }: { onBack: () => void }) {
+  const [key, setKey] = useState('')
+  const [password, setPassword] = useState('')
+  const [confirm, setConfirm] = useState('')
+  const [tried, setTried] = useState(false)
+  const recover = useAction((force: boolean) =>
+    call('vault:recover', { recoveryKey: key, newPassword: password, force }),
+  )
+  const tooShort = password.length < MIN_PASSWORD_LENGTH
+  const mismatch = password !== confirm
+
+  const submit = (e: FormEvent) => {
+    e.preventDefault()
+    setTried(true)
+    if (key && !tooShort && !mismatch) void recover.run(false)
+  }
+  const elsewhere = lockInfo(recover.error) !== null
+
+  return (
+    <>
+      <div className="section-head">
+        <span className="eyebrow">
+          <span className="num">!</span> recuperar acceso
+        </span>
+        <h1 className="title">Nueva contraseña</h1>
+        <p className="muted">
+          Escribe la clave de recuperación que guardaste al crear la bóveda y elige una contraseña
+          nueva.
+        </p>
+      </div>
+      <form className="form" onSubmit={submit} noValidate>
+        <div className="field">
+          <label htmlFor="recovery-input">Clave de recuperación</label>
+          <input
+            id="recovery-input"
+            className="input input-large mono"
+            value={key}
+            onChange={(e) => setKey(e.target.value)}
+            placeholder="XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX"
+            spellCheck={false}
+            autoCapitalize="characters"
+            autoComplete="off"
+            data-testid="recover-key"
+          />
+        </div>
+        <PasswordField
+          label="Contraseña nueva"
+          value={password}
+          onChange={setPassword}
+          autoComplete="new-password"
+          hint={`Como mínimo ${MIN_PASSWORD_LENGTH} caracteres.`}
+          testId="recover-password"
+        />
+        <PasswordField
+          label="Repite la contraseña nueva"
+          value={confirm}
+          onChange={setConfirm}
+          autoComplete="new-password"
+          testId="recover-confirm"
+        />
+        {tried && tooShort && (
+          <Alert>La contraseña debe tener al menos {MIN_PASSWORD_LENGTH} caracteres.</Alert>
+        )}
+        {tried && !tooShort && mismatch && <Alert>Las contraseñas no coinciden.</Alert>}
+        {recover.error && !elsewhere && <Alert>{recover.error.message}</Alert>}
+        <div className="form-actions">
+          <button
+            type="submit"
+            className="btn btn-primary btn-large"
+            disabled={recover.pending}
+            data-testid="recover-submit"
+          >
+            {recover.pending ? 'Comprobando…' : 'Guardar contraseña y desbloquear'}
+          </button>
+          <button type="button" className="btn btn-link" onClick={onBack}>
+            Volver
+          </button>
+        </div>
+      </form>
+      {elsewhere && recover.error && (
+        <LockedElsewhere
+          error={recover.error}
+          pending={recover.pending}
+          onForce={() => void recover.run(true)}
+          onCancel={recover.clearError}
+        />
+      )}
+    </>
+  )
+}
+
+export function Unlock({ status }: { status: VaultStatus }) {
+  const [mode, setMode] = useState<'unlock' | 'recover'>('unlock')
+  return (
+    <Gate step={mode === 'unlock' ? 'desbloquear' : 'recuperar acceso'}>
+      {mode === 'unlock' ? (
+        <UnlockForm status={status} onForgot={() => setMode('recover')} />
+      ) : (
+        <RecoverForm onBack={() => setMode('unlock')} />
+      )}
+    </Gate>
+  )
+}

@@ -28,11 +28,25 @@ La especificación completa está en `docs/SPEC.md`. Léela antes de cualquier t
 ## Entorno de trabajo (Claude Code en la nube)
 
 - Trabajas en una máquina Linux en la nube, sin pantalla. No puedes ver la ventana de la app, así que verifica con tests (Vitest y, si el entorno lo permite, Playwright con Electron en modo sin pantalla). En cada entrega dime los comandos exactos para probarla en mi ordenador con Windows y con Linux, y qué debería ver.
-- En la fase 0 crea un workflow de GitHub Actions que ejecute los tests y genere los instaladores en Windows y Linux reales en cada push a main. Los instaladores se descargan desde la pestaña Actions.
+- En la fase 0 crea un workflow de GitHub Actions que ejecute los tests y genere los instaladores en Windows y Linux reales en cada push a main. Los instaladores se descargan desde la pestaña Actions. Además, al cerrar cada fase se sube la versión en `package.json` (fase 0 → 0.1.0, fase 1 → 0.2.0…) y el CI publica la versión en Releases con los instaladores y las instrucciones (`.github/notas-version.md`).
 - El repositorio nunca contiene datos reales: añade a `.gitignore` cualquier bóveda, base de datos, archivo `.env`, credenciales y carpetas de build. Ningún token ni credencial en el repositorio ni en las variables del entorno de la nube.
 - Si una tarea necesita un dominio bloqueado por la red del entorno, dime cuál para que lo añada en lugar de buscar rodeos.
 - Al terminar una fase, resumen de cambios y pull request hacia main.
 
 ## Comandos
 
-(Rellenar en la fase 0: instalar, desarrollo, tests, build Windows, build Linux.)
+| Qué | Comando |
+|---|---|
+| Instalar todo (Arch) | `bash scripts/instalar-arch.sh` |
+| Instalar todo (Windows) | `powershell -ExecutionPolicy Bypass -File scripts\instalar-windows.ps1` |
+| Instalar solo dependencias | `npm ci` |
+| Desarrollo | `npm run dev` |
+| Lint, tipos, formato | `npm run lint` · `npm run typecheck` · `npx prettier --check .` |
+| Tests unitarios | `npm test` |
+| Tests de interfaz | `npm run test:e2e` (en un Linux sin pantalla: `xvfb-run -a npm run test:e2e`) |
+| Generar migración | `npm run db:generate` (tras cambiar `src/main/db/schema.ts`) |
+| Build Windows | `npm run dist:win` → `release/*.exe` |
+| Build Linux | `npm run dist:linux` → `release/*.pacman` y `release/*.AppImage` (necesita `bsdtar`) |
+| Autoprueba de una instalación | `crm-mellow --autoprueba` |
+
+En la nube los tests de interfaz no se pueden ejecutar como root (Chromium no admite el sandbox como root): hay que usar un usuario normal, nunca `--no-sandbox`.

@@ -1,0 +1,43 @@
+import { mkdtempSync, readdirSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { VaultService } from './vault/vault-service'
+
+/**
+ * Autoprueba de la instalación: `crm-mellow --autoprueba`.
+ *
+ * Crea una bóveda de prueba en la carpeta temporal del sistema (con los parámetros
+ * reales de Argon2id y el módulo nativo de SQLite cifrado), la bloquea, la vuelve a
+ * desbloquear, comprueba que no quedan -wal ni -shm y la borra. No toca la
+ * configuración ni ninguna bóveda real.
+ */
+export async function runSelfTest(log: (line: string) => void = console.log): Promise<boolean> {
+  const parent = mkdtempSync(join(tmpdir(), 'crm-autoprueba-'))
+  const vault = new VaultService()
+  try {
+    const password = 'autoprueba-' + Date.now()
+    const t0 = Date.now()
+    const { status } = await vault.create(parent, 'boveda', password)
+    log(`ok  bóveda creada (${Date.now() - t0} ms)`)
+    vault.setAutoLockMinutes(5)
+    vault.lock()
+    const files = readdirSync(status.path!)
+    if (files.some((f) => f.endsWith('-wal') || f.endsWith('-shm') || f === '.lock')) {
+      throw new Error(`quedan archivos sueltos al bloquear: ${files.join(', ')}`)
+    }
+    log('ok  bloqueada sin -wal, -shm ni .lock')
+    const unlocked = await vault.unlock(password)
+    if (unlocked.autoLockMinutes !== 5) throw new Error('los datos no se han conservado')
+    log('ok  desbloqueada y datos conservados')
+    vault.dispose()
+    log('AUTOPRUEBA CORRECTA')
+    return true
+  } catch (e) {
+    log(`MAL ${e instanceof Error ? e.message : String(e)}`)
+    log('AUTOPRUEBA FALLIDA')
+    return false
+  } finally {
+    vault.dispose()
+    rmSync(parent, { recursive: true, force: true })
+  }
+}
