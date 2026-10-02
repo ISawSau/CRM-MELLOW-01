@@ -30,10 +30,14 @@
   color: var(--text);
 }
 
-.brand .marker {
-  background: var(--accent);
-  width: 8px;
-  height: 8px;
+.brand-eye {
+  display: block;
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border-radius: var(--radius-round);
+  object-fit: cover;
+  user-select: none;
 }
 
 .gate-body {
