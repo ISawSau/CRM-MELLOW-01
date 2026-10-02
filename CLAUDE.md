@@ -35,4 +35,18 @@ La especificación completa está en `docs/SPEC.md`. Léela antes de cualquier t
 
 ## Comandos
 
-(Rellenar en la fase 0: instalar, desarrollo, tests, build Windows, build Linux.)
+| Qué | Comando |
+|---|---|
+| Instalar todo (Arch) | `bash scripts/instalar-arch.sh` |
+| Instalar todo (Windows) | `powershell -ExecutionPolicy Bypass -File scripts\instalar-windows.ps1` |
+| Instalar solo dependencias | `npm ci` |
+| Desarrollo | `npm run dev` |
+| Lint, tipos, formato | `npm run lint` · `npm run typecheck` · `npx prettier --check .` |
+| Tests unitarios | `npm test` |
+| Tests de interfaz | `npm run test:e2e` (en un Linux sin pantalla: `xvfb-run -a npm run test:e2e`) |
+| Generar migración | `npm run db:generate` (tras cambiar `src/main/db/schema.ts`) |
+| Build Windows | `npm run dist:win` → `release/*.exe` |
+| Build Linux | `npm run dist:linux` → `release/*.pacman` y `release/*.AppImage` (necesita `bsdtar`) |
+| Autoprueba de una instalación | `crm-mellow --autoprueba` |
+
+En la nube los tests de interfaz no se pueden ejecutar como root (Chromium no admite el sandbox como root): hay que usar un usuario normal, nunca `--no-sandbox`.
