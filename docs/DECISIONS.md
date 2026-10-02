@@ -156,3 +156,11 @@ El usuario no quiere escribir comandos de desarrollo para usar la app. Los insta
 - Arch: el usuario prefiere el paquete pacman (una línea, `sudo pacman -U`) al AppImage. El AppImage se publica como alternativa sin instalación.
 - **Prueba del instalador de Windows en CI** (`scripts/probar-instalador-windows.ps1`): instala el `.exe` en silencio, comprueba el ejecutable y los accesos directos del escritorio y del menú Inicio, abre la app instalada con `--autoprueba`, desinstala y comprueba que no queda nada.
 - Sin actualización automática: con el repositorio privado, la app necesitaría un token para consultar Releases, y CLAUDE.md prohíbe guardar credenciales fuera de la base de datos cifrada (y tampoco tendría sentido ponerlo en el código). Se puede reconsiderar si el repositorio pasa a público.
+
+### D-023 · Marca: logo y editor «yellowmellow» (v0.1.1)
+
+- Petición del usuario tras instalar la v0.1.0: el editor debe ser **yellowmellow** y el logo, su foto de perfil.
+- `author` en `package.json` es el editor que muestra Windows (Configuración → Aplicaciones y propiedades del `.exe`). El paquete pacman lleva `packager = yellowmellow`.
+- El aviso de SmartScreen seguirá diciendo «Editor: desconocido»: ese nombre solo aparece con un instalador firmado, y el certificado cuesta dinero (CLAUDE.md: cero costes).
+- La prueba del instalador de Windows comprueba también el editor en el registro de desinstalación y en las propiedades del `.exe`.
+- Se publica como v0.1.1 (versión de corrección dentro de la fase 0).

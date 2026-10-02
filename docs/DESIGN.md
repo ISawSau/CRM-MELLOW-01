@@ -176,7 +176,12 @@ En la app (en español de España):
 3. Los colores añadidos para error y aviso se aprueban tal cual.
 4. **Temas editables en el futuro:** el usuario quiere poder modificar el diseño desde la propia app y crear temas propios con un selector de temas. Por eso cada tema es un objeto con un valor para cada token semántico (`src/renderer/src/theme/themes.ts`), validado con un esquema, que se aplica como variables CSS. El editor de temas llegará en la fase 12 (SPEC §7.14 y §9).
 
-## 9. Implementación
+## 9. Logo y editor
+
+- **Logo:** la foto de perfil de yellowmellow (el ojo), la misma del portfolio y de las redes. Es el icono de la app (`build/icon.png`, 512 px) y, en la interfaz, un círculo de 22 px recortado al iris junto al nombre (`src/renderer/src/assets/logo.png`), igual que el `brand-eye` del portfolio.
+- **Editor:** yellowmellow (instalador, Configuración → Aplicaciones de Windows, metadatos del paquete pacman).
+
+## 10. Implementación
 
 - Tokens fijos (espaciado, tipografía, densidad): `src/renderer/src/styles/tokens.css`.
 - Colores por tema: `src/renderer/src/theme/themes.ts` (temas `oscuro` y `claro`). Un test comprueba el contraste mínimo de cada tema.
