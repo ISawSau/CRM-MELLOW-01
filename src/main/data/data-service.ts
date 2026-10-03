@@ -1512,6 +1512,11 @@ export class DataService {
       }>)
         collect(JSON.parse(r.data) as Values)
     }
+    // Miniaturas de las creatividades de Meta (fase 6).
+    for (const r of this.db
+      .prepare('SELECT thumb_file_id AS id FROM ad_creatives WHERE thumb_file_id IS NOT NULL')
+      .iterate() as Iterable<{ id: string }>)
+      used.add(r.id)
     const limit = new Date(this.now().getTime() - 86_400_000).toISOString()
     const stale = (
       this.db.prepare('SELECT id FROM files WHERE created_at < ?').all(limit) as { id: string }[]
