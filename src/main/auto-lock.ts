@@ -14,6 +14,8 @@ export class AutoLock {
   constructor(
     private readonly vault: VaultService,
     private readonly now: () => number = Date.now,
+    /** Cómo bloquear (la app sube antes lo pendiente a la sincronización). */
+    private readonly lock: () => void = () => vault.lock(),
   ) {}
 
   start(): void {
@@ -37,8 +39,8 @@ export class AutoLock {
     const status = this.vault.status()
     if (status.state !== 'unlocked' || status.autoLockMinutes === null) return false
     if (this.now() - this.lastActivity >= status.autoLockMinutes * 60_000) {
-      this.vault.lock()
       this.stop()
+      this.lock()
       return true
     }
     return false

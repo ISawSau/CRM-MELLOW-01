@@ -1925,3 +1925,57 @@ img.ProseMirror-separator {
   color: var(--danger);
   text-decoration: line-through;
 }
+
+/* --- Sincronización y copias --------------------------------------------------- */
+
+.sync-state {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.sync-state .marker-ok {
+  background: var(--success);
+}
+.sync-state .marker-off {
+  background: var(--text-faint);
+}
+.sync-state .marker-warn {
+  background: var(--warning);
+}
+.sync-state .marker-error {
+  background: var(--danger);
+}
+
+.google-form {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--line);
+  background: var(--bg);
+}
+
+.steps {
+  display: grid;
+  gap: var(--space-2);
+  padding-left: 1.4em;
+  list-style: decimal;
+  color: var(--text-muted);
+}
+
+.steps strong {
+  color: var(--text);
+}
+
+.backup-list {
+  border-top: 1px solid var(--line);
+}
+
+.backup-item {
+  display: grid;
+  grid-template-columns: 130px minmax(0, 1fr) 70px 110px auto;
+  gap: var(--space-3);
+  align-items: center;
+  min-height: calc(var(--row-height) + 6px);
+  border-bottom: 1px solid var(--line);
+}

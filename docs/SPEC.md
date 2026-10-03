@@ -110,9 +110,18 @@ Google no ofrece cliente oficial de Google Drive para escritorio en Linux, así 
 - Retención por defecto: las 10 últimas más una por mes. Configurable.
 - Restaurar una copia desde Ajustes, con vista previa de fecha y tamaño.
 
+### Implementación (fase 5)
+
+- **Destinos:** Google Drive (permiso `drive.file`, verificado como no sensible) o una carpeta del equipo (USB, disco de red o carpeta que ya sincroniza otro programa). Se configura en Ajustes → Sincronización y copias.
+- **Al abrir:** como el token de Google vive dentro de la base de datos cifrada, la comprobación se hace justo después de desbloquear (no antes). Si la nube es más nueva y aquí no hay cambios, se descarga y la bóveda se reabre sola; lo de aquí queda como copia en `backups/`.
+- **Al cerrar** (bloqueo manual o por inactividad, y al salir de la app, con un minuto de margen) y **cada 30 minutos** si hay cambios, se sube. Al suspender el equipo no hay tiempo de subir: se sube la próxima vez.
+- Se suben `crm.db`, `vault.json` y los archivos y miniaturas que falten (por su HMAC). `sync.json` (generación, equipo y fecha) se escribe al final y confirma la subida.
+- **Copias:** cada 3 días por defecto, local y en el destino. Retención por defecto: las 10 últimas más la última de cada mes, solo para las automáticas. Las demás (antes de actualizar, de sincronizar, de restaurar…) no se borran solas.
+- **Restaurar:** desde Ajustes, con fecha, motivo, tamaño y dónde está la copia. Si es de una contraseña anterior, la bóveda queda bloqueada para entrar con aquella contraseña. Lo restaurado se sube en la próxima sincronización.
+
 ### Riesgos a verificar
 
-- Las apps de Google en modo "pruebas" pueden tener tokens de actualización que caducan a los pocos días, lo que obligaría a reconectar Drive y Gmail cada semana. **Verificar** la política actual y cómo dejar la app personal en producción sin coste.
+- Las apps de Google en modo "pruebas" pueden tener tokens de actualización que caducan a los pocos días, lo que obligaría a reconectar Drive y Gmail cada semana. **Verificado (fase 5):** en modo de pruebas con usuarios externos el token caduca a los 7 días; publicando la app (en producción) y pidiendo solo permisos no sensibles como `drive.file`, Google no exige verificación y el token no caduca así. Ajustes explica cómo hacerlo paso a paso.
 - Los permisos de Gmail son restringidos: es probable que Google muestre un aviso de "app no verificada" al conectar. Aceptable para uso personal, pero **verificar** límites.
 
 ---

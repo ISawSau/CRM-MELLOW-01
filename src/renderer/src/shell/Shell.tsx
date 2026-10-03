@@ -15,6 +15,7 @@ import { ALL_SECTIONS, SECTION_GROUPS } from './sections'
 import { Settings } from './Settings'
 import { Sidebar } from './Sidebar'
 import { StatusBar } from './StatusBar'
+import { ConflictDialog } from './sync'
 
 export function Shell({ status }: { status: VaultStatus }) {
   return (
@@ -150,7 +151,8 @@ function ShellInner({ status }: { status: VaultStatus }) {
             <Upcoming section={current} onSettings={goSettings} />
           )}
         </main>
-        <StatusBar status={status} onOpenPalette={openPalette} />
+        <StatusBar status={status} onOpenPalette={openPalette} onSettings={goSettings} />
+        <ConflictDialog />
         {paletteOpen && <CommandPalette open onClose={closePalette} actions={actions} />}
       </div>
     </NavContext.Provider>

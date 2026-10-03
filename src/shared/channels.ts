@@ -43,6 +43,17 @@ export const IPC_CHANNELS = [
   'versions:list',
   'versions:create',
   'versions:restore',
+  'sync:status',
+  'sync:pickFolder',
+  'sync:connectDrive',
+  'sync:disconnect',
+  'sync:now',
+  'sync:resolve',
+  'backups:list',
+  'backups:create',
+  'backups:restore',
+  'backups:config',
+  'backups:setConfig',
   'tasks:summary',
   'briefs:templates',
   'briefs:setTemplates',
@@ -64,4 +75,4 @@ export const IPC_CHANNELS = [
   'data:exportCsv',
 ] as const
 
-export const IPC_EVENTS = ['vault:changed', 'data:changed'] as const
+export const IPC_EVENTS = ['vault:changed', 'data:changed', 'sync:changed'] as const

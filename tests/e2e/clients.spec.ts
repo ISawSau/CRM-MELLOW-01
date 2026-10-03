@@ -93,8 +93,14 @@ test('pipeline: mover un cliente de etapa y crear un pipeline nuevo', async () =
   await expect(pausa.getByTestId('kanban-card')).toHaveCount(1)
   await shot('13-pipeline')
 
-  await page.getByTestId('add-view').click()
-  await page.getByRole('button', { name: '+ Pipeline nuevo…' }).click()
+  // Tras arrastrar, los datos se recargan: se reabre el menú si ese refresco lo cerró.
+  const addView = page.getByTestId('add-view')
+  const newPipeline = page.getByRole('button', { name: '+ Pipeline nuevo…' })
+  await expect(async () => {
+    if ((await addView.getAttribute('aria-expanded')) !== 'true') await addView.click()
+    await expect(newPipeline).toBeVisible({ timeout: 1000 })
+  }).toPass()
+  await newPipeline.click()
   await page.getByLabel('Nombre del pipeline').fill('Ventas')
   await page.getByRole('button', { name: 'Crear', exact: true }).click()
   // Se abre la edición de etapas del pipeline nuevo.

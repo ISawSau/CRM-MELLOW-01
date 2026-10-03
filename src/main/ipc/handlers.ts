@@ -5,7 +5,9 @@ import { AppError } from '@shared/errors'
 import type { AutoLock } from '../auto-lock'
 import type { ConfigStore } from '../config'
 import type { VaultService } from '../vault/vault-service'
+import type { SyncService } from '../sync/sync-service'
 import { createDataHandlers } from './data-handlers'
+import { createSyncHandlers } from './sync-handlers'
 import type { IpcHandlers } from './register'
 
 const CLIPBOARD_CLEAR_MS = 60_000
@@ -14,10 +16,28 @@ export interface HandlerDeps {
   vault: VaultService
   config: ConfigStore
   autoLock: AutoLock
+  sync: SyncService
+  /** Sube lo pendiente y bloquea (bloqueo manual y automático). */
+  lockWithSync: () => Promise<void>
   getWindow: () => BrowserWindow | null
 }
 
-export function createHandlers({ vault, config, autoLock, getWindow }: HandlerDeps): IpcHandlers {
+/** La sincronización al desbloquear no debe dejar la pantalla esperando eternamente. */
+const UNLOCK_SYNC_TIMEOUT_MS = 30_000
+
+export function createHandlers({
+  vault,
+  config,
+  autoLock,
+  sync,
+  lockWithSync,
+  getWindow,
+}: HandlerDeps): IpcHandlers {
+  const syncAfterUnlock = () =>
+    Promise.race([
+      sync.afterUnlock(),
+      new Promise<void>((r) => setTimeout(r, UNLOCK_SYNC_TIMEOUT_MS)),
+    ]).catch(() => {})
   /**
    * Rutas que el renderer puede usar: solo las elegidas en el selector nativo y la
    * última bóveda. Así una interfaz comprometida no puede crear ni abrir carpetas
@@ -85,24 +105,27 @@ export function createHandlers({ vault, config, autoLock, getWindow }: HandlerDe
     },
 
     'vault:unlock': async ({ password, force }) => {
-      const status = await vault.unlock(password, force)
+      await vault.unlock(password, force)
       autoLock.start()
-      return status
+      await syncAfterUnlock()
+      return vault.status()
     },
 
     'vault:recover': async ({ recoveryKey, newPassword, force }) => {
-      const status = await vault.recover(recoveryKey, newPassword, force)
+      await vault.recover(recoveryKey, newPassword, force)
       autoLock.start()
-      return status
+      await syncAfterUnlock()
+      return vault.status()
     },
 
-    'vault:lock': () => {
-      autoLock.stop()
-      return vault.lock()
+    'vault:lock': async () => {
+      await lockWithSync()
+      return vault.status()
     },
 
-    'vault:close': () => {
+    'vault:close': async () => {
       autoLock.stop()
+      await sync.beforeClose()
       config.setLastVaultPath(null)
       return vault.close()
     },
@@ -128,5 +151,6 @@ export function createHandlers({ vault, config, autoLock, getWindow }: HandlerDe
     },
 
     ...createDataHandlers(vault, getWindow),
+    ...createSyncHandlers(sync, getWindow),
   }
 }

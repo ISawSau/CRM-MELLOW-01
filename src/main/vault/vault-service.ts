@@ -1,4 +1,12 @@
-import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync } from 'node:fs'
+import {
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  renameSync,
+  rmSync,
+} from 'node:fs'
 import { randomUUID } from 'node:crypto'
 import { basename, join, resolve } from 'node:path'
 import { eq } from 'drizzle-orm'
@@ -119,6 +127,61 @@ export class VaultService {
   get db(): Db {
     if (!this.unlocked) throw new AppError('VAULT_IS_LOCKED')
     return this.unlocked.db
+  }
+
+  /** Conexión SQLite (solo para el proceso principal: copias y sincronización). */
+  get sqlite(): SqliteDb {
+    if (!this.unlocked) throw new AppError('VAULT_IS_LOCKED')
+    return this.unlocked.sqlite
+  }
+
+  /** Id de la bóveda seleccionada (de vault.json). */
+  get vaultId(): string | null {
+    return this.path ? readManifest(this.path).vaultId : null
+  }
+
+  /**
+   * Sustituye crm.db y vault.json por los de `srcDir` (descarga de la sincronización
+   * o una copia de seguridad), con una copia de los actuales antes. Si la clave actual
+   * abre la base de datos nueva, la bóveda se reabre; si no (otra contraseña o clave
+   * rotada en otro equipo), queda bloqueada para entrar con la contraseña de entonces.
+   */
+  async replaceDatabase(srcDir: string, reason: string): Promise<'reopened' | 'locked'> {
+    return this.exclusive(async () => {
+      const u = this.requireUnlocked()
+      const vaultPath = this.requirePath()
+      const incoming = readManifest(srcDir)
+      if (incoming.vaultId !== readManifest(vaultPath).vaultId)
+        throw new AppError('UNKNOWN', undefined, 'Esos datos son de otra bóveda.')
+      this.checkSchema(incoming)
+      let canOpen: boolean
+      const dbKey = deriveSubkey(u.masterKey, DB_KEY_PURPOSE)
+      try {
+        closeDb(openEncryptedDb(join(srcDir, VAULT_FILES.db), dbKey))
+        canOpen = true
+      } catch {
+        canOpen = false
+      } finally {
+        zeroize(dbKey)
+      }
+      backupVault(vaultPath, u.sqlite, reason)
+      const key = canOpen ? Buffer.from(u.masterKey) : null
+      this.lockInternal()
+      for (const f of [VAULT_FILES.db, VAULT_FILES.manifest]) {
+        const tmp = join(vaultPath, `.${f}.entrante`)
+        copyFileSync(join(srcDir, f), tmp)
+        renameSync(tmp, join(vaultPath, f))
+      }
+      for (const extra of ['-wal', '-shm'])
+        rmSync(join(vaultPath, `${VAULT_FILES.db}${extra}`), { force: true })
+      if (key) {
+        await this.finishUnlock(key, true)
+        this.emit()
+        return 'reopened'
+      }
+      this.emit()
+      return 'locked'
+    })
   }
 
   /** Motor de datos de la bóveda desbloqueada (lanza si está bloqueada). */
