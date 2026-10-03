@@ -657,3 +657,19 @@ El usuario no quiere escribir comandos de desarrollo para usar la app. Los insta
   - **Colección:** solo en las colecciones; nombre, singular, género y letra.
 - Ajustes conserva lo general. Las colecciones se siguen creando y borrando en Ajustes → Colecciones.
 - La clave interna de cada campo deja de mostrarse: no le dice nada al usuario.
+
+### D-089 · Temas: importar, exportar, crear con IA, fondo, esquinas e iconos
+
+- **Estructura ampliada.** Los temas guardados antes siguen valiendo, porque todo lo nuevo tiene valor por defecto:
+  - `radius`: esquinas, de 0 a 24 px. Se aplica a botones, campos, tarjetas, ventanas, menús y etiquetas.
+  - `background`: imagen o vídeo con ajuste, velo y desenfoque.
+  - `icons`: icono de cada sección de la barra lateral, de 1 o 2 caracteres. Se valida para que no entren marcas ni caracteres de control.
+  - La fase de diseño puede añadir más tokens (tipografías, sombras…) con el mismo método.
+- **Fondo:**
+  - El archivo se elige con el diálogo del sistema y se guarda cifrado en la bóveda, como los adjuntos. Se ve por `vault://`, ya permitido en la CSP para imágenes y vídeo.
+  - El vídeo va sin sonido y en bucle.
+  - Un velo del color de fondo encima mantiene el texto legible.
+  - La limpieza de archivos huérfanos no borra los fondos de los temas.
+- **Exportar** guarda un JSON (`formato: crm-mellow-tema`) donde elige el usuario. No incluye el id ni el fondo, que es un archivo de esta bóveda.
+- **Importar** acepta ese archivo o el JSON pegado. Admite el objeto del tema solo y el bloque de código con el que suelen responder las IA. Se valida con el mismo esquema y explica qué campo falla.
+- **Crear con IA:** no hay IA dentro de la app, porque costaría dinero (regla de cero costes). La app copia unas instrucciones para cualquier chat de IA: la descripción del usuario, la estructura con el tema actual de ejemplo y las reglas de contraste. El usuario pega la respuesta en Importar.

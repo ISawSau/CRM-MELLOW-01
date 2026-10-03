@@ -9,6 +9,7 @@ import { Welcome } from './screens/Welcome'
 import { Shell } from './shell/Shell'
 import { applyAppearance } from './theme/apply'
 import { BUILT_IN_THEMES, findTheme } from '@shared/themes'
+import { ThemeBackground } from './theme/ThemeBackground'
 
 export function App() {
   const status = useVaultStatus()
@@ -53,7 +54,15 @@ export function App() {
     )
   }
 
-  if (s.state === 'unlocked') return <Shell status={s} />
+  if (s.state === 'unlocked') {
+    const bg = findTheme(appearance.theme, [...BUILT_IN_THEMES, ...(themes ?? [])]).background
+    return (
+      <>
+        {bg && <ThemeBackground key={bg.fileId} bg={bg} />}
+        <Shell status={s} />
+      </>
+    )
+  }
   if (s.state === 'locked') return <Unlock status={s} />
   if (creating) {
     return <CreateVault onCancel={() => setCreating(false)} onCreated={setNewRecoveryKey} />

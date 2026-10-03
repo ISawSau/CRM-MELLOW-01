@@ -11,6 +11,7 @@ import { SyncSettings } from './SyncSettings'
 import { Alert } from '../ui/Alert'
 import { PasswordField } from '../ui/PasswordField'
 import { newThemeFrom, ThemeEditor } from '../theme/ThemeEditor'
+import { ThemeShare } from '../theme/ThemeShare'
 
 const AUTO_LOCK_OPTIONS = [5, 10, 15, 30, 60, 120]
 
@@ -46,7 +47,7 @@ function Appearance({ status }: { status: VaultStatus }) {
   return (
     <Block
       title="Apariencia"
-      desc="Elige un tema o crea el tuyo: parte de uno existente y cambia sus colores. Los cambios se ven al momento y la app avisa si algún texto queda con poco contraste."
+      desc="Elige un tema o crea el tuyo: parte de uno existente y cambia colores, esquinas, fondo (imagen o vídeo) e iconos. Los temas se exportan e importan como archivo, y una IA te puede crear uno."
     >
       <div className="field">
         <label>Tema</label>
@@ -84,6 +85,7 @@ function Appearance({ status }: { status: VaultStatus }) {
             )}
           </div>
         )}
+        {!editing && <ThemeShare current={current} custom={custom} density={appearance.density} />}
       </div>
       {editing && (
         <ThemeEditor

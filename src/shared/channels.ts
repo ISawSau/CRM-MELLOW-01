@@ -19,6 +19,8 @@ export const IPC_CHANNELS = [
   'settings:setAutoLock',
   'settings:setAppearance',
   'settings:setThemes',
+  'settings:exportTheme',
+  'clipboard:writeText',
   'clipboard:writeSecret',
   'data:entities',
   'data:createCollection',

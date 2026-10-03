@@ -1,7 +1,9 @@
 import { app, clipboard, dialog, BrowserWindow } from 'electron'
 import { hostname } from 'node:os'
+import { writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { AppError } from '@shared/errors'
+import { safeFileName } from '@shared/files'
 import type { AutoLock } from '../auto-lock'
 import type { ConfigStore } from '../config'
 import type { VaultService } from '../vault/vault-service'
@@ -174,6 +176,25 @@ export function createHandlers({
 
     'settings:setAppearance': (appearance) => vault.setAppearance(appearance),
     'settings:setThemes': ({ themes }) => vault.setThemes(themes),
+
+    // Exportar un tema es una acción explícita: el archivo va donde elija el usuario.
+    'settings:exportTheme': async ({ name, json }) => {
+      const win = getWindow()
+      const options: Electron.SaveDialogOptions = {
+        title: 'Exportar tema',
+        defaultPath: join(app.getPath('documents'), safeFileName(`${name}.json`)),
+        buttonLabel: 'Exportar',
+        filters: [{ name: 'Tema (JSON)', extensions: ['json'] }],
+      }
+      const result = win
+        ? await dialog.showSaveDialog(win, options)
+        : await dialog.showSaveDialog(options)
+      if (result.canceled || !result.filePath) return false
+      writeFileSync(result.filePath, json, 'utf8')
+      return true
+    },
+
+    'clipboard:writeText': ({ text }) => clipboard.writeText(text),
 
     // La clave de recuperación se copia desde el proceso principal y se borra del
     // portapapeles al minuto si sigue ahí.

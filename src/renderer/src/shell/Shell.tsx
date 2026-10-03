@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { DEFAULT_APPEARANCE, type Density } from '@shared/appearance'
-import { BUILT_IN_THEMES } from '@shared/themes'
+import { BUILT_IN_THEMES, findTheme } from '@shared/themes'
 import type { VaultStatus } from '@shared/ipc'
 import { MetaPage } from '../meta/MetaPage'
 import { AnalysisPage } from '../analysis/AnalysisPage'
@@ -55,6 +55,16 @@ function ShellInner({ status }: { status: VaultStatus }) {
   const appearance = status.appearance ?? DEFAULT_APPEARANCE
   // Secciones fijas más las colecciones del usuario; la referencia sirve a openRecord.
   const sections = useSections()
+  // Iconos de sección del tema (si los define): sustituyen a las letras de la barra lateral.
+  const icons = findTheme(appearance.theme, [...BUILT_IN_THEMES, ...(status.themes ?? [])]).icons
+  const groups = useMemo(
+    () =>
+      sections.groups.map((g) => ({
+        ...g,
+        sections: g.sections.map((s) => (icons[s.id] ? { ...s, letter: icons[s.id]! } : s)),
+      })),
+    [sections.groups, icons],
+  )
   const sectionsRef = useRef(sections.all)
   useEffect(() => {
     sectionsRef.current = sections.all
@@ -139,7 +149,7 @@ function ShellInner({ status }: { status: VaultStatus }) {
     <NavContext.Provider value={nav}>
       <div className="shell" data-collapsed={collapsed} data-testid="shell">
         <Sidebar
-          groups={sections.groups}
+          groups={groups}
           current={section}
           onSelect={navigate}
           collapsed={collapsed}

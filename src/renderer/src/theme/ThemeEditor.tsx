@@ -10,11 +10,14 @@ import {
   themeSchema,
   toHex,
   type Theme,
+  type ThemeBackground as ThemeBg,
   type ThemeColors,
 } from '@shared/themes'
 import { call, IpcCallError } from '../lib/ipc'
 import { Alert } from '../ui/Alert'
+import { SECTION_GROUPS } from '../shell/sections'
 import { applyAppearance } from './apply'
+import { ThemeBackground } from './ThemeBackground'
 
 type ColorKey = keyof ThemeColors
 
@@ -215,6 +218,8 @@ export function ThemeEditor({
 
   return (
     <div className="theme-editor" data-testid="theme-editor">
+      {/* Vista previa del fondo mientras se edita (encima del guardado). */}
+      {draft.background && <ThemeBackground key={draft.background.fileId} bg={draft.background} />}
       <div className="theme-editor-head">
         <div className="field">
           <label htmlFor="theme-name">Nombre del tema</label>
@@ -300,6 +305,52 @@ export function ThemeEditor({
             ))}
           </div>
         </fieldset>
+        <fieldset className="theme-group">
+          <legend>Forma</legend>
+          <label className="theme-range">
+            <span>Esquinas redondeadas</span>
+            <input
+              type="range"
+              min={0}
+              max={24}
+              value={draft.radius}
+              aria-label="Redondeo de esquinas"
+              onChange={(e) => setDraft({ ...draft, radius: Number(e.target.value) })}
+            />
+            <span className="num faint">{draft.radius} px</span>
+          </label>
+        </fieldset>
+        <BackgroundEditor
+          value={draft.background}
+          onChange={(background) => setDraft({ ...draft, background })}
+        />
+        <fieldset className="theme-group theme-group-wide">
+          <legend>Iconos de la barra lateral</legend>
+          <p className="hint">
+            Una o dos letras, una cifra o un emoji por sección. Vacío: la letra de serie.
+          </p>
+          <div className="theme-icons">
+            {SECTION_GROUPS.flatMap((g) => g.sections).map((sec) => (
+              <label key={sec.id} className="theme-icon">
+                <input
+                  className="input"
+                  aria-label={`Icono de ${sec.label}`}
+                  placeholder={sec.letter}
+                  maxLength={8}
+                  value={draft.icons[sec.id] ?? ''}
+                  onChange={(e) => {
+                    const icons = { ...draft.icons }
+                    const v = e.target.value.trim()
+                    if (v && [...v].length <= 2) icons[sec.id] = v
+                    else delete icons[sec.id]
+                    setDraft({ ...draft, icons })
+                  }}
+                />
+                <span>{sec.label}</span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
       </div>
 
       <div className="theme-contrast" data-testid="theme-contrast">
@@ -360,4 +411,96 @@ export function newThemeFrom(base: Theme, existing: Theme[]): Theme {
     id: `propio-${Date.now().toString(36)}`,
     name: `${base.name} (copia${n > 1 ? ` ${n}` : ''})`,
   }
+}
+
+/** Fondo del tema: una imagen o un vídeo que se guarda cifrado en la bóveda. */
+function BackgroundEditor({
+  value,
+  onChange,
+}: {
+  value: ThemeBg | null
+  onChange: (bg: ThemeBg | null) => void
+}) {
+  const [error, setError] = useState<string | null>(null)
+  const pick = async () => {
+    setError(null)
+    try {
+      const [file] = await call('files:pick')
+      if (!file) return
+      const kind = file.mime.startsWith('video/')
+        ? 'video'
+        : file.mime.startsWith('image/')
+          ? 'image'
+          : null
+      if (!kind) return setError('Elige una imagen (JPG, PNG, WebP…) o un vídeo (MP4, WebM).')
+      onChange({
+        fileId: file.id,
+        kind,
+        fit: value?.fit ?? 'cover',
+        dim: value?.dim ?? 0.7,
+        blur: value?.blur ?? 0,
+      })
+    } catch (e) {
+      setError(e instanceof IpcCallError ? e.message : 'No se ha podido añadir el archivo.')
+    }
+  }
+  return (
+    <fieldset className="theme-group">
+      <legend>Fondo</legend>
+      <div className="form-actions">
+        <button type="button" className="btn" onClick={() => void pick()}>
+          {value ? 'Cambiar imagen o vídeo…' : 'Elegir imagen o vídeo…'}
+        </button>
+        {value && (
+          <button type="button" className="btn" onClick={() => onChange(null)}>
+            Quitar fondo
+          </button>
+        )}
+      </div>
+      {value && (
+        <>
+          <label className="theme-range">
+            <span>Velo del color de fondo</span>
+            <input
+              type="range"
+              min={0}
+              max={100}
+              value={Math.round(value.dim * 100)}
+              aria-label="Velo del fondo"
+              onChange={(e) => onChange({ ...value, dim: Number(e.target.value) / 100 })}
+            />
+            <span className="num faint">{Math.round(value.dim * 100)} %</span>
+          </label>
+          <label className="theme-range">
+            <span>Desenfoque</span>
+            <input
+              type="range"
+              min={0}
+              max={30}
+              value={value.blur}
+              aria-label="Desenfoque del fondo"
+              onChange={(e) => onChange({ ...value, blur: Number(e.target.value) })}
+            />
+            <span className="num faint">{value.blur} px</span>
+          </label>
+          <label className="theme-range">
+            <span>Ajuste</span>
+            <select
+              className="input"
+              value={value.fit}
+              onChange={(e) => onChange({ ...value, fit: e.target.value as 'cover' | 'contain' })}
+            >
+              <option value="cover">Cubrir la ventana</option>
+              <option value="contain">Entera</option>
+            </select>
+          </label>
+        </>
+      )}
+      <p className="hint">
+        {value?.kind === 'video' ? 'Vídeo sin sonido y en bucle. ' : ''}Se guarda cifrado en la
+        bóveda. No viaja al exportar el tema.
+      </p>
+      {error && <Alert>{error}</Alert>}
+    </fieldset>
+  )
 }

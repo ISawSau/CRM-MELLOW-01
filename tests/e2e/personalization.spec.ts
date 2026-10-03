@@ -1,8 +1,14 @@
 import { expect, test, type Page } from '@playwright/test'
-import { mkdtempSync, rmSync } from 'node:fs'
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
-import { collectConsoleErrors, createVaultAndEnter, launchApp, type Launched } from './app'
+import { join, resolve } from 'node:path'
+import {
+  collectConsoleErrors,
+  createVaultAndEnter,
+  launchApp,
+  stubSaveDialog,
+  type Launched,
+} from './app'
 
 /** Fase 12: temas propios, Inicio configurable, plantillas de brief y colecciones. */
 
@@ -69,6 +75,65 @@ test('cancelar la edición deshace la vista previa; la paleta lista los temas pr
   await page.keyboard.type('tema marca')
   await page.keyboard.press('Enter')
   await expect.poll(() => cssVar('--accent')).toBe('#f5d000')
+})
+
+test('el tema propio redondea esquinas, cambia iconos y pone una imagen de fondo', async () => {
+  await page.getByRole('button', { name: 'Editar «Marca»' }).click()
+  const ed = page.getByTestId('theme-editor')
+  await ed.getByLabel('Redondeo de esquinas').fill('10')
+  await expect.poll(() => cssVar('--radius')).toBe('10px')
+  await ed.getByLabel('Icono de Inicio').fill('🏠')
+  await ctx.app.evaluate(({ dialog }, file) => {
+    dialog.showOpenDialog = (async () => ({ canceled: false, filePaths: [file] })) as never
+  }, resolve('build/icon.png'))
+  await ed.getByRole('button', { name: 'Elegir imagen o vídeo…' }).click()
+  await expect(ed.getByLabel('Velo del fondo')).toBeVisible()
+  await ed.getByLabel('Velo del fondo').fill('40')
+  await ed.getByRole('button', { name: 'Guardar tema' }).click()
+  await expect(ed).toBeHidden()
+  await expect(page.getByTestId('nav-inicio')).toContainText('🏠')
+  const bg = page.getByTestId('theme-background').locator('img')
+  await expect(bg).toHaveCount(1)
+  await expect.poll(() => bg.evaluate((i: HTMLImageElement) => i.naturalWidth)).toBe(512)
+  await expect.poll(() => page.evaluate(() => document.documentElement.dataset['bg'])).toBe('image')
+  if (shots) await page.screenshot({ path: join(shots, '85-tema-fondo.png') })
+})
+
+test('exportar el tema a un archivo e importarlo (como haría con lo que da una IA)', async () => {
+  const file = join(parent, 'marca.json')
+  await stubSaveDialog(ctx.app, file)
+  await page.getByRole('button', { name: 'Exportar «Marca»' }).click()
+  await expect(page.getByTestId('toast')).toContainText('exportado')
+  const exported = JSON.parse(readFileSync(file, 'utf8')) as {
+    formato: string
+    tema: { name: string; radius: number; background?: unknown }
+  }
+  expect(exported.formato).toBe('crm-mellow-tema')
+  expect(exported.tema.radius).toBe(10)
+  expect(exported.tema.background).toBeUndefined()
+
+  await page.getByTestId('theme-import-open').click()
+  const dlg = page.getByTestId('theme-import')
+  await dlg
+    .getByLabel('JSON del tema')
+    .fill(JSON.stringify({ ...exported, tema: { ...exported.tema, name: 'Importado' } }))
+  await dlg.getByRole('button', { name: 'Importar y aplicar' }).click()
+  await expect(dlg).toBeHidden()
+  await expect(page.getByRole('button', { name: 'Importado', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  )
+  // Un JSON roto se explica sin guardar nada.
+  await page.getByTestId('theme-import-open').click()
+  await dlg.getByLabel('JSON del tema').fill('{"tema": {"colors": {"bg": "rojo"}}}')
+  await dlg.getByRole('button', { name: 'Importar y aplicar' }).click()
+  await expect(dlg.getByRole('alert')).toContainText('El tema no es válido')
+  await dlg.getByRole('button', { name: 'Cancelar' }).click()
+  await page.getByRole('button', { name: 'Marca', exact: true }).click()
+  await expect(page.getByRole('button', { name: 'Marca', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  )
 })
 
 test('borrar el tema en uso vuelve al oscuro', async () => {
