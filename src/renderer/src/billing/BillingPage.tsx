@@ -203,7 +203,8 @@ export function BillingPage({ num, onNavigate }: { num: string; onNavigate: (s: 
                 <span>{o.client}</span>
                 <span className="num">{formatCurrency(o.total, o.currency)}</span>
                 <span className="danger-text num">
-                  venció el {isoToEs(o.vencimiento)} (hace {o.days} {o.days === 1 ? 'día' : 'días'})
+                  venció el {isoToEs(o.vencimiento)} (hace {formatNumber(o.days, 0)}{' '}
+                  {o.days === 1 ? 'día' : 'días'})
                 </span>
               </li>
             ))}
