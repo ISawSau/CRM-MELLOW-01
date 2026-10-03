@@ -106,3 +106,34 @@ export const history = sqliteTable(
   },
   (t) => [index('history_record_idx').on(t.recordId, t.at)],
 )
+
+/**
+ * Archivos de la bóveda (fase 4). El contenido va cifrado en `files/`; aquí solo
+ * los metadatos. El id es un HMAC del contenido (deduplica sin revelar su hash).
+ */
+export const files = sqliteTable('files', {
+  id: text('id').primaryKey(),
+  size: integer('size').notNull(),
+  mime: text('mime').notNull(),
+  width: integer('width'),
+  height: integer('height'),
+  /** Duración en segundos (vídeo y audio). */
+  duration: integer('duration'),
+  hasThumb: integer('has_thumb').notNull().default(0),
+  createdAt: text('created_at').notNull(),
+})
+
+/** Versiones guardadas de un registro (creatividades y copies, fase 4). */
+export const versions = sqliteTable(
+  'versions',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    recordId: text('record_id').notNull(),
+    number: integer('number').notNull(),
+    note: text('note').notNull().default(''),
+    /** Copia de los valores guardados del registro en ese momento. */
+    data: text('data', { mode: 'json' }).notNull(),
+    createdAt: text('created_at').notNull(),
+  },
+  (t) => [uniqueIndex('versions_record_number').on(t.recordId, t.number)],
+)

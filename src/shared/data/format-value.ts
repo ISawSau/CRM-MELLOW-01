@@ -55,7 +55,7 @@ export function formatValue(field: Pick<FieldDef, 'type' | 'config'>, value: unk
     case 'rollup':
       return formatComputed(field, value as ComputedValue)
     case 'files':
-      return ''
+      return (value as { name: string }[]).map((f) => f.name).join(', ')
   }
 }
 

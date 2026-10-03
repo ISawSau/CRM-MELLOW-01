@@ -15,6 +15,7 @@ import {
   registerAppProtocol,
   registerPrivilegedScheme,
 } from './security'
+import { registerVaultProtocol } from './files/vault-protocol'
 import { isVaultFolder } from './vault/vault-file'
 import { VaultService } from './vault/vault-service'
 import { createMainWindow } from './window'
@@ -76,6 +77,17 @@ if (process.argv.includes('--autoprueba')) {
     const ses = session.fromPartition('crm', { cache: false })
     hardenSession(ses, devServerUrl)
     registerAppProtocol(ses, join(__dirname, '../renderer'))
+    registerVaultProtocol(
+      ses,
+      () => {
+        try {
+          return vault.data
+        } catch {
+          return null
+        }
+      },
+      devServerUrl ? new URL(devServerUrl).origin : APP_ORIGIN,
+    )
 
     const config = new ConfigStore(app.getPath('userData'))
     const last = config.get().lastVaultPath

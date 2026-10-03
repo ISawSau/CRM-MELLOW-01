@@ -53,8 +53,8 @@ Principios que guían cualquier decisión:
 | Recurrencias | Cálculo propio sobre fechas de calendario (diaria, semanal en días concretos, mensual, anual, cada N) | Tareas recurrentes; sin dependencia (D-041). |
 | Fórmulas | Parser propio, sin dependencias, con funciones en español (SI, Y, O, REDONDEAR…) | Métricas calculadas sin riesgo de ejecutar código (D-027). |
 | Texto con formato | Tiptap (ProseMirror), sin estilos inyectados | Notas, briefs y descripciones con formato; enlaces solo https y mailto (D-030). |
-| Imágenes | sharp | Miniaturas y compresión. |
-| Vídeo | ffmpeg y ffprobe empaquetados | Miniaturas, metadatos y compresión de vídeo. |
+| Imágenes | Miniaturas con Chromium (canvas) en la fase 4; sharp para comprimir en la fase 9 | Miniaturas sin dependencias nativas (D-046). |
+| Vídeo | Miniaturas y duración con Chromium (fase 4); ffmpeg empaquetado para comprimir (fase 9) | Sin binarios extra hasta que hagan falta. |
 | PDF | pdf-lib (unir, dividir), Ghostscript empaquetado (comprimir), printToPDF de Electron (informes) | Cubre generación y compresión de PDF gratis. |
 | Tipos de cambio | Tasas de referencia del BCE vía un servicio gratuito sin clave (p. ej. Frankfurter). **Verificar** disponibilidad. | Conversión de divisas sin coste. |
 | Tests | Vitest (lógica) + Playwright para Electron (interfaz) | |
@@ -278,6 +278,7 @@ El negocio actual es ecommerce y no usa formularios de leads. Si en el futuro se
 - Rendimiento: métricas agregadas de todos los anuncios vinculados a cada creatividad y ranking por etiqueta (qué ángulos, hooks o formatos rinden mejor).
 - Archivo de referencias (swipe file) opcional: anuncios propios o de la competencia guardados como referencia, con captura o vídeo, enlace a la biblioteca de anuncios, notas y etiquetas. Se distingue del material propio con un filtro.
 - Vista galería con previsualización grande y reproducción de vídeo.
+- *Fase 4:* creatividades con tipo, archivos, copy o guion con formato, estado (Borrador, Aprobada, Activa, Pausada, Quemada), cliente, brief, enlace y las etiquetas de la lista (ángulo, hook, formato, proporción, nivel de consciencia, avatar, oferta y producto; todas editables). Vistas Biblioteca, Todas, Por estado y Swipe file. Versiones manuales («Guardar versión» con nota) con comparación de cambios respecto a la actual y restaurar. Pendiente para fases posteriores: vínculo con anuncios y rendimiento por versión y por etiqueta (fase 7), coincidencia por hash de imagen.
 
 ### 7.9 Facturación y cobros
 

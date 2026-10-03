@@ -5,6 +5,7 @@ import { closeDb, openEncryptedDb, type SqliteDb } from '../../src/main/db/conne
 import { runMigrations } from '../../src/main/db/migrate'
 import { MIGRATIONS } from '../../src/main/db/migrations'
 import { DataService } from '../../src/main/data/data-service'
+import { FileStore } from '../../src/main/files/file-store'
 import { matchesFilter } from '../../src/main/data/query'
 import { briefDocFromTemplate } from '../../src/shared/data/brief-templates'
 import type { FieldDef } from '../../src/shared/data/fields'
@@ -26,7 +27,9 @@ function setup(opts: { now?: () => Date } = {}) {
   runMigrations(db, MIGRATIONS)
   const changes: DataChange[] = []
   let now = NOW
+  const files = new FileStore(randomBytes(32), tempDir())
   const svc = new DataService(db, {
+    files,
     timeZone: 'Europe/Madrid',
     now: opts.now ?? (() => now),
     onChange: (c) => changes.push(c),
@@ -36,6 +39,7 @@ function setup(opts: { now?: () => Date } = {}) {
   return {
     db,
     svc,
+    files,
     changes,
     byKey,
     setNow: (d: Date) => {
@@ -321,6 +325,70 @@ describe('plantillas de brief', () => {
   })
 })
 
+describe('archivos y versiones', () => {
+  it('adjunta archivos cifrados y borra los huérfanos al cabo de un día', () => {
+    const { svc, files, setNow } = setup()
+    const adj = svc.createField('nota', { label: 'Adjuntos', type: 'files' })
+    const img = svc.importBuffer('foto.JPG', Buffer.from('imagen'))
+    expect(img).toMatchObject({ name: 'foto.JPG', size: 6, mime: 'image/jpeg' })
+    const doc = svc.importBuffer('../../secreto/informe.pdf', Buffer.from('pdf'))
+    expect(doc.name).toBe('informe.pdf')
+    const n = svc.create('nota', { [adj.id]: [img, doc] })
+    expect(n.values[adj.id]).toEqual([img, doc])
+    expect(svc.search('informe').map((h) => h.id)).toEqual([n.id])
+    expect(() => svc.update(n.id, { [adj.id]: [{ ...img, id: 'f'.repeat(64) }] })).toThrow(
+      /no está en la bóveda/,
+    )
+    // Filtros de vacío.
+    svc.create('nota')
+    expect(
+      svc.query('nota', { filters: [{ fieldId: adj.id, op: 'not_empty', value: null }] }),
+    ).toHaveLength(1)
+
+    svc.setFileMeta(img.id, { width: 1080, height: 1350, thumb: Buffer.from('mini') })
+    expect(svc.fileInfo(img.id)).toMatchObject({ width: 1080, height: 1350, hasThumb: true })
+    expect(files.read(img.id, 'thumbs').toString()).toBe('mini')
+
+    // Quitar el PDF: sigue un día por si se deshace; luego se borra.
+    svc.update(n.id, { [adj.id]: [img] })
+    expect(svc.gcFiles()).toBe(0)
+    setNow(new Date(NOW.getTime() + 2 * 86_400_000))
+    expect(svc.gcFiles()).toBe(1)
+    expect(files.exists(doc.id)).toBe(false)
+    expect(files.exists(img.id)).toBe(true)
+    // En la papelera sigue en uso; al vaciarla, se borra.
+    svc.trash([n.id])
+    expect(svc.gcFiles()).toBe(0)
+    svc.purge([n.id])
+    expect(files.exists(img.id)).toBe(false)
+  })
+
+  it('guarda versiones, las restaura y deshacer vuelve atrás', () => {
+    const { svc, byKey } = setup()
+    const t = byKey('titulo')
+    const c = byKey('contenido')
+    const doc = (text: string) => ({
+      doc: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text }] }] },
+      text,
+    })
+    const r = svc.create('nota', { [t.id]: 'Hook A', [c.id]: doc('Primer copy') })
+    const v1 = svc.createVersion(r.id, 'Primera')
+    expect(v1).toMatchObject({ number: 1, note: 'Primera' })
+    svc.update(r.id, { [t.id]: 'Hook B', [c.id]: doc('Segundo copy') })
+    svc.createVersion(r.id)
+    expect(svc.listVersions(r.id).map((v) => v.number)).toEqual([2, 1])
+    svc.restoreVersion(v1.id)
+    expect(svc.get(r.id).title).toBe('Hook A')
+    expect((svc.get(r.id).values[c.id] as { text: string }).text).toBe('Primer copy')
+    svc.undo()
+    expect(svc.get(r.id).title).toBe('Hook B')
+    // Las versiones se borran con el registro.
+    svc.trash([r.id])
+    svc.purge([r.id])
+    expect(() => svc.listVersions(r.id)).toThrow()
+  })
+})
+
 describe('registros', () => {
   it('crea, edita y guarda el historial', () => {
     const { svc, byKey, changes } = setup()
@@ -493,10 +561,9 @@ describe('campos', () => {
     expect(svc.get(r.id).values[f.id]).toBe(1500)
   })
 
-  it('no deja borrar campos de sistema ni crear campos de archivos todavía', () => {
+  it('no deja borrar campos de sistema', () => {
     const { svc, byKey } = setup()
     expect(() => svc.deleteField(byKey('titulo').id)).toThrow(/sistema/)
-    expect(() => svc.createField('nota', { label: 'Adjuntos', type: 'files' })).toThrow(/fase 4/)
   })
 
   it('genera claves únicas', () => {

@@ -6,6 +6,7 @@ import { AppError } from '@shared/errors'
 import type { VaultStatus } from '@shared/ipc'
 import { appearanceSchema, DEFAULT_APPEARANCE, type Appearance } from '@shared/appearance'
 import { DataService, type DataServiceOptions } from '../data/data-service'
+import { FileStore, loadOrCreateFilesKey } from '../files/file-store'
 import { backupVault } from '../db/backup'
 import {
   closeDb,
@@ -280,7 +281,13 @@ export class VaultService {
       if (manifest.schemaVersion !== result.to) {
         writeManifest(vaultPath, { ...manifest, schemaVersion: result.to })
       }
-      const data = this.dataOptions === false ? null : new DataService(sqlite, this.dataOptions)
+      let data: DataService | null = null
+      if (this.dataOptions !== false) {
+        const filesKey = loadOrCreateFilesKey(sqlite)
+        const files = new FileStore(filesKey, vaultPath)
+        zeroize(filesKey)
+        data = new DataService(sqlite, { ...this.dataOptions, files })
+      }
       const heartbeat = setInterval(() => {
         if (this.unlocked) this.unlocked.lock = refreshLock(vaultPath, this.unlocked.lock)
       }, HEARTBEAT_MS)

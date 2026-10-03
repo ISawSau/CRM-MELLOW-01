@@ -1,4 +1,6 @@
-import type { FieldDef, RichText } from '@shared/data/fields'
+import type { FieldDef, FileRef, RichText } from '@shared/data/fields'
+import { isPreviewImage, isVideo } from '@shared/files'
+import { FileThumb } from '../files'
 import type { RecordRow } from '@shared/data/records'
 import { FieldValue } from '../FieldValue'
 
@@ -24,6 +26,17 @@ export function snippet(row: RecordRow, fields: FieldDef[], max = 180): string {
   const f = fields.find((x) => x.type === 'longtext' && row.values[x.id])
   const text = f ? (row.values[f.id] as RichText).text : ''
   return text.length > max ? `${text.slice(0, max).trimEnd()}…` : text
+}
+
+/** Portada de la tarjeta: la primera imagen o vídeo adjunto. */
+function Cover({ row, fields }: { row: RecordRow; fields: FieldDef[] }) {
+  for (const f of fields) {
+    if (f.type !== 'files') continue
+    const list = (row.values[f.id] as FileRef[] | undefined) ?? []
+    const media = list.find((x) => isPreviewImage(x.mime) || isVideo(x.mime))
+    if (media) return <FileThumb file={media} className="file-thumb card-cover" />
+  }
+  return null
 }
 
 export function ListView({
@@ -67,6 +80,7 @@ export function GalleryView({
     <div className="gallery" data-testid="gallery">
       {rows.map((r) => (
         <button key={r.id} type="button" className="card" onClick={() => onOpen(r.id)}>
+          <Cover row={r} fields={allFields} />
           <span className="card-title">{r.title}</span>
           <span className="card-snippet muted">{snippet(r, allFields)}</span>
           <CardFields row={r} fields={cardFields} />

@@ -114,7 +114,7 @@ export const ENTITIES: readonly EntityDef[] = [
     singular: 'cliente',
     gender: 'm',
     titleKey: 'nombre',
-    seedVersion: 2,
+    seedVersion: 3,
     fields: [
       { key: 'nombre', label: 'Nombre', type: 'text', system: true, required: true },
       { key: 'descripcion', label: 'Descripción', type: 'longtext', system: true },
@@ -201,6 +201,14 @@ export const ENTITIES: readonly EntityDef[] = [
         inverse: { entity: 'brief', key: 'cliente' },
         since: 2,
       },
+      {
+        key: 'creatividades',
+        label: 'Creatividades',
+        type: 'relation',
+        config: { target: 'creatividad', multiple: true },
+        inverse: { entity: 'creatividad', key: 'cliente' },
+        since: 3,
+      },
     ],
     views: [
       { name: 'Todos', kind: 'table', config: {} },
@@ -245,7 +253,7 @@ export const ENTITIES: readonly EntityDef[] = [
     singular: 'tarea',
     gender: 'f',
     titleKey: 'titulo',
-    seedVersion: 1,
+    seedVersion: 2,
     fields: [
       { key: 'titulo', label: 'Título', type: 'text', system: true, required: true },
       { key: 'descripcion', label: 'Descripción', type: 'longtext', system: true },
@@ -312,6 +320,7 @@ export const ENTITIES: readonly EntityDef[] = [
         config: { target: 'nota', multiple: true },
         visible: false,
       },
+      { key: 'adjuntos', label: 'Adjuntos', type: 'files', since: 2 },
     ],
     views: [
       {
@@ -356,7 +365,7 @@ export const ENTITIES: readonly EntityDef[] = [
     singular: 'brief',
     gender: 'm',
     titleKey: 'titulo',
-    seedVersion: 1,
+    seedVersion: 2,
     fields: [
       { key: 'titulo', label: 'Título', type: 'text', system: true, required: true },
       { key: 'contenido', label: 'Contenido', type: 'longtext', system: true },
@@ -388,6 +397,15 @@ export const ENTITIES: readonly EntityDef[] = [
         config: { target: 'tarea', multiple: true },
         inverse: { entity: 'tarea', key: 'brief' },
       },
+      { key: 'archivos', label: 'Archivos', type: 'files', since: 2 },
+      {
+        key: 'creatividades',
+        label: 'Creatividades',
+        type: 'relation',
+        config: { target: 'creatividad', multiple: true },
+        inverse: { entity: 'creatividad', key: 'brief' },
+        since: 2,
+      },
     ],
     views: [
       { name: 'Todos', kind: 'table', config: {} },
@@ -397,6 +415,162 @@ export const ENTITIES: readonly EntityDef[] = [
         config: { groupBy: 'estado', cardFields: ['cliente', 'entrega'] },
       },
       { name: 'Tarjetas', kind: 'gallery', config: { cardFields: ['estado', 'cliente'] } },
+    ],
+  },
+  {
+    id: 'creatividad',
+    label: 'Creatividades',
+    singular: 'creatividad',
+    gender: 'f',
+    titleKey: 'nombre',
+    seedVersion: 1,
+    fields: [
+      { key: 'nombre', label: 'Nombre', type: 'text', system: true, required: true },
+      { key: 'texto', label: 'Copy o guion', type: 'longtext', system: true },
+      {
+        key: 'tipo',
+        label: 'Tipo',
+        type: 'select',
+        config: {
+          options: [
+            opt('imagen', 'Imagen', 'azul'),
+            opt('video', 'Vídeo', 'lila'),
+            opt('carrusel', 'Carrusel', 'verde'),
+            opt('primary', 'Primary text', 'melocoton'),
+            opt('headline', 'Headline', 'ambar'),
+            opt('descripcion', 'Descripción', 'gris'),
+            opt('hook', 'Hook', 'terracota'),
+            opt('guion', 'Guion', 'vino'),
+            opt('otro', 'Otro', 'gris'),
+          ],
+        },
+      },
+      { key: 'archivos', label: 'Archivos', type: 'files' },
+      {
+        key: 'estado',
+        label: 'Estado',
+        type: 'select',
+        config: {
+          pipeline: true,
+          options: [
+            opt('borrador', 'Borrador', 'gris'),
+            opt('aprobada', 'Aprobada', 'verde'),
+            opt('activa', 'Activa', 'azul'),
+            opt('pausada', 'Pausada', 'ambar'),
+            { ...opt('quemada', 'Quemada', 'vino'), done: true },
+          ],
+        },
+      },
+      {
+        key: 'cliente',
+        label: 'Cliente',
+        type: 'relation',
+        config: { target: 'cliente', multiple: false },
+      },
+      {
+        key: 'angulo',
+        label: 'Ángulo',
+        type: 'multiselect',
+        config: {
+          options: [
+            opt('dolor', 'Dolor', 'terracota'),
+            opt('beneficio', 'Beneficio', 'verde'),
+            opt('prueba-social', 'Prueba social', 'azul'),
+            opt('oferta', 'Oferta', 'ambar'),
+            opt('curiosidad', 'Curiosidad', 'lila'),
+          ],
+        },
+      },
+      {
+        key: 'hook',
+        label: 'Hook',
+        type: 'multiselect',
+        config: {
+          options: [
+            opt('pregunta', 'Pregunta', 'azul'),
+            opt('dato', 'Dato', 'verde'),
+            opt('testimonio', 'Testimonio', 'melocoton'),
+            opt('polemica', 'Polémica', 'terracota'),
+          ],
+        },
+      },
+      {
+        key: 'formato',
+        label: 'Formato',
+        type: 'select',
+        config: {
+          options: [
+            opt('ugc', 'UGC', 'melocoton'),
+            opt('estatico', 'Estático', 'azul'),
+            opt('motion', 'Motion', 'lila'),
+            opt('talking-head', 'Talking head', 'ambar'),
+            opt('demo', 'Demo', 'verde'),
+          ],
+        },
+      },
+      {
+        key: 'proporcion',
+        label: 'Proporción',
+        type: 'select',
+        config: {
+          options: [
+            opt('1-1', '1:1', 'gris'),
+            opt('4-5', '4:5', 'gris'),
+            opt('9-16', '9:16', 'gris'),
+            opt('16-9', '16:9', 'gris'),
+            opt('191-1', '1,91:1', 'gris'),
+          ],
+        },
+      },
+      {
+        key: 'consciencia',
+        label: 'Nivel de consciencia',
+        type: 'select',
+        config: {
+          options: [
+            opt('inconsciente', 'Inconsciente', 'gris'),
+            opt('problema', 'Consciente del problema', 'terracota'),
+            opt('solucion', 'Consciente de la solución', 'ambar'),
+            opt('producto', 'Consciente del producto', 'azul'),
+            opt('muy', 'Muy consciente', 'verde'),
+          ],
+        },
+      },
+      { key: 'avatar', label: 'Avatar', type: 'multiselect', config: { options: [] } },
+      { key: 'oferta', label: 'Oferta', type: 'multiselect', config: { options: [] } },
+      { key: 'producto', label: 'Producto', type: 'multiselect', config: { options: [] } },
+      {
+        key: 'brief',
+        label: 'Brief',
+        type: 'relation',
+        config: { target: 'brief', multiple: false },
+      },
+      { key: 'referencia', label: 'Referencia (swipe file)', type: 'checkbox' },
+      { key: 'enlace', label: 'Enlace (biblioteca de anuncios)', type: 'url' },
+    ],
+    views: [
+      {
+        name: 'Biblioteca',
+        kind: 'gallery',
+        config: {
+          filters: [{ fieldId: 'referencia', op: 'is_false', value: null }],
+          cardFields: ['tipo', 'estado', 'formato'],
+        },
+      },
+      { name: 'Todas', kind: 'table', config: {} },
+      {
+        name: 'Por estado',
+        kind: 'kanban',
+        config: { groupBy: 'estado', cardFields: ['tipo', 'cliente'] },
+      },
+      {
+        name: 'Swipe file',
+        kind: 'gallery',
+        config: {
+          filters: [{ fieldId: 'referencia', op: 'is_true', value: null }],
+          cardFields: ['tipo', 'angulo'],
+        },
+      },
     ],
   },
 ]

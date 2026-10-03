@@ -11,6 +11,8 @@ import { viewColumns } from './columns'
 import { useFields, useRecords, useSaveView, useViews } from './hooks'
 import { FieldDialog } from './FieldsSettings'
 import { RecordPanel } from './RecordPanel'
+import { useTimeZone } from './nav'
+import { todayIn } from '@shared/data/dates'
 import { NameDialog } from '../ui/NameDialog'
 import type { FieldDef } from '@shared/data/fields'
 import { CardFieldsMenu, ColumnsMenu, FieldPicker, FilterMenu, SortMenu } from './ViewToolbar'
@@ -43,6 +45,7 @@ export function DataPage({
   const qc = useQueryClient()
   const toast = useToast()
   const { create, trash } = useRecordActions()
+  const tz = useTimeZone()
   const [viewId, setViewId] = useState<string | null>(null)
   const [editingField, setEditingField] = useState<FieldDef | null>(null)
   const [naming, setNaming] = useState(false)
@@ -78,8 +81,28 @@ export function DataPage({
     [view, saveView, toast],
   )
 
+  /** Valores que impone la vista (crear en «Swipe file» ya marca «Referencia»). */
+  const viewDefaults = (): Record<string, unknown> => {
+    const out: Record<string, unknown> = {}
+    if (!view || view.config.match !== 'all') return out
+    for (const f of view.config.filters) {
+      const field = byId.get(f.fieldId)
+      if (!field) continue
+      if (f.op === 'is_true') out[f.fieldId] = true
+      else if (f.op === 'today' && field.type === 'date') out[f.fieldId] = todayIn(tz)
+      else if (
+        f.op === 'any_of' &&
+        Array.isArray(f.value) &&
+        f.value.length === 1 &&
+        (field.type === 'select' || field.type === 'multiselect')
+      )
+        out[f.fieldId] = field.type === 'select' ? f.value[0] : [f.value[0]]
+    }
+    return out
+  }
+
   const newRecord = async (values: Record<string, unknown> = {}) => {
-    const r = await create(entity, values)
+    const r = await create(entity, { ...viewDefaults(), ...values })
     if (r) onOpenRecord(r.id)
   }
 

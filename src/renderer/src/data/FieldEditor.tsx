@@ -13,6 +13,7 @@ import { norm } from '@shared/data/text'
 import { parseNumberEs } from '@shared/format'
 import { call } from '../lib/ipc'
 import { FieldValue, OptionChip } from './FieldValue'
+import { FilesEditor } from './files'
 import { useNav, useTimeZone } from './nav'
 import { useToast } from '../ui/Toast'
 
@@ -596,6 +597,8 @@ export function FieldEditor(props: EditorProps) {
       return <ChecklistEditor {...props} />
     case 'recurrence':
       return <RecurrenceEditor {...props} />
+    case 'files':
+      return <FilesEditor {...props} />
     default:
       return <FieldValue field={field} value={value} />
   }
