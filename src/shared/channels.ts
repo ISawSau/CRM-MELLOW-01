@@ -94,7 +94,22 @@ export const IPC_CHANNELS = [
   'meta:creativePerf',
   'meta:tagPerf',
   'meta:autoLink',
+  'analysis:query',
+  'analysis:dashboards',
+  'analysis:setDashboards',
+  'analysis:alerts',
+  'analysis:setAlerts',
+  'analysis:alertValues',
+  'analysis:events',
+  'analysis:unseen',
+  'analysis:markSeen',
   'meta:clientAccounts',
 ] as const
 
-export const IPC_EVENTS = ['vault:changed', 'data:changed', 'sync:changed', 'meta:changed'] as const
+export const IPC_EVENTS = [
+  'vault:changed',
+  'data:changed',
+  'sync:changed',
+  'meta:changed',
+  'analysis:changed',
+] as const

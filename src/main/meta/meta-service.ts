@@ -177,6 +177,8 @@ export interface MetaServiceOptions {
   onChange?: (s: MetaStatus) => void
   /** Han llegado datos nuevos (para refrescar la interfaz). */
   onData?: () => void
+  /** Ha terminado una sincronización (para comprobar las alertas). */
+  onSynced?: () => void
   http?: FetchLike
   /** Servidor de la Graph API (solo para pruebas). */
   graphUrl?: string
@@ -752,6 +754,11 @@ export class MetaService {
         this.progress = null
         this.emit()
         this.dataChanged(true)
+        try {
+          this.opts.onSynced?.()
+        } catch {
+          // Las alertas se comprueban de nuevo en la próxima sincronización.
+        }
       }
     }
   }

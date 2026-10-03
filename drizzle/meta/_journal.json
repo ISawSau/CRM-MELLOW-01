@@ -43,6 +43,13 @@
       "when": 1790993700607,
       "tag": "0005_meta_ii",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1791020192154,
+      "tag": "0006_alertas",
+      "breakpoints": true
     }
   ]
 }
