@@ -56,7 +56,7 @@ export const ENTITIES: readonly EntityDef[] = [
     singular: 'nota',
     gender: 'f',
     titleKey: 'titulo',
-    seedVersion: 2,
+    seedVersion: 3,
     fields: [
       { key: 'titulo', label: 'Título', type: 'text', system: true, required: true },
       { key: 'contenido', label: 'Contenido', type: 'longtext', system: true },
@@ -92,6 +92,14 @@ export const ENTITIES: readonly EntityDef[] = [
         config: { target: 'cliente', multiple: false },
         since: 2,
       },
+      {
+        key: 'tareas',
+        label: 'Tareas',
+        type: 'relation',
+        config: { target: 'tarea', multiple: true },
+        inverse: { entity: 'tarea', key: 'notas' },
+        since: 3,
+      },
     ],
     views: [
       { name: 'Todas', kind: 'table', config: {} },
@@ -106,7 +114,7 @@ export const ENTITIES: readonly EntityDef[] = [
     singular: 'cliente',
     gender: 'm',
     titleKey: 'nombre',
-    seedVersion: 1,
+    seedVersion: 2,
     fields: [
       { key: 'nombre', label: 'Nombre', type: 'text', system: true, required: true },
       { key: 'descripcion', label: 'Descripción', type: 'longtext', system: true },
@@ -177,6 +185,22 @@ export const ENTITIES: readonly EntityDef[] = [
         },
       },
       { key: 'zona_horaria', label: 'Zona horaria', type: 'text', visible: false },
+      {
+        key: 'tareas',
+        label: 'Tareas',
+        type: 'relation',
+        config: { target: 'tarea', multiple: true },
+        inverse: { entity: 'tarea', key: 'cliente' },
+        since: 2,
+      },
+      {
+        key: 'briefs',
+        label: 'Briefs',
+        type: 'relation',
+        config: { target: 'brief', multiple: true },
+        inverse: { entity: 'brief', key: 'cliente' },
+        since: 2,
+      },
     ],
     views: [
       { name: 'Todos', kind: 'table', config: {} },
@@ -213,6 +237,166 @@ export const ENTITIES: readonly EntityDef[] = [
         kind: 'gallery',
         config: { cardFields: ['cliente', 'cargo', 'email'] },
       },
+    ],
+  },
+  {
+    id: 'tarea',
+    label: 'Tareas',
+    singular: 'tarea',
+    gender: 'f',
+    titleKey: 'titulo',
+    seedVersion: 1,
+    fields: [
+      { key: 'titulo', label: 'Título', type: 'text', system: true, required: true },
+      { key: 'descripcion', label: 'Descripción', type: 'longtext', system: true },
+      {
+        key: 'estado',
+        label: 'Estado',
+        type: 'select',
+        config: {
+          pipeline: true,
+          options: [
+            opt('pendiente', 'Pendiente', 'gris'),
+            opt('en-curso', 'En curso', 'azul'),
+            opt('revision', 'En revisión', 'ambar'),
+            { ...opt('hecha', 'Hecha', 'verde'), done: true },
+          ],
+        },
+      },
+      { key: 'fecha_limite', label: 'Fecha límite', type: 'date' },
+      {
+        key: 'prioridad',
+        label: 'Prioridad',
+        type: 'select',
+        config: {
+          options: [
+            opt('baja', 'Baja', 'gris'),
+            opt('media', 'Media', 'azul'),
+            opt('alta', 'Alta', 'ambar'),
+            opt('urgente', 'Urgente', 'terracota'),
+          ],
+        },
+      },
+      {
+        key: 'cliente',
+        label: 'Cliente',
+        type: 'relation',
+        config: { target: 'cliente', multiple: false },
+      },
+      { key: 'checklist', label: 'Checklist', type: 'checklist' },
+      {
+        key: 'etiquetas',
+        label: 'Etiquetas',
+        type: 'multiselect',
+        config: {
+          options: [
+            opt('creatividad', 'Creatividad', 'lila'),
+            opt('campana', 'Campaña', 'azul'),
+            opt('informe', 'Informe', 'verde'),
+            opt('admin', 'Administración', 'gris'),
+          ],
+        },
+      },
+      { key: 'estimacion', label: 'Estimación (h)', type: 'number', config: { decimals: 1 } },
+      { key: 'repeticion', label: 'Repetición', type: 'recurrence' },
+      {
+        key: 'brief',
+        label: 'Brief',
+        type: 'relation',
+        config: { target: 'brief', multiple: false },
+      },
+      {
+        key: 'notas',
+        label: 'Notas',
+        type: 'relation',
+        config: { target: 'nota', multiple: true },
+        visible: false,
+      },
+    ],
+    views: [
+      {
+        name: 'Tablero',
+        kind: 'kanban',
+        config: { groupBy: 'estado', cardFields: ['fecha_limite', 'prioridad', 'cliente'] },
+      },
+      {
+        name: 'Hoy',
+        kind: 'list',
+        config: {
+          filters: [
+            { fieldId: 'fecha_limite', op: 'today', value: null },
+            { fieldId: 'estado', op: 'none_of', value: ['hecha'] },
+          ],
+          cardFields: ['prioridad', 'cliente', 'checklist'],
+        },
+      },
+      {
+        name: 'Atrasadas',
+        kind: 'list',
+        config: {
+          filters: [
+            { fieldId: 'fecha_limite', op: 'before_today', value: null },
+            { fieldId: 'estado', op: 'none_of', value: ['hecha'] },
+          ],
+          sorts: [{ fieldId: 'fecha_limite', dir: 'asc' }],
+          cardFields: ['fecha_limite', 'prioridad', 'cliente'],
+        },
+      },
+      {
+        name: 'Todas',
+        kind: 'table',
+        config: { sorts: [{ fieldId: 'fecha_limite', dir: 'asc' }] },
+      },
+      { name: 'Calendario', kind: 'calendar', config: { dateField: 'fecha_limite' } },
+    ],
+  },
+  {
+    id: 'brief',
+    label: 'Briefs',
+    singular: 'brief',
+    gender: 'm',
+    titleKey: 'titulo',
+    seedVersion: 1,
+    fields: [
+      { key: 'titulo', label: 'Título', type: 'text', system: true, required: true },
+      { key: 'contenido', label: 'Contenido', type: 'longtext', system: true },
+      {
+        key: 'estado',
+        label: 'Estado',
+        type: 'select',
+        config: {
+          pipeline: true,
+          options: [
+            opt('borrador', 'Borrador', 'gris'),
+            opt('revision', 'En revisión', 'ambar'),
+            { ...opt('aprobado', 'Aprobado', 'verde'), done: true },
+            { ...opt('archivado', 'Archivado', 'vino'), done: true },
+          ],
+        },
+      },
+      {
+        key: 'cliente',
+        label: 'Cliente',
+        type: 'relation',
+        config: { target: 'cliente', multiple: false },
+      },
+      { key: 'entrega', label: 'Entrega', type: 'date' },
+      {
+        key: 'tareas',
+        label: 'Tareas',
+        type: 'relation',
+        config: { target: 'tarea', multiple: true },
+        inverse: { entity: 'tarea', key: 'brief' },
+      },
+    ],
+    views: [
+      { name: 'Todos', kind: 'table', config: {} },
+      {
+        name: 'Por estado',
+        kind: 'kanban',
+        config: { groupBy: 'estado', cardFields: ['cliente', 'entrega'] },
+      },
+      { name: 'Tarjetas', kind: 'gallery', config: { cardFields: ['estado', 'cliente'] } },
     ],
   },
 ]

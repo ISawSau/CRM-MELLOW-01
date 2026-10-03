@@ -318,6 +318,7 @@ export class VaultService {
     if (!u) return
     this.unlocked = null
     clearInterval(u.heartbeat)
+    u.data?.dispose()
     try {
       closeDb(u.sqlite)
     } finally {

@@ -535,3 +535,30 @@ kbd {
   clip: rect(0 0 0 0);
   white-space: nowrap;
 }
+
+.nav-badge {
+  margin-left: auto;
+  min-width: 18px;
+  padding: 0 var(--space-1);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+  background: var(--bg-hover);
+  color: var(--text-muted);
+  border: 1px solid var(--line);
+}
+
+.nav-badge[data-urgent='true'] {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: var(--bg);
+}
+
+.shell[data-collapsed='true'] .nav-badge {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  min-width: 14px;
+  line-height: 12px;
+}

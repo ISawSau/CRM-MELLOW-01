@@ -1324,7 +1324,7 @@ img.ProseMirror-separator {
 
 .option-row {
   display: grid;
-  grid-template-columns: 110px 1fr 120px 28px 28px 28px;
+  grid-template-columns: 110px 1fr 110px auto 28px 28px 28px;
   gap: var(--space-2);
   align-items: center;
 }
@@ -1565,4 +1565,148 @@ img.ProseMirror-separator {
 }
 .bar-fill[data-color='lila'] {
   background: var(--opt-lila-text);
+}
+
+/* --- Checklist y repetición ------------------------------------------------- */
+
+.checklist-progress {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 80px;
+}
+
+.checklist-progress .bar {
+  width: 48px;
+  height: 6px;
+}
+
+.recurrence {
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.checklist-edit {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.checklist-item {
+  display: grid;
+  grid-template-columns: 20px 1fr 28px;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.checklist-item[data-done='true'] .input-bare {
+  color: var(--text-faint);
+  text-decoration: line-through;
+}
+
+.input-bare {
+  border-color: transparent;
+  background: transparent;
+}
+
+.input-bare:hover,
+.input-bare:focus-visible {
+  border-color: var(--line);
+}
+
+.recurrence-edit {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.recurrence-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.recurrence-row .input {
+  width: auto;
+}
+
+.recurrence-n {
+  width: 64px !important;
+}
+
+.weekday-toggles {
+  display: inline-flex;
+  border: 1px solid var(--line);
+  justify-self: start;
+}
+
+.weekday-toggles button {
+  width: 32px;
+  height: var(--control-height);
+  border: 0;
+  background: none;
+  color: var(--text-muted);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.weekday-toggles button + button {
+  border-left: 1px solid var(--line);
+}
+
+.weekday-toggles button[aria-pressed='true'] {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+/* --- Plantillas de brief ------------------------------------------------------- */
+
+.template-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  border-bottom: 1px solid var(--line);
+}
+
+.template-tabs button[role='tab'] {
+  position: relative;
+  min-height: var(--control-height);
+  padding: 0 var(--space-2);
+  border: 0;
+  background: none;
+  color: var(--text-muted);
+  font: inherit;
+  cursor: pointer;
+}
+
+.template-tabs button[aria-selected='true'] {
+  color: var(--text);
+}
+
+.template-tabs button[aria-selected='true']::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 2px;
+  background: var(--accent);
+}
+
+.template-sections {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.template-section {
+  display: grid;
+  grid-template-columns: minmax(120px, 1fr) 160px auto;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.template-hint {
+  grid-column: 1 / 3;
 }

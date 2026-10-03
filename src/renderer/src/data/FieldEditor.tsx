@@ -1,6 +1,13 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import { fromLocalInput, toLocalInput } from '@shared/data/dates'
-import { parseFieldConfig, type FieldDef } from '@shared/data/fields'
+import { parseFieldConfig, type ChecklistItem, type FieldDef } from '@shared/data/fields'
+import {
+  RECURRENCE_FREQS,
+  recurrenceSchema,
+  WEEKDAY_SHORT,
+  type Recurrence,
+  type RecurrenceFreq,
+} from '@shared/data/recurrence'
 import type { LinkRef } from '@shared/data/records'
 import { norm } from '@shared/data/text'
 import { parseNumberEs } from '@shared/format'
@@ -269,6 +276,203 @@ function RelationEditor({ field, value, onCommit }: EditorProps) {
   )
 }
 
+function newItemId(): string {
+  return Math.random().toString(36).slice(2, 10)
+}
+
+function ChecklistEditor({ field, value, onCommit }: EditorProps) {
+  const items = (value as ChecklistItem[] | undefined) ?? []
+  const [text, setText] = useState('')
+  const save = (next: ChecklistItem[]) => onCommit(next.length ? next : null)
+  const add = () => {
+    const t = text.trim()
+    if (!t) return
+    save([...items, { id: newItemId(), text: t, done: false }])
+    setText('')
+  }
+  return (
+    <div className="checklist-edit" role="group" aria-label={field.label}>
+      {items.map((it, i) => (
+        <div key={it.id} className="checklist-item" data-done={it.done}>
+          <input
+            type="checkbox"
+            className="checkbox"
+            checked={it.done}
+            aria-label={`Hecho: ${it.text}`}
+            onChange={() => save(items.map((x, j) => (j === i ? { ...x, done: !x.done } : x)))}
+          />
+          <ItemText
+            value={it.text}
+            onCommit={(t) =>
+              save(
+                t.trim()
+                  ? items.map((x, j) => (j === i ? { ...x, text: t.trim() } : x))
+                  : items.filter((_, j) => j !== i),
+              )
+            }
+          />
+          <button
+            type="button"
+            className="icon-btn"
+            aria-label={`Quitar ${it.text}`}
+            onClick={() => save(items.filter((_, j) => j !== i))}
+          >
+            ×
+          </button>
+        </div>
+      ))}
+      <input
+        className="input"
+        placeholder="Añadir elemento y pulsar Intro"
+        aria-label={`Añadir a ${field.label}`}
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault()
+            add()
+          }
+        }}
+      />
+    </div>
+  )
+}
+
+function ItemText({ value, onCommit }: { value: string; onCommit: (t: string) => void }) {
+  const [draft, setDraft] = useState(value)
+  const [prev, setPrev] = useState(value)
+  if (prev !== value) {
+    setPrev(value)
+    setDraft(value)
+  }
+  return (
+    <input
+      className="input input-bare"
+      value={draft}
+      maxLength={500}
+      aria-label="Texto del elemento"
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={() => draft !== value && onCommit(draft)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') e.currentTarget.blur()
+      }}
+    />
+  )
+}
+
+const FREQ_LABELS: Record<RecurrenceFreq, [string, string]> = {
+  daily: ['día', 'días'],
+  weekly: ['semana', 'semanas'],
+  monthly: ['mes', 'meses'],
+  yearly: ['año', 'años'],
+}
+
+function RecurrenceEditor({ field, value, onCommit }: EditorProps) {
+  const parsed = recurrenceSchema.safeParse(value)
+  const r = parsed.success ? parsed.data : null
+  const set = (patch: Partial<Recurrence>) =>
+    onCommit(recurrenceSchema.parse({ ...(r ?? { freq: 'weekly' }), ...patch }))
+  if (!r)
+    return (
+      <div className="recurrence-edit">
+        <select
+          className="input"
+          aria-label={field.label}
+          value=""
+          onChange={(e) => e.target.value && set({ freq: e.target.value as RecurrenceFreq })}
+        >
+          <option value="">No se repite</option>
+          <option value="daily">Cada día</option>
+          <option value="weekly">Cada semana</option>
+          <option value="monthly">Cada mes</option>
+          <option value="yearly">Cada año</option>
+        </select>
+      </div>
+    )
+  return (
+    <div className="recurrence-edit" role="group" aria-label={field.label}>
+      <div className="recurrence-row">
+        <span className="faint">Cada</span>
+        <input
+          className="input num recurrence-n"
+          type="number"
+          min={1}
+          max={365}
+          aria-label="Cada cuántos"
+          value={r.interval}
+          onChange={(e) => {
+            const n = Math.round(Number(e.target.value))
+            if (n >= 1 && n <= 365) set({ interval: n })
+          }}
+        />
+        <select
+          className="input"
+          aria-label="Periodo"
+          value={r.freq}
+          onChange={(e) => set({ freq: e.target.value as RecurrenceFreq })}
+        >
+          {RECURRENCE_FREQS.map((f) => (
+            <option key={f} value={f}>
+              {FREQ_LABELS[f][r.interval === 1 ? 0 : 1]}
+            </option>
+          ))}
+        </select>
+        <button type="button" className="btn-link" onClick={() => onCommit(null)}>
+          No repetir
+        </button>
+      </div>
+      {r.freq === 'weekly' && (
+        <div className="weekday-toggles" role="group" aria-label="Días de la semana">
+          {WEEKDAY_SHORT.map((d, i) => (
+            <button
+              key={d}
+              type="button"
+              aria-pressed={r.weekdays.includes(i)}
+              onClick={() =>
+                set({
+                  weekdays: r.weekdays.includes(i)
+                    ? r.weekdays.filter((x) => x !== i)
+                    : [...r.weekdays, i].sort(),
+                })
+              }
+            >
+              {d}
+            </button>
+          ))}
+        </div>
+      )}
+      {r.freq === 'monthly' && (
+        <div className="recurrence-row">
+          <span className="faint">El día</span>
+          <input
+            className="input num recurrence-n"
+            type="number"
+            min={1}
+            max={31}
+            aria-label="Día del mes"
+            placeholder="—"
+            value={r.monthDay ?? ''}
+            onChange={(e) => {
+              const n = Math.round(Number(e.target.value))
+              set({ monthDay: e.target.value === '' ? null : n >= 1 && n <= 31 ? n : r.monthDay })
+            }}
+          />
+          <span className="faint">(vacío: el de la fecha límite)</span>
+        </div>
+      )}
+      <select
+        className="input"
+        aria-label="Cuándo se crea la siguiente"
+        value={r.mode}
+        onChange={(e) => set({ mode: e.target.value as Recurrence['mode'] })}
+      >
+        <option value="completion">La siguiente se crea al completarla</option>
+        <option value="schedule">La siguiente sigue el calendario</option>
+      </select>
+    </div>
+  )
+}
+
 export function FieldEditor(props: EditorProps) {
   const { field, value, onCommit, autoFocus, onDone, id } = props
   const tz = useTimeZone()
@@ -388,6 +592,10 @@ export function FieldEditor(props: EditorProps) {
     }
     case 'relation':
       return <RelationEditor {...props} />
+    case 'checklist':
+      return <ChecklistEditor {...props} />
+    case 'recurrence':
+      return <RecurrenceEditor {...props} />
     default:
       return <FieldValue field={field} value={value} />
   }
@@ -395,5 +603,13 @@ export function FieldEditor(props: EditorProps) {
 
 /** ¿Se puede editar en una celda de la tabla? (el texto largo se edita en el panel) */
 export function isInlineEditable(f: FieldDef): boolean {
-  return !['longtext', 'formula', 'rollup', 'files', 'relation'].includes(f.type)
+  return ![
+    'longtext',
+    'formula',
+    'rollup',
+    'files',
+    'relation',
+    'checklist',
+    'recurrence',
+  ].includes(f.type)
 }

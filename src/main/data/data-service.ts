@@ -1,5 +1,10 @@
 import { randomUUID } from 'node:crypto'
-import { todayIn } from '@shared/data/dates'
+import {
+  briefTemplatesSchema,
+  DEFAULT_BRIEF_TEMPLATES,
+  type BriefTemplate,
+} from '@shared/data/brief-templates'
+import { shiftDate, todayIn } from '@shared/data/dates'
 import { ENTITIES, findEntity } from '@shared/data/entities'
 import {
   COMPUTED_TYPES,
@@ -10,10 +15,17 @@ import {
   parseValue,
   slugifyKey,
   UNAVAILABLE_TYPES,
+  type ChecklistItem,
   type FieldDef,
   type FieldType,
   type RichText,
 } from '@shared/data/fields'
+import {
+  describeRecurrence,
+  nextOccurrence,
+  recurrenceSchema,
+  type Recurrence,
+} from '@shared/data/recurrence'
 import {
   formulaReferences,
   parseFormula,
@@ -101,8 +113,10 @@ export interface DataServiceOptions {
   onChange?: (change: DataChange) => void
 }
 
+const HOURLY_MS = 60 * 60 * 1000
 const TRASH_DAYS_KEY = 'data.trashDays'
 const PROFILE_KEY = 'profile'
+const BRIEF_TEMPLATES_KEY = 'briefs.templates'
 export const DEFAULT_TRASH_DAYS = 30
 const CHUNK = 500
 
@@ -116,6 +130,16 @@ function chunks<T>(xs: T[], n = CHUNK): T[][] {
 
 function newId(): string {
   return randomUUID()
+}
+
+interface SpawnPlan {
+  newId: string
+  entity: string
+  data: Record<string, unknown>
+  links: { field_id: string; to_id: string; position: number }[]
+  sourceId: string
+  recurrenceFieldId: string
+  recurrence: unknown
 }
 
 interface LinkRow {
@@ -134,6 +158,7 @@ export class DataService {
   private readonly onChange: ((c: DataChange) => void) | undefined
   readonly undoStack = new UndoStack()
   private formulaCache = new Map<string, Node | FormulaError>()
+  private timer: ReturnType<typeof setInterval> | null = null
   /** El campo de título de cada entidad no cambia nunca: se busca una vez. */
   private titleIds = new Map<string, string | null>()
 
@@ -147,6 +172,55 @@ export class DataService {
     )
     this.seed()
     this.purgeExpired()
+    this.processRecurrences()
+    this.timer = setInterval(() => {
+      try {
+        this.processRecurrences()
+        this.purgeExpired()
+      } catch {
+        // La base de datos puede estar cerrándose: se reintenta en la próxima vuelta.
+      }
+    }, HOURLY_MS)
+    this.timer.unref?.()
+  }
+
+  /** Para las tareas periódicas (al bloquear la bóveda). */
+  dispose(): void {
+    if (this.timer) clearInterval(this.timer)
+    this.timer = null
+  }
+
+  /** Tareas de hoy y atrasadas sin terminar (para la barra lateral y el inicio). */
+  taskSummary(): { today: number; overdue: number } {
+    const meta = this.recurringMeta('tarea') ?? this.dueMeta('tarea')
+    if (!meta) return { today: 0, overdue: 0 }
+    const today = this.ctx().today
+    const done = parseFieldConfig('select', meta.status.config)
+      .options.filter((o) => o.done)
+      .map((o) => o.id)
+    const notDone = done.length
+      ? `AND (${jsonPath(meta.status)} IS NULL OR ${jsonPath(meta.status)} NOT IN (${done.map(() => '?').join(',')}))`
+      : ''
+    const count = (cond: string) =>
+      (
+        this.db
+          .prepare(
+            `SELECT COUNT(*) AS n FROM records WHERE entity = 'tarea' AND deleted_at IS NULL
+             AND ${jsonPath(meta.due)} ${cond} ? ${notDone}`,
+          )
+          .get(today, ...done) as { n: number }
+      ).n
+    return { today: count('='), overdue: count('<') }
+  }
+
+  private dueMeta(entity: string): { due: FieldDef; status: FieldDef } | null {
+    const fields = this.listFields(entity)
+    const due = fields.find((f) => f.type === 'date')
+    const status = fields.find(
+      (f) =>
+        f.type === 'select' && parseFieldConfig('select', f.config).options.some((o) => o.done),
+    )
+    return due && status ? { due, status } : null
   }
 
   private nowIso(): string {
@@ -163,6 +237,17 @@ export class DataService {
   private ctx(): FilterContext {
     const tz = this.zone()
     return { today: todayIn(tz, this.now()), timeZone: tz }
+  }
+
+  getBriefTemplates(): BriefTemplate[] {
+    const r = briefTemplatesSchema.safeParse(this.getSetting(BRIEF_TEMPLATES_KEY))
+    return r.success ? r.data : DEFAULT_BRIEF_TEMPLATES
+  }
+
+  setBriefTemplates(templates: BriefTemplate[]): BriefTemplate[] {
+    this.putSetting(BRIEF_TEMPLATES_KEY, briefTemplatesSchema.parse(templates))
+    this.emit(null)
+    return this.getBriefTemplates()
   }
 
   getProfile(): Profile {
@@ -284,6 +369,17 @@ export class DataService {
           if (typeof raw['dateField'] === 'string') raw['dateField'] = id(raw['dateField'])
           if (Array.isArray(raw['cardFields']))
             raw['cardFields'] = (raw['cardFields'] as string[]).map(id).filter(Boolean)
+          if (Array.isArray(raw['filters']))
+            raw['filters'] = (raw['filters'] as { fieldId: string }[])
+              .map((f) => ({ ...f, fieldId: id(f.fieldId) }))
+              .filter((f) => f.fieldId)
+          if (Array.isArray(raw['sorts']))
+            raw['sorts'] = (raw['sorts'] as { fieldId: string }[])
+              .map((f) => ({
+                ...f,
+                fieldId: ['createdAt', 'updatedAt'].includes(f.fieldId) ? f.fieldId : id(f.fieldId),
+              }))
+              .filter((f) => f.fieldId)
           const config = viewConfigSchema.parse(raw)
           const max = this.db
             .prepare('SELECT MAX(position) AS m FROM views WHERE entity = ?')
@@ -883,6 +979,13 @@ export class DataService {
       }
       case 'relation':
         return (v as LinkRef[]).length
+      case 'checklist': {
+        // Fracción completada (0–1): sirve para fórmulas como SI(checklist = 1; …).
+        const items = v as ChecklistItem[]
+        return items.length ? items.filter((i) => i.done).length / items.length : null
+      }
+      case 'recurrence':
+        return describeRecurrence(v as Recurrence)
       case 'rollup':
         return 'value' in (v as ComputedValue) ? (v as { value: FormulaValue }).value : null
       default:
@@ -1064,6 +1167,8 @@ export class DataService {
       if (v === undefined || v === null || f.id === titleId) continue
       if (['text', 'url', 'email', 'phone'].includes(f.type)) body.push(String(v))
       else if (f.type === 'longtext') body.push((v as RichText).text)
+      else if (f.type === 'checklist')
+        body.push((v as ChecklistItem[]).map((i) => i.text).join('\n'))
       else if (f.type === 'select' || f.type === 'multiselect') {
         const opts = parseFieldConfig(f.type, f.config).options
         const ids = Array.isArray(v) ? (v as string[]) : [v as string]
@@ -1116,6 +1221,12 @@ export class DataService {
     const titleId = this.titleFieldId(entity)
     const withTitle = { ...values }
     if (titleId && opts.title?.trim()) withTitle[titleId] = opts.title.trim()
+    // Los pipelines (estado de una tarea, etapa de un cliente…) empiezan en su primera etapa.
+    for (const f of this.listFields(entity)) {
+      if (f.type !== 'select' || withTitle[f.id] !== undefined) continue
+      const c = parseFieldConfig('select', f.config)
+      if (c.pipeline && c.options[0]) withTitle[f.id] = c.options[0].id
+    }
     if (
       titleId &&
       (withTitle[titleId] === undefined || withTitle[titleId] === '' || withTitle[titleId] === null)
@@ -1178,15 +1289,166 @@ export class DataService {
         this.reindex(id)
       })
     apply('to')
+    // ¿Se acaba de completar una tarea que se repite? Se crea la siguiente.
+    const meta = this.recurringMeta(row.entity)
+    const spawn =
+      meta &&
+      changes[meta.status.id] &&
+      !this.isDoneValue(meta.status, changes[meta.status.id]!.from) &&
+      this.isDoneValue(meta.status, changes[meta.status.id]!.to)
+        ? this.planNext(id, 'completed')
+        : null
+    if (spawn) this.doSpawn(spawn)
     const fields = new Map(this.listFields(row.entity).map((f) => [f.id, f]))
     const names = Object.keys(changes).map((k) => fields.get(k)?.label ?? 'campo')
     this.undoStack.push({
       label: `Editar ${names.length === 1 ? `«${names[0]}»` : `${names.length} campos`}`,
-      undo: () => apply('from'),
-      redo: () => apply('to'),
+      undo: () => {
+        if (spawn) this.undoSpawn(spawn)
+        apply('from')
+      },
+      redo: () => {
+        apply('to')
+        if (spawn) this.doSpawn(spawn)
+      },
     })
     this.emit(row.entity)
     return this.get(id)
+  }
+
+  // --- Repeticiones (tareas) ------------------------------------------------------
+
+  /**
+   * Campos que hacen falta para repetir registros de una entidad: el de repetición,
+   * la primera fecha (la fecha límite) y el primer campo de selección con alguna
+   * opción «terminada» (el estado). Null si la entidad no los tiene.
+   */
+  private recurringMeta(
+    entity: string,
+  ): { recurrence: FieldDef; due: FieldDef; status: FieldDef } | null {
+    const fields = this.listFields(entity)
+    const recurrence = fields.find((f) => f.type === 'recurrence')
+    const due = fields.find((f) => f.type === 'date')
+    const status = fields.find(
+      (f) =>
+        f.type === 'select' && parseFieldConfig('select', f.config).options.some((o) => o.done),
+    )
+    return recurrence && due && status ? { recurrence, due, status } : null
+  }
+
+  private isDoneValue(status: FieldDef, v: unknown): boolean {
+    return parseFieldConfig('select', status.config).options.some((o) => o.id === v && o.done)
+  }
+
+  /**
+   * Prepara la siguiente repetición de un registro. `completed`: se acaba de completar
+   * (cuenta desde su fecha, nunca antes de mañana en modo «al completar»).
+   * `overdue`: modo «según calendario» con la fecha ya pasada.
+   */
+  private planNext(id: string, why: 'completed' | 'overdue'): SpawnPlan | null {
+    const { row, data } = this.storedData(id)
+    const meta = this.recurringMeta(row.entity)
+    if (!meta) return null
+    const parsed = recurrenceSchema.safeParse(data[meta.recurrence.id])
+    if (!parsed.success) return null
+    const r = parsed.data
+    const today = this.ctx().today
+    const due = typeof data[meta.due.id] === 'string' ? (data[meta.due.id] as string) : null
+    const notBefore = r.mode === 'completion' && why === 'completed' ? shiftDate(today, 1) : today
+    const next = nextOccurrence(r, due ?? today, notBefore)
+    const opts = parseFieldConfig('select', meta.status.config).options
+    const fresh = opts.find((o) => !o.done)?.id ?? null
+    const copy: Values = { ...data, [meta.due.id]: next }
+    if (fresh) copy[meta.status.id] = fresh
+    else delete copy[meta.status.id]
+    // Las listas de comprobación empiezan sin marcar.
+    for (const f of this.listFields(row.entity))
+      if (f.type === 'checklist' && Array.isArray(copy[f.id]))
+        copy[f.id] = (copy[f.id] as ChecklistItem[]).map((i) => ({ ...i, done: false }))
+    const links = (
+      this.db.prepare('SELECT field_id, to_id, position FROM links WHERE from_id = ?').all(id) as {
+        field_id: string
+        to_id: string
+        position: number
+      }[]
+    ).filter(
+      (l) =>
+        !this.inversesOf(l.field_id).some((g) => !parseFieldConfig('relation', g.config).multiple),
+    )
+    return {
+      newId: newId(),
+      entity: row.entity,
+      data: copy,
+      links,
+      sourceId: id,
+      recurrenceFieldId: meta.recurrence.id,
+      recurrence: data[meta.recurrence.id],
+    }
+  }
+
+  /** Crea la repetición y le pasa la regla (la anterior ya no genera más). */
+  private doSpawn(p: SpawnPlan): void {
+    this.tx(() => {
+      const now = this.nowIso()
+      this.insertRecord(p.newId, p.entity, p.data, now)
+      const ins = this.db.prepare(
+        'INSERT INTO links (field_id, from_id, to_id, position, created_at) VALUES (?, ?, ?, ?, ?)',
+      )
+      for (const l of p.links) ins.run(l.field_id, p.newId, l.to_id, l.position, now)
+      this.addHistory(p.newId, p.entity, 'create', {})
+      this.reindex(p.newId)
+      const source = this.storedData(p.sourceId).data
+      delete source[p.recurrenceFieldId]
+      this.writeData(p.sourceId, source)
+      this.addHistory(p.sourceId, p.entity, 'update', {
+        [p.recurrenceFieldId]: { from: p.recurrence, to: null },
+      })
+    })
+  }
+
+  private undoSpawn(p: SpawnPlan): void {
+    this.tx(() => {
+      this.hardDelete(p.newId)
+      const source = this.storedData(p.sourceId).data
+      source[p.recurrenceFieldId] = p.recurrence
+      this.writeData(p.sourceId, source)
+      this.addHistory(p.sourceId, p.entity, 'update', {
+        [p.recurrenceFieldId]: { from: null, to: p.recurrence },
+      })
+    })
+  }
+
+  /**
+   * Repeticiones «según calendario»: si la fecha de una tarea pendiente ya pasó, se
+   * crea la siguiente (desde hoy). Se llama al abrir la bóveda y cada hora.
+   * Devuelve cuántas se han creado.
+   */
+  processRecurrences(): number {
+    let created = 0
+    for (const e of ENTITIES) {
+      const meta = this.recurringMeta(e.id)
+      if (!meta) continue
+      const today = this.ctx().today
+      const rows = this.db
+        .prepare(
+          `SELECT id, data FROM records WHERE entity = ? AND deleted_at IS NULL
+           AND ${jsonPath(meta.recurrence)} IS NOT NULL AND ${jsonPath(meta.due)} < ?`,
+        )
+        .all(e.id, today) as { id: string; data: string }[]
+      for (const r of rows) {
+        const data = JSON.parse(r.data) as Values
+        const rule = recurrenceSchema.safeParse(data[meta.recurrence.id])
+        if (!rule.success || rule.data.mode !== 'schedule') continue
+        if (this.isDoneValue(meta.status, data[meta.status.id])) continue
+        const plan = this.planNext(r.id, 'overdue')
+        if (plan) {
+          this.doSpawn(plan)
+          created++
+        }
+      }
+      if (created) this.emit(e.id)
+    }
+    return created
   }
 
   /** Campos inversos de un campo de relación (los que lo muestran desde el otro lado). */

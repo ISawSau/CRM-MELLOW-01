@@ -54,6 +54,10 @@ function dateBounds(f: Filter, ctx: FilterContext): [string | null, string | nul
     }
     case 'today':
       return [ctx.today, ctx.today]
+    case 'before_today':
+      return [null, shiftDate(ctx.today, -1)]
+    case 'next_7_days':
+      return [ctx.today, shiftDate(ctx.today, 6)]
     case 'last_7_days':
       return [shiftDate(ctx.today, -6), ctx.today]
     case 'this_month':
@@ -64,6 +68,8 @@ function dateBounds(f: Filter, ctx: FilterContext): [string | null, string | nul
 }
 
 const DATE_RANGE_OPS = new Set([
+  'before_today',
+  'next_7_days',
   'eq',
   'before',
   'after',
@@ -87,13 +93,13 @@ export function filterToSql(field: FieldDef, f: Filter, ctx: FilterContext): Sql
   if (['formula', 'rollup', 'relation', 'files'].includes(field.type)) return null
   const p = jsonPath(field)
   const val = f.value
+  const isArray = field.type === 'multiselect' || field.type === 'checklist'
   if (f.op === 'empty') {
-    if (field.type === 'multiselect')
-      return { sql: `(${p} IS NULL OR json_array_length(${p}) = 0)`, params: [] }
+    if (isArray) return { sql: `(${p} IS NULL OR json_array_length(${p}) = 0)`, params: [] }
     return { sql: `(${p} IS NULL OR ${p} = '')`, params: [] }
   }
   if (f.op === 'not_empty') {
-    if (field.type === 'multiselect') return { sql: `json_array_length(${p}) > 0`, params: [] }
+    if (isArray) return { sql: `json_array_length(${p}) > 0`, params: [] }
     return { sql: `(${p} IS NOT NULL AND ${p} <> '')`, params: [] }
   }
 
@@ -290,6 +296,10 @@ function sortKey(field: FieldDef, raw: unknown): string | number | boolean | nul
     }
     case 'relation':
       return (raw as LinkRef[])[0]?.title ?? null
+    case 'checklist': {
+      const items = v as { done: boolean }[]
+      return items.filter((i) => i.done).length / items.length
+    }
     default:
       return typeof v === 'object' ? JSON.stringify(v) : (v as string | number | boolean)
   }

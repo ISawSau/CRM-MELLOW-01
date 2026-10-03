@@ -2,9 +2,11 @@ import { useEffect, useState } from 'react'
 import { findEntity } from '@shared/data/entities'
 import { COMPUTED_TYPES, type FieldDef, type RichText } from '@shared/data/fields'
 import { formatValue } from '@shared/data/format-value'
-import type { HistoryEntry, RecordRow } from '@shared/data/records'
+import type { HistoryEntry, LinkRef, RecordRow } from '@shared/data/records'
 import { formatDateTime } from '@shared/format'
+import { call } from '../lib/ipc'
 import { useRecordActions } from './actions'
+import { useNav } from './nav'
 import { FieldEditor } from './FieldEditor'
 import { FieldValue } from './FieldValue'
 import { useHistory, useRecord } from './hooks'
@@ -31,7 +33,35 @@ export function RecordPanel({
 }) {
   const record = useRecord(id)
   const [tab, setTab] = useState<'detalles' | 'historial'>('detalles')
-  const { setValue, trash, duplicate } = useRecordActions()
+  const { setValue, trash, duplicate, fail } = useRecordActions()
+  const nav = useNav()
+
+  /** Tarea nueva ya enlazada a este cliente o brief (y al cliente del brief). */
+  const newLinkedTask = async (rec: RecordRow) => {
+    try {
+      const tf = await call('data:fields', { entity: 'tarea' })
+      const byKey = (k: string) => tf.find((f) => f.key === k)
+      const task = await call('data:create', { entity: 'tarea', title: 'Nueva tarea' })
+      const cliente = byKey('cliente')
+      const brief = byKey('brief')
+      if (rec.entity === 'cliente' && cliente)
+        await call('data:setLinks', { fieldId: cliente.id, fromId: task.id, toIds: [rec.id] })
+      if (rec.entity === 'brief' && brief) {
+        await call('data:setLinks', { fieldId: brief.id, fromId: task.id, toIds: [rec.id] })
+        const bc = fields.find((f) => f.key === 'cliente')
+        const linked = bc ? ((rec.values[bc.id] as LinkRef[] | undefined) ?? []) : []
+        if (cliente && linked[0])
+          await call('data:setLinks', {
+            fieldId: cliente.id,
+            fromId: task.id,
+            toIds: [linked[0].id],
+          })
+      }
+      nav.openRecord('tarea', task.id)
+    } catch (e) {
+      fail(e)
+    }
+  }
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -71,6 +101,17 @@ export function RecordPanel({
           <span className="num">{entity?.singular ?? 'registro'}</span>
         </span>
         <div className="panel-actions">
+          {(r.entity === 'cliente' || r.entity === 'brief') && (
+            <button
+              type="button"
+              className="btn"
+              disabled={deleted}
+              onClick={() => void newLinkedTask(r)}
+              data-testid="new-linked-task"
+            >
+              + Tarea
+            </button>
+          )}
           <button
             type="button"
             className="btn"

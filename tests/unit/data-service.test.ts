@@ -6,6 +6,7 @@ import { runMigrations } from '../../src/main/db/migrate'
 import { MIGRATIONS } from '../../src/main/db/migrations'
 import { DataService } from '../../src/main/data/data-service'
 import { matchesFilter } from '../../src/main/data/query'
+import { briefDocFromTemplate } from '../../src/shared/data/brief-templates'
 import type { FieldDef } from '../../src/shared/data/fields'
 import type { ComputedValue, DataChange, RecordRow } from '../../src/shared/data/records'
 import { OPS_BY_TYPE, VALUELESS_OPS, type Filter } from '../../src/shared/data/views'
@@ -52,7 +53,16 @@ describe('siembra', () => {
   it('crea los campos y vistas de Notas una sola vez', () => {
     const { db, svc } = setup()
     const keys = svc.listFields('nota').map((f) => f.key)
-    expect(keys).toEqual(['titulo', 'contenido', 'tipo', 'etiquetas', 'fecha', 'fijada', 'cliente'])
+    expect(keys).toEqual([
+      'titulo',
+      'contenido',
+      'tipo',
+      'etiquetas',
+      'fecha',
+      'fijada',
+      'cliente',
+      'tareas',
+    ])
     expect(svc.listViews('nota').map((v) => [v.name, v.kind])).toEqual([
       ['Todas', 'table'],
       ['Por tipo', 'kanban'],
@@ -63,7 +73,7 @@ describe('siembra', () => {
     expect(kanban.config.groupBy).toBe(svc.listFields('nota')[2]!.id)
     // Abrir otra vez la bóveda no vuelve a sembrar.
     new DataService(db)
-    expect(svc.listFields('nota')).toHaveLength(7)
+    expect(svc.listFields('nota')).toHaveLength(8)
     expect(svc.listViews('nota')).toHaveLength(4)
   })
 })
@@ -190,6 +200,124 @@ describe('perfil', () => {
   it('crea un registro con título directamente', () => {
     const { svc } = setup()
     expect(svc.create('contacto', {}, { title: '  Ana  ' }).title).toBe('Ana')
+    // Los pipelines empiezan en su primera etapa.
+    const estado = svc.listFields('tarea').find((f) => f.key === 'estado')!
+    expect(svc.create('tarea').values[estado.id]).toBe('pendiente')
+    expect(svc.create('tarea', { [estado.id]: 'hecha' }).values[estado.id]).toBe('hecha')
+  })
+})
+
+describe('tareas que se repiten', () => {
+  function taskSetup() {
+    const env = setup()
+    const tf = (k: string) => env.svc.listFields('tarea').find((f) => f.key === k)!
+    return { ...env, tf }
+  }
+
+  it('al completar una tarea semanal se crea la siguiente, y deshacer lo revierte', () => {
+    const { svc, tf } = taskSetup()
+    const cf = svc.listFields('cliente').find((f) => f.key === 'nombre')!
+    const acme = svc.create('cliente', { [cf.id]: 'Acme' })
+    // Hoy es lunes 15/06/2026. Informe cada lunes, con checklist.
+    const t = svc.create('tarea', {
+      [tf('titulo').id]: 'Informe semanal',
+      [tf('fecha_limite').id]: '2026-06-15',
+      [tf('estado').id]: 'en-curso',
+      [tf('checklist').id]: [{ id: 'a', text: 'Exportar datos', done: true }],
+      [tf('repeticion').id]: { freq: 'weekly', weekdays: [0], mode: 'completion' },
+    })
+    svc.setLinks(tf('cliente').id, t.id, [acme.id])
+    svc.update(t.id, { [tf('estado').id]: 'hecha' })
+
+    const all = svc.query('tarea')
+    expect(all).toHaveLength(2)
+    const next = all.find((r) => r.id !== t.id)!
+    expect(next.title).toBe('Informe semanal')
+    expect(next.values[tf('fecha_limite').id]).toBe('2026-06-22')
+    expect(next.values[tf('estado').id]).toBe('pendiente')
+    expect(next.values[tf('checklist').id]).toEqual([
+      { id: 'a', text: 'Exportar datos', done: false },
+    ])
+    expect(next.values[tf('cliente').id]).toEqual([{ id: acme.id, title: 'Acme' }])
+    // La regla pasa a la nueva; la completada ya no genera más.
+    expect(next.values[tf('repeticion').id]).toMatchObject({ freq: 'weekly' })
+    expect(svc.get(t.id).values[tf('repeticion').id]).toBeUndefined()
+    // Volver a abrirla y cerrarla no duplica.
+    svc.update(t.id, { [tf('estado').id]: 'pendiente' })
+    svc.update(t.id, { [tf('estado').id]: 'hecha' })
+    expect(svc.query('tarea')).toHaveLength(2)
+
+    svc.undo() // hecha
+    svc.undo() // pendiente
+    svc.undo() // la primera vez que se completó: quita la nueva y devuelve la regla
+    expect(svc.query('tarea')).toHaveLength(1)
+    expect(svc.get(t.id).values[tf('repeticion').id]).toMatchObject({ freq: 'weekly' })
+    expect(svc.get(t.id).values[tf('estado').id]).toBe('en-curso')
+    svc.redo()
+    expect(svc.query('tarea')).toHaveLength(2)
+  })
+
+  it('según calendario: una tarea vencida genera la de hoy al abrir la bóveda', () => {
+    const { db, svc, tf } = taskSetup()
+    svc.create('tarea', {
+      [tf('titulo').id]: 'Revisar presupuesto',
+      [tf('fecha_limite').id]: '2026-06-10',
+      [tf('repeticion').id]: { freq: 'daily', mode: 'schedule' },
+    })
+    svc.create('tarea', {
+      [tf('titulo').id]: 'Al completar',
+      [tf('fecha_limite').id]: '2026-06-10',
+      [tf('repeticion').id]: { freq: 'daily', mode: 'completion' },
+    })
+    const again = new DataService(db, { timeZone: 'Europe/Madrid', now: () => NOW })
+    again.dispose()
+    const rows = svc.query('tarea').filter((r) => r.title === 'Revisar presupuesto')
+    expect(rows.map((r) => r.values[tf('fecha_limite').id]).sort()).toEqual([
+      '2026-06-10',
+      '2026-06-15',
+    ])
+    expect(svc.query('tarea').filter((r) => r.title === 'Al completar')).toHaveLength(1)
+    expect(svc.processRecurrences()).toBe(0)
+  })
+
+  it('cuenta las tareas de hoy y las atrasadas sin terminar', () => {
+    const { svc, tf } = taskSetup()
+    const mk = (fecha: string, estado = 'pendiente') =>
+      svc.create('tarea', { [tf('fecha_limite').id]: fecha, [tf('estado').id]: estado })
+    mk('2026-06-15')
+    mk('2026-06-15', 'hecha')
+    mk('2026-06-14')
+    mk('2026-06-01')
+    mk('2026-06-16')
+    expect(svc.taskSummary()).toEqual({ today: 1, overdue: 2 })
+    const hoy = svc.listViews('tarea').find((v) => v.name === 'Hoy')!
+    expect(svc.query('tarea', hoy.config)).toHaveLength(1)
+    const atrasadas = svc.listViews('tarea').find((v) => v.name === 'Atrasadas')!
+    expect(
+      svc.query('tarea', atrasadas.config).map((r) => r.values[tf('fecha_limite').id]),
+    ).toEqual(['2026-06-01', '2026-06-14'])
+  })
+})
+
+describe('plantillas de brief', () => {
+  it('trae una plantilla de partida, la guarda editada y genera el contenido', () => {
+    const { svc } = setup()
+    const [campana] = svc.getBriefTemplates()
+    expect(campana!.name).toBe('Brief de campaña')
+    const doc = briefDocFromTemplate(campana!)
+    expect(doc.text).toContain('Objetivo')
+    const bf = (k: string) => svc.listFields('brief').find((f) => f.key === k)!
+    const b = svc.create('brief', { [bf('contenido').id]: doc }, { title: 'Lanzamiento' })
+    expect((b.values[bf('contenido').id] as { text: string }).text).toContain('Mensajes clave')
+    svc.setBriefTemplates([
+      { ...campana!, name: 'Mi brief', sections: campana!.sections.slice(0, 2) },
+    ])
+    expect(svc.getBriefTemplates()[0]).toMatchObject({ name: 'Mi brief' })
+    expect(() =>
+      svc.setBriefTemplates([
+        { ...campana!, sections: [{ id: 'x', title: '', kind: 'text', hint: '' }] },
+      ]),
+    ).toThrow()
   })
 })
 
@@ -641,9 +769,9 @@ describe('vistas y exportación', () => {
     expect(csv.startsWith('﻿')).toBe(true)
     const [head, row] = csv.slice(1).split('\r\n')
     expect(head).toBe(
-      'Título;Contenido;Tipo;Etiquetas;Fecha;Fijada;Cliente;Precio (EUR);Margen (%)',
+      'Título;Contenido;Tipo;Etiquetas;Fecha;Fijada;Cliente;Tareas;Precio (EUR);Margen (%)',
     )
-    expect(row).toBe(`"'=HYPERLINK(""http://malo"")";;;;15/06/2026;Sí;;1234,56;21,5`)
+    expect(row).toBe(`"'=HYPERLINK(""http://malo"")";;;;15/06/2026;Sí;;;1234,56;21,5`)
   })
 })
 

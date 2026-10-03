@@ -1,14 +1,18 @@
 import { SECTION_GROUPS, SETTINGS_SECTION, TRASH_SECTION, type Section } from './sections'
+import { useQuery } from '@tanstack/react-query'
+import { call } from '../lib/ipc'
 import { BrandEye } from '../ui/BrandEye'
 
 function NavItem({
   section,
   current,
   onSelect,
+  badge,
 }: {
   section: Section
   current: string
   onSelect: (id: string) => void
+  badge?: { count: number; urgent: boolean; label: string } | undefined
 }) {
   return (
     <button
@@ -23,6 +27,17 @@ function NavItem({
         {section.letter}
       </span>
       <span className="nav-label">{section.label}</span>
+      {badge && badge.count > 0 && (
+        <span
+          className="nav-badge num"
+          data-urgent={badge.urgent}
+          title={badge.label}
+          aria-label={badge.label}
+          data-testid={`badge-${section.id}`}
+        >
+          {badge.count}
+        </span>
+      )}
     </button>
   )
 }
@@ -40,6 +55,19 @@ export function Sidebar({
   onToggle: () => void
   onLock: () => void
 }) {
+  const tasks = useQuery({
+    queryKey: ['data', 'tasks-summary'],
+    queryFn: () => call('tasks:summary'),
+    refetchInterval: 5 * 60_000,
+  })
+  const t = tasks.data
+  const taskBadge = t
+    ? {
+        count: t.today + t.overdue,
+        urgent: t.overdue > 0,
+        label: `${t.today} para hoy, ${t.overdue} atrasadas`,
+      }
+    : undefined
   return (
     <aside className="sidebar" aria-label="Navegación">
       <div className="sidebar-head">
@@ -65,7 +93,13 @@ export function Sidebar({
               {g.title}
             </div>
             {g.sections.map((s) => (
-              <NavItem key={s.id} section={s} current={current} onSelect={onSelect} />
+              <NavItem
+                key={s.id}
+                section={s}
+                current={current}
+                onSelect={onSelect}
+                badge={s.id === 'tareas' ? taskBadge : undefined}
+              />
             ))}
           </div>
         ))}

@@ -1,4 +1,10 @@
-import { parseFieldConfig, type FieldDef, type SelectOption } from '@shared/data/fields'
+import {
+  parseFieldConfig,
+  type ChecklistItem,
+  type FieldDef,
+  type SelectOption,
+} from '@shared/data/fields'
+import { describeRecurrence, type Recurrence } from '@shared/data/recurrence'
 import { formatValue } from '@shared/data/format-value'
 import type { ComputedValue, LinkRef } from '@shared/data/records'
 
@@ -62,6 +68,30 @@ export function FieldValue({ field, value }: { field: FieldDef; value: unknown }
       )
     case 'rating':
       return <Stars value={value as number} max={parseFieldConfig('rating', field.config).max} />
+    case 'checklist': {
+      const items = value as ChecklistItem[]
+      const done = items.filter((i) => i.done).length
+      return (
+        <span className="checklist-progress" aria-label={`${done} de ${items.length} hechos`}>
+          <span className="bar" aria-hidden="true">
+            <span
+              className="bar-fill"
+              data-color="verde"
+              style={{ width: `${items.length ? (done / items.length) * 100 : 0}%` }}
+            />
+          </span>
+          <span className="num">
+            {done}/{items.length}
+          </span>
+        </span>
+      )
+    }
+    case 'recurrence':
+      return (
+        <span className="recurrence" title={describeRecurrence(value as Recurrence)}>
+          ↻ {describeRecurrence(value as Recurrence).replace(/ \(.*\)$/, '')}
+        </span>
+      )
     case 'url':
       return (
         <a href={String(value)} target="_blank" rel="noreferrer" className="cell-link">

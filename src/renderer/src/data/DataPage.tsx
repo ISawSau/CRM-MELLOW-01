@@ -1,4 +1,5 @@
-import { useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { briefDocFromTemplate, type BriefTemplate } from '@shared/data/brief-templates'
 import { useCallback, useMemo, useState } from 'react'
 import { findEntity } from '@shared/data/entities'
 import { VIEW_KIND_LABELS, VIEW_KINDS, type View, type ViewKind } from '@shared/data/views'
@@ -151,14 +152,28 @@ export function DataPage({
             </span>
             <h1 className="title">{def.label}</h1>
           </div>
-          <button
-            type="button"
-            className="btn btn-primary"
-            onClick={() => void newRecord()}
-            data-testid="new-record"
-          >
-            + {article} {def.singular}
-          </button>
+          <div className="form-actions">
+            {entity === 'brief' && (
+              <TemplatePicker
+                onPick={(t) => {
+                  const content = allFields.find((f) => f.key === 'contenido')
+                  const title = allFields.find((f) => f.key === def.titleKey)
+                  void newRecord({
+                    ...(content ? { [content.id]: briefDocFromTemplate(t) } : {}),
+                    ...(title ? { [title.id]: t.name } : {}),
+                  })
+                }}
+              />
+            )}
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => void newRecord()}
+              data-testid="new-record"
+            >
+              + {article} {def.singular}
+            </button>
+          </div>
         </div>
 
         <div className="view-tabs" role="tablist" aria-label="Vistas">
@@ -369,6 +384,43 @@ export function DataPage({
         />
       )}
     </div>
+  )
+}
+
+function TemplatePicker({ onPick }: { onPick: (t: BriefTemplate) => void }) {
+  const templates = useQuery({
+    queryKey: ['data', 'brief-templates'],
+    queryFn: () => call('briefs:templates'),
+  })
+  return (
+    <Popover
+      label="Nuevo desde plantilla"
+      button="Desde plantilla ▾"
+      align="end"
+      testId="from-template"
+    >
+      {(close) => (
+        <ul className="menu">
+          {(templates.data ?? []).map((t) => (
+            <li key={t.id}>
+              <button
+                type="button"
+                className="menu-item"
+                onClick={() => {
+                  close()
+                  onPick(t)
+                }}
+              >
+                {t.name}
+              </button>
+            </li>
+          ))}
+          {templates.data?.length === 0 && (
+            <li className="faint menu-empty">Crea plantillas en Ajustes → Plantillas de brief.</li>
+          )}
+        </ul>
+      )}
+    </Popover>
   )
 }
 

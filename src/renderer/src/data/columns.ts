@@ -16,6 +16,8 @@ const DEFAULT_WIDTH: Partial<Record<FieldDef['type'], number>> = {
   datetime: 150,
   checkbox: 80,
   rating: 110,
+  checklist: 120,
+  recurrence: 200,
   select: 140,
   multiselect: 200,
   url: 180,
