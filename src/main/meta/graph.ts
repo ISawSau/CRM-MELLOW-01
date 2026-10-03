@@ -152,7 +152,12 @@ export class GraphClient {
   }
 
   private url(path: string, params: Params): string {
-    const u = new URL(`${this.base}/${path.replace(/^\//, '')}`)
+    const clean = path.replace(/^\//, '')
+    // Desde la v26.0 Meta rechaza las peticiones a la raíz («GET /?ids=…»): hay que pedir
+    // cada objeto por su ruta (changelog de la Graph API v26.0).
+    if (!clean || 'ids' in params)
+      throw new Error('Meta no admite peticiones a la raíz con «ids» desde la v26.0')
+    const u = new URL(`${this.base}/${clean}`)
     for (const [k, v] of Object.entries(params))
       u.searchParams.set(k, typeof v === 'object' ? JSON.stringify(v) : String(v))
     if (this.proof) u.searchParams.set('appsecret_proof', this.proof)
@@ -234,16 +239,6 @@ export class GraphClient {
       if (!next || page.data.length === 0) return out
       page = await this.request<Page<T>>('GET', this.checkNext(next))
     }
-  }
-
-  /** Varios objetos por id en una llamada (hasta 50). */
-  async getByIds<T>(ids: string[], params: Params = {}): Promise<Record<string, T>> {
-    const out: Record<string, T> = {}
-    for (let i = 0; i < ids.length; i += 50) {
-      const chunk = ids.slice(i, i + 50)
-      Object.assign(out, await this.get<Record<string, T>>('', { ...params, ids: chunk.join(',') }))
-    }
-    return out
   }
 
   /** Crea un informe asíncrono de Insights y devuelve su id (report_run_id). */

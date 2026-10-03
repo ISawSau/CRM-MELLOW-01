@@ -25,6 +25,7 @@ export const ERROR_MESSAGES = {
   TOOL_FAILED: 'No se ha podido procesar el archivo.',
   TOOL_BUSY: 'Ese archivo ya se está procesando.',
   TOOL_CANCELLED: 'Proceso cancelado.',
+  GMAIL_ERROR: 'No se ha podido leer el correo de Gmail.',
   UNKNOWN: 'Ha ocurrido un error inesperado.',
 } as const
 

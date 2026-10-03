@@ -15,6 +15,9 @@ import type { FetchLike } from './remote'
 export const AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth'
 export const TOKEN_URL = 'https://oauth2.googleapis.com/token'
 export const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file'
+/** Solo lectura del correo (fase 10, D-078). */
+export const GMAIL_SCOPE = 'https://www.googleapis.com/auth/gmail.readonly'
+export const REVOKE_URL = 'https://oauth2.googleapis.com/revoke'
 const LOGIN_TIMEOUT_MS = 5 * 60_000
 
 export interface GoogleClient {
@@ -43,6 +46,7 @@ export async function connectGoogle(
   client: GoogleClient,
   openBrowser: (url: string) => void,
   http: FetchLike = fetch,
+  opts: { scope?: string; tokenUrl?: string } = {},
 ): Promise<GoogleTokens> {
   const verifier = b64url(randomBytes(48))
   const challenge = b64url(createHash('sha256').update(verifier).digest())
@@ -88,7 +92,7 @@ export async function connectGoogle(
         client_id: client.clientId,
         redirect_uri: redirect,
         response_type: 'code',
-        scope: DRIVE_SCOPE,
+        scope: opts.scope ?? DRIVE_SCOPE,
         code_challenge: challenge,
         code_challenge_method: 'S256',
         state,
@@ -104,7 +108,7 @@ export async function connectGoogle(
     })
   })
 
-  const res = await http(TOKEN_URL, {
+  const res = await http(opts.tokenUrl ?? TOKEN_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
@@ -136,8 +140,10 @@ export async function refreshAccess(
   client: GoogleClient,
   refreshToken: string,
   http: FetchLike = fetch,
+  opts: { service?: string; tokenUrl?: string } = {},
 ): Promise<{ accessToken: string; expiresAt: number }> {
-  const res = await http(TOKEN_URL, {
+  const service = opts.service ?? 'Google Drive'
+  const res = await http(opts.tokenUrl ?? TOKEN_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
@@ -155,8 +161,8 @@ export async function refreshAccess(
   if (!res.ok || !json.access_token)
     throw new Error(
       json.error === 'invalid_grant'
-        ? 'Google ha retirado el acceso: vuelve a conectar Google Drive en Ajustes.'
-        : 'No se pudo renovar el acceso a Google Drive.',
+        ? `Google ha retirado el acceso: vuelve a conectar ${service} en Ajustes.`
+        : `No se pudo renovar el acceso a ${service}.`,
     )
   return {
     accessToken: json.access_token,

@@ -1,6 +1,12 @@
 import { z } from 'zod'
 import { saveResultSchema, videoJobSchema, type SavedResult, type ToolsProgress } from './tools'
 import {
+  gmailConnectSchema,
+  gmailThreadsSchema,
+  type GmailStatus,
+  type GmailThreadsResult,
+} from './gmail'
+import {
   reportGenerateSchema,
   reportTemplatesSchema,
   type ReportResult,
@@ -332,6 +338,10 @@ export const ipcSchemas = {
   'analysis:markSeen': z.void(),
   'billing:summary': billingQuerySchema,
   'tools:status': z.void(),
+  'gmail:status': z.void(),
+  'gmail:connect': gmailConnectSchema,
+  'gmail:disconnect': z.void(),
+  'gmail:threads': gmailThreadsSchema,
   'reports:templates': z.void(),
   'reports:setTemplates': z.object({ templates: reportTemplatesSchema }),
   'reports:generate': reportGenerateSchema,
@@ -444,6 +454,10 @@ export interface IpcOutputs {
   'analysis:markSeen': void
   'billing:summary': BillingSummary
   'tools:status': { ffmpeg: boolean }
+  'gmail:status': GmailStatus
+  'gmail:connect': GmailStatus
+  'gmail:disconnect': GmailStatus
+  'gmail:threads': GmailThreadsResult
   'reports:templates': ReportTemplate[]
   'reports:setTemplates': ReportTemplate[]
   'reports:generate': ReportResult
@@ -466,6 +480,7 @@ export interface IpcEvents {
   'meta:changed': MetaStatus
   /** Hay avisos de alertas nuevos o se han marcado como vistos. */
   'analysis:changed': null
+  'gmail:changed': GmailStatus
   /** Avance de una conversión de vídeo. */
   'tools:progress': ToolsProgress
 }

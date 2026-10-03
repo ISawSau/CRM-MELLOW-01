@@ -10,6 +10,8 @@ import type { MetaService } from '../meta/meta-service'
 import type { AnalysisService } from '../analysis/analysis-service'
 import type { ToolsService } from '../tools/tools-service'
 import type { ReportService } from '../reports/report-service'
+import type { GmailService } from '../gmail/gmail-service'
+import { createGmailHandlers } from './gmail-handlers'
 import { createAnalysisHandlers } from './analysis-handlers'
 import { createDataHandlers } from './data-handlers'
 import { createMetaHandlers } from './meta-handlers'
@@ -28,6 +30,7 @@ export interface HandlerDeps {
   analysis: AnalysisService
   tools: ToolsService
   reports: ReportService
+  gmail: GmailService
   /** Sube lo pendiente y bloquea (bloqueo manual y automático). */
   lockWithSync: () => Promise<void>
   getWindow: () => BrowserWindow | null
@@ -45,6 +48,7 @@ export function createHandlers({
   analysis,
   tools,
   reports,
+  gmail,
   lockWithSync,
   getWindow,
 }: HandlerDeps): IpcHandlers {
@@ -146,6 +150,7 @@ export function createHandlers({
       autoLock.stop()
       meta.dispose()
       tools.dispose()
+      gmail.dispose()
       await sync.beforeClose()
       config.setLastVaultPath(null)
       return vault.close()
@@ -176,5 +181,6 @@ export function createHandlers({
     ...createMetaHandlers(meta),
     ...createAnalysisHandlers(analysis),
     ...createToolsHandlers(tools, reports),
+    ...createGmailHandlers(gmail),
   }
 }

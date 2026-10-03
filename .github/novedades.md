@@ -1,18 +1,5 @@
-## Novedades de la 0.10.0 · Negocio
+## Novedades de la 0.11.0 · Gmail
 
-- **Facturación:**
-  - Registra las facturas que emites con tu programa de facturación: número, cliente, fechas, base, IVA, moneda, estado y PDF.
-  - Registra también los gastos de cada cliente.
-  - En la ficha del cliente indica el acuerdo: fee mensual, porcentaje del gasto o por proyecto.
-  - La sección **Facturación** muestra, por cliente y periodo, lo facturado, lo cobrado, lo pendiente y lo vencido, los gastos, la inversión en Meta, lo previsto por el acuerdo y el beneficio. Debajo tienes la lista de facturas vencidas.
-- **Informes en PDF para tus clientes:**
-  - En **Informes**, elige cliente, periodo y moneda, escribe tus comentarios y genera el PDF. Incluye portada, cifras clave con la variación, la evolución diaria, las campañas, la comparativa con el periodo anterior y tus comentarios.
-  - Se guarda en los Documentos del cliente, lo ves al momento y puedes exportarlo.
-  - En la pestaña **Plantillas** puedes cambiar los bloques y su orden y crear plantillas nuevas.
-- **Herramientas**, para trabajar con archivos sin salir de la app:
-  - **Imágenes:** comprimir, cambiar el tamaño y pasar a JPEG, PNG o WebP.
-  - **PDF:** unir varios, dividir por páginas y comprimir.
-  - **Vídeo:** comprimir y convertir a los formatos de Meta (9:16, 1:1 y 4:5), recortando o con bandas.
-  - Arrastra los archivos. El resultado se guarda cifrado en **Documentos** o se exporta a la carpeta que elijas.
-- **Documentos:** sección nueva para informes, resultados de las herramientas, contratos y cualquier otro archivo, con su cliente.
-- El instalador incluye FFmpeg (licencia GPL, con su texto en la carpeta `licencias` de la instalación).
+- **Tus correos en la ficha de cada cliente y contacto.** La ficha del cliente muestra los hilos en los que aparecen su email y los de sus contactos; la del contacto, los suyos. Ves el asunto, quién escribe, la fecha, los mensajes sin leer y un extracto de cada mensaje. **Abrir en Gmail** abre el hilo completo en tu navegador.
+- **Solo lectura:** la app no envía, borra ni modifica correo, y no guarda copia del correo: lo pide a Gmail al abrir la ficha.
+- **Cómo conectarlo:** en **Ajustes → Gmail** tienes los pasos. Se usa el mismo proyecto de Google que Google Drive (o uno nuevo, gratis): activas la API de Gmail, añades el permiso de lectura y pulsas **Conectar**. Como es tu propia app, Google te avisará de que no está verificada: pulsa «Configuración avanzada» y continúa.
