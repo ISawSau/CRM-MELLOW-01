@@ -14,6 +14,7 @@ import {
   type SelectOption,
 } from '@shared/data/fields'
 import { FORMULA_FUNCTIONS } from '@shared/data/formula'
+import { t } from '@shared/i18n'
 import { call, IpcCallError } from '../lib/ipc'
 import { Alert } from '../ui/Alert'
 import { useToast } from '../ui/Toast'
@@ -54,7 +55,7 @@ function optionId(label: string): string {
 }
 
 function errorText(e: unknown): string {
-  return e instanceof IpcCallError ? e.message : 'No se pudo guardar.'
+  return e instanceof IpcCallError ? e.message : t('No se pudo guardar.')
 }
 
 function OptionsEditor({
@@ -85,42 +86,42 @@ function OptionsEditor({
   }
   return (
     <div className="field">
-      <label>Opciones</label>
+      <label>{t('Opciones')}</label>
       <ul className="options-edit">
         {options.map((o, i) => (
           <li key={o.id} className="option-row">
             <OptionChip option={o} />
             <input
               className="input"
-              aria-label="Nombre de la opción"
+              aria-label={t('Nombre de la opción')}
               value={o.label}
               maxLength={60}
               onChange={(e) => set(i, { label: e.target.value })}
             />
             <select
               className="input"
-              aria-label="Color"
+              aria-label={t('Color')}
               value={o.color}
               onChange={(e) => set(i, { color: e.target.value as OptionColor })}
             >
               {OPTION_COLORS.map((c) => (
                 <option key={c} value={c}>
-                  {COLOR_LABELS[c]}
+                  {t(COLOR_LABELS[c])}
                 </option>
               ))}
             </select>
-            <label className="check option-done" title="Cuenta como terminada (p. ej. «Hecha»)">
+            <label className="check option-done" title={t('Cuenta como terminada (p. ej. «Hecha»)')}>
               <input
                 type="checkbox"
                 checked={o.done === true}
                 onChange={(e) => set(i, { done: e.target.checked || undefined })}
               />
-              <span>Fin</span>
+              <span>{t('Fin')}</span>
             </label>
             <button
               type="button"
               className="icon-btn"
-              aria-label="Subir"
+              aria-label={t('Subir')}
               disabled={i === 0}
               onClick={() => move(i, -1)}
             >
@@ -129,7 +130,7 @@ function OptionsEditor({
             <button
               type="button"
               className="icon-btn"
-              aria-label="Bajar"
+              aria-label={t('Bajar')}
               disabled={i === options.length - 1}
               onClick={() => move(i, 1)}
             >
@@ -138,7 +139,7 @@ function OptionsEditor({
             <button
               type="button"
               className="icon-btn"
-              aria-label={`Quitar ${o.label}`}
+              aria-label={t('Quitar {title}', { title: o.label })}
               onClick={() => onChange(options.filter((_, j) => j !== i))}
             >
               ×
@@ -149,7 +150,7 @@ function OptionsEditor({
       <div className="option-add">
         <input
           className="input"
-          placeholder="Nueva opción"
+          placeholder={t('Nueva opción')}
           value={label}
           maxLength={60}
           onChange={(e) => setLabel(e.target.value)}
@@ -161,12 +162,13 @@ function OptionsEditor({
           }}
         />
         <button type="button" className="btn" onClick={add} disabled={!label.trim()}>
-          Añadir
+          {t('Añadir')}
         </button>
       </div>
       <p className="hint">
-        Quitar una opción deja vacíos los registros que la tenían. «Fin» marca las opciones que
-        significan terminado: no cuentan como pendientes y completan las tareas que se repiten.
+        {t(
+          'Quitar una opción deja vacíos los registros que la tenían. «Fin» marca las opciones que significan terminado: no cuentan como pendientes y completan las tareas que se repiten.',
+        )}
       </p>
     </div>
   )
@@ -188,7 +190,7 @@ function FormulaEditor({
   const expression = String(config['expression'] ?? '')
   const [problem, setProblem] = useState<string | null>(null)
   useEffect(() => {
-    const t = setTimeout(() => {
+    const timer = setTimeout(() => {
       void call('data:formulaProblem', {
         entity,
         expression,
@@ -197,13 +199,13 @@ function FormulaEditor({
         .then(setProblem)
         .catch(() => setProblem(null))
     }, 250)
-    return () => clearTimeout(t)
+    return () => clearTimeout(timer)
   }, [entity, expression, field])
   const others = fields.filter((f) => f.id !== field?.id)
   return (
     <>
       <div className="field">
-        <label htmlFor="formula-expr">Fórmula</label>
+        <label htmlFor="formula-expr">{t('Fórmula')}</label>
         <textarea
           id="formula-expr"
           className="input textarea mono"
@@ -220,12 +222,12 @@ function FormulaEditor({
           </p>
         ) : (
           <p className="hint">
-            Argumentos separados por «;», decimales con punto (1.21), «&» une textos.
+            {t('Argumentos separados por «;», decimales con punto (1.21), «&» une textos.')}
           </p>
         )}
       </div>
       <div className="field">
-        <label>Campos</label>
+        <label>{t('Campos')}</label>
         <div className="chips">
           {others.map((f) => (
             <button
@@ -239,10 +241,12 @@ function FormulaEditor({
             </button>
           ))}
         </div>
-        <p className="hint">Funciones: {FORMULA_FUNCTIONS.join(', ')}.</p>
+        <p className="hint">
+          {t('Funciones: {list}.', { list: FORMULA_FUNCTIONS.join(', ') })}
+        </p>
       </div>
       <div className="field">
-        <label htmlFor="formula-format">Resultado</label>
+        <label htmlFor="formula-format">{t('Resultado')}</label>
         <select
           id="formula-format"
           className="input"
@@ -251,7 +255,7 @@ function FormulaEditor({
         >
           {FORMULA_FORMATS.map((f) => (
             <option key={f} value={f}>
-              {FORMAT_LABELS[f]}
+              {t(FORMAT_LABELS[f])}
             </option>
           ))}
         </select>
@@ -280,11 +284,15 @@ function RollupEditor({
   })
   const fn = String(config['fn'] ?? 'count')
   if (relations.length === 0)
-    return <p className="hint">Crea antes un campo de relación: el resumen se calcula sobre él.</p>
+    return (
+      <p className="hint">
+        {t('Crea antes un campo de relación: el resumen se calcula sobre él.')}
+      </p>
+    )
   return (
     <>
       <div className="field">
-        <label htmlFor="rollup-rel">Relación</label>
+        <label htmlFor="rollup-rel">{t('Relación')}</label>
         <select
           id="rollup-rel"
           className="input"
@@ -306,7 +314,7 @@ function RollupEditor({
         </select>
       </div>
       <div className="field">
-        <label htmlFor="rollup-fn">Cálculo</label>
+        <label htmlFor="rollup-fn">{t('Cálculo')}</label>
         <select
           id="rollup-fn"
           className="input"
@@ -315,14 +323,14 @@ function RollupEditor({
         >
           {ROLLUP_FUNCTIONS.map((f) => (
             <option key={f} value={f}>
-              {ROLLUP_LABELS[f]}
+              {t(ROLLUP_LABELS[f])}
             </option>
           ))}
         </select>
       </div>
       {fn !== 'count' && (
         <div className="field">
-          <label htmlFor="rollup-target">Campo que se resume</label>
+          <label htmlFor="rollup-target">{t('Campo que se resume')}</label>
           <select
             id="rollup-target"
             className="input"
@@ -381,14 +389,14 @@ export function FieldDialog({
     return () => window.removeEventListener('keydown', onKey, true)
   }, [onClose])
 
-  const changeType = (t: FieldType) => {
-    setType(t)
+  const changeType = (ft: FieldType) => {
+    setType(ft)
     setConfig(
-      t === 'relation'
+      ft === 'relation'
         ? { target: entity, multiple: true }
-        : t === 'formula'
+        : ft === 'formula'
           ? { expression: '', format: 'number' }
-          : t === 'rollup'
+          : ft === 'rollup'
             ? { fn: 'count' }
             : {},
     )
@@ -430,7 +438,7 @@ export function FieldDialog({
         aria-labelledby="field-dialog-t"
         data-testid="field-dialog"
       >
-        <h2 id="field-dialog-t">{field ? `Editar «${field.label}»` : 'Nuevo campo'}</h2>
+        <h2 id="field-dialog-t">{field ? t('Editar «{field}»', { field: field.label }) : t('Nuevo campo')}</h2>
         <form
           className="form"
           onSubmit={(e) => {
@@ -439,7 +447,7 @@ export function FieldDialog({
           }}
         >
           <div className="field">
-            <label htmlFor="field-label">Nombre</label>
+            <label htmlFor="field-label">{t('Nombre')}</label>
             <input
               id="field-label"
               className="input"
@@ -451,17 +459,17 @@ export function FieldDialog({
           </div>
           {!field && (
             <div className="field">
-              <label htmlFor="field-type">Tipo</label>
+              <label htmlFor="field-type">{t('Tipo')}</label>
               <select
                 id="field-type"
                 className="input"
                 value={type}
                 onChange={(e) => changeType(e.target.value as FieldType)}
               >
-                {FIELD_TYPES.map((t) => (
-                  <option key={t} value={t} disabled={!!UNAVAILABLE_TYPES[t]}>
-                    {FIELD_TYPE_LABELS[t]}
-                    {UNAVAILABLE_TYPES[t] ? ' (fase 4)' : ''}
+                {FIELD_TYPES.map((ft) => (
+                  <option key={ft} value={ft} disabled={!!UNAVAILABLE_TYPES[ft]}>
+                    {t(FIELD_TYPE_LABELS[ft])}
+                    {UNAVAILABLE_TYPES[ft] ? ` (${t('fase 4')})` : ''}
                   </option>
                 ))}
               </select>
@@ -469,7 +477,7 @@ export function FieldDialog({
           )}
           {field && !field.system && (
             <div className="field">
-              <label htmlFor="field-key">Clave para fórmulas</label>
+              <label htmlFor="field-key">{t('Clave para fórmulas')}</label>
               <input
                 id="field-key"
                 className="input mono"
@@ -478,7 +486,7 @@ export function FieldDialog({
                 onChange={(e) => setKey(e.target.value)}
               />
               <p className="hint">
-                Minúsculas, números y «_». Si la cambias, revisa las fórmulas que la usan.
+                {t('Minúsculas, números y «_». Si la cambias, revisa las fórmulas que la usan.')}
               </p>
             </div>
           )}
@@ -487,7 +495,7 @@ export function FieldDialog({
             <div className="field-row">
               {type === 'currency' && (
                 <div className="field">
-                  <label htmlFor="field-cur">Moneda</label>
+                  <label htmlFor="field-cur">{t('Moneda')}</label>
                   <select
                     id="field-cur"
                     className="input"
@@ -501,7 +509,7 @@ export function FieldDialog({
                 </div>
               )}
               <div className="field">
-                <label htmlFor="field-dec">Decimales</label>
+                <label htmlFor="field-dec">{t('Decimales')}</label>
                 <select
                   id="field-dec"
                   className="input"
@@ -519,7 +527,7 @@ export function FieldDialog({
           )}
           {type === 'rating' && (
             <div className="field">
-              <label htmlFor="field-max">Máximo</label>
+              <label htmlFor="field-max">{t('Máximo')}</label>
               <select
                 id="field-max"
                 className="input"
@@ -528,7 +536,7 @@ export function FieldDialog({
               >
                 {[3, 4, 5, 6, 7, 8, 9, 10].map((d) => (
                   <option key={d} value={d}>
-                    {d} estrellas
+                    {t('{n} estrellas', { n: d })}
                   </option>
                 ))}
               </select>
@@ -543,7 +551,7 @@ export function FieldDialog({
           {type === 'relation' && (
             <>
               <div className="field">
-                <label htmlFor="field-target">Enlaza con</label>
+                <label htmlFor="field-target">{t('Enlaza con')}</label>
                 <select
                   id="field-target"
                   className="input"
@@ -564,7 +572,7 @@ export function FieldDialog({
                   checked={config['multiple'] !== false}
                   onChange={(e) => setConfig({ ...config, multiple: e.target.checked })}
                 />
-                <span>Permitir varios registros</span>
+                <span>{t('Permitir varios registros')}</span>
               </label>
               {!field && (
                 <>
@@ -575,14 +583,16 @@ export function FieldDialog({
                       onChange={(e) => setInverse(e.target.checked)}
                     />
                     <span>
-                      Mostrarlo también en{' '}
-                      {entities.data?.find((e) => e.id === config['target'])?.label ??
-                        'el otro lado'}
+                      {t('Mostrarlo también en {target}', {
+                        target:
+                          entities.data?.find((e) => e.id === config['target'])?.label ??
+                          t('el otro lado'),
+                      })}
                     </span>
                   </label>
                   {inverse && (
                     <div className="field">
-                      <label htmlFor="field-inverse">Nombre del campo en el otro lado</label>
+                      <label htmlFor="field-inverse">{t('Nombre del campo en el otro lado')}</label>
                       <input
                         id="field-inverse"
                         className="input"
@@ -595,7 +605,7 @@ export function FieldDialog({
                 </>
               )}
               {!!config['inverseOf'] && (
-                <p className="hint">Muestra desde este lado los vínculos de otra relación.</p>
+                <p className="hint">{t('Muestra desde este lado los vínculos de otra relación.')}</p>
               )}
             </>
           )}
@@ -620,16 +630,16 @@ export function FieldDialog({
                   checked={required}
                   onChange={(e) => setRequired(e.target.checked)}
                 />
-                <span>Obligatorio (no puede quedar vacío)</span>
+                <span>{t('Obligatorio (no puede quedar vacío)')}</span>
               </label>
             )}
           {error && <Alert>{error}</Alert>}
           <div className="form-actions">
             <button type="submit" className="btn btn-primary" disabled={saving || !label.trim()}>
-              {field ? 'Guardar' : 'Crear campo'}
+              {field ? t('Guardar') : t('Crear campo')}
             </button>
             <button type="button" className="btn" onClick={onClose}>
-              Cancelar
+              {t('Cancelar')}
             </button>
           </div>
         </form>
@@ -667,15 +677,15 @@ export function FieldsEditor({ entity }: { entity: string }) {
           <li key={f.id} className="fields-row" data-testid="field-row">
             <span className="fields-label">
               {f.label}
-              {!f.visible && <span className="faint"> · oculto</span>}
+              {!f.visible && <span className="faint"> · {t('oculto')}</span>}
             </span>
-            <span className="faint">{FIELD_TYPE_LABELS[f.type]}</span>
-            <span className="faint">{f.system ? 'de serie' : ''}</span>
+            <span className="faint">{t(FIELD_TYPE_LABELS[f.type])}</span>
+            <span className="faint">{f.system ? t('de serie') : ''}</span>
             <span className="fields-actions">
               <button
                 type="button"
                 className="icon-btn"
-                aria-label={`Subir ${f.label}`}
+                aria-label={t('Subir {field}', { field: f.label })}
                 disabled={i === 0}
                 onClick={() => move(i, -1)}
               >
@@ -684,14 +694,14 @@ export function FieldsEditor({ entity }: { entity: string }) {
               <button
                 type="button"
                 className="icon-btn"
-                aria-label={`Bajar ${f.label}`}
+                aria-label={t('Bajar {field}', { field: f.label })}
                 disabled={i === active.length - 1}
                 onClick={() => move(i, 1)}
               >
                 ↓
               </button>
               <button type="button" className="btn" onClick={() => setEditing(f)}>
-                Editar
+                {t('Editar')}
               </button>
               {!f.system && (
                 <button
@@ -699,7 +709,7 @@ export function FieldsEditor({ entity }: { entity: string }) {
                   className="btn btn-danger"
                   onClick={() => run(call('data:deleteField', { id: f.id }))}
                 >
-                  Eliminar
+                  {t('Eliminar')}
                 </button>
               )}
             </span>
@@ -713,24 +723,24 @@ export function FieldsEditor({ entity }: { entity: string }) {
           onClick={() => setEditing('new')}
           data-testid="add-field"
         >
-          + Añadir campo
+          + {t('Añadir campo')}
         </button>
       </div>
       {deleted.length > 0 && (
         <div className="field">
-          <label>Eliminados</label>
+          <label>{t('Eliminados')}</label>
           <ul className="fields-list">
             {deleted.map((f) => (
               <li key={f.id} className="fields-row">
                 <span className="fields-label faint">{f.label}</span>
-                <span className="faint">{FIELD_TYPE_LABELS[f.type]}</span>
+                <span className="faint">{t(FIELD_TYPE_LABELS[f.type])}</span>
                 <span className="fields-actions">
                   <button
                     type="button"
                     className="btn"
                     onClick={() => run(call('data:restoreField', { id: f.id }))}
                   >
-                    Restaurar
+                    {t('Restaurar')}
                   </button>
                 </span>
               </li>
@@ -758,12 +768,14 @@ export function DataSettings() {
   return (
     <section className="settings-block">
       <div>
-        <h2>Datos</h2>
-        <p className="desc">Lo que va a la papelera se puede restaurar durante este tiempo.</p>
+        <h2>{t('Datos')}</h2>
+        <p className="desc">
+          {t('Lo que va a la papelera se puede restaurar durante este tiempo.')}
+        </p>
       </div>
       <div className="settings-body">
         <div className="field">
-          <label htmlFor="trash-days">Vaciar la papelera tras</label>
+          <label htmlFor="trash-days">{t('Vaciar la papelera tras')}</label>
           <select
             id="trash-days"
             className="input"
@@ -778,7 +790,7 @@ export function DataSettings() {
               .sort((a, b) => a - b)
               .map((d) => (
                 <option key={d} value={d}>
-                  {d} días
+                  {t('{n} días', { n: d })}
                 </option>
               ))}
           </select>

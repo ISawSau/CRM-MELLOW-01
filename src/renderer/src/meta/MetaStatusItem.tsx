@@ -1,3 +1,4 @@
+import { t } from '@shared/i18n'
 import { useMetaStatus } from './meta'
 import { progressSummary } from './SyncProgress'
 
@@ -8,17 +9,17 @@ export function MetaStatusItem({ onOpen }: { onOpen: () => void }) {
   const tone = s.phase === 'error' ? 'error' : s.phase === 'syncing' ? 'warn' : 'ok'
   const text =
     s.phase === 'error'
-      ? 'Meta: error'
+      ? t('Meta: error')
       : s.progress
-        ? `Meta: sincronizando ${progressSummary(s.progress)}`
+        ? t('Meta: sincronizando {progress}', { progress: progressSummary(s.progress) })
         : s.phase === 'syncing'
-          ? 'Meta: sincronizando…'
-          : 'Meta al día'
+          ? t('Meta: sincronizando…')
+          : t('Meta al día')
   return (
     <button
       type="button"
       className="statusbar-item btn-link btn"
-      title={s.error ?? s.progress?.label ?? 'Abrir Campañas'}
+      title={s.error ?? s.progress?.label ?? t('Abrir Campañas')}
       onClick={onOpen}
       data-testid="meta-status"
     >

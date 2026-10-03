@@ -4,13 +4,14 @@ import { parseFieldConfig, type ChecklistItem, type FieldDef } from '@shared/dat
 import {
   RECURRENCE_FREQS,
   recurrenceSchema,
-  WEEKDAY_SHORT,
+  weekdayShort,
   type Recurrence,
   type RecurrenceFreq,
 } from '@shared/data/recurrence'
 import type { LinkRef } from '@shared/data/records'
 import { norm } from '@shared/data/text'
 import { parseNumberEs } from '@shared/format'
+import { getLocale, t } from '@shared/i18n'
 import { call } from '../lib/ipc'
 import { FieldValue, OptionChip } from './FieldValue'
 import { FilesEditor } from './files'
@@ -86,8 +87,8 @@ function NumberLike({ field, value, onCommit, autoFocus, onDone, id }: EditorPro
   const shown = useMemo(() => {
     if (typeof value !== 'number') return ''
     const n = isPct ? Math.round(value * 1e10) / 1e8 : value
-    // Sin separador de miles para que sea cómodo de editar, con coma decimal.
-    return String(n).replace('.', ',')
+    // Sin separador de miles para que sea cómodo de editar, con coma decimal (punto en inglés).
+    return getLocale() === 'en' ? String(n) : String(n).replace('.', ',')
   }, [value, isPct])
   const [draft, setDraft] = useState(shown)
   const [prev, setPrev] = useState(shown)
@@ -124,7 +125,7 @@ function NumberLike({ field, value, onCommit, autoFocus, onDone, id }: EditorPro
       value={draft}
       autoFocus={autoFocus}
       aria-invalid={invalid}
-      title={invalid ? 'Escribe un número, por ejemplo 1.234,56' : undefined}
+      title={invalid ? t('Escribe un número, por ejemplo 1.234,56') : undefined}
       onChange={(e) => {
         setDraft(e.target.value)
         setInvalid(false)
@@ -156,7 +157,7 @@ function RatingEditor({ field, value, onCommit }: EditorProps) {
           type="button"
           role="radio"
           aria-checked={v === i + 1}
-          aria-label={`${i + 1} de ${max}`}
+          aria-label={t('{n} de {max}', { n: i + 1, max })}
           data-on={i < v}
           onClick={() => onCommit(v === i + 1 ? null : i + 1)}
         >
@@ -201,7 +202,7 @@ function RelationEditor({ field, value, onCommit }: EditorProps) {
       const r = await call('data:create', { entity: cfg.target, title })
       pick({ id: r.id, title: r.title })
     } catch {
-      toast.show('No se pudo crear el registro.', 'error')
+      toast.show(t('No se pudo crear el registro.'), 'error')
     }
   }
   return (
@@ -213,8 +214,8 @@ function RelationEditor({ field, value, onCommit }: EditorProps) {
               <button
                 type="button"
                 className="chip-open"
-                aria-label={`Abrir ${l.title}`}
-                title={`Abrir ${l.title}`}
+                aria-label={t('Abrir {title}', { title: l.title })}
+                title={t('Abrir {title}', { title: l.title })}
                 onClick={() => nav.openRecord(cfg.target, l.id)}
               >
                 {l.title}
@@ -222,7 +223,7 @@ function RelationEditor({ field, value, onCommit }: EditorProps) {
               <button
                 type="button"
                 className="chip-x"
-                aria-label={`Quitar ${l.title}`}
+                aria-label={t('Quitar {title}', { title: l.title })}
                 onClick={() => set(linked.filter((x) => x.id !== l.id))}
               >
                 ×
@@ -234,11 +235,11 @@ function RelationEditor({ field, value, onCommit }: EditorProps) {
       <input
         className="input"
         placeholder={
-          cfg.multiple || linked.length === 0 ? 'Buscar o crear para enlazar…' : 'Cambiar…'
+          cfg.multiple || linked.length === 0 ? t('Buscar o crear para enlazar…') : t('Cambiar…')
         }
         value={q}
         onChange={(e) => setQ(e.target.value)}
-        aria-label={`Enlazar en ${field.label}`}
+        aria-label={t('Enlazar en {field}', { field: field.label })}
         onKeyDown={(e) => {
           if (e.key === 'Enter') {
             e.preventDefault()
@@ -267,7 +268,7 @@ function RelationEditor({ field, value, onCommit }: EditorProps) {
                 className="menu-item menu-create"
                 onClick={() => void createAndLink()}
               >
-                + Crear «{q.trim()}»
+                + {t('Crear «{name}»', { name: q.trim() })}
               </button>
             </li>
           )}
@@ -286,9 +287,9 @@ function ChecklistEditor({ field, value, onCommit }: EditorProps) {
   const [text, setText] = useState('')
   const save = (next: ChecklistItem[]) => onCommit(next.length ? next : null)
   const add = () => {
-    const t = text.trim()
-    if (!t) return
-    save([...items, { id: newItemId(), text: t, done: false }])
+    const s = text.trim()
+    if (!s) return
+    save([...items, { id: newItemId(), text: s, done: false }])
     setText('')
   }
   return (
@@ -299,15 +300,15 @@ function ChecklistEditor({ field, value, onCommit }: EditorProps) {
             type="checkbox"
             className="checkbox"
             checked={it.done}
-            aria-label={`Hecho: ${it.text}`}
+            aria-label={t('Hecho: {text}', { text: it.text })}
             onChange={() => save(items.map((x, j) => (j === i ? { ...x, done: !x.done } : x)))}
           />
           <ItemText
             value={it.text}
-            onCommit={(t) =>
+            onCommit={(s) =>
               save(
-                t.trim()
-                  ? items.map((x, j) => (j === i ? { ...x, text: t.trim() } : x))
+                s.trim()
+                  ? items.map((x, j) => (j === i ? { ...x, text: s.trim() } : x))
                   : items.filter((_, j) => j !== i),
               )
             }
@@ -315,7 +316,7 @@ function ChecklistEditor({ field, value, onCommit }: EditorProps) {
           <button
             type="button"
             className="icon-btn"
-            aria-label={`Quitar ${it.text}`}
+            aria-label={t('Quitar {title}', { title: it.text })}
             onClick={() => save(items.filter((_, j) => j !== i))}
           >
             ×
@@ -324,8 +325,8 @@ function ChecklistEditor({ field, value, onCommit }: EditorProps) {
       ))}
       <input
         className="input"
-        placeholder="Añadir elemento y pulsar Intro"
-        aria-label={`Añadir a ${field.label}`}
+        placeholder={t('Añadir elemento y pulsar Intro')}
+        aria-label={t('Añadir a {field}', { field: field.label })}
         value={text}
         onChange={(e) => setText(e.target.value)}
         onKeyDown={(e) => {
@@ -339,7 +340,7 @@ function ChecklistEditor({ field, value, onCommit }: EditorProps) {
   )
 }
 
-function ItemText({ value, onCommit }: { value: string; onCommit: (t: string) => void }) {
+function ItemText({ value, onCommit }: { value: string; onCommit: (s: string) => void }) {
   const [draft, setDraft] = useState(value)
   const [prev, setPrev] = useState(value)
   if (prev !== value) {
@@ -351,7 +352,7 @@ function ItemText({ value, onCommit }: { value: string; onCommit: (t: string) =>
       className="input input-bare"
       value={draft}
       maxLength={500}
-      aria-label="Texto del elemento"
+      aria-label={t('Texto del elemento')}
       onChange={(e) => setDraft(e.target.value)}
       onBlur={() => draft !== value && onCommit(draft)}
       onKeyDown={(e) => {
@@ -382,24 +383,24 @@ function RecurrenceEditor({ field, value, onCommit }: EditorProps) {
           value=""
           onChange={(e) => e.target.value && set({ freq: e.target.value as RecurrenceFreq })}
         >
-          <option value="">No se repite</option>
-          <option value="daily">Cada día</option>
-          <option value="weekly">Cada semana</option>
-          <option value="monthly">Cada mes</option>
-          <option value="yearly">Cada año</option>
+          <option value="">{t('No se repite')}</option>
+          <option value="daily">{t('Cada día')}</option>
+          <option value="weekly">{t('Cada semana')}</option>
+          <option value="monthly">{t('Cada mes')}</option>
+          <option value="yearly">{t('Cada año')}</option>
         </select>
       </div>
     )
   return (
     <div className="recurrence-edit" role="group" aria-label={field.label}>
       <div className="recurrence-row">
-        <span className="faint">Cada</span>
+        <span className="faint">{t('Cada')}</span>
         <input
           className="input num recurrence-n"
           type="number"
           min={1}
           max={365}
-          aria-label="Cada cuántos"
+          aria-label={t('Cada cuántos')}
           value={r.interval}
           onChange={(e) => {
             const n = Math.round(Number(e.target.value))
@@ -408,25 +409,25 @@ function RecurrenceEditor({ field, value, onCommit }: EditorProps) {
         />
         <select
           className="input"
-          aria-label="Periodo"
+          aria-label={t('Periodo')}
           value={r.freq}
           onChange={(e) => set({ freq: e.target.value as RecurrenceFreq })}
         >
           {RECURRENCE_FREQS.map((f) => (
             <option key={f} value={f}>
-              {FREQ_LABELS[f][r.interval === 1 ? 0 : 1]}
+              {t(FREQ_LABELS[f][r.interval === 1 ? 0 : 1])}
             </option>
           ))}
         </select>
         <button type="button" className="btn-link" onClick={() => onCommit(null)}>
-          No repetir
+          {t('No repetir')}
         </button>
       </div>
       {r.freq === 'weekly' && (
-        <div className="weekday-toggles" role="group" aria-label="Días de la semana">
-          {WEEKDAY_SHORT.map((d, i) => (
+        <div className="weekday-toggles" role="group" aria-label={t('Días de la semana')}>
+          {weekdayShort().map((d, i) => (
             <button
-              key={d}
+              key={i}
               type="button"
               aria-pressed={r.weekdays.includes(i)}
               onClick={() =>
@@ -444,13 +445,13 @@ function RecurrenceEditor({ field, value, onCommit }: EditorProps) {
       )}
       {r.freq === 'monthly' && (
         <div className="recurrence-row">
-          <span className="faint">El día</span>
+          <span className="faint">{t('El día')}</span>
           <input
             className="input num recurrence-n"
             type="number"
             min={1}
             max={31}
-            aria-label="Día del mes"
+            aria-label={t('Día del mes')}
             placeholder="—"
             value={r.monthDay ?? ''}
             onChange={(e) => {
@@ -458,17 +459,17 @@ function RecurrenceEditor({ field, value, onCommit }: EditorProps) {
               set({ monthDay: e.target.value === '' ? null : n >= 1 && n <= 31 ? n : r.monthDay })
             }}
           />
-          <span className="faint">(vacío: el de la fecha límite)</span>
+          <span className="faint">{t('(vacío: el de la fecha límite)')}</span>
         </div>
       )}
       <select
         className="input"
-        aria-label="Cuándo se crea la siguiente"
+        aria-label={t('Cuándo se crea la siguiente')}
         value={r.mode}
         onChange={(e) => set({ mode: e.target.value as Recurrence['mode'] })}
       >
-        <option value="completion">La siguiente se crea al completarla</option>
-        <option value="schedule">La siguiente sigue el calendario</option>
+        <option value="completion">{t('La siguiente se crea al completarla')}</option>
+        <option value="schedule">{t('La siguiente sigue el calendario')}</option>
       </select>
     </div>
   )
@@ -587,7 +588,9 @@ export function FieldEditor(props: EditorProps) {
               <OptionChip option={o} />
             </button>
           ))}
-          {opts.length === 0 && <span className="faint">Añade opciones en Ajustes → Campos.</span>}
+          {opts.length === 0 && (
+            <span className="faint">{t('Añade opciones en Ajustes → Campos.')}</span>
+          )}
         </span>
       )
     }

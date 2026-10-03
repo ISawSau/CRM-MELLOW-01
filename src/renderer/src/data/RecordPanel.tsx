@@ -5,6 +5,7 @@ import { COMPUTED_TYPES, type FieldDef, type RichText } from '@shared/data/field
 import { formatValue } from '@shared/data/format-value'
 import type { HistoryEntry, LinkRef, RecordRow } from '@shared/data/records'
 import { formatDateTime } from '@shared/format'
+import { t } from '@shared/i18n'
 import { call, IpcCallError } from '../lib/ipc'
 import { Popover } from '../ui/Popover'
 import { useToast } from '../ui/Toast'
@@ -48,7 +49,7 @@ export function RecordPanel({
     try {
       const tf = await call('data:fields', { entity: 'tarea' })
       const byKey = (k: string) => tf.find((f) => f.key === k)
-      const task = await call('data:create', { entity: 'tarea', title: 'Nueva tarea' })
+      const task = await call('data:create', { entity: 'tarea', title: t('Nueva tarea') })
       const cliente = byKey('cliente')
       const brief = byKey('brief')
       if (rec.entity === 'cliente' && cliente)
@@ -81,18 +82,18 @@ export function RecordPanel({
   const r = record.data
   if (record.isError) {
     return (
-      <aside className="panel" aria-label="Ficha">
+      <aside className="panel" aria-label={t('Ficha')}>
         <div className="panel-head">
-          <span className="eyebrow">registro</span>
-          <button type="button" className="icon-btn" aria-label="Cerrar" onClick={onClose}>
+          <span className="eyebrow">{t('registro')}</span>
+          <button type="button" className="icon-btn" aria-label={t('Cerrar')} onClick={onClose}>
             ×
           </button>
         </div>
-        <p className="muted panel-body">Este registro ya no existe.</p>
+        <p className="muted panel-body">{t('Este registro ya no existe.')}</p>
       </aside>
     )
   }
-  if (!r) return <aside className="panel" aria-label="Ficha" aria-busy="true" />
+  if (!r) return <aside className="panel" aria-label={t('Ficha')} aria-busy="true" />
 
   const entity = entityOf(r.entity)
   const titleField = fields.find((f) => f.key === entity?.titleKey && f.system)
@@ -102,10 +103,10 @@ export function RecordPanel({
   const deleted = r.deletedAt !== null
 
   return (
-    <aside className="panel" aria-label={`Ficha: ${r.title}`} data-testid="record-panel">
+    <aside className="panel" aria-label={t('Ficha: {title}', { title: r.title })} data-testid="record-panel">
       <div className="panel-head">
         <span className="eyebrow">
-          <span className="num">{entity?.singular ?? 'registro'}</span>
+          <span className="num">{entity?.singular ?? t('registro')}</span>
         </span>
         <div className="panel-actions">
           {(r.entity === 'cliente' || r.entity === 'brief') && (
@@ -116,7 +117,7 @@ export function RecordPanel({
               onClick={() => void newLinkedTask(r)}
               data-testid="new-linked-task"
             >
-              + Tarea
+              + {t('Tarea')}
             </button>
           )}
           <button
@@ -125,7 +126,7 @@ export function RecordPanel({
             disabled={deleted}
             onClick={() => void duplicate(r.id).then((d) => d && onOpen(d.id))}
           >
-            Duplicar
+            {t('Duplicar')}
           </button>
           {r.entity === 'brief' && !deleted && <SaveAsTemplate record={r} />}
           <button
@@ -137,9 +138,9 @@ export function RecordPanel({
               onClose()
             }}
           >
-            Enviar a la papelera
+            {t('Enviar a la papelera')}
           </button>
-          <button type="button" className="icon-btn" aria-label="Cerrar ficha" onClick={onClose}>
+          <button type="button" className="icon-btn" aria-label={t('Cerrar ficha')} onClick={onClose}>
             ×
           </button>
         </div>
@@ -168,7 +169,7 @@ export function RecordPanel({
             aria-selected={tab === 'detalles'}
             onClick={() => setTab('detalles')}
           >
-            Detalles
+            {t('Detalles')}
           </button>
           <button
             type="button"
@@ -176,7 +177,7 @@ export function RecordPanel({
             aria-selected={tab === 'historial'}
             onClick={() => setTab('historial')}
           >
-            Historial
+            {t('Historial')}
           </button>
           {VERSIONED.has(r.entity) && (
             <button
@@ -185,7 +186,7 @@ export function RecordPanel({
               aria-selected={tab === 'versiones'}
               onClick={() => setTab('versiones')}
             >
-              Versiones
+              {t('Versiones')}
             </button>
           )}
         </div>
@@ -231,8 +232,10 @@ export function RecordPanel({
             )}
             {r.entity === 'creatividad' && <CreativeAds recordId={r.id} />}
             <p className="faint panel-meta">
-              Creado el {formatDateTime(new Date(r.createdAt))} · modificado el{' '}
-              {formatDateTime(new Date(r.updatedAt))}
+              {t('Creado el {created} · modificado el {updated}', {
+                created: formatDateTime(new Date(r.createdAt)),
+                updated: formatDateTime(new Date(r.updatedAt)),
+              })}
             </p>
           </>
         ) : tab === 'historial' ? (
@@ -283,19 +286,20 @@ function VersionsTab({ record, fields }: { record: RecordRow; fields: FieldDef[]
       >
         <input
           className="input"
-          placeholder="Nota de la versión (opcional)"
-          aria-label="Nota de la versión"
+          placeholder={t('Nota de la versión (opcional)')}
+          aria-label={t('Nota de la versión')}
           maxLength={500}
           value={note}
           onChange={(e) => setNote(e.target.value)}
         />
         <button type="submit" className="btn btn-primary">
-          Guardar versión
+          {t('Guardar versión')}
         </button>
       </form>
       <p className="hint">
-        Guarda una versión cuando el copy o la creatividad estén listos para lanzar; así puedes
-        compararla y volver a ella.
+        {t(
+          'Guarda una versión cuando el copy o la creatividad estén listos para lanzar; así puedes compararla y volver a ella.',
+        )}
       </p>
       <ol className="version-list">
         {(versions.data ?? []).map((v) => {
@@ -317,8 +321,13 @@ function VersionsTab({ record, fields }: { record: RecordRow; fields: FieldDef[]
                   onClick={() => setOpen(open === v.id ? null : v.id)}
                 >
                   {changed.length
-                    ? `${open === v.id ? 'Ocultar' : 'Ver'} cambios respecto a ahora (${changed.length})`
-                    : 'Igual que ahora'}
+                    ? t(
+                        open === v.id
+                          ? 'Ocultar cambios respecto a ahora ({n})'
+                          : 'Ver cambios respecto a ahora ({n})',
+                        { n: changed.length },
+                      )
+                    : t('Igual que ahora')}
                 </button>
                 {changed.length > 0 && (
                   <button
@@ -326,7 +335,7 @@ function VersionsTab({ record, fields }: { record: RecordRow; fields: FieldDef[]
                     className="btn"
                     onClick={() => void call('versions:restore', { versionId: v.id }).catch(fail)}
                   >
-                    Restaurar v{v.number}
+                    {t('Restaurar v{n}', { n: v.number })}
                   </button>
                 )}
               </div>
@@ -351,8 +360,8 @@ function VersionsTab({ record, fields }: { record: RecordRow; fields: FieldDef[]
                       </div>
                     ) : (
                       <p key={f.id} className="muted">
-                        <strong>{f.label}</strong>: {versionText(f, v.data[f.id]) || 'vacío'} →{' '}
-                        {versionText(f, current[f.id]) || 'vacío'}
+                        <strong>{f.label}</strong>: {versionText(f, v.data[f.id]) || t('vacío')} →{' '}
+                        {versionText(f, current[f.id]) || t('vacío')}
                       </p>
                     ),
                   )}
@@ -361,16 +370,18 @@ function VersionsTab({ record, fields }: { record: RecordRow; fields: FieldDef[]
             </li>
           )
         })}
-        {versions.data?.length === 0 && <li className="faint">Aún no hay versiones guardadas.</li>}
+        {versions.data?.length === 0 && (
+          <li className="faint">{t('Aún no hay versiones guardadas.')}</li>
+        )}
       </ol>
     </div>
   )
 }
 
 function changeText(field: FieldDef | undefined, v: unknown): string {
-  if (v === null || v === undefined || (Array.isArray(v) && v.length === 0)) return 'vacío'
+  if (v === null || v === undefined || (Array.isArray(v) && v.length === 0)) return t('vacío')
   if (!field) return '…'
-  if (field.type === 'relation') return `${(v as string[]).length} enlazados`
+  if (field.type === 'relation') return t('{n} enlazados', { n: (v as string[]).length })
   return formatValue(field, v) || '…'
 }
 
@@ -383,7 +394,7 @@ function HistoryList({ record, fields }: { record: RecordRow; fields: FieldDef[]
       {history.data.map((h) => (
         <li key={h.id}>
           <div className="history-head">
-            <span>{ACTION_LABELS[h.action]}</span>
+            <span>{t(ACTION_LABELS[h.action])}</span>
             <span className="faint num">{formatDateTime(new Date(h.at))}</span>
           </div>
           {h.action === 'update' && (
@@ -409,11 +420,11 @@ function SaveAsTemplate({ record }: { record: RecordRow }) {
   const [name, setName] = useState(record.title)
   return (
     <Popover
-      label="Guardar como plantilla"
-      button="Como plantilla"
+      label={t('Guardar como plantilla')}
+      button={t('Como plantilla')}
       align="end"
       testId="save-as-template"
-      title="Guardar este brief como plantilla"
+      title={t('Guardar este brief como plantilla')}
     >
       {(close) => (
         <form
@@ -423,18 +434,18 @@ function SaveAsTemplate({ record }: { record: RecordRow }) {
             void call('briefs:saveAsTemplate', { recordId: record.id, name })
               .then((list) => {
                 qc.setQueryData(['data', 'brief-templates'], list)
-                toast.show(`Plantilla «${name.trim()}» guardada. Edítala en Ajustes.`)
+                toast.show(t('Plantilla «{name}» guardada. Edítala en Ajustes.', { name: name.trim() }))
                 close()
               })
               .catch((err: unknown) =>
                 toast.show(
-                  err instanceof IpcCallError ? err.message : 'No se pudo guardar la plantilla.',
+                  err instanceof IpcCallError ? err.message : t('No se pudo guardar la plantilla.'),
                   'error',
                 ),
               )
           }}
         >
-          <label htmlFor="tpl-from-brief">Nombre de la plantilla</label>
+          <label htmlFor="tpl-from-brief">{t('Nombre de la plantilla')}</label>
           <input
             id="tpl-from-brief"
             className="input"
@@ -442,9 +453,9 @@ function SaveAsTemplate({ record }: { record: RecordRow }) {
             value={name}
             onChange={(e) => setName(e.target.value)}
           />
-          <p className="hint">Cada título del contenido será una sección.</p>
+          <p className="hint">{t('Cada título del contenido será una sección.')}</p>
           <button type="submit" className="btn btn-primary" disabled={!name.trim()}>
-            Guardar plantilla
+            {t('Guardar plantilla')}
           </button>
         </form>
       )}

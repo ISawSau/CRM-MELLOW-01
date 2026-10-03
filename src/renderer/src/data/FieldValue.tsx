@@ -6,6 +6,7 @@ import {
   type SelectOption,
 } from '@shared/data/fields'
 import { describeRecurrence, type Recurrence } from '@shared/data/recurrence'
+import { t } from '@shared/i18n'
 import { FileThumb } from './files'
 import { formatValue } from '@shared/data/format-value'
 import type { ComputedValue, LinkRef } from '@shared/data/records'
@@ -33,7 +34,7 @@ export function OptionChip({ option }: { option: Pick<SelectOption, 'label' | 'c
 
 export function Stars({ value, max }: { value: number; max: number }) {
   return (
-    <span className="stars" aria-label={`${value} de ${max}`}>
+    <span className="stars" aria-label={t('{n} de {max}', { n: value, max })}>
       {Array.from({ length: max }, (_, i) => (
         <span key={i} data-on={i < value}>
           ★
@@ -64,7 +65,7 @@ export function FieldValue({ field, value }: { field: FieldDef; value: unknown }
     }
     case 'checkbox':
       return (
-        <span className="checkmark" data-on={value === true} aria-label={value ? 'Sí' : 'No'}>
+        <span className="checkmark" data-on={value === true} aria-label={value ? t('Sí') : t('No')}>
           {value ? '✓' : ''}
         </span>
       )
@@ -74,7 +75,7 @@ export function FieldValue({ field, value }: { field: FieldDef; value: unknown }
       const items = value as ChecklistItem[]
       const done = items.filter((i) => i.done).length
       return (
-        <span className="checklist-progress" aria-label={`${done} de ${items.length} hechos`}>
+        <span className="checklist-progress" aria-label={t('{done} de {total} hechos', { done, total: items.length })}>
           <span className="bar" aria-hidden="true">
             <span
               className="bar-fill"

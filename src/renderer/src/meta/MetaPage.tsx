@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { formatDateTime } from '@shared/format'
+import { t } from '@shared/i18n'
 import { call, IpcCallError } from '../lib/ipc'
 import { Alert } from '../ui/Alert'
 import { SyncProgress } from './SyncProgress'
@@ -10,7 +11,7 @@ import { MetaPerformance } from './MetaPerformance'
 import { MetaSettingsPanel } from './MetaSettings'
 import { useMetaStatus } from './meta'
 
-const errorText = (e: unknown) => (e instanceof IpcCallError ? e.message : 'No se pudo completar.')
+const errorText = (e: unknown) => (e instanceof IpcCallError ? e.message : t('No se pudo completar.'))
 
 function ConnectForm() {
   const [token, setToken] = useState('')
@@ -19,29 +20,35 @@ function ConnectForm() {
   const [error, setError] = useState<string | null>(null)
   return (
     <div className="meta-connect" data-testid="meta-connect">
-      <h2>Conectar con Meta (solo lectura)</h2>
+      <h2>{t('Conectar con Meta (solo lectura)')}</h2>
       <p className="muted">
-        La app solo lee: nunca pausa anuncios ni cambia presupuestos. El token se guarda dentro de
-        la base de datos cifrada de la bóveda.
+        {t(
+          'La app solo lee: nunca pausa anuncios ni cambia presupuestos. El token se guarda dentro de la base de datos cifrada de la bóveda.',
+        )}
       </p>
       <ol className="steps">
         <li>
-          En <strong>developers.facebook.com</strong> crea una app de tipo{' '}
-          <strong>Empresa (Business)</strong> vinculada a tu Business Manager (gratis).
+          {t('En')} <strong>developers.facebook.com</strong> {t('crea una app de tipo')}{' '}
+          <strong>{t('Empresa (Business)')}</strong>{' '}
+          {t('vinculada a tu Business Manager (gratis).')}
         </li>
         <li>
-          En <strong>Configuración del negocio → Usuarios → Usuarios del sistema</strong>, crea un
-          usuario del sistema y asígnale las cuentas publicitarias con permiso para{' '}
-          <strong>ver rendimiento</strong>.
+          {t('En')}{' '}
+          <strong>{t('Configuración del negocio → Usuarios → Usuarios del sistema')}</strong>
+          {t(
+            ', crea un usuario del sistema y asígnale las cuentas publicitarias con permiso para',
+          )}{' '}
+          <strong>{t('ver rendimiento')}</strong>.
         </li>
         <li>
-          Pulsa <strong>Generar token</strong>, elige tu app, caducidad <strong>Nunca</strong> y
-          marca solo el permiso <code>ads_read</code>.
+          {t('Pulsa')} <strong>{t('Generar token')}</strong>
+          {t(', elige tu app, caducidad')} <strong>{t('Nunca')}</strong>{' '}
+          {t('y marca solo el permiso')} <code>ads_read</code>.
         </li>
-        <li>Copia el token y pégalo aquí.</li>
+        <li>{t('Copia el token y pégalo aquí.')}</li>
       </ol>
       <div className="field">
-        <label htmlFor="meta-token">Token del usuario del sistema</label>
+        <label htmlFor="meta-token">{t('Token del usuario del sistema')}</label>
         <input
           id="meta-token"
           className="input mono"
@@ -52,7 +59,7 @@ function ConnectForm() {
         />
       </div>
       <div className="field">
-        <label htmlFor="meta-secret">Clave secreta de la app (opcional)</label>
+        <label htmlFor="meta-secret">{t('Clave secreta de la app (opcional)')}</label>
         <input
           id="meta-secret"
           className="input mono"
@@ -62,7 +69,9 @@ function ConnectForm() {
           onChange={(e) => setAppSecret(e.target.value)}
         />
         <p className="hint">
-          Solo si tu app tiene activado «Requerir la clave secreta de la app» (appsecret_proof).
+          {t(
+            'Solo si tu app tiene activado «Requerir la clave secreta de la app» (appsecret_proof).',
+          )}
         </p>
       </div>
       {error && <Alert>{error}</Alert>}
@@ -83,7 +92,7 @@ function ConnectForm() {
               .finally(() => setBusy(false))
           }}
         >
-          {busy ? 'Comprobando…' : 'Conectar'}
+          {busy ? t('Comprobando…') : t('Conectar')}
         </button>
       </div>
     </div>
@@ -101,14 +110,21 @@ export function MetaPage({ num }: { num: string }) {
     <div className="page page-wide" data-testid="page-campanas">
       <div className="section-head">
         <span className="eyebrow">
-          <span className="num">{num}</span> media buying
+          <span className="num">{num}</span> {t('media buying')}
         </span>
-        <h1 className="title">Campañas</h1>
+        <h1 className="title">{t('Campañas')}</h1>
         <p className="muted">
-          Cuentas publicitarias de Meta, en solo lectura.
-          {status?.connected && status.user && <> Conectado como {status.user}.</>}
+          {t('Cuentas publicitarias de Meta, en solo lectura.')}
+          {status?.connected && status.user && (
+            <> {t('Conectado como {user}.', { user: status.user })}</>
+          )}
           {status?.lastSyncAt && (
-            <> Última sincronización: {formatDateTime(new Date(status.lastSyncAt))}.</>
+            <>
+              {' '}
+              {t('Última sincronización: {date}.', {
+                date: formatDateTime(new Date(status.lastSyncAt)),
+              })}
+            </>
           )}
         </p>
       </div>
@@ -117,7 +133,7 @@ export function MetaPage({ num }: { num: string }) {
       ) : (
         <>
           <div className="meta-bar">
-            <div className="tabs" role="tablist" aria-label="Campañas">
+            <div className="tabs" role="tablist" aria-label={t('Campañas')}>
               {(
                 [
                   ['rendimiento', 'Rendimiento'],
@@ -134,13 +150,13 @@ export function MetaPage({ num }: { num: string }) {
                   onClick={() => setTab(id)}
                   data-testid={`meta-tab-${id}`}
                 >
-                  {label}
+                  {t(label)}
                 </button>
               ))}
             </div>
             <span className="meta-sync" data-testid="meta-sync-state">
               {status.phase === 'syncing' && !status.progress && (
-                <span className="muted">Sincronizando…</span>
+                <span className="muted">{t('Sincronizando…')}</span>
               )}
               <button
                 type="button"
@@ -151,7 +167,7 @@ export function MetaPage({ num }: { num: string }) {
                   void call('meta:syncNow').catch((e: unknown) => toast.show(errorText(e), 'error'))
                 }
               >
-                Sincronizar ahora
+                {t('Sincronizar ahora')}
               </button>
             </span>
           </div>
