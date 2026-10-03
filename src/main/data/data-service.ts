@@ -17,6 +17,7 @@ import {
   UNAVAILABLE_TYPES,
   type ChecklistItem,
   type FieldDef,
+  type FileRef,
   type FieldType,
   type RichText,
 } from '@shared/data/fields'
@@ -55,9 +56,12 @@ import {
   type ViewKind,
 } from '@shared/data/views'
 import { DEFAULT_TIME_ZONE } from '@shared/format'
+import { mimeFromName, safeFileName } from '@shared/files'
 import { DEFAULT_PROFILE, profileSchema, type Profile } from '@shared/profile'
 import { AppError } from '@shared/errors'
+import type { FileInfo, VersionEntry } from '@shared/ipc'
 import type { SqliteDb } from '../db/connection'
+import type { FileStore } from '../files/file-store'
 import { toCsv } from './csv'
 import {
   filterToSql,
@@ -108,6 +112,8 @@ interface ViewRow {
 }
 
 export interface DataServiceOptions {
+  /** Almacén de archivos cifrados (sin él, no se pueden adjuntar archivos). */
+  files?: FileStore
   timeZone?: string
   now?: () => Date
   onChange?: (change: DataChange) => void
@@ -131,6 +137,8 @@ function chunks<T>(xs: T[], n = CHUNK): T[][] {
 function newId(): string {
   return randomUUID()
 }
+
+export type { FileInfo, VersionEntry }
 
 interface SpawnPlan {
   newId: string
@@ -159,6 +167,7 @@ export class DataService {
   readonly undoStack = new UndoStack()
   private formulaCache = new Map<string, Node | FormulaError>()
   private timer: ReturnType<typeof setInterval> | null = null
+  private readonly store: FileStore | undefined
   /** El campo de título de cada entidad no cambia nunca: se busca una vez. */
   private titleIds = new Map<string, string | null>()
 
@@ -167,12 +176,14 @@ export class DataService {
     this.timeZone = opts.timeZone ?? DEFAULT_TIME_ZONE
     this.now = opts.now ?? (() => new Date())
     this.onChange = opts.onChange
+    this.store = opts.files
     db.function('crm_norm', { deterministic: true }, (s: unknown) =>
       typeof s === 'string' ? norm(s) : s,
     )
     this.seed()
     this.purgeExpired()
     this.processRecurrences()
+    this.gcFiles()
     this.timer = setInterval(() => {
       try {
         this.processRecurrences()
@@ -188,6 +199,7 @@ export class DataService {
   dispose(): void {
     if (this.timer) clearInterval(this.timer)
     this.timer = null
+    this.store?.dispose()
   }
 
   /** Tareas de hoy y atrasadas sin terminar (para la barra lateral y el inicio). */
@@ -986,6 +998,8 @@ export class DataService {
       }
       case 'recurrence':
         return describeRecurrence(v as Recurrence)
+      case 'files':
+        return (v as FileRef[]).length
       case 'rollup':
         return 'value' in (v as ComputedValue) ? (v as { value: FormulaValue }).value : null
       default:
@@ -1112,7 +1126,7 @@ export class DataService {
     for (const [fid, raw] of Object.entries(patch)) {
       const f = fields.get(fid)
       if (!f) throw new AppError('INVALID_INPUT', undefined, 'Ese campo no existe.')
-      if (COMPUTED_TYPES.includes(f.type) || f.type === 'relation' || f.type === 'files')
+      if (COMPUTED_TYPES.includes(f.type) || f.type === 'relation')
         throw new AppError('INVALID_INPUT', undefined, `«${f.label}» no se edita directamente.`)
       let value: unknown
       try {
@@ -1125,6 +1139,12 @@ export class DataService {
         if (JSON.stringify(rt.doc).length > 1_000_000)
           throw new AppError('INVALID_INPUT', undefined, 'El texto es demasiado largo.')
         value = { doc: rt.doc, text: richTextToPlain(rt.doc).trim() }
+      }
+      if (f.type === 'files' && value) {
+        const refs = value as FileRef[]
+        const known = this.db.prepare('SELECT id FROM files WHERE id = ?')
+        if (refs.some((r) => !known.get(r.id)))
+          throw new AppError('INVALID_INPUT', undefined, 'Algún archivo no está en la bóveda.')
       }
       if (f.required && value === null)
         throw new AppError('INVALID_INPUT', undefined, `«${f.label}» no puede quedar vacío.`)
@@ -1169,6 +1189,7 @@ export class DataService {
       else if (f.type === 'longtext') body.push((v as RichText).text)
       else if (f.type === 'checklist')
         body.push((v as ChecklistItem[]).map((i) => i.text).join('\n'))
+      else if (f.type === 'files') body.push((v as FileRef[]).map((i) => i.name).join('\n'))
       else if (f.type === 'select' || f.type === 'multiselect') {
         const opts = parseFieldConfig(f.type, f.config).options
         const ids = Array.isArray(v) ? (v as string[]) : [v as string]
@@ -1208,6 +1229,7 @@ export class DataService {
   private hardDelete(id: string): void {
     this.db.prepare('DELETE FROM links WHERE from_id = ? OR to_id = ?').run(id, id)
     this.db.prepare('DELETE FROM history WHERE record_id = ?').run(id)
+    this.db.prepare('DELETE FROM versions WHERE record_id = ?').run(id)
     this.db.prepare('DELETE FROM search_fts WHERE record_id = ?').run(id)
     this.db.prepare('DELETE FROM records WHERE id = ?').run(id)
   }
@@ -1314,6 +1336,186 @@ export class DataService {
     })
     this.emit(row.entity)
     return this.get(id)
+  }
+
+  // --- Versiones -------------------------------------------------------------
+
+  listVersions(recordId: string): VersionEntry[] {
+    this.storedData(recordId)
+    return (
+      this.db
+        .prepare('SELECT * FROM versions WHERE record_id = ? ORDER BY number DESC')
+        .all(recordId) as {
+        id: number
+        number: number
+        note: string
+        data: string
+        created_at: string
+      }[]
+    ).map((v) => ({
+      id: v.id,
+      number: v.number,
+      note: v.note,
+      createdAt: v.created_at,
+      data: JSON.parse(v.data) as Values,
+    }))
+  }
+
+  /** Guarda el estado actual del registro como una versión nueva (v1, v2…). */
+  createVersion(recordId: string, note = ''): VersionEntry {
+    const { row, data } = this.storedData(recordId)
+    const n =
+      ((
+        this.db
+          .prepare('SELECT MAX(number) AS m FROM versions WHERE record_id = ?')
+          .get(recordId) as {
+          m: number | null
+        }
+      ).m ?? 0) + 1
+    this.db
+      .prepare(
+        'INSERT INTO versions (record_id, number, note, data, created_at) VALUES (?, ?, ?, ?, ?)',
+      )
+      .run(recordId, n, note.trim().slice(0, 500), JSON.stringify(data), this.nowIso())
+    this.emit(row.entity)
+    return this.listVersions(recordId).find((v) => v.number === n)!
+  }
+
+  /** Vuelve a los valores de una versión (se puede deshacer como cualquier edición). */
+  restoreVersion(versionId: number): RecordRow {
+    const v = this.db.prepare('SELECT * FROM versions WHERE id = ?').get(versionId) as
+      { record_id: string; data: string } | undefined
+    if (!v) throw new AppError('INVALID_INPUT', undefined, 'La versión no existe.')
+    const { row } = this.storedData(v.record_id)
+    const snapshot = JSON.parse(v.data) as Values
+    const patch: Values = {}
+    for (const f of this.listFields(row.entity)) {
+      if (COMPUTED_TYPES.includes(f.type) || f.type === 'relation') continue
+      patch[f.id] = snapshot[f.id] ?? null
+    }
+    const title = this.titleFieldId(row.entity)
+    if (title && !patch[title]) delete patch[title]
+    return this.update(v.record_id, patch)
+  }
+
+  // --- Archivos ---------------------------------------------------------------
+
+  get files(): FileStore {
+    if (!this.store) throw new AppError('UNKNOWN', undefined, 'Los archivos no están disponibles.')
+    return this.store
+  }
+
+  private registerFile(id: string, size: number, name: string): FileRef {
+    const mime = mimeFromName(name)
+    this.db
+      .prepare(
+        'INSERT OR IGNORE INTO files (id, size, mime, has_thumb, created_at) VALUES (?, ?, ?, 0, ?)',
+      )
+      .run(id, size, mime, this.nowIso())
+    const row = this.fileInfo(id)!
+    return { id, name: safeFileName(name), size, mime: row.mime }
+  }
+
+  /** Importa archivos del disco (elegidos por el usuario en el diálogo del sistema). */
+  importFiles(paths: string[]): FileRef[] {
+    return paths.map((p) => {
+      const { id, size } = this.files.importPath(p)
+      return this.registerFile(id, size, p.split(/[\\/]/).pop() ?? 'archivo')
+    })
+  }
+
+  /** Importa un archivo que llega desde la interfaz (arrastrar y soltar). */
+  importBuffer(name: string, data: Uint8Array): FileRef {
+    const { id, size } = this.files.importBuffer(data)
+    return this.registerFile(id, size, name)
+  }
+
+  fileInfo(id: string): FileInfo | null {
+    const r = this.db.prepare('SELECT * FROM files WHERE id = ?').get(id) as
+      | {
+          id: string
+          size: number
+          mime: string
+          width: number | null
+          height: number | null
+          duration: number | null
+          has_thumb: number
+        }
+      | undefined
+    return r
+      ? {
+          id: r.id,
+          size: r.size,
+          mime: r.mime,
+          width: r.width,
+          height: r.height,
+          duration: r.duration,
+          hasThumb: !!r.has_thumb,
+        }
+      : null
+  }
+
+  /** Miniatura y medidas que calcula la interfaz al ver el archivo por primera vez. */
+  setFileMeta(
+    id: string,
+    meta: { width?: number; height?: number; duration?: number; thumb?: Uint8Array },
+  ): FileInfo {
+    if (!this.fileInfo(id)) throw new AppError('INVALID_INPUT', undefined, 'El archivo no existe.')
+    if (meta.thumb) this.files.saveThumb(id, meta.thumb)
+    this.db
+      .prepare(
+        `UPDATE files SET width = COALESCE(?, width), height = COALESCE(?, height),
+         duration = COALESCE(?, duration), has_thumb = MAX(has_thumb, ?) WHERE id = ?`,
+      )
+      .run(
+        meta.width ?? null,
+        meta.height ?? null,
+        meta.duration === undefined ? null : Math.round(meta.duration),
+        meta.thumb ? 1 : 0,
+        id,
+      )
+    return this.fileInfo(id)!
+  }
+
+  /**
+   * Borra los archivos que ya no usa ningún registro (ni en la papelera ni en sus
+   * versiones). Los recién importados se respetan un día, por si aún no se han
+   * guardado en su registro.
+   */
+  gcFiles(): number {
+    if (!this.store) return 0
+    const used = new Set<string>()
+    const fileFields = this.db
+      .prepare("SELECT id, entity FROM field_defs WHERE type = 'files'")
+      .all() as {
+      id: string
+      entity: string
+    }[]
+    const collect = (data: Values) => {
+      for (const f of fileFields) {
+        const v = data[f.id]
+        if (Array.isArray(v)) for (const r of v as FileRef[]) used.add(r.id)
+      }
+    }
+    if (fileFields.length) {
+      for (const r of this.db.prepare('SELECT data FROM records').iterate() as Iterable<{
+        data: string
+      }>)
+        collect(JSON.parse(r.data) as Values)
+      for (const r of this.db.prepare('SELECT data FROM versions').iterate() as Iterable<{
+        data: string
+      }>)
+        collect(JSON.parse(r.data) as Values)
+    }
+    const limit = new Date(this.now().getTime() - 86_400_000).toISOString()
+    const stale = (
+      this.db.prepare('SELECT id FROM files WHERE created_at < ?').all(limit) as { id: string }[]
+    ).filter((r) => !used.has(r.id))
+    for (const r of stale) {
+      this.store.remove(r.id)
+      this.db.prepare('DELETE FROM files WHERE id = ?').run(r.id)
+    }
+    return stale.length
   }
 
   // --- Repeticiones (tareas) ------------------------------------------------------
@@ -1666,6 +1868,7 @@ export class DataService {
   purge(ids: string[]): void {
     const rows = this.loadRows(ids).filter((r) => r.deleted_at)
     this.tx(() => rows.forEach((r) => this.hardDelete(r.id)))
+    this.gcFiles()
     for (const e of new Set(rows.map((r) => r.entity))) this.emit(e)
   }
 

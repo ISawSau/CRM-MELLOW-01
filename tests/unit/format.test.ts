@@ -82,3 +82,17 @@ describe('calendario', () => {
     expect(shiftMonth('2026-01', -1)).toBe('2025-12')
   })
 })
+
+describe('diferencias entre versiones', () => {
+  it('marca líneas añadidas, quitadas e iguales', async () => {
+    const { diffLines } = await import('../../src/shared/diff')
+    expect(diffLines('Hook A\nCuerpo\nCTA', 'Hook B\nCuerpo\nCTA\nPS')).toEqual([
+      { kind: 'removed', text: 'Hook A' },
+      { kind: 'added', text: 'Hook B' },
+      { kind: 'same', text: 'Cuerpo' },
+      { kind: 'same', text: 'CTA' },
+      { kind: 'added', text: 'PS' },
+    ])
+    expect(diffLines('igual', 'igual')).toEqual([{ kind: 'same', text: 'igual' }])
+  })
+})

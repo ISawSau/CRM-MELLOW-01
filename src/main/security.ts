@@ -30,6 +30,17 @@ const MIME_TYPES: Record<string, string> = {
 export function registerPrivilegedScheme(): void {
   protocol.registerSchemesAsPrivileged([
     { scheme: APP_SCHEME, privileges: { standard: true, secure: true, supportFetchAPI: true } },
+    // Archivos de la bóveda (imágenes y vídeos con avance); con CORS para miniaturas.
+    {
+      scheme: 'vault',
+      privileges: {
+        standard: true,
+        secure: true,
+        supportFetchAPI: true,
+        stream: true,
+        corsEnabled: true,
+      },
+    },
   ])
 }
 
@@ -47,10 +58,10 @@ export function contentSecurityPolicy(devServerUrl?: string): string {
     `script-src ${self}${dev ? " 'unsafe-inline'" : ''}`,
     // Vite inyecta los estilos con <style> en desarrollo.
     `style-src ${self}${dev ? " 'unsafe-inline'" : ''}`,
-    `img-src ${self} data: blob:`,
+    `img-src ${self} data: blob: vault:`,
     `font-src ${self}`,
     `connect-src ${self}${dev ? ` ws://${dev.host}` : ''}`,
-    "media-src 'self' blob:",
+    "media-src 'self' blob: vault:",
     "object-src 'none'",
     "base-uri 'none'",
     "form-action 'none'",
@@ -155,6 +166,8 @@ export function hardenSession(ses: Session, devServerUrl?: string): void {
       url.protocol === 'devtools:' ||
       url.protocol === 'data:' ||
       url.protocol === 'blob:' ||
+      // Archivos de la bóveda, servidos por la propia app (files/vault-protocol.ts).
+      (url.protocol === 'vault:' && (url.host === 'file' || url.host === 'thumb')) ||
       (dev !== null &&
         (url.origin === dev.origin || (url.protocol === 'ws:' && url.host === dev.host)))
     callback({ cancel: !allowed })

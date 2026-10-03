@@ -134,7 +134,7 @@ export function FilterMenu({
   fields: FieldDef[]
   onSave: SaveConfig
 }) {
-  const filterable = fields.filter((f) => f.type !== 'files')
+  const filterable = fields
   const [draft, setDraft] = useState(view.config.filters)
   const [match, setMatch] = useState(view.config.match)
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)

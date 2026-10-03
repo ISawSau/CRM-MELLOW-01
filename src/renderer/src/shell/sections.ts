@@ -57,8 +57,9 @@ export const SECTION_GROUPS: SectionGroup[] = [
         id: 'creatividades',
         label: 'Creatividades',
         letter: 'R',
-        phase: 4,
-        summary: 'biblioteca de creatividades y copies con etiquetas y versiones',
+        phase: null,
+        summary: '',
+        entity: 'creatividad',
       },
       {
         id: 'analisis',

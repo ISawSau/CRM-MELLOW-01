@@ -90,10 +90,10 @@ export interface SqlPart {
 
 /** Traducción a SQL; null si el filtro solo se puede evaluar en JavaScript. */
 export function filterToSql(field: FieldDef, f: Filter, ctx: FilterContext): SqlPart | null {
-  if (['formula', 'rollup', 'relation', 'files'].includes(field.type)) return null
+  if (['formula', 'rollup', 'relation'].includes(field.type)) return null
   const p = jsonPath(field)
   const val = f.value
-  const isArray = field.type === 'multiselect' || field.type === 'checklist'
+  const isArray = ['multiselect', 'checklist', 'files'].includes(field.type)
   if (f.op === 'empty') {
     if (isArray) return { sql: `(${p} IS NULL OR json_array_length(${p}) = 0)`, params: [] }
     return { sql: `(${p} IS NULL OR ${p} = '')`, params: [] }

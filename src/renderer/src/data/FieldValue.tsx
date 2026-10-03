@@ -2,9 +2,11 @@ import {
   parseFieldConfig,
   type ChecklistItem,
   type FieldDef,
+  type FileRef,
   type SelectOption,
 } from '@shared/data/fields'
 import { describeRecurrence, type Recurrence } from '@shared/data/recurrence'
+import { FileThumb } from './files'
 import { formatValue } from '@shared/data/format-value'
 import type { ComputedValue, LinkRef } from '@shared/data/records'
 
@@ -83,6 +85,17 @@ export function FieldValue({ field, value }: { field: FieldDef; value: unknown }
           <span className="num">
             {done}/{items.length}
           </span>
+        </span>
+      )
+    }
+    case 'files': {
+      const files = value as FileRef[]
+      return (
+        <span className="files-inline">
+          {files.slice(0, 4).map((f) => (
+            <FileThumb key={f.id} file={f} className="file-thumb file-thumb-mini" />
+          ))}
+          {files.length > 4 && <span className="faint num">+{files.length - 4}</span>}
         </span>
       )
     }

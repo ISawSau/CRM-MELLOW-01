@@ -57,9 +57,7 @@ export const FIELD_TYPE_LABELS: Record<FieldType, string> = {
 /** Tipos calculados: no se guardan, se calculan al leer. */
 export const COMPUTED_TYPES: readonly FieldType[] = ['formula', 'rollup']
 /** Tipos que aún no se pueden crear (llegan en una fase posterior). */
-export const UNAVAILABLE_TYPES: Partial<Record<FieldType, string>> = {
-  files: 'Los archivos llegan en la fase 4.',
-}
+export const UNAVAILABLE_TYPES: Partial<Record<FieldType, string>> = {}
 
 /** Colores de las opciones: nombres de token, cada tema los traduce (contraste AA). */
 export const OPTION_COLORS = [
@@ -191,6 +189,17 @@ export const richTextSchema = z.object({
 })
 export type RichText = z.infer<typeof richTextSchema>
 
+/** Archivo adjunto: el contenido está cifrado en la bóveda; aquí, su referencia. */
+export const fileRefSchema = z
+  .object({
+    id: z.string().regex(/^[a-f0-9]{64}$/),
+    name: z.string().min(1).max(255),
+    size: z.number().int().min(0),
+    mime: z.string().max(100),
+  })
+  .strict()
+export type FileRef = z.infer<typeof fileRefSchema>
+
 /** Lista de comprobación: elementos con texto y marcados o no. */
 export const checklistSchema = z
   .array(
@@ -265,11 +274,12 @@ export function valueSchema(field: Pick<FieldDef, 'type' | 'config'>): z.ZodType
       return checklistSchema
     case 'recurrence':
       return recurrenceSchema
+    case 'files':
+      return z.array(fileRefSchema).max(100)
     // Relaciones (tabla links) y calculados no se guardan en `data`.
     case 'relation':
     case 'formula':
     case 'rollup':
-    case 'files':
       return z.never()
   }
 }

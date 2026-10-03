@@ -1,4 +1,6 @@
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
+import { diffLines } from '@shared/diff'
 import { findEntity } from '@shared/data/entities'
 import { COMPUTED_TYPES, type FieldDef, type RichText } from '@shared/data/fields'
 import { formatValue } from '@shared/data/format-value'
@@ -32,7 +34,7 @@ export function RecordPanel({
   onOpen: (id: string) => void
 }) {
   const record = useRecord(id)
-  const [tab, setTab] = useState<'detalles' | 'historial'>('detalles')
+  const [tab, setTab] = useState<'detalles' | 'historial' | 'versiones'>('detalles')
   const { setValue, trash, duplicate, fail } = useRecordActions()
   const nav = useNav()
 
@@ -170,6 +172,16 @@ export function RecordPanel({
           >
             Historial
           </button>
+          {VERSIONED.has(r.entity) && (
+            <button
+              type="button"
+              role="tab"
+              aria-selected={tab === 'versiones'}
+              onClick={() => setTab('versiones')}
+            >
+              Versiones
+            </button>
+          )}
         </div>
 
         {tab === 'detalles' ? (
@@ -212,11 +224,135 @@ export function RecordPanel({
               {formatDateTime(new Date(r.updatedAt))}
             </p>
           </>
-        ) : (
+        ) : tab === 'historial' ? (
           <HistoryList record={r} fields={fields} />
+        ) : (
+          <VersionsTab record={r} fields={fields} />
         )}
       </div>
     </aside>
+  )
+}
+
+/** Entidades con versiones guardadas (SPEC §7.8). */
+const VERSIONED = new Set(['creatividad', 'brief'])
+
+function versionText(field: FieldDef | undefined, v: unknown): string {
+  if (v === null || v === undefined || (Array.isArray(v) && v.length === 0)) return ''
+  if (!field) return ''
+  if (field.type === 'longtext') return (v as RichText).text
+  return formatValue(field, v)
+}
+
+function VersionsTab({ record, fields }: { record: RecordRow; fields: FieldDef[] }) {
+  const qc = useQueryClient()
+  const { fail } = useRecordActions()
+  const versions = useQuery({
+    queryKey: ['data', 'versions', record.id],
+    queryFn: () => call('versions:list', { recordId: record.id }),
+  })
+  const [note, setNote] = useState('')
+  const [open, setOpen] = useState<number | null>(null)
+  const comparable = fields.filter((f) => !['formula', 'rollup', 'relation'].includes(f.type))
+  const current = record.values
+
+  return (
+    <div className="versions" data-testid="versions">
+      <form
+        className="version-new"
+        onSubmit={(e) => {
+          e.preventDefault()
+          void call('versions:create', { recordId: record.id, note })
+            .then(() => {
+              setNote('')
+              return qc.invalidateQueries({ queryKey: ['data', 'versions', record.id] })
+            })
+            .catch(fail)
+        }}
+      >
+        <input
+          className="input"
+          placeholder="Nota de la versión (opcional)"
+          aria-label="Nota de la versión"
+          maxLength={500}
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+        />
+        <button type="submit" className="btn btn-primary">
+          Guardar versión
+        </button>
+      </form>
+      <p className="hint">
+        Guarda una versión cuando el copy o la creatividad estén listos para lanzar; así puedes
+        compararla y volver a ella.
+      </p>
+      <ol className="version-list">
+        {(versions.data ?? []).map((v) => {
+          const changed = comparable.filter(
+            (f) => versionText(f, v.data[f.id]) !== versionText(f, current[f.id]),
+          )
+          return (
+            <li key={v.id} className="version">
+              <div className="history-head">
+                <span>
+                  <strong className="num">v{v.number}</strong> {v.note}
+                </span>
+                <span className="faint num">{formatDateTime(new Date(v.createdAt))}</span>
+              </div>
+              <div className="form-actions">
+                <button
+                  type="button"
+                  className="btn-link"
+                  onClick={() => setOpen(open === v.id ? null : v.id)}
+                >
+                  {changed.length
+                    ? `${open === v.id ? 'Ocultar' : 'Ver'} cambios respecto a ahora (${changed.length})`
+                    : 'Igual que ahora'}
+                </button>
+                {changed.length > 0 && (
+                  <button
+                    type="button"
+                    className="btn"
+                    onClick={() => void call('versions:restore', { versionId: v.id }).catch(fail)}
+                  >
+                    Restaurar v{v.number}
+                  </button>
+                )}
+              </div>
+              {open === v.id && (
+                <div className="version-diff">
+                  {changed.map((f) =>
+                    f.type === 'longtext' ? (
+                      <div key={f.id}>
+                        <h4 className="panel-subtitle">{f.label}</h4>
+                        <pre className="diff">
+                          {diffLines(
+                            versionText(f, v.data[f.id]),
+                            versionText(f, current[f.id]),
+                          ).map((l, i) => (
+                            <span key={i} className="diff-line" data-kind={l.kind}>
+                              {l.kind === 'added' ? '+ ' : l.kind === 'removed' ? '− ' : '  '}
+                              {l.text}
+                              {'\n'}
+                            </span>
+                          ))}
+                        </pre>
+                      </div>
+                    ) : (
+                      <p key={f.id} className="muted">
+                        <strong>{f.label}</strong>: {versionText(f, v.data[f.id]) || 'vacío'} →{' '}
+                        {versionText(f, current[f.id]) || 'vacío'}
+                      </p>
+                    ),
+                  )}
+                </div>
+              )}
+            </li>
+          )
+        })}
+        {versions.data?.length === 0 && <li className="faint">Aún no hay versiones guardadas.</li>}
+      </ol>
+    </div>
   )
 }
 

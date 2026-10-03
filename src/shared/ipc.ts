@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { appearanceSchema, type Appearance } from './appearance'
-import { FIELD_TYPES, idSchema, type FieldDef } from './data/fields'
+import { FIELD_TYPES, idSchema, type FieldDef, type FileRef } from './data/fields'
 import { profileSchema, type Profile } from './profile'
 import { briefTemplatesSchema, type BriefTemplate } from './data/brief-templates'
 import type {
@@ -66,6 +66,27 @@ const values = z
 const config = z.record(z.string().max(40), z.unknown())
 const ids = z.array(idSchema).min(1).max(5000)
 const label = z.string().max(120)
+const fileId = z.string().regex(/^[a-f0-9]{64}$/)
+/** Lo que se puede arrastrar a la app de una vez; lo mayor, con «Añadir archivos». */
+export const MAX_UPLOAD_BYTES = 512 * 1024 * 1024
+
+export interface FileInfo {
+  id: string
+  size: number
+  mime: string
+  width: number | null
+  height: number | null
+  duration: number | null
+  hasThumb: boolean
+}
+
+export interface VersionEntry {
+  id: number
+  number: number
+  note: string
+  createdAt: string
+  data: Record<string, unknown>
+}
 
 export interface AppInfo {
   version: string
@@ -147,6 +168,28 @@ export const ipcSchemas = {
     label,
     multiple: z.boolean().default(true),
   }),
+  'files:pick': z.void(),
+  'files:upload': z.object({
+    name: z.string().min(1).max(255),
+    data: z
+      .instanceof(Uint8Array)
+      .refine((d) => d.byteLength <= MAX_UPLOAD_BYTES, 'Archivo demasiado grande'),
+  }),
+  'files:info': z.object({ id: fileId }),
+  'files:setMeta': z.object({
+    id: fileId,
+    width: z.number().int().min(1).max(100_000).optional(),
+    height: z.number().int().min(1).max(100_000).optional(),
+    duration: z.number().min(0).max(1e7).optional(),
+    thumb: z
+      .instanceof(Uint8Array)
+      .refine((d) => d.byteLength <= 2_000_000, 'Miniatura demasiado grande')
+      .optional(),
+  }),
+  'files:export': z.object({ id: fileId, name: z.string().min(1).max(255) }),
+  'versions:list': z.object({ recordId: idSchema }),
+  'versions:create': z.object({ recordId: idSchema, note: z.string().max(500).default('') }),
+  'versions:restore': z.object({ versionId: z.number().int().min(1) }),
   'tasks:summary': z.void(),
   'briefs:templates': z.void(),
   'briefs:setTemplates': z.object({ templates: briefTemplatesSchema }),
@@ -207,6 +250,14 @@ export interface IpcOutputs {
   'data:get': RecordRow
   'data:create': RecordRow
   'data:createInverseField': FieldDef
+  'files:pick': FileRef[]
+  'files:upload': FileRef
+  'files:info': FileInfo | null
+  'files:setMeta': FileInfo
+  'files:export': string | null
+  'versions:list': VersionEntry[]
+  'versions:create': VersionEntry
+  'versions:restore': RecordRow
   'tasks:summary': { today: number; overdue: number }
   'briefs:templates': BriefTemplate[]
   'briefs:setTemplates': BriefTemplate[]
