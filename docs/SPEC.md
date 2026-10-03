@@ -53,12 +53,12 @@ Principios que guían cualquier decisión:
 | Recurrencias | Cálculo propio sobre fechas de calendario (diaria, semanal en días concretos, mensual, anual, cada N) | Tareas recurrentes; sin dependencia (D-041). |
 | Fórmulas | Parser propio, sin dependencias, con funciones en español (SI, Y, O, REDONDEAR…) | Métricas calculadas sin riesgo de ejecutar código (D-027). |
 | Texto con formato | Tiptap (ProseMirror), sin estilos inyectados | Notas, briefs y descripciones con formato; enlaces solo https y mailto (D-030). |
-| Imágenes | Miniaturas con Chromium (canvas) en la fase 4; sharp para comprimir en la fase 9 | Miniaturas sin dependencias nativas (D-046). |
-| Vídeo | Miniaturas y duración con Chromium (fase 4); ffmpeg empaquetado para comprimir (fase 9) | Sin binarios extra hasta que hagan falta. |
-| PDF | pdf-lib (unir, dividir), Ghostscript empaquetado (comprimir), printToPDF de Electron (informes) | Cubre generación y compresión de PDF gratis. |
+| Imágenes | Miniaturas, compresión, cambio de tamaño y conversión con el canvas de Chromium | Sin dependencias nativas (D-046, D-074). |
+| Vídeo | Miniaturas y duración con Chromium (fase 4); FFmpeg empaquetado y verificado por huella para comprimir y convertir (fase 9) | Sin binarios extra hasta que hagan falta (D-073). |
+| PDF | pdf-lib (unir, dividir), pdf.js (comprimir pintando las páginas y vista previa), printToPDF de Electron (informes) | Cubre generación y compresión de PDF gratis, sin binarios (D-075, D-076). |
 | Tipos de cambio | Tasas de referencia del BCE descargadas de sus XML oficiales (diario, 90 días e histórico), gratis y sin clave (D-056). | Conversión de divisas sin coste y desde la fuente. |
 | Tests | Vitest (lógica) + Playwright para Electron (interfaz) | |
-| CI de builds | GitHub Actions (gratis en repos públicos o con minutos gratuitos en privados; **verificar** límites) | Compilar en Windows y Linux reales, necesario por los módulos nativos (SQLite, sharp). |
+| CI de builds | GitHub Actions (gratis en repos públicos o con minutos gratuitos en privados; **verificar** límites) | Compilar en Windows y Linux reales, necesario por los módulos nativos (SQLite). |
 
 Arquitectura de procesos: el proceso principal de Electron es el único que toca la base de datos, los archivos y las APIs externas. El renderer (la interfaz) se comunica con él mediante IPC tipado. Las sincronizaciones largas (histórico de Meta, subida a Drive) usan E/S asíncrona y escriben por trozos en transacciones cortas para no congelar la interfaz; si algún día no basta, se moverán a un utility process (D-057).
 
@@ -76,6 +76,7 @@ MiCRM-Boveda/
     ab/abcdef1234...
   thumbs/           miniaturas cifradas
   backups/          copias locales automáticas (crm.db + vault.json del momento)
+  .herramientas/    temporal de las herramientas de vídeo; se vacía al terminar y al bloquear
   .lock             equipo y hora de apertura, con latido mientras está desbloqueada
 ```
 
@@ -312,11 +313,13 @@ El negocio actual es ecommerce y no usa formularios de leads. Si en el futuro se
 - Registro de facturas emitidas con PDF adjunto, importe, moneda, fechas y estado (Pendiente, Cobrada, Vencida).
 - Beneficio por cliente combinando cobros, gastos asociados y fees.
 - **Nota legal:** en España el software que emite facturas debe cumplir requisitos específicos (normativa Verifactu). En la v1 el CRM registra facturas emitidas con una herramienta que cumpla la normativa; no las emite. **Verificar** antes de ampliar este módulo.
+- *Implementación (fase 9):* entidades Facturas y Gastos, acuerdo por cliente (fee, porcentaje, proyecto) y sección Facturación con lo facturado, cobrado, pendiente, vencido, gastos, inversión en Meta, lo previsto por el acuerdo y el beneficio por cliente en el periodo, más la lista de facturas vencidas. Verifactu es obligatorio desde 2027 (D-071).
 
 ### 7.10 Informes para clientes
 
 - Plantillas de informe editables: portada, KPIs, gráficas, tablas, comparativas y comentarios.
 - Generación por cliente y periodo, en la moneda elegida, exportada a PDF y guardada en los archivos del cliente.
+- *Implementación (fase 9):* sección Informes con plantillas de bloques editables (portada, cifras clave, evolución diaria, barras, tabla, comparativa, texto fijo y comentarios). El PDF A4 se genera en el proceso principal, sin red ni JavaScript. Se guarda en Documentos con el cliente, con vista previa y exportación (D-076). Los Documentos son una sección nueva para los archivos sueltos (D-072).
 
 ### 7.11 Herramientas de archivos
 
@@ -325,6 +328,10 @@ El negocio actual es ecommerce y no usa formularios de leads. Si en el futuro se
 - Comprimir y convertir vídeo, con presets para formatos de Meta (9:16, 1:1, 4:5).
 - Unir y dividir PDF.
 - Funcionamiento por arrastrar y soltar; el resultado se guarda en la bóveda o se exporta a una carpeta.
+- *Implementación (fase 9):* sección Herramientas con tres pestañas, y el resultado se guarda en Documentos (con cliente) o se exporta.
+  - **Imágenes:** canvas de Chromium (D-074).
+  - **PDF:** unir, dividir por rangos y comprimir en tres niveles, con pdf-lib y pdf.js (D-075).
+  - **Vídeo:** FFmpeg con presets para Meta, recorte o bandas, calidad, sin sonido, avance y cancelar (D-073).
 
 ### 7.12 Gmail
 

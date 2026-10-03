@@ -453,3 +453,75 @@ El usuario no quiere escribir comandos de desarrollo para usar la app. Los insta
 ### D-070 · Inicio con Meta
 
 - La tarjeta «Gasto y ROAS» de Inicio (prevista para la fase 6) y la de alertas usan el mismo motor: gasto de hoy, 7 y 30 días y ROAS de 30 días de todas las cuentas, en la moneda de visualización.
+
+## Fase 9 · Negocio
+
+### D-071 · Facturación: el CRM registra facturas, no las emite
+
+- En España el software que emite facturas tiene que cumplir el reglamento Verifactu (RD 1007/2023). Con el RD-ley 15/2025 es obligatorio desde el 1 de enero de 2027 para quien paga el impuesto de sociedades y desde el 1 de julio de 2027 para el resto. El CRM no emite facturas: se emiten con un programa que cumpla la norma y aquí se **registran** (número, cliente, concepto, fechas, base, IVA, total calculado, moneda, estado y PDF adjunto). Antes de ampliar este módulo para emitir facturas hay que volver a revisar la norma.
+- Entidades nuevas del motor: **Factura** (estados Pendiente, Cobrada y Vencida; vistas Todas, Pendientes de cobro, Por estado y calendario de Vencimientos) y **Gasto** (concepto, cliente, fecha, importe, moneda, categoría y recibo). Al cliente se le añaden el **acuerdo** (fee fijo mensual, porcentaje del gasto, por proyecto o una combinación), el porcentaje acordado y las relaciones inversas.
+- Resumen por cliente (sección Facturación):
+  - lo **facturado**, por fecha de emisión;
+  - lo **cobrado**, por fecha de cobro;
+  - lo **pendiente** y lo **vencido**, de todas las fechas, al tipo de cambio de hoy;
+  - los **gastos** asociados;
+  - la **inversión** en Meta de sus cuentas;
+  - lo **previsto** por el acuerdo: el fee mensual prorrateado por los días del periodo (mes medio de 365/12 días) y el porcentaje sobre la inversión;
+  - el **beneficio**, que es lo cobrado menos los gastos.
+- Todo se convierte a la moneda de visualización con el tipo del BCE de cada fecha (D-056). Si falta un tipo, el importe no se suma y se avisa.
+
+### D-072 · Documentos: los archivos sueltos de la bóveda
+
+- Entidad nueva **Documento** (nombre, tipo, cliente, fecha, archivos y notas), con su sección en la barra lateral y la relación inversa en la ficha del cliente. Ahí se guardan los informes generados y los resultados de las herramientas, cifrados como cualquier archivo de la bóveda (D-044). También sirve para contratos y otros documentos.
+
+### D-073 · FFmpeg empaquetado y verificado por huella
+
+- Para el vídeo hace falta FFmpeg. El paquete npm `ffmpeg-static` descarga el binario en un script de instalación, y los scripts de npm están desactivados (D-021). Por eso `scripts/descargar-ffmpeg.mjs` descarga el mismo binario y lo verifica antes de guardarlo en `vendor/ffmpeg/`, que está fuera de git. El script se ejecuta en CI, en los scripts de instalación y a mano.
+  - El binario sale de la versión b6.1.1 de github.com/eugeneware/ffmpeg-static: FFmpeg 7 con x264, compilado por John Van Sickle para Linux y por Gyan Doshi para Windows.
+  - Se comprueba su SHA-256 contra las huellas fijadas en el propio script.
+- Va en el instalador fuera del asar (`resources/ffmpeg/`), con el texto de su licencia (GPL-3.0) en `resources/licencias/`. Es un programa aparte que la app ejecuta y no se enlaza con ella. El código fuente de FFmpeg está en ffmpeg.org/releases y en la versión b6.1.1 de ffmpeg-static.
+- Seguridad:
+  - Se lanza sin shell y con argumentos que salen de presets cerrados.
+  - Solo lee los vídeos que el usuario elige. Un vídeo soltado sobre la ventana llega por su `File` real: el preload saca la ruta con `webUtils.getPathForFile` y la manda por un canal que no está en la lista blanca de la interfaz, así que una interfaz comprometida no puede pedir rutas inventadas.
+  - Al guardar en la bóveda, la salida se escribe en `<bóveda>/.herramientas/`, se cifra al importarla y se borra. Esa carpeta se vacía también al bloquear.
+- Presets:
+  - **Comprimir:** mismo formato, con el lado mayor limitado a 1.920 px.
+  - **Formatos de Meta:** 9:16 (1080×1920), 1:1 (1080×1080) y 4:5 (1080×1350). Si el vídeo no encaja, se recorta para llenar o se añaden bandas negras.
+  - **Codificación:** H.264 con CRF 20, 24 o 28 según la calidad, y AAC a 128 kb/s o sin sonido. Lleva `faststart` y se quitan los metadatos.
+  - El avance se lee de `-progress` y la conversión se puede cancelar.
+
+### D-074 · Imágenes con el canvas de Chromium (sin sharp)
+
+- La SPEC preveía sharp para comprimir imágenes. El canvas de Chromium ya hace lo necesario: decodifica JPEG, PNG, WebP, GIF y AVIF, redimensiona con suavizado de alta calidad y codifica JPEG, PNG y WebP con calidad ajustable. Además no añade módulos nativos que compilar en cada plataforma.
+- `createImageBitmap` respeta la orientación EXIF de las fotos del móvil. Al volver a codificar se pierden los metadatos (EXIF, GPS), que es lo deseable al mandar imágenes a terceros. Al pasar a JPEG, el fondo transparente se rellena de blanco.
+
+### D-075 · PDF en la interfaz con pdf-lib y pdf.js (sin Ghostscript)
+
+- **Unir** y **dividir** por rangos («1-3, 5, 8-»; vacío: una página por PDF) con pdf-lib (MIT).
+- **Comprimir** tiene tres niveles:
+  - **Ligera:** reescribe el archivo con flujos de objetos, sin pérdida.
+  - **Media y fuerte:** pintan cada página con pdf.js (Apache-2.0) a 150 o 100 ppp y la guardan como JPEG (calidad 0,75 o 0,6). Reducen mucho los PDF con fotos, pero el texto deja de poder seleccionarse, y la interfaz lo avisa.
+  - Si el resultado no es más pequeño, se guarda el original.
+- No se usa Ghostscript: tiene licencia AGPL (o comercial) y otro binario de decenas de MB, y lo que aporta sobre esto no compensa.
+- pdf.js corre en el hilo principal de la interfaz: la CSP no permite workers (`worker-src 'none'`), así que se le da el módulo del worker ya cargado (`globalThis.pdfjsWorker`). La versión 6 no usa `eval`, y las fuentes se pintan como trazos (`disableFontFace`), sin inyectar estilos.
+- Las dos librerías son dependencias de desarrollo: Vite las mete en el código de la interfaz y se cargan solo al usarlas. Así no entran en el instalador como módulos de Node, ni el canvas nativo opcional de pdf.js.
+
+### D-076 · Informes en PDF: HTML con gráficas SVG impreso por Chromium
+
+- Las plantillas son una lista de bloques: portada, cifras clave, evolución diaria, barras, tabla, comparativa, texto fijo y comentarios del periodo. Se guardan cifradas en los ajustes de la bóveda (`reports.templates`) y cuentan como cambio para la sincronización. Viene una de serie, «Informe mensual».
+- Al generar se eligen plantilla, cliente (o todas las cuentas), periodo, moneda (por defecto la del cliente o la de visualización) y comentarios. Las cifras salen del motor de Análisis (D-067) con las métricas propias y el hold rate configurados.
+- El proceso principal construye un HTML A4 con todo dentro:
+  - los estilos;
+  - las fuentes de la app en base64;
+  - las gráficas en SVG, hechas con ECharts en modo servidor con la paleta validada del tema claro.
+- El HTML se imprime con `printToPDF` en una ventana oculta, que:
+  - no tiene JavaScript;
+  - usa una sesión propia solo en memoria;
+  - bloquea todas las peticiones salvo la del propio documento (`informe://`);
+  - aplica una CSP sin scripts.
+- El texto del usuario (comentarios, nombres de clientes y campañas) se escapa.
+- El PDF se guarda como Documento del cliente (tipo Informe), se ve en la propia página (pdf.js) y se puede exportar.
+
+### D-077 · La autoprueba de la instalación cubre la fase 9
+
+- `crm-mellow --autoprueba` comprueba también que FFmpeg arranca y tiene x264, que ECharts genera SVG y que la impresión a PDF funciona. Así el CI lo prueba en cada instalador de Windows y Linux y en Arch.

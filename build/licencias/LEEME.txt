@@ -1,0 +1,10 @@
+Licencias de los programas que se instalan junto con CRM Mellow
+===============================================================
+
+FFmpeg (resources/ffmpeg/)
+  Programa independiente que la app ejecuta para comprimir y convertir vídeo.
+  Licencia: GNU GPL versión 3 (texto completo en ffmpeg-GPL-3.0.txt).
+  Binarios de la versión b6.1.1 de https://github.com/eugeneware/ffmpeg-static
+  (compilaciones de John Van Sickle para Linux y de Gyan Doshi para Windows).
+  Código fuente: https://ffmpeg.org/releases/ y
+  https://github.com/eugeneware/ffmpeg-static/releases/tag/b6.1.1

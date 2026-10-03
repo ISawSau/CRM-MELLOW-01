@@ -3,7 +3,7 @@ import * as echarts from 'echarts'
 /**
  * Gráficas de los informes: ECharts en el proceso principal, renderizado a SVG en el
  * servidor (sin canvas ni scripts en el PDF). Paleta categórica validada del tema claro
- * (D-068), en orden fijo; el periodo anterior va en gris discontinuo.
+ * (D-066), en orden fijo; el periodo anterior va en gris discontinuo.
  */
 
 export const REPORT_PALETTE = ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#008300']
