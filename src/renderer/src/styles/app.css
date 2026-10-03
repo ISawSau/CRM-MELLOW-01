@@ -574,3 +574,112 @@ kbd {
 .statusbar-item .marker-error {
   background: var(--danger);
 }
+
+/* --- Editor de temas (fase 12) ------------------------------------------- */
+
+.segmented-wrap {
+  flex-wrap: wrap;
+}
+
+.settings-body:has(> .theme-editor) {
+  max-width: 980px;
+}
+
+.theme-editor {
+  display: grid;
+  gap: var(--space-4);
+  padding: var(--space-4);
+  border: 1px solid var(--line);
+  background: var(--bg-raised);
+}
+
+.theme-editor-head {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: var(--space-3) var(--space-4);
+  align-items: start;
+}
+
+.theme-groups {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: var(--space-4);
+}
+
+.theme-group {
+  display: grid;
+  align-content: start;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.theme-group legend {
+  margin-bottom: var(--space-2);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.theme-group-wide {
+  grid-column: 1 / -1;
+}
+
+.theme-color {
+  display: grid;
+  grid-template-columns: 32px 1fr 88px auto;
+  gap: var(--space-2);
+  align-items: center;
+  font-size: var(--text-sm);
+}
+
+.theme-color input[type='color'] {
+  width: 32px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid var(--line-strong);
+  background: none;
+  cursor: pointer;
+}
+
+.theme-hex {
+  min-height: 26px;
+  padding: 0 var(--space-2);
+}
+
+.theme-alpha {
+  display: inline-flex;
+  gap: var(--space-1);
+  align-items: center;
+  color: var(--text-muted);
+}
+
+.theme-alpha input {
+  width: 64px;
+  min-height: 26px;
+}
+
+.theme-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: var(--space-3) var(--space-4);
+}
+
+.theme-option {
+  display: grid;
+  gap: var(--space-2);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--line);
+}
+
+.theme-option .chip {
+  justify-self: start;
+}
+
+.theme-contrast ul {
+  margin: var(--space-2) 0 0;
+  padding-left: var(--space-4);
+}

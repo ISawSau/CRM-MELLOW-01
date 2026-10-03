@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { Density } from '@shared/appearance'
 import { findEntity } from '@shared/data/entities'
 import { call } from '../lib/ipc'
-import { BUILT_IN_THEMES } from '../theme/themes'
+import type { Theme } from '@shared/themes'
 import { ALL_SECTIONS } from './sections'
 
 export interface PaletteActions {
@@ -27,10 +27,13 @@ export function CommandPalette({
   open,
   onClose,
   actions,
+  themes,
 }: {
   open: boolean
   onClose: () => void
   actions: PaletteActions
+  /** Temas predefinidos y propios. */
+  themes: readonly Theme[]
 }) {
   const previousFocus = useRef<Element | null>(null)
   const [search, setSearch] = useState('')
@@ -159,13 +162,13 @@ export function CommandPalette({
               </Command.Item>
             </Command.Group>
             <Command.Group heading="Apariencia">
-              {BUILT_IN_THEMES.map((t) => (
+              {themes.map((t) => (
                 <Command.Item
                   key={t.id}
                   value={`tema ${t.name}`}
                   onSelect={run(() => actions.setTheme(t.id))}
                 >
-                  <span>Tema {t.name.toLowerCase()}</span>
+                  <span>Tema {t.name}</span>
                 </Command.Item>
               ))}
               <Command.Item

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { DEFAULT_APPEARANCE, type Density } from '@shared/appearance'
+import { BUILT_IN_THEMES } from '@shared/themes'
 import type { VaultStatus } from '@shared/ipc'
 import { MetaPage } from '../meta/MetaPage'
 import { AnalysisPage } from '../analysis/AnalysisPage'
@@ -176,7 +177,14 @@ function ShellInner({ status }: { status: VaultStatus }) {
           onMeta={() => navigate('campanas')}
         />
         <ConflictDialog />
-        {paletteOpen && <CommandPalette open onClose={closePalette} actions={actions} />}
+        {paletteOpen && (
+          <CommandPalette
+            open
+            onClose={closePalette}
+            actions={actions}
+            themes={[...BUILT_IN_THEMES, ...(status.themes ?? [])]}
+          />
+        )}
       </div>
     </NavContext.Provider>
   )

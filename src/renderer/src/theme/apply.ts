@@ -1,4 +1,4 @@
-import { themeToCssVars, type Theme } from './themes'
+import { themeToCssVars, type Theme } from '@shared/themes'
 
 /** Aplica el tema y la densidad en <html>. */
 export function applyAppearance(theme: Theme, density: string, root = document.documentElement) {

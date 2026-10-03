@@ -24,6 +24,7 @@ import {
   type ReportTemplate,
 } from './reports'
 import { appearanceSchema, type Appearance } from './appearance'
+import { customThemesSchema, type Theme } from './themes'
 import { FIELD_TYPES, idSchema, type FieldDef, type FileRef } from './data/fields'
 import { profileSchema, type Profile } from './profile'
 import { briefTemplatesSchema, type BriefTemplate } from './data/brief-templates'
@@ -101,6 +102,8 @@ export interface VaultStatus {
   autoLockMinutes: number | null
   /** Apariencia guardada en la bóveda (solo si está desbloqueada). */
   appearance: Appearance | null
+  /** Temas propios del usuario (solo si está desbloqueada). */
+  themes: Theme[] | null
 }
 
 export interface EntityInfo {
@@ -196,6 +199,7 @@ export const ipcSchemas = {
       .max(24 * 60),
   }),
   'settings:setAppearance': appearanceSchema,
+  'settings:setThemes': z.object({ themes: customThemesSchema }),
   'clipboard:writeSecret': z.object({ text: z.string().min(1).max(500) }),
 
   // --- Motor de datos (fase 1) ---
@@ -392,6 +396,7 @@ export interface IpcOutputs {
   'vault:rotateKey': { recoveryKey: string }
   'settings:setAutoLock': VaultStatus
   'settings:setAppearance': VaultStatus
+  'settings:setThemes': VaultStatus
   'clipboard:writeSecret': void
   'data:entities': EntityInfo[]
   'data:fields': FieldDef[]

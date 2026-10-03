@@ -13,6 +13,7 @@ import { eq } from 'drizzle-orm'
 import { AppError } from '@shared/errors'
 import type { VaultStatus } from '@shared/ipc'
 import { appearanceSchema, DEFAULT_APPEARANCE, type Appearance } from '@shared/appearance'
+import { BUILT_IN_THEMES, customThemesSchema, type Theme } from '@shared/themes'
 import { DataService, type DataServiceOptions } from '../data/data-service'
 import { FileStore, loadOrCreateFilesKey } from '../files/file-store'
 import { backupVault } from '../db/backup'
@@ -56,6 +57,7 @@ import {
 export const DEFAULT_AUTO_LOCK_MINUTES = 15
 const AUTO_LOCK_KEY = 'security.autoLockMinutes'
 const APPEARANCE_KEY = 'appearance'
+const THEMES_KEY = 'appearance.themes'
 const DB_KEY_PURPOSE = 'db/v1'
 /** Manifiesto nuevo mientras se rota la clave (ver rotateKey). */
 const PENDING_MANIFEST = 'vault.json.pending'
@@ -120,6 +122,7 @@ export class VaultService {
       name: this.path ? basename(this.path) : null,
       autoLockMinutes: this.unlocked ? this.getAutoLockMinutes() : null,
       appearance: this.unlocked ? this.getAppearance() : null,
+      themes: this.unlocked ? this.getThemes() : null,
     }
   }
 
@@ -539,6 +542,22 @@ export class VaultService {
 
   setAppearance(appearance: Appearance): VaultStatus {
     this.putSetting(APPEARANCE_KEY, appearanceSchema.parse(appearance))
+    return this.emit()
+  }
+
+  /** Temas creados por el usuario (fase 12). */
+  getThemes(): Theme[] {
+    const parsed = customThemesSchema.safeParse(this.getSetting(THEMES_KEY) ?? [])
+    return parsed.success ? parsed.data : []
+  }
+
+  /** Guarda los temas propios. Si el tema en uso ya no existe, se vuelve al oscuro. */
+  setThemes(themes: Theme[]): VaultStatus {
+    const list = customThemesSchema.parse(themes)
+    this.putSetting(THEMES_KEY, list)
+    const a = this.getAppearance()
+    if (![...BUILT_IN_THEMES, ...list].some((t) => t.id === a.theme))
+      this.putSetting(APPEARANCE_KEY, { ...a, theme: DEFAULT_APPEARANCE.theme })
     return this.emit()
   }
 

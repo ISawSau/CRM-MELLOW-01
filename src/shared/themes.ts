@@ -1,14 +1,14 @@
 import { z } from 'zod'
-import { themeIdSchema } from '@shared/appearance'
-import { OPTION_COLORS, type OptionColor } from '@shared/data/fields'
+import { themeIdSchema } from './appearance'
+import { OPTION_COLORS, type OptionColor } from './data/fields'
 
 /**
  * Temas de la interfaz (docs/DESIGN.md §3).
  *
  * Un tema es un conjunto de valores para los tokens semánticos. Se aplican como
  * variables CSS en <html>, así que cambiar de tema no recarga nada. El esquema
- * valida cada color, para que en el futuro los temas creados por el usuario
- * (SPEC §7.14) se puedan guardar y cargar sin riesgo.
+ * valida cada color, para que los temas creados por el usuario (SPEC §7.14, fase 12)
+ * se puedan guardar y cargar sin riesgo.
  */
 
 const color = z
@@ -164,4 +164,100 @@ export function themeToCssVars(theme: Theme): Record<string, string> {
       [`--opt-${k}-text`, v.text],
     ]),
   ])
+}
+
+/** Temas propios del usuario (se guardan en la bóveda). */
+export const MAX_CUSTOM_THEMES = 30
+export const customThemesSchema = z
+  .array(themeSchema)
+  .max(MAX_CUSTOM_THEMES)
+  .refine((list) => new Set(list.map((t) => t.id)).size === list.length, 'Hay temas repetidos.')
+  .refine(
+    (list) => list.every((t) => !BUILT_IN_THEMES.some((b) => b.id === t.id)),
+    'Un tema propio no puede usar el id de uno predefinido.',
+  )
+
+// --- Contraste (WCAG 2.x) ---------------------------------------------------------------
+
+/** Componentes RGB (0-255) y opacidad de un color «#rrggbb» o «rgba(r, g, b, a)». */
+export function parseColor(c: string): { r: number; g: number; b: number; a: number } {
+  if (c.startsWith('#')) {
+    const n = parseInt(c.slice(1), 16)
+    return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255, a: 1 }
+  }
+  const [r = 0, g = 0, b = 0, a = 1] = (c.match(/[\d.]+/g) ?? []).map(Number)
+  return { r, g, b, a }
+}
+
+export function toHex(r: number, g: number, b: number): string {
+  return `#${[r, g, b].map((x) => Math.round(x).toString(16).padStart(2, '0')).join('')}`
+}
+
+/** Un color con opacidad sobre un fondo opaco: el color que se ve. */
+function over(c: string, bg: string): string {
+  const f = parseColor(c)
+  const b = parseColor(bg)
+  return toHex(
+    f.r * f.a + b.r * (1 - f.a),
+    f.g * f.a + b.g * (1 - f.a),
+    f.b * f.a + b.b * (1 - f.a),
+  )
+}
+
+function luminance(hex: string): number {
+  const { r, g, b } = parseColor(hex)
+  const lin = (x: number) => {
+    const c = x / 255
+    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4
+  }
+  return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b)
+}
+
+/** Relación de contraste entre un color (puede llevar opacidad) y un fondo opaco. */
+export function contrast(fg: string, bg: string): number {
+  const [x, y] = [luminance(over(fg, bg)), luminance(bg)].sort((m, n) => n - m)
+  return (x! + 0.05) / (y! + 0.05)
+}
+
+export interface ContrastIssue {
+  label: string
+  ratio: number
+  min: number
+}
+
+const OPTION_LABELS: Record<OptionColor, string> = {
+  gris: 'gris',
+  melocoton: 'melocotón',
+  terracota: 'terracota',
+  vino: 'vino',
+  ambar: 'ámbar',
+  verde: 'verde',
+  azul: 'azul',
+  lila: 'lila',
+}
+
+/** Parejas de texto y fondo que no llegan al contraste AA (4,5:1). */
+export function contrastIssues(t: Theme): ContrastIssue[] {
+  const c = t.colors
+  const pairs: [string, string, string][] = [
+    ['Texto sobre el fondo', c.text, c.bg],
+    ['Texto sobre las superficies', c.text, c.bgRaised],
+    ['Texto secundario sobre el fondo', c.textMuted, c.bg],
+    ['Texto secundario sobre las superficies', c.textMuted, c.bgRaised],
+    ['Texto tenue sobre el fondo', c.textFaint, c.bg],
+    ['Texto de acento sobre el fondo', c.accentText, c.bg],
+    ['Texto sobre el botón de acento', c.onAccent, c.accent],
+    ['Numeración sobre el fondo', c.index, c.bg],
+    ['Correcto sobre el fondo', c.success, c.bg],
+    ['Error sobre el fondo', c.danger, c.bg],
+    ['Aviso sobre el fondo', c.warning, c.bg],
+    ...OPTION_COLORS.map((o): [string, string, string] => [
+      `Etiqueta ${OPTION_LABELS[o]}`,
+      t.options[o].text,
+      t.options[o].bg,
+    ]),
+  ]
+  return pairs
+    .map(([label, fg, bg]) => ({ label, ratio: contrast(fg, bg), min: 4.5 }))
+    .filter((p) => p.ratio < p.min)
 }

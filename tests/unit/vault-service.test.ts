@@ -7,6 +7,7 @@ import { deriveSubkey, generateMasterKey } from '../../src/main/vault/crypto'
 import { acquireLock } from '../../src/main/vault/lock'
 import { readManifest, writeManifest } from '../../src/main/vault/vault-file'
 import { VaultService } from '../../src/main/vault/vault-service'
+import { BUILT_IN_THEMES } from '../../src/shared/themes'
 import { TEST_KDF, tempDir } from './helpers'
 
 const PASSWORD = 'una contraseña de prueba'
@@ -140,6 +141,23 @@ describe('apariencia', () => {
     svc.lock()
     expect(svc.status().appearance).toBeNull()
     expect((await svc.unlock(PASSWORD)).appearance).toEqual({ theme: 'claro', density: 'comoda' })
+    svc.dispose()
+  })
+
+  it('temas propios: se guardan validados y, si se borra el que está en uso, vuelve el oscuro', async () => {
+    const { svc } = await newVault()
+    expect(svc.status().themes).toEqual([])
+    const mio = { ...BUILT_IN_THEMES[1]!, id: 'propio-marca', name: 'Marca' }
+    svc.setThemes([mio])
+    svc.setAppearance({ theme: 'propio-marca', density: 'compacta' })
+    svc.lock()
+    const s = await svc.unlock(PASSWORD)
+    expect(s.themes).toEqual([mio])
+    expect(s.appearance?.theme).toBe('propio-marca')
+    expect(() => svc.setThemes([{ ...mio, id: 'claro' }])).toThrow()
+    expect(() => svc.setThemes([mio, mio])).toThrow()
+    expect(() => svc.setThemes([{ ...mio, colors: { ...mio.colors, bg: 'url(x)' } }])).toThrow()
+    expect(svc.setThemes([]).appearance?.theme).toBe('oscuro')
     svc.dispose()
   })
 })

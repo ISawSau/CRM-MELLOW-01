@@ -18,6 +18,7 @@ export const IPC_CHANNELS = [
   'vault:rotateKey',
   'settings:setAutoLock',
   'settings:setAppearance',
+  'settings:setThemes',
   'clipboard:writeSecret',
   'data:entities',
   'data:fields',
