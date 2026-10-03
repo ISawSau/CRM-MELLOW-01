@@ -112,7 +112,7 @@ describe('sincronización entre dos equipos (carpeta compartida)', () => {
   })
 
   it('rechaza un destino con otra bóveda o dentro de la propia bóveda', async () => {
-    const { a, remote } = await twoDevices()
+    const { a, b, remote } = await twoDevices()
     const other = await twoDevices()
     other.a.sync.configureFolder(remote)
     await other.a.sync.sync()
@@ -122,6 +122,7 @@ describe('sincronización entre dos equipos (carpeta compartida)', () => {
     expect(a.sync.status().error).toMatch(/otra bóveda/)
     expect(() => a.sync.configureFolder(join(a.vault.currentPath!, 'files'))).toThrow(/fuera/)
     a.vault.dispose()
+    b.vault.dispose()
     other.a.vault.dispose()
     other.b.vault.dispose()
   })
@@ -129,7 +130,8 @@ describe('sincronización entre dos equipos (carpeta compartida)', () => {
 
 describe('copias de seguridad', () => {
   it('crea la copia automática cada N días, también en el destino, y la restaura', async () => {
-    const { a, remote } = await twoDevices()
+    const { a, b, remote } = await twoDevices()
+    b.vault.dispose()
     let now = new Date('2026-10-01T10:00:00Z')
     const sync = new SyncService(a.vault, {
       hostname: 'portatil',
