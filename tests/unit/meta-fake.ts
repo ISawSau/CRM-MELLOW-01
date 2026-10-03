@@ -273,11 +273,15 @@ export class FakeMeta {
     return null
   }
 
+  /** URL de cada petición («GET /v26.0/act_111/insights?…»), sin cabeceras. */
+  readonly urls: string[] = []
+
   fetch = async (input: string | URL | Request, init: RequestInit = {}): Promise<Response> => {
     const url = new URL(
       typeof input === 'string' ? input : input instanceof URL ? input : input.url,
     )
     const method = init.method ?? 'GET'
+    this.urls.push(`${method} ${url.pathname}${url.search}`)
     const headers = new Headers(init.headers)
     const params = new URLSearchParams(url.search)
     if (init.body instanceof URLSearchParams) for (const [k, v] of init.body) params.set(k, v)
@@ -326,11 +330,15 @@ export class FakeMeta {
       return json(this.page(path, this.campaigns, params))
     if (path === `${this.account.id}/adsets`) return json(this.page(path, this.adsets, params))
     if (path === `${this.account.id}/ads`) return json(this.page(path, this.ads, params))
-    if (path === '' && params.get('ids')) {
-      const out: Record<string, Json> = {}
-      for (const id of params.get('ids')!.split(','))
-        if (this.creatives[id]) out[id] = this.creatives[id]
-      return json(out)
+    // Como la Graph API v26.0: «Root requests using GET /?ids=... return an error».
+    if (path === '' || params.has('ids'))
+      return this.error(400, 100, 'The ids query parameter is deprecated in v26.0+.')
+    // Una creatividad por su ruta (GET /{id}).
+    if (this.creatives[path]) {
+      if (params.get('thumbnail_width') !== '320') return this.error(400, 100, 'sin tamaño')
+      const fields = (params.get('fields') ?? 'id').split(',')
+      const c = this.creatives[path]!
+      return json(Object.fromEntries(fields.filter((f) => f in c).map((f) => [f, c[f]])))
     }
     if (path === `${this.account.id}/activities`)
       return json(this.page(path, this.activities, params))

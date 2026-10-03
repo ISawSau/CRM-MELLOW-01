@@ -863,16 +863,27 @@ export class MetaService {
         }[]
       ).map((r) => r.id),
     )
-    const missing = ids.filter((id) => !known.has(id))
-    if (missing.length) {
-      const got = await graph.getByIds<Record<string, unknown>>(missing, {
-        fields: CREATIVE_FIELDS,
-        thumbnail_width: 320,
-        thumbnail_height: 320,
-      })
+    // Cada creatividad por su ruta (GET /{id}): la v26.0 ya no admite «GET /?ids=…».
+    const missing = ids.filter((id) => !known.has(id) && /^\w{1,40}$/.test(id))
+    const got: Record<string, unknown>[] = []
+    for (const id of missing) {
       if (!this.alive(epoch)) return
-      upsertCreatives(this.db, a.id, Object.values(got), now())
+      try {
+        got.push(
+          await graph.get<Record<string, unknown>>(id, {
+            fields: CREATIVE_FIELDS,
+            thumbnail_width: 320,
+            thumbnail_height: 320,
+          }),
+        )
+      } catch (e) {
+        // Una creatividad borrada o sin acceso (código 100) no impide leer las demás ni
+        // las métricas; los límites, el token y los fallos de red sí se propagan.
+        if (e instanceof GraphError && e.code === 100) continue
+        throw e
+      }
     }
+    if (got.length) upsertCreatives(this.db, a.id, got, now())
     await this.downloadThumbs(a.id, epoch)
     if (!this.alive(epoch)) return
     await this.syncActivities(graph, a).catch(() => {
