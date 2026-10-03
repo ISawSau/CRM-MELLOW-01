@@ -15,6 +15,8 @@ import type { SqliteDb } from '../db/connection'
 import { CHANGES_KEY } from '../sync/sync-service'
 import type { VaultService } from '../vault/vault-service'
 import { analyze } from './query'
+import { billingSummary } from '../billing/billing'
+import type { BillingSummary } from '@shared/billing'
 
 /**
  * Análisis (SPEC §7.13): dashboards configurables, comparativas y alertas que solo avisan
@@ -83,6 +85,12 @@ export class AnalysisService {
 
   query(q: AnalysisQuery): AnalysisResult {
     return analyze(this.db, this.vault.data, q, this.opts.currency())
+  }
+
+  /** Facturación y beneficio por cliente (SPEC §7.9). */
+  billing(since: string, until: string): BillingSummary {
+    const today = todayIn(this.timeZone(), this.now())
+    return billingSummary(this.db, this.vault.data, since, until, this.opts.currency(), today)
   }
 
   // --- Dashboards --------------------------------------------------------------------

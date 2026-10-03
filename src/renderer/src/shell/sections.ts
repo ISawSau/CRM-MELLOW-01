@@ -74,13 +74,16 @@ export const SECTION_GROUPS: SectionGroup[] = [
     num: '03',
     title: 'negocio',
     sections: [
+      { id: 'facturacion', label: 'Facturación', letter: 'F', phase: null, summary: '' },
       {
-        id: 'facturacion',
-        label: 'Facturación',
-        letter: 'F',
-        phase: 9,
-        summary: 'acuerdos por cliente, facturas emitidas y cobros',
+        id: 'facturas',
+        label: 'Facturas',
+        letter: 'U',
+        phase: null,
+        summary: '',
+        entity: 'factura',
       },
+      { id: 'gastos', label: 'Gastos', letter: 'G', phase: null, summary: '', entity: 'gasto' },
       {
         id: 'informes',
         label: 'Informes',

@@ -103,6 +103,7 @@ export const IPC_CHANNELS = [
   'analysis:events',
   'analysis:unseen',
   'analysis:markSeen',
+  'billing:summary',
   'meta:clientAccounts',
 ] as const
 

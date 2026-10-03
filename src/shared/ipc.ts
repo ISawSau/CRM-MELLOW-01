@@ -39,6 +39,7 @@ import {
   type AnalysisResult,
   type Dashboard,
 } from './analysis'
+import { billingQuerySchema, type BillingSummary } from './billing'
 
 /**
  * Contrato IPC entre la interfaz (renderer) y el proceso principal.
@@ -322,6 +323,7 @@ export const ipcSchemas = {
   'analysis:events': z.void(),
   'analysis:unseen': z.void(),
   'analysis:markSeen': z.void(),
+  'billing:summary': billingQuerySchema,
   'meta:clientAccounts': z.object({ clientId: idSchema }),
 } as const
 
@@ -426,6 +428,7 @@ export interface IpcOutputs {
   'analysis:events': AlertEvent[]
   'analysis:unseen': number
   'analysis:markSeen': void
+  'billing:summary': BillingSummary
   'meta:clientAccounts': AdAccountInfo[]
 }
 
