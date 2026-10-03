@@ -9,7 +9,8 @@ import type { BaseSums } from './meta'
 
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
 const id = z.string().min(1).max(64)
-const actId = z.string().regex(/^act_\d{1,30}$/)
+/** Cuenta de Meta («act_…») o de otra plataforma («li_…», «x_…», fase 11). */
+const actId = z.string().regex(/^(act_\d{1,30}|(li|x)_[a-z0-9-]{1,60})$/)
 
 // --- Periodos ---------------------------------------------------------------------------
 

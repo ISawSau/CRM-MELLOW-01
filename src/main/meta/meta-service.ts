@@ -323,7 +323,9 @@ export class MetaService {
       }
     const cfg = this.config()
     const last = this.db
-      .prepare('SELECT MAX(last_sync_at) AS t FROM ad_accounts WHERE enabled = 1')
+      .prepare(
+        "SELECT MAX(last_sync_at) AS t FROM ad_accounts WHERE enabled = 1 AND platform = 'meta'",
+      )
       .get() as { t: string | null }
     return {
       connected: cfg !== null,
@@ -412,7 +414,9 @@ export class MetaService {
 
   listAccounts(): AdAccountInfo[] {
     const rows = this.db
-      .prepare('SELECT * FROM ad_accounts ORDER BY enabled DESC, name COLLATE NOCASE')
+      .prepare(
+        "SELECT * FROM ad_accounts WHERE platform = 'meta' ORDER BY enabled DESC, name COLLATE NOCASE",
+      )
       .all() as AccountRow[]
     const jobs = this.db
       .prepare(
@@ -718,7 +722,9 @@ export class MetaService {
         // Sin tipos de cambio se sigue: los importes se ven en la moneda de la cuenta.
       })
       const accounts = (
-        this.db.prepare('SELECT * FROM ad_accounts WHERE enabled = 1').all() as AccountRow[]
+        this.db
+          .prepare("SELECT * FROM ad_accounts WHERE enabled = 1 AND platform = 'meta'")
+          .all() as AccountRow[]
       ).sort((a, b) => a.name.localeCompare(b.name))
       for (const [i, a] of accounts.entries()) {
         if (!this.alive(epoch)) return

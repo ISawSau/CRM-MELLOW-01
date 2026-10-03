@@ -12,6 +12,8 @@ import type { ToolsService } from '../tools/tools-service'
 import type { ReportService } from '../reports/report-service'
 import type { GmailService } from '../gmail/gmail-service'
 import { createGmailHandlers } from './gmail-handlers'
+import type { PlatformsService } from '../platforms/platforms-service'
+import { createPlatformsHandlers } from './platforms-handlers'
 import { createAnalysisHandlers } from './analysis-handlers'
 import { createDataHandlers } from './data-handlers'
 import { createMetaHandlers } from './meta-handlers'
@@ -31,6 +33,7 @@ export interface HandlerDeps {
   tools: ToolsService
   reports: ReportService
   gmail: GmailService
+  platforms: PlatformsService
   /** Sube lo pendiente y bloquea (bloqueo manual y automático). */
   lockWithSync: () => Promise<void>
   getWindow: () => BrowserWindow | null
@@ -49,6 +52,7 @@ export function createHandlers({
   tools,
   reports,
   gmail,
+  platforms,
   lockWithSync,
   getWindow,
 }: HandlerDeps): IpcHandlers {
@@ -59,7 +63,10 @@ export function createHandlers({
       new Promise<void>((r) => setTimeout(r, UNLOCK_SYNC_TIMEOUT_MS)),
     ])
       .catch(() => {})
-      .finally(() => meta.start())
+      .finally(() => {
+        meta.start()
+        platforms.start()
+      })
   /**
    * Rutas que el renderer puede usar: solo las elegidas en el selector nativo y la
    * última bóveda. Así una interfaz comprometida no puede crear ni abrir carpetas
@@ -117,6 +124,7 @@ export function createHandlers({
       remember()
       autoLock.start()
       meta.start()
+      platforms.start()
       return result
     },
 
@@ -151,6 +159,7 @@ export function createHandlers({
       meta.dispose()
       tools.dispose()
       gmail.dispose()
+      platforms.dispose()
       await sync.beforeClose()
       config.setLastVaultPath(null)
       return vault.close()
@@ -182,5 +191,6 @@ export function createHandlers({
     ...createAnalysisHandlers(analysis),
     ...createToolsHandlers(tools, reports),
     ...createGmailHandlers(gmail),
+    ...createPlatformsHandlers(platforms),
   }
 }
