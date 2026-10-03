@@ -307,7 +307,7 @@ export class GraphClient {
       `${this.base}/${accountId}/insights`,
       body,
     )
-    if (!r.report_run_id) throw new GraphError('Meta no devolvió el informe', null, null, 200)
+    if (!r.report_run_id) throw new GraphError(t('Meta no devolvió el informe'), null, null, 200)
     return r.report_run_id
   }
 }

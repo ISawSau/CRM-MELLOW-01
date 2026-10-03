@@ -437,4 +437,5 @@ export const main: Record<string, string> = {
   'Proceso cancelado.': 'Process cancelled.',
   'No se ha podido leer el correo de Gmail.': 'Could not read Gmail messages.',
   'Ha ocurrido un error inesperado.': 'An unexpected error occurred.',
+  'Meta no devolvió el informe': 'Meta did not return the report',
 }
