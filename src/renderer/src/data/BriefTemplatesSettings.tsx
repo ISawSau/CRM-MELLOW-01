@@ -11,6 +11,8 @@ import { Alert } from '../ui/Alert'
 import { useToast } from '../ui/Toast'
 
 const newId = (prefix: string) => `${prefix}-${Math.random().toString(36).slice(2, 8)}`
+const days = (v: string): number | null =>
+  v.trim() === '' ? null : Math.min(365, Math.max(0, Math.round(Number(v) || 0)))
 
 function Editor({ initial }: { initial: BriefTemplate[] }) {
   const [list, setList] = useState(initial)
@@ -67,6 +69,8 @@ function Editor({ initial }: { initial: BriefTemplate[] }) {
               id: newId('plantilla'),
               name: 'Nueva plantilla',
               sections: [{ id: newId('s'), title: 'Objetivo', kind: 'text', hint: '' }],
+              dueDays: null,
+              tasks: [],
             }
             setList((l) => [...l, n])
             setSelected(n.id)
@@ -77,16 +81,32 @@ function Editor({ initial }: { initial: BriefTemplate[] }) {
       </div>
       {t && (
         <>
-          <div className="field">
-            <label htmlFor="tpl-name">Nombre de la plantilla</label>
-            <input
-              id="tpl-name"
-              className="input"
-              maxLength={80}
-              value={t.name}
-              onChange={(e) => update({ name: e.target.value })}
-            />
+          <div className="tool-options">
+            <div className="field">
+              <label htmlFor="tpl-name">Nombre de la plantilla</label>
+              <input
+                id="tpl-name"
+                className="input"
+                maxLength={80}
+                value={t.name}
+                onChange={(e) => update({ name: e.target.value })}
+              />
+            </div>
+            <div className="field">
+              <label htmlFor="tpl-due">Entrega a los (días)</label>
+              <input
+                id="tpl-due"
+                className="input num"
+                type="number"
+                min={0}
+                max={365}
+                placeholder="Sin fecha"
+                value={t.dueDays ?? ''}
+                onChange={(e) => update({ dueDays: days(e.target.value) })}
+              />
+            </div>
           </div>
+          <h3 className="panel-subtitle">Secciones</h3>
           <ul className="template-sections">
             {sections.map((s, i) => (
               <li key={s.id} className="template-section">
@@ -148,7 +168,67 @@ function Editor({ initial }: { initial: BriefTemplate[] }) {
               </li>
             ))}
           </ul>
+          <h3 className="panel-subtitle">Tareas que se crean con el brief</h3>
+          {t.tasks.length === 0 && (
+            <p className="faint">Ninguna. Se crean enlazadas al brief y a su cliente.</p>
+          )}
+          <ul className="template-sections">
+            {t.tasks.map((k, i) => (
+              <li key={k.id} className="template-task">
+                <input
+                  className="input"
+                  aria-label="Tarea"
+                  maxLength={200}
+                  value={k.title}
+                  onChange={(e) =>
+                    update({
+                      tasks: t.tasks.map((x, j) => (j === i ? { ...x, title: e.target.value } : x)),
+                    })
+                  }
+                />
+                <label className="template-task-due">
+                  <span className="faint">para el día</span>
+                  <input
+                    className="input num"
+                    type="number"
+                    aria-label={`Días para «${k.title}»`}
+                    min={0}
+                    max={365}
+                    placeholder="—"
+                    value={k.dueDays ?? ''}
+                    onChange={(e) =>
+                      update({
+                        tasks: t.tasks.map((x, j) =>
+                          j === i ? { ...x, dueDays: days(e.target.value) } : x,
+                        ),
+                      })
+                    }
+                  />
+                </label>
+                <button
+                  type="button"
+                  className="icon-btn"
+                  aria-label={`Quitar la tarea ${k.title}`}
+                  onClick={() => update({ tasks: t.tasks.filter((_, j) => j !== i) })}
+                >
+                  ×
+                </button>
+              </li>
+            ))}
+          </ul>
           <div className="form-actions">
+            <button
+              type="button"
+              className="btn"
+              disabled={t.tasks.length >= 30}
+              onClick={() =>
+                update({
+                  tasks: [...t.tasks, { id: newId('t'), title: 'Nueva tarea', dueDays: null }],
+                })
+              }
+            >
+              + Tarea
+            </button>
             <button
               type="button"
               className="btn"
@@ -162,6 +242,21 @@ function Editor({ initial }: { initial: BriefTemplate[] }) {
               }
             >
               + Sección
+            </button>
+            <button
+              type="button"
+              className="btn"
+              onClick={() => {
+                const copy: BriefTemplate = {
+                  ...t,
+                  id: newId('plantilla'),
+                  name: `${t.name} (copia)`.slice(0, 80),
+                }
+                setList((l) => [...l, copy])
+                setSelected(copy.id)
+              }}
+            >
+              Duplicar
             </button>
             <button
               type="button"
@@ -184,8 +279,9 @@ function Editor({ initial }: { initial: BriefTemplate[] }) {
         </button>
       </div>
       <p className="hint">
-        Los archivos y los enlaces a creatividades llegan en la fase 4; de momento esas secciones
-        quedan como texto.
+        Las secciones de enlaces y de archivos recuerdan dónde completarlas: en los campos
+        «Creatividades» y «Archivos» del brief. Los días cuentan desde que se crea el brief. También
+        puedes guardar un brief ya escrito como plantilla desde su ficha.
       </p>
     </div>
   )
@@ -202,8 +298,8 @@ export function BriefTemplatesSettings() {
       <div>
         <h2>Plantillas de brief</h2>
         <p className="desc">
-          Secciones con las que empieza un brief creado «desde plantilla». Cámbialas cuando tengas
-          tu estructura definitiva.
+          Un brief creado «desde plantilla» empieza con estas secciones, su fecha de entrega y sus
+          tareas ya enlazadas.
         </p>
       </div>
       <div className="settings-body settings-body-wide">

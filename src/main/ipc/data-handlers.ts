@@ -101,6 +101,9 @@ export function createDataHandlers(
     'home:setLayout': ({ layout }) => vault.data.setHomeLayout(layout),
     'briefs:templates': () => vault.data.getBriefTemplates(),
     'briefs:setTemplates': ({ templates }) => vault.data.setBriefTemplates(templates),
+    'briefs:createFromTemplate': ({ templateId, values }) =>
+      vault.data.createBriefFromTemplate(templateId, values),
+    'briefs:saveAsTemplate': ({ recordId, name }) => vault.data.saveBriefAsTemplate(recordId, name),
     'profile:get': () => vault.data.getProfile(),
     'profile:set': (profile) => vault.data.setProfile(profile),
     'data:update': ({ id, patch }) => vault.data.update(id, patch),

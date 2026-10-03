@@ -1,7 +1,9 @@
 import { randomUUID } from 'node:crypto'
 import {
+  briefDocFromTemplate,
   briefTemplatesSchema,
   DEFAULT_BRIEF_TEMPLATES,
+  templateFromBriefDoc,
   type BriefTemplate,
 } from '@shared/data/brief-templates'
 import { shiftDate, todayIn } from '@shared/data/dates'
@@ -264,6 +266,56 @@ export class DataService {
     this.putSetting(BRIEF_TEMPLATES_KEY, briefTemplatesSchema.parse(templates))
     this.emit(null)
     return this.getBriefTemplates()
+  }
+
+  /**
+   * Brief desde una plantilla: contenido con sus secciones, fecha de entrega y tareas
+   * enlazadas al brief, con su fecha límite (fase 12).
+   */
+  createBriefFromTemplate(templateId: string, values: Values = {}): RecordRow {
+    const t = this.getBriefTemplates().find((x) => x.id === templateId)
+    if (!t) throw new AppError('INVALID_INPUT', undefined, 'Esa plantilla no existe.')
+    const bf = (k: string) => this.listFields('brief').find((f) => f.key === k)
+    const tf = (k: string) => this.listFields('tarea').find((f) => f.key === k)
+    const today = this.ctx().today
+    const content = bf('contenido')
+    const entrega = bf('entrega')
+    const brief = this.create(
+      'brief',
+      {
+        ...values,
+        ...(content ? { [content.id]: briefDocFromTemplate(t) } : {}),
+        ...(entrega && t.dueDays !== null ? { [entrega.id]: shiftDate(today, t.dueDays) } : {}),
+      },
+      { title: t.name },
+    )
+    const toBrief = tf('brief')
+    const due = tf('fecha_limite')
+    for (const k of t.tasks) {
+      const task = this.create(
+        'tarea',
+        due && k.dueDays !== null ? { [due.id]: shiftDate(today, k.dueDays) } : {},
+        { title: k.title },
+      )
+      if (toBrief) this.setLinks(toBrief.id, task.id, [brief.id])
+    }
+    return this.get(brief.id)
+  }
+
+  /** Guarda el contenido de un brief como plantilla nueva (sus títulos son las secciones). */
+  saveBriefAsTemplate(recordId: string, name: string): BriefTemplate[] {
+    const r = this.get(recordId)
+    if (r.entity !== 'brief') throw new AppError('INVALID_INPUT')
+    const content = this.listFields('brief').find((f) => f.key === 'contenido')
+    const rich = content ? (r.values[content.id] as { doc?: unknown } | undefined) : undefined
+    const t = templateFromBriefDoc(name, rich?.doc, () => randomUUID().slice(0, 8))
+    if (!t.sections.length)
+      throw new AppError(
+        'INVALID_INPUT',
+        undefined,
+        'El brief no tiene títulos: cada título del contenido se convierte en una sección.',
+      )
+    return this.setBriefTemplates([...this.getBriefTemplates(), t])
   }
 
   /** Tarjetas y widgets de Inicio (fase 12). */

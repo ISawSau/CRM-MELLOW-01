@@ -2021,3 +2021,32 @@ img.ProseMirror-separator {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+.template-task {
+  display: grid;
+  grid-template-columns: minmax(160px, 1fr) auto auto;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.template-task-due {
+  display: inline-flex;
+  gap: var(--space-2);
+  align-items: center;
+  font-size: var(--text-sm);
+}
+
+.template-task-due input {
+  width: 72px;
+}
+
+.popover-form {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 260px;
+  padding: var(--space-2);
+}
+
+.popover-form .btn {
+  justify-self: start;
+}

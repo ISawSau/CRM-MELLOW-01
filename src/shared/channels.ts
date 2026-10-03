@@ -60,6 +60,8 @@ export const IPC_CHANNELS = [
   'home:setLayout',
   'briefs:templates',
   'briefs:setTemplates',
+  'briefs:createFromTemplate',
+  'briefs:saveAsTemplate',
   'profile:get',
   'profile:set',
   'data:update',

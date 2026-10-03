@@ -6,7 +6,9 @@ import { COMPUTED_TYPES, type FieldDef, type RichText } from '@shared/data/field
 import { formatValue } from '@shared/data/format-value'
 import type { HistoryEntry, LinkRef, RecordRow } from '@shared/data/records'
 import { formatDateTime } from '@shared/format'
-import { call } from '../lib/ipc'
+import { call, IpcCallError } from '../lib/ipc'
+import { Popover } from '../ui/Popover'
+import { useToast } from '../ui/Toast'
 import { useRecordActions } from './actions'
 import { useNav } from './nav'
 import { FieldEditor } from './FieldEditor'
@@ -125,6 +127,7 @@ export function RecordPanel({
           >
             Duplicar
           </button>
+          {r.entity === 'brief' && !deleted && <SaveAsTemplate record={r} />}
           <button
             type="button"
             className="btn btn-danger"
@@ -396,5 +399,55 @@ function HistoryList({ record, fields }: { record: RecordRow; fields: FieldDef[]
         </li>
       ))}
     </ol>
+  )
+}
+
+/** Guardar el contenido de un brief como plantilla nueva (fase 12). */
+function SaveAsTemplate({ record }: { record: RecordRow }) {
+  const qc = useQueryClient()
+  const toast = useToast()
+  const [name, setName] = useState(record.title)
+  return (
+    <Popover
+      label="Guardar como plantilla"
+      button="Como plantilla"
+      align="end"
+      testId="save-as-template"
+      title="Guardar este brief como plantilla"
+    >
+      {(close) => (
+        <form
+          className="popover-form"
+          onSubmit={(e) => {
+            e.preventDefault()
+            void call('briefs:saveAsTemplate', { recordId: record.id, name })
+              .then((list) => {
+                qc.setQueryData(['data', 'brief-templates'], list)
+                toast.show(`Plantilla «${name.trim()}» guardada. Edítala en Ajustes.`)
+                close()
+              })
+              .catch((err: unknown) =>
+                toast.show(
+                  err instanceof IpcCallError ? err.message : 'No se pudo guardar la plantilla.',
+                  'error',
+                ),
+              )
+          }}
+        >
+          <label htmlFor="tpl-from-brief">Nombre de la plantilla</label>
+          <input
+            id="tpl-from-brief"
+            className="input"
+            maxLength={80}
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
+          <p className="hint">Cada título del contenido será una sección.</p>
+          <button type="submit" className="btn btn-primary" disabled={!name.trim()}>
+            Guardar plantilla
+          </button>
+        </form>
+      )}
+    </Popover>
   )
 }

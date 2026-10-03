@@ -117,6 +117,46 @@ test('Inicio configurable: quitar, reordenar, añadir un widget y restablecer', 
   await page.getByTestId('home-customize').click()
 })
 
+test('brief desde plantilla con entrega y tareas; guardar un brief como plantilla', async () => {
+  await page.getByTestId('nav-briefs').click()
+  await page.getByTestId('from-template').click()
+  await page.getByRole('button', { name: 'Brief de campaña' }).click()
+  const panel = page.getByTestId('record-panel')
+  await expect(panel.locator('#panel-title')).toHaveValue('Brief de campaña')
+  await expect(panel).toContainText('Revisar el brief con el cliente')
+  await expect(panel).toContainText('Preparar las creatividades')
+  await expect(panel.getByRole('textbox', { name: 'Contenido' })).toContainText(
+    'Enlaza las creatividades en el campo «Creatividades» de este brief.',
+  )
+  await panel.locator('#panel-title').fill('Brief otoño')
+  await panel.locator('#panel-title').press('Enter')
+  await panel.getByTestId('save-as-template').click()
+  await page.getByLabel('Nombre de la plantilla').fill('Otoño')
+  await page.getByRole('button', { name: 'Guardar plantilla' }).click()
+  await expect(page.getByText('Plantilla «Otoño» guardada')).toBeVisible()
+  await panel.getByRole('button', { name: 'Cerrar ficha' }).click()
+
+  // En Ajustes: la plantilla nueva, con una tarea propia.
+  await page.getByTestId('nav-ajustes').click()
+  const box = page.getByTestId('brief-templates')
+  await box.getByRole('tab', { name: 'Otoño' }).click()
+  await expect(box.getByRole('textbox', { name: 'Título de la sección' })).toHaveCount(7)
+  await box.getByLabel('Entrega a los (días)').fill('3')
+  await box.getByRole('button', { name: '+ Tarea' }).click()
+  await box.getByRole('textbox', { name: 'Tarea', exact: true }).fill('Llamar al cliente')
+  await box.getByLabel('Días para «Llamar al cliente»').fill('1')
+  if (shots) await page.screenshot({ path: join(shots, '82-plantillas-brief.png') })
+  await box.getByRole('button', { name: 'Guardar plantillas' }).click()
+  await expect(page.getByText('Plantillas guardadas.')).toBeVisible()
+
+  await page.getByTestId('nav-briefs').click()
+  await page.getByTestId('from-template').click()
+  await page.getByRole('button', { name: 'Otoño' }).click()
+  await expect(panel.locator('#panel-title')).toHaveValue('Otoño')
+  await expect(panel).toContainText('Llamar al cliente')
+  await panel.getByRole('button', { name: 'Cerrar ficha' }).click()
+})
+
 test('sin errores de consola ni de la CSP', () => {
   expect(errors).toEqual([])
 })

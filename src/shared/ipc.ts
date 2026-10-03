@@ -294,6 +294,8 @@ export const ipcSchemas = {
   'home:setLayout': z.object({ layout: homeLayoutSchema.nullable() }),
   'briefs:templates': z.void(),
   'briefs:setTemplates': z.object({ templates: briefTemplatesSchema }),
+  'briefs:createFromTemplate': z.object({ templateId: idSchema, values: values.default({}) }),
+  'briefs:saveAsTemplate': z.object({ recordId: idSchema, name: z.string().trim().min(1).max(80) }),
   'profile:get': z.void(),
   'profile:set': profileSchema,
   'data:update': z.object({ id: idSchema, patch: values }),
@@ -441,6 +443,8 @@ export interface IpcOutputs {
   'home:setLayout': HomeLayout
   'briefs:templates': BriefTemplate[]
   'briefs:setTemplates': BriefTemplate[]
+  'briefs:createFromTemplate': RecordRow
+  'briefs:saveAsTemplate': BriefTemplate[]
   'profile:get': Profile
   'profile:set': Profile
   'data:update': RecordRow

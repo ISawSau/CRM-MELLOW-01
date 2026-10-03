@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { briefDocFromTemplate, type BriefTemplate } from '@shared/data/brief-templates'
+import type { BriefTemplate } from '@shared/data/brief-templates'
 import { useCallback, useMemo, useState } from 'react'
 import { findEntity } from '@shared/data/entities'
 import { VIEW_KIND_LABELS, VIEW_KINDS, type View, type ViewKind } from '@shared/data/views'
@@ -178,14 +178,19 @@ export function DataPage({
           <div className="form-actions">
             {entity === 'brief' && (
               <TemplatePicker
-                onPick={(t) => {
-                  const content = allFields.find((f) => f.key === 'contenido')
-                  const title = allFields.find((f) => f.key === def.titleKey)
-                  void newRecord({
-                    ...(content ? { [content.id]: briefDocFromTemplate(t) } : {}),
-                    ...(title ? { [title.id]: t.name } : {}),
+                onPick={(t) =>
+                  void call('briefs:createFromTemplate', {
+                    templateId: t.id,
+                    values: viewDefaults(),
                   })
-                }}
+                    .then((r) => onOpenRecord(r.id))
+                    .catch((e: unknown) =>
+                      toast.show(
+                        e instanceof IpcCallError ? e.message : 'No se pudo crear el brief.',
+                        'error',
+                      ),
+                    )
+                }
               />
             )}
             <button

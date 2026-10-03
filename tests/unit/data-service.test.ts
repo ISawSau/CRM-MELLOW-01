@@ -8,6 +8,7 @@ import { DataService } from '../../src/main/data/data-service'
 import { FileStore } from '../../src/main/files/file-store'
 import { matchesFilter } from '../../src/main/data/query'
 import { briefDocFromTemplate } from '../../src/shared/data/brief-templates'
+import { shiftDate } from '../../src/shared/data/dates'
 import type { FieldDef } from '../../src/shared/data/fields'
 import type { ComputedValue, DataChange, RecordRow } from '../../src/shared/data/records'
 import { OPS_BY_TYPE, VALUELESS_OPS, type Filter } from '../../src/shared/data/views'
@@ -322,6 +323,60 @@ describe('plantillas de brief', () => {
         { ...campana!, sections: [{ id: 'x', title: '', kind: 'text', hint: '' }] },
       ]),
     ).toThrow()
+  })
+})
+
+describe('plantillas de brief (fase 12)', () => {
+  it('crear desde plantilla pone la entrega y crea las tareas enlazadas al brief', () => {
+    const { svc } = setup()
+    const today = '2026-06-15'
+    const [campana] = svc.getBriefTemplates()
+    expect(campana!.dueDays).toBe(7)
+    expect(campana!.tasks.map((t) => t.title)).toEqual([
+      'Revisar el brief con el cliente',
+      'Preparar las creatividades',
+    ])
+    const bf = (k: string) => svc.listFields('brief').find((f) => f.key === k)!
+    const tf = (k: string) => svc.listFields('tarea').find((f) => f.key === k)!
+    const brief = svc.createBriefFromTemplate(campana!.id)
+    expect(brief.title).toBe('Brief de campaña')
+    expect(brief.values[bf('entrega').id]).toBe(shiftDate(today, 7))
+    expect((brief.values[bf('contenido').id] as { text: string }).text).toContain(
+      'Enlaza las creatividades en el campo «Creatividades» de este brief.',
+    )
+    const tasks = svc.query('tarea', { filters: [], match: 'all', sorts: [] })
+    expect(tasks.map((t) => [t.title, t.values[tf('fecha_limite').id]]).sort()).toEqual([
+      ['Preparar las creatividades', shiftDate(today, 6)],
+      ['Revisar el brief con el cliente', shiftDate(today, 2)],
+    ])
+    for (const t of tasks)
+      expect((t.values[tf('brief').id] as { id: string }[]).map((l) => l.id)).toEqual([brief.id])
+    expect(() => svc.createBriefFromTemplate('no-existe')).toThrow(/no existe/)
+  })
+
+  it('guardar un brief como plantilla convierte sus títulos en secciones', () => {
+    const { svc } = setup()
+    const [campana] = svc.getBriefTemplates()
+    const brief = svc.createBriefFromTemplate(campana!.id)
+    const list = svc.saveBriefAsTemplate(brief.id, 'Copia del brief')
+    const t = list.at(-1)!
+    expect(t.name).toBe('Copia del brief')
+    expect(t.sections.map((s) => [s.title, s.kind, s.hint])).toEqual(
+      campana!.sections.map((s) => [s.title, s.kind, s.hint]),
+    )
+    const vacio = svc.create('brief', {}, { title: 'Vacío' })
+    expect(() => svc.saveBriefAsTemplate(vacio.id, 'X')).toThrow(/no tiene títulos/)
+  })
+
+  it('las plantillas guardadas antes de la fase 12 siguen valiendo', () => {
+    const { svc, db } = setup()
+    const old = { id: 'vieja', name: 'Vieja', sections: [{ id: 's', title: 'A', kind: 'text' }] }
+    db.prepare(
+      "INSERT INTO settings (key, value, updated_at) VALUES ('briefs.templates', ?, '')",
+    ).run(JSON.stringify([old]))
+    expect(svc.getBriefTemplates()).toEqual([
+      { ...old, sections: [{ ...old.sections[0], hint: '' }], dueDays: null, tasks: [] },
+    ])
   })
 })
 
