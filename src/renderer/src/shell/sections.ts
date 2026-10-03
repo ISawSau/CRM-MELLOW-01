@@ -38,20 +38,8 @@ export const SECTION_GROUPS: SectionGroup[] = [
         summary: '',
         entity: 'contacto',
       },
-      {
-        id: 'tareas',
-        label: 'Tareas',
-        letter: 'T',
-        phase: 3,
-        summary: 'tareas con estados, kanban, calendario y recurrencias',
-      },
-      {
-        id: 'briefs',
-        label: 'Briefs',
-        letter: 'B',
-        phase: 3,
-        summary: 'briefs libres y plantillas',
-      },
+      { id: 'tareas', label: 'Tareas', letter: 'T', phase: null, summary: '', entity: 'tarea' },
+      { id: 'briefs', label: 'Briefs', letter: 'B', phase: null, summary: '', entity: 'brief' },
     ],
   },
   {

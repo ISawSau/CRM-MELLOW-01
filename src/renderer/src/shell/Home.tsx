@@ -50,6 +50,50 @@ function RecordList({ rows, empty, entity }: { rows: RecordRow[]; empty: string;
   )
 }
 
+function TasksCard({ onNavigate }: { onNavigate: (section: string) => void }) {
+  const fields = useFields('tarea')
+  const due = byKey(fields.data, 'fecha_limite')
+  const estado = byKey(fields.data, 'estado')
+  const doneIds =
+    estado?.type === 'select'
+      ? parseFieldConfig('select', estado.config)
+          .options.filter((o) => o.done)
+          .map((o) => o.id)
+      : []
+  const base =
+    estado && doneIds.length ? [{ fieldId: estado.id, op: 'none_of' as const, value: doneIds }] : []
+  const q = (op: 'today' | 'before_today') => ({
+    filters: due ? [{ fieldId: due.id, op, value: null }, ...base] : [],
+    match: 'all' as const,
+    sorts: due ? [{ fieldId: due.id, dir: 'asc' as const }] : [],
+  })
+  const today = useRecords('tarea', q('today'))
+  const overdue = useRecords('tarea', q('before_today'))
+  const ready = !!due
+  return (
+    <section className="home-card" data-testid="home-tasks">
+      <div className="home-card-head">
+        <h2 className="home-card-title">Tareas</h2>
+        <button type="button" className="btn-link" onClick={() => onNavigate('tareas')}>
+          Ver tareas →
+        </button>
+      </div>
+      <h3 className="panel-subtitle">Atrasadas · {ready ? (overdue.data?.length ?? 0) : 0}</h3>
+      <RecordList
+        rows={ready ? (overdue.data ?? []).slice(0, 6) : []}
+        empty="Nada atrasado."
+        entity="tarea"
+      />
+      <h3 className="panel-subtitle">Hoy · {ready ? (today.data?.length ?? 0) : 0}</h3>
+      <RecordList
+        rows={ready ? (today.data ?? []).slice(0, 6) : []}
+        empty="Nada para hoy."
+        entity="tarea"
+      />
+    </section>
+  )
+}
+
 /** Inicio (SPEC §7.1): visión general. Gasto, ROAS y alertas llegan con Meta. */
 export function Home({ onNavigate }: { onNavigate: (section: string) => void }) {
   const profile = useProfile()
@@ -155,7 +199,7 @@ export function Home({ onNavigate }: { onNavigate: (section: string) => void }) 
           phase={6}
           text="Gasto de hoy, 7 y 30 días y ROAS de tus cuentas de Meta."
         />
-        <Upcoming title="Tareas" phase={3} text="Tareas de hoy y atrasadas." />
+        <TasksCard onNavigate={onNavigate} />
         <Upcoming title="Alertas" phase={8} text="Avisos cuando una métrica cruza tu umbral." />
       </div>
     </div>

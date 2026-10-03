@@ -1,5 +1,6 @@
 import { formatCurrency, formatDate, formatDateTime, formatNumber, formatPercent } from '../format'
-import { parseFieldConfig, type FieldDef, type RichText } from './fields'
+import { parseFieldConfig, type ChecklistItem, type FieldDef, type RichText } from './fields'
+import { describeRecurrence, type Recurrence } from './recurrence'
 import type { ComputedValue, LinkRef } from './records'
 
 /** Texto visible de un valor, en formato español (tablas, tarjetas, CSV). */
@@ -42,6 +43,12 @@ export function formatValue(field: Pick<FieldDef, 'type' | 'config'>, value: unk
     }
     case 'rating':
       return `${value}/${parseFieldConfig('rating', field.config).max}`
+    case 'checklist': {
+      const items = value as ChecklistItem[]
+      return `${items.filter((i) => i.done).length}/${items.length}`
+    }
+    case 'recurrence':
+      return describeRecurrence(value as Recurrence)
     case 'relation':
       return (value as LinkRef[]).map((l) => l.title).join(', ')
     case 'formula':

@@ -5,6 +5,7 @@ import { call } from '../lib/ipc'
 import { useAction } from '../lib/hooks'
 import { RecoveryKeyPanel } from '../screens/RecoveryKey'
 import { BUILT_IN_THEMES } from '../theme/themes'
+import { BriefTemplatesSettings } from '../data/BriefTemplatesSettings'
 import { DataSettings, FieldsSettings } from '../data/FieldsSettings'
 import { ProfileSettings } from './ProfileSettings'
 import { Alert } from '../ui/Alert'
@@ -240,6 +241,7 @@ export function Settings({ status }: { status: VaultStatus }) {
         <ProfileSettings />
         <Appearance status={status} />
         <FieldsSettings />
+        <BriefTemplatesSettings />
         <DataSettings />
         <AutoLock status={status} />
         <ChangePassword />

@@ -109,6 +109,14 @@ function OptionsEditor({
                 </option>
               ))}
             </select>
+            <label className="check option-done" title="Cuenta como terminada (p. ej. «Hecha»)">
+              <input
+                type="checkbox"
+                checked={o.done === true}
+                onChange={(e) => set(i, { done: e.target.checked || undefined })}
+              />
+              <span>Fin</span>
+            </label>
             <button
               type="button"
               className="icon-btn"
@@ -156,7 +164,10 @@ function OptionsEditor({
           Añadir
         </button>
       </div>
-      <p className="hint">Quitar una opción deja vacíos los registros que la tenían.</p>
+      <p className="hint">
+        Quitar una opción deja vacíos los registros que la tenían. «Fin» marca las opciones que
+        significan terminado: no cuentan como pendientes y completan las tareas que se repiten.
+      </p>
     </div>
   )
 }

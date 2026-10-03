@@ -265,3 +265,29 @@ El usuario no quiere escribir comandos de desarrollo para usar la app. Los insta
 
 - En Linux Chromium ignora `--lang` y toma el idioma de las variables de entorno. El proceso principal pone `LANGUAGE=es_ES:es` antes de arrancar Chromium. Chromium solo trae el idioma `es` (no `es-ES`), que basta para dd/mm/aaaa y la semana desde el lunes; los formatos propios de la app usan siempre `es-ES`.
 
+## Fase 3 · Tareas y briefs
+
+### D-041 · Repeticiones con cálculo propio
+
+- SPEC preveía rrule. Las reglas que pide (diaria, semanal en días concretos, mensual, anual, cada N) caben en unas decenas de líneas sobre fechas de calendario, con tests de los casos difíciles (31 → 28 de febrero, 29 de febrero, cada 2 semanas, fin de año). Así no hay dependencia ni conversiones de zona horaria: «el lunes» es el lunes en la zona del perfil.
+- La regla es un valor estructurado (frecuencia, intervalo, días, día del mes y modo), validado con zod, no un texto RRULE.
+- **Al completar:** al pasar el estado a una opción «Fin» se crea la siguiente tarea, contando desde su fecha límite y nunca antes de mañana. **Según calendario:** al abrir la bóveda y cada hora, cada tarea pendiente con la fecha pasada genera la siguiente desde hoy (la vencida se queda como atrasada).
+- La regla pasa a la tarea nueva y la anterior deja de generar: reabrir y volver a cerrar no duplica. La nueva copia los vínculos (cliente, brief…), vuelve a la primera etapa y desmarca la checklist.
+- Completar y la creación de la siguiente son una sola acción para Ctrl+Z.
+- Qué campos usa: el de repetición, la primera fecha de la entidad (la fecha límite) y el primer campo de selección con opciones «Fin» (el estado).
+
+### D-042 · Checklist y repetición como tipos de campo
+
+- Ambos son tipos del motor (no campos especiales de Tareas): cualquier entidad puede usarlos. La checklist se guarda como lista de elementos con id, texto y marca; en tablas y tarjetas se ve como progreso «2/5»; en fórmulas vale la fracción completada (0–1); su texto entra en la búsqueda.
+- Se editan en la ficha (no en la celda de la tabla).
+
+### D-043 · Opciones «Fin» y primera etapa por defecto
+
+- Las opciones de una selección pueden marcarse como «Fin» (Hecha, Aprobado, Archivado). Lo usan los avisos de tareas, las vistas Hoy y Atrasadas y las repeticiones.
+- Un registro nuevo empieza en la primera etapa de cada pipeline (una tarea nueva está «Pendiente»; un cliente nuevo, «Prospecto»).
+
+### D-044 · Plantillas de brief como ajuste
+
+- Las plantillas se guardan como ajuste de la bóveda (nombre y secciones con título, tipo e indicación), validadas con zod. Crear un brief desde una plantilla genera el documento de Tiptap con un título por sección, la indicación en cursiva y una lista vacía en las secciones de tipo lista.
+- Cambiar una plantilla no toca los briefs ya creados: el contenido es del brief.
+

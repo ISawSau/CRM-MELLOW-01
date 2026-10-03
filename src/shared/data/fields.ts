@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { recurrenceSchema } from './recurrence'
 
 /**
  * Tipos de campo del motor de datos (SPEC §6) y validación de sus valores.
@@ -21,6 +22,8 @@ export const FIELD_TYPES = [
   'email',
   'phone',
   'rating',
+  'checklist',
+  'recurrence',
   'relation',
   'formula',
   'rollup',
@@ -43,6 +46,8 @@ export const FIELD_TYPE_LABELS: Record<FieldType, string> = {
   email: 'Email',
   phone: 'Teléfono',
   rating: 'Valoración',
+  checklist: 'Lista de comprobación',
+  recurrence: 'Repetición',
   relation: 'Relación',
   formula: 'Fórmula',
   rollup: 'Resumen',
@@ -76,6 +81,8 @@ const optionSchema = z.object({
   id,
   label: z.string().trim().min(1).max(60),
   color: z.enum(OPTION_COLORS),
+  /** La opción significa «terminado» (p. ej. la etapa «Hecha» de una tarea). */
+  done: z.boolean().optional(),
 })
 export type SelectOption = z.infer<typeof optionSchema>
 
@@ -123,6 +130,8 @@ export const fieldConfigSchemas = {
   email: z.object({}).strict(),
   phone: z.object({}).strict(),
   rating: z.object({ max: z.number().int().min(1).max(10).default(5) }).strict(),
+  checklist: z.object({}).strict(),
+  recurrence: z.object({}).strict(),
   relation: z
     .object({
       target: z.string().min(1).max(40),
@@ -182,6 +191,20 @@ export const richTextSchema = z.object({
 })
 export type RichText = z.infer<typeof richTextSchema>
 
+/** Lista de comprobación: elementos con texto y marcados o no. */
+export const checklistSchema = z
+  .array(
+    z
+      .object({
+        id: z.string().regex(/^[a-z0-9-]{1,64}$/),
+        text: z.string().max(500),
+        done: z.boolean(),
+      })
+      .strict(),
+  )
+  .max(200)
+export type ChecklistItem = z.infer<typeof checklistSchema>[number]
+
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
 const isoDateTime = z.iso.datetime({ offset: false })
 
@@ -238,6 +261,10 @@ export function valueSchema(field: Pick<FieldDef, 'type' | 'config'>): z.ZodType
       const max = parseFieldConfig('rating', field.config).max
       return z.number().int().min(0).max(max)
     }
+    case 'checklist':
+      return checklistSchema
+    case 'recurrence':
+      return recurrenceSchema
     // Relaciones (tabla links) y calculados no se guardan en `data`.
     case 'relation':
     case 'formula':

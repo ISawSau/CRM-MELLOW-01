@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { appearanceSchema, type Appearance } from './appearance'
 import { FIELD_TYPES, idSchema, type FieldDef } from './data/fields'
 import { profileSchema, type Profile } from './profile'
+import { briefTemplatesSchema, type BriefTemplate } from './data/brief-templates'
 import type {
   DataChange,
   HistoryEntry,
@@ -146,6 +147,9 @@ export const ipcSchemas = {
     label,
     multiple: z.boolean().default(true),
   }),
+  'tasks:summary': z.void(),
+  'briefs:templates': z.void(),
+  'briefs:setTemplates': z.object({ templates: briefTemplatesSchema }),
   'profile:get': z.void(),
   'profile:set': profileSchema,
   'data:update': z.object({ id: idSchema, patch: values }),
@@ -203,6 +207,9 @@ export interface IpcOutputs {
   'data:get': RecordRow
   'data:create': RecordRow
   'data:createInverseField': FieldDef
+  'tasks:summary': { today: number; overdue: number }
+  'briefs:templates': BriefTemplate[]
+  'briefs:setTemplates': BriefTemplate[]
   'profile:get': Profile
   'profile:set': Profile
   'data:update': RecordRow
