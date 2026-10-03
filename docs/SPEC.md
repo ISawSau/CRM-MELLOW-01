@@ -151,6 +151,11 @@ En la fase 1 el motor se activa con **Notas** (título, contenido con formato, t
 
 Más adelante (fase 12), colecciones personalizadas: el usuario crea sus propias tablas con los campos que quiera.
 
+*Fase 12:*
+- Las colecciones se crean en Ajustes → Colecciones con nombre en plural y en singular, género y letra. Aparecen en la barra lateral, en el grupo «04 colecciones».
+- Nacen con los campos «Nombre» y «Notas» y la vista «Todos». Después admiten cualquier campo, vista, relación (también con las entidades de sistema), fórmula, búsqueda, papelera e historial.
+- Solo se borran vacías y cuando ninguna otra entidad las enlaza (D-084).
+
 ### Campos personalizados
 
 - Tabla de definiciones: entidad, clave, etiqueta, tipo, configuración, orden, visible, obligatorio.
@@ -192,6 +197,10 @@ Tabla genérica de vínculos (campo de relación, id de origen, id de destino, p
 - Pantalla de contraseña.
 - Perfil: nombre, foto, datos fiscales y de empresa, moneda y zona horaria por defecto.
 - Inicio: visión general con gasto de hoy, 7 y 30 días, ROAS, alertas activas, tareas de hoy y atrasadas, estado de la última sincronización. En una fase posterior, widgets configurables.
+- *Fase 12:* Inicio configurable con «Personalizar»:
+  - quitar, ordenar y volver a añadir las tarjetas (cifras clave, clientes por etapa, notas, gasto y ROAS, tareas y alertas);
+  - añadir widgets de Análisis (cifra, líneas, barras, tabla o ranking) de todas las cuentas;
+  - «Restablecer Inicio» vuelve al diseño de serie.
 - *Fase 2:* perfil en Ajustes (foto reducida a 256 px dentro de la base de datos cifrada; su zona horaria decide qué es «hoy»). Inicio con clientes activos, fees mensuales, clientes por etapa y notas recientes y fijadas; cada bloque futuro indica en qué fase llega.
 
 ### 7.2 Clientes
@@ -299,6 +308,10 @@ El negocio actual es ecommerce y no usa formularios de leads. Si en el futuro se
 - Sistema de plantillas preparado para cuando el usuario defina la suya: secciones con tipo (texto, lista, archivos, enlaces a creatividades), editables desde la interfaz.
 - Un brief se vincula a un cliente y desde él se pueden crear tareas y creatividades ya vinculadas. Estados editables.
 - *Fase 3:* brief con título, contenido con formato, estado, cliente, fecha de entrega y tareas. «Desde plantilla» crea el contenido con un título por sección y su indicación; las plantillas (nombre y secciones con tipo: texto, lista, enlaces a creatividades, archivos) se editan en Ajustes. Archivos y enlaces a creatividades se completan en la fase 4.
+- *Fase 12:*
+  - Cada plantilla puede llevar fecha de entrega (a N días) y tareas que se crean enlazadas al brief, cada una con su fecha límite relativa.
+  - Las secciones de enlaces y de archivos indican que se completan en los campos «Creatividades» y «Archivos» del brief.
+  - Las plantillas se pueden duplicar, y un brief ya escrito se guarda como plantilla («Como plantilla» en su ficha): cada título del contenido es una sección (D-083).
 
 ### 7.8 Biblioteca de creatividades y copies
 
@@ -364,7 +377,7 @@ Perfil · bóveda · seguridad (contraseña, autobloqueo, clave de recuperación
 - Debe parecerse al portfolio del usuario: https://yellowmellow.cc
 - **Primera tarea de diseño (fase 0):** abrir la web, extraer colores, tipografías, radios, espaciados, tono de los textos y elementos característicos, y documentarlos como tokens en `docs/DESIGN.md`. Si la web no se puede leer, pedir capturas al usuario. No construir pantallas antes de que el usuario apruebe esos tokens.
 - Adaptación a una app con mucha densidad de datos: cifras con números tabulares, dos densidades (compacta por defecto y cómoda), tema oscuro por defecto y tema claro, contraste accesible.
-- **Temas:** el diseño se define con tokens. Cada tema da un valor a cada token y la app tiene un selector de temas. Más adelante (fase 12) el usuario podrá crear temas propios y editarlos desde la propia app. Si el color de marca es claro (p. ej. un amarillo), usarlo como fondo de acento o en superficies con texto oscuro, nunca como color de texto sobre blanco.
+- **Temas:** el diseño se define con tokens. Cada tema da un valor a cada token y la app tiene un selector de temas. En la fase 12 el usuario crea temas propios y los edita desde la propia app (Ajustes → Apariencia): parte de un tema, cambia cada token con vista previa en directo y la app avisa de las parejas de texto y fondo que no llegan a contraste AA (D-081). Si el color de marca es claro (p. ej. un amarillo), usarlo como fondo de acento o en superficies con texto oscuro, nunca como color de texto sobre blanco.
 - Evitar el aspecto genérico de SaaS (todo en tarjetas iguales con sombra gris y degradados). La identidad del portfolio manda.
 - Textos de interfaz en español, en minúscula inicial, con verbos claros en los botones ("Guardar cambios", no "Enviar"). Los estados vacíos indican qué hacer a continuación.
 
