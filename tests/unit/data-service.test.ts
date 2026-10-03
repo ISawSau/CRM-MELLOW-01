@@ -8,6 +8,7 @@ import { DataService } from '../../src/main/data/data-service'
 import { FileStore } from '../../src/main/files/file-store'
 import { matchesFilter } from '../../src/main/data/query'
 import { briefDocFromTemplate } from '../../src/shared/data/brief-templates'
+import { shiftDate } from '../../src/shared/data/dates'
 import type { FieldDef } from '../../src/shared/data/fields'
 import type { ComputedValue, DataChange, RecordRow } from '../../src/shared/data/records'
 import { OPS_BY_TYPE, VALUELESS_OPS, type Filter } from '../../src/shared/data/views'
@@ -322,6 +323,138 @@ describe('plantillas de brief', () => {
         { ...campana!, sections: [{ id: 'x', title: '', kind: 'text', hint: '' }] },
       ]),
     ).toThrow()
+  })
+})
+
+describe('plantillas de brief (fase 12)', () => {
+  it('crear desde plantilla pone la entrega y crea las tareas enlazadas al brief', () => {
+    const { svc } = setup()
+    const today = '2026-06-15'
+    const [campana] = svc.getBriefTemplates()
+    expect(campana!.dueDays).toBe(7)
+    expect(campana!.tasks.map((t) => t.title)).toEqual([
+      'Revisar el brief con el cliente',
+      'Preparar las creatividades',
+    ])
+    const bf = (k: string) => svc.listFields('brief').find((f) => f.key === k)!
+    const tf = (k: string) => svc.listFields('tarea').find((f) => f.key === k)!
+    const brief = svc.createBriefFromTemplate(campana!.id)
+    expect(brief.title).toBe('Brief de campaña')
+    expect(brief.values[bf('entrega').id]).toBe(shiftDate(today, 7))
+    expect((brief.values[bf('contenido').id] as { text: string }).text).toContain(
+      'Enlaza las creatividades en el campo «Creatividades» de este brief.',
+    )
+    const tasks = svc.query('tarea', { filters: [], match: 'all', sorts: [] })
+    expect(tasks.map((t) => [t.title, t.values[tf('fecha_limite').id]]).sort()).toEqual([
+      ['Preparar las creatividades', shiftDate(today, 6)],
+      ['Revisar el brief con el cliente', shiftDate(today, 2)],
+    ])
+    for (const t of tasks)
+      expect((t.values[tf('brief').id] as { id: string }[]).map((l) => l.id)).toEqual([brief.id])
+    expect(() => svc.createBriefFromTemplate('no-existe')).toThrow(/no existe/)
+  })
+
+  it('guardar un brief como plantilla convierte sus títulos en secciones', () => {
+    const { svc } = setup()
+    const [campana] = svc.getBriefTemplates()
+    const brief = svc.createBriefFromTemplate(campana!.id)
+    const list = svc.saveBriefAsTemplate(brief.id, 'Copia del brief')
+    const t = list.at(-1)!
+    expect(t.name).toBe('Copia del brief')
+    expect(t.sections.map((s) => [s.title, s.kind, s.hint])).toEqual(
+      campana!.sections.map((s) => [s.title, s.kind, s.hint]),
+    )
+    const vacio = svc.create('brief', {}, { title: 'Vacío' })
+    expect(() => svc.saveBriefAsTemplate(vacio.id, 'X')).toThrow(/no tiene títulos/)
+  })
+
+  it('las plantillas guardadas antes de la fase 12 siguen valiendo', () => {
+    const { svc, db } = setup()
+    const old = { id: 'vieja', name: 'Vieja', sections: [{ id: 's', title: 'A', kind: 'text' }] }
+    db.prepare(
+      "INSERT INTO settings (key, value, updated_at) VALUES ('briefs.templates', ?, '')",
+    ).run(JSON.stringify([old]))
+    expect(svc.getBriefTemplates()).toEqual([
+      { ...old, sections: [{ ...old.sections[0], hint: '' }], dueDays: null, tasks: [] },
+    ])
+  })
+})
+
+describe('colecciones personalizadas (fase 12)', () => {
+  const input = { label: 'Proveedores', singular: 'Proveedor', gender: 'm' as const, letter: 'V' }
+
+  it('crear una colección: campos, vista, registros, relaciones, búsqueda y papelera', () => {
+    const { svc } = setup()
+    const list = svc.createCollection(input)
+    const col = list.find((e) => e.custom)!
+    expect(col).toMatchObject({
+      id: 'col-proveedores',
+      label: 'Proveedores',
+      singular: 'proveedor',
+      titleKey: 'nombre',
+      letter: 'V',
+    })
+    expect(svc.listFields(col.id).map((f) => f.key)).toEqual(['nombre', 'notas'])
+    expect(svc.listViews(col.id).map((v) => v.name)).toEqual(['Todos'])
+    // Mismo nombre: id distinto.
+    expect(
+      svc
+        .createCollection(input)
+        .filter((e) => e.custom)
+        .map((e) => e.id),
+    ).toEqual(['col-proveedores', 'col-proveedores-2'])
+    // Campos propios y relación con clientes (con su campo inverso).
+    const precio = svc.createField(col.id, { label: 'Precio', type: 'currency' })
+    const rel = svc.createField(col.id, {
+      label: 'Clientes',
+      type: 'relation',
+      config: { target: 'cliente', multiple: true },
+    })
+    svc.createInverseField(rel.id, 'Proveedores', true)
+    const acme = svc.create('cliente', {}, { title: 'Acme' })
+    const p = svc.create(col.id, { [precio.id]: 120 }, { title: 'Imprenta Pérez' })
+    svc.setLinks(rel.id, p.id, [acme.id])
+    const inv = svc.listFields('cliente').find((f) => f.label === 'Proveedores')!
+    expect((svc.get(acme.id).values[inv.id] as { title: string }[]).map((l) => l.title)).toEqual([
+      'Imprenta Pérez',
+    ])
+    expect(svc.search('imprenta').map((h) => h.entity)).toEqual([col.id])
+    expect(svc.query(col.id, { filters: [], match: 'all', sorts: [] })).toHaveLength(1)
+
+    // No se borra con registros ni mientras otra entidad la enlace.
+    expect(() => svc.deleteCollection(col.id)).toThrow(/tiene 1 registro/)
+    svc.trash([p.id])
+    expect(() => svc.deleteCollection(col.id)).toThrow(/«Proveedores» de Clientes/)
+    svc.deleteField(inv.id)
+    const after = svc.deleteCollection(col.id)
+    expect(after.some((e) => e.id === col.id)).toBe(false)
+    expect(() => svc.listFields(col.id)).toThrow(/No existe la entidad/)
+    expect(svc.listTrash().some((t) => t.id === p.id)).toBe(false)
+  })
+
+  it('renombrar y validar', () => {
+    const { svc } = setup()
+    const [col] = svc.createCollection(input).filter((e) => e.custom)
+    const r = svc.updateCollection(col!.id, {
+      ...input,
+      label: 'Agencias',
+      singular: 'Agencia',
+      gender: 'f',
+    })
+    expect(r.find((e) => e.id === col!.id)).toMatchObject({
+      label: 'Agencias',
+      singular: 'agencia',
+    })
+    expect(() => svc.createCollection({ ...input, letter: 'VV' })).toThrow()
+    expect(() => svc.createCollection({ ...input, label: '' })).toThrow()
+    // Una relación hacia una colección que no existe se rechaza.
+    expect(() =>
+      svc.createField('nota', {
+        label: 'X',
+        type: 'relation',
+        config: { target: 'col-no-existe', multiple: true },
+      }),
+    ).toThrow(/no existe/)
   })
 })
 

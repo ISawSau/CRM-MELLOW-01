@@ -8,7 +8,7 @@ import { Unlock } from './screens/Unlock'
 import { Welcome } from './screens/Welcome'
 import { Shell } from './shell/Shell'
 import { applyAppearance } from './theme/apply'
-import { findTheme } from './theme/themes'
+import { BUILT_IN_THEMES, findTheme } from '@shared/themes'
 
 export function App() {
   const status = useVaultStatus()
@@ -18,9 +18,13 @@ export function App() {
 
   // Antes de desbloquear se usa la apariencia por defecto (tema oscuro, densidad compacta).
   const appearance = status.data?.appearance ?? DEFAULT_APPEARANCE
+  const themes = status.data?.themes
   useEffect(() => {
-    applyAppearance(findTheme(appearance.theme), appearance.density)
-  }, [appearance.theme, appearance.density])
+    applyAppearance(
+      findTheme(appearance.theme, [...BUILT_IN_THEMES, ...(themes ?? [])]),
+      appearance.density,
+    )
+  }, [appearance.theme, appearance.density, themes])
 
   if (!status.data) return null
   const s = status.data

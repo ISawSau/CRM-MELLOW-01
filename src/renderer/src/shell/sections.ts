@@ -120,3 +120,28 @@ export const ALL_SECTIONS: Section[] = [
   TRASH_SECTION,
   SETTINGS_SECTION,
 ]
+
+/** Grupo de la barra lateral con las colecciones del usuario (fase 12). */
+export function withCollections(custom: { id: string; label: string; letter: string | null }[]): {
+  groups: SectionGroup[]
+  all: Section[]
+} {
+  const groups = custom.length
+    ? [
+        ...SECTION_GROUPS,
+        {
+          num: '04',
+          title: 'colecciones',
+          sections: custom.map((e) => ({
+            id: e.id,
+            label: e.label,
+            letter: e.letter ?? e.label.charAt(0).toUpperCase(),
+            phase: null,
+            summary: '',
+            entity: e.id,
+          })),
+        },
+      ]
+    : SECTION_GROUPS
+  return { groups, all: [...groups.flatMap((g) => g.sections), TRASH_SECTION, SETTINGS_SECTION] }
+}

@@ -1,9 +1,12 @@
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useCallback, useEffect } from 'react'
+import { useCallback, useEffect, useMemo } from 'react'
+import { findEntity } from '@shared/data/entities'
 import type { FieldDef } from '@shared/data/fields'
+import type { EntityInfo } from '@shared/ipc'
 import type { DataChange, UndoState } from '@shared/data/records'
 import type { Filter, Sort, View } from '@shared/data/views'
 import { call, subscribe } from '../lib/ipc'
+import { withCollections } from '../shell/sections'
 
 /**
  * Datos del motor en la interfaz. Todo cuelga de la clave ['data', …]: cualquier
@@ -107,3 +110,38 @@ export function useSaveView(entity: string) {
 
 export const byId = (fields: FieldDef[] | undefined) =>
   new Map((fields ?? []).map((f) => [f.id, f]))
+
+/** Secciones de la barra lateral, con las colecciones del usuario. */
+export function useSections() {
+  const entities = useEntities().data
+  return useMemo(() => withCollections((entities ?? []).filter((e) => e.custom)), [entities])
+}
+
+/** Datos de una entidad (de sistema o colección) para la interfaz. */
+export function useEntity(id: string): EntityInfo | undefined {
+  return useEntityLookup()(id)
+}
+
+/** Busca entidades por id (las de sistema están disponibles aunque no haya cargado la lista). */
+export function useEntityLookup(): (id: string) => EntityInfo | undefined {
+  const list = useEntities().data
+  return useCallback(
+    (id: string) => {
+      const found = list?.find((e) => e.id === id)
+      if (found) return found
+      const sys = findEntity(id)
+      return sys
+        ? {
+            id: sys.id,
+            label: sys.label,
+            singular: sys.singular,
+            gender: sys.gender,
+            titleKey: sys.titleKey,
+            custom: false,
+            letter: null,
+          }
+        : undefined
+    },
+    [list],
+  )
+}

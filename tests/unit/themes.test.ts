@@ -4,7 +4,10 @@ import {
   findTheme,
   themeSchema,
   themeToCssVars,
-} from '../../src/renderer/src/theme/themes'
+  contrastIssues,
+  parseColor,
+  contrast as sharedContrast,
+} from '../../src/shared/themes'
 
 // Contraste WCAG 2.x entre dos colores hexadecimales.
 function luminance(hex: string): number {
@@ -63,4 +66,16 @@ describe('temas', () => {
       }
     },
   )
+
+  it('contraste con opacidad y avisos de un tema propio', () => {
+    expect(contrastIssues(findTheme('oscuro'))).toEqual([])
+    expect(contrastIssues(findTheme('claro'))).toEqual([])
+    // Un amarillo de marca como texto sobre blanco no llega a AA.
+    const t = findTheme('claro')
+    const amarillo = { ...t, colors: { ...t.colors, bg: '#ffffff', accentText: '#f5d000' } }
+    expect(contrastIssues(amarillo).map((i) => i.label)).toEqual(['Texto de acento sobre el fondo'])
+    // Negro al 50 % sobre blanco se ve gris medio.
+    expect(sharedContrast('rgba(0, 0, 0, 0.5)', '#ffffff')).toBeCloseTo(3.95, 1)
+    expect(parseColor('rgba(10, 20, 30, 0.4)')).toEqual({ r: 10, g: 20, b: 30, a: 0.4 })
+  })
 })

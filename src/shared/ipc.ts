@@ -24,6 +24,9 @@ import {
   type ReportTemplate,
 } from './reports'
 import { appearanceSchema, type Appearance } from './appearance'
+import { customThemesSchema, type Theme } from './themes'
+import { homeLayoutSchema, type HomeLayout } from './home'
+import { collectionIdSchema, collectionInputSchema } from './data/collections'
 import { FIELD_TYPES, idSchema, type FieldDef, type FileRef } from './data/fields'
 import { profileSchema, type Profile } from './profile'
 import { briefTemplatesSchema, type BriefTemplate } from './data/brief-templates'
@@ -101,6 +104,8 @@ export interface VaultStatus {
   autoLockMinutes: number | null
   /** Apariencia guardada en la bóveda (solo si está desbloqueada). */
   appearance: Appearance | null
+  /** Temas propios del usuario (solo si está desbloqueada). */
+  themes: Theme[] | null
 }
 
 export interface EntityInfo {
@@ -108,6 +113,12 @@ export interface EntityInfo {
   label: string
   singular: string
   gender: 'f' | 'm'
+  /** Clave del campo de título. */
+  titleKey: string
+  /** Colección creada por el usuario (fase 12). */
+  custom: boolean
+  /** Letra de la barra lateral (solo colecciones). */
+  letter: string | null
 }
 
 /** Valores por id de campo; el proceso principal los valida contra cada campo. */
@@ -196,10 +207,14 @@ export const ipcSchemas = {
       .max(24 * 60),
   }),
   'settings:setAppearance': appearanceSchema,
+  'settings:setThemes': z.object({ themes: customThemesSchema }),
   'clipboard:writeSecret': z.object({ text: z.string().min(1).max(500) }),
 
   // --- Motor de datos (fase 1) ---
   'data:entities': z.void(),
+  'data:createCollection': collectionInputSchema,
+  'data:updateCollection': collectionInputSchema.extend({ id: collectionIdSchema }),
+  'data:deleteCollection': z.object({ id: collectionIdSchema }),
   'data:fields': z.object({ entity: idSchema, includeDeleted: z.boolean().default(false) }),
   'data:createField': z.object({
     entity: idSchema,
@@ -285,8 +300,12 @@ export const ipcSchemas = {
     keepMonthly: z.boolean(),
   }),
   'tasks:summary': z.void(),
+  'home:layout': z.void(),
+  'home:setLayout': z.object({ layout: homeLayoutSchema.nullable() }),
   'briefs:templates': z.void(),
   'briefs:setTemplates': z.object({ templates: briefTemplatesSchema }),
+  'briefs:createFromTemplate': z.object({ templateId: idSchema, values: values.default({}) }),
+  'briefs:saveAsTemplate': z.object({ recordId: idSchema, name: z.string().trim().min(1).max(80) }),
   'profile:get': z.void(),
   'profile:set': profileSchema,
   'data:update': z.object({ id: idSchema, patch: values }),
@@ -392,8 +411,12 @@ export interface IpcOutputs {
   'vault:rotateKey': { recoveryKey: string }
   'settings:setAutoLock': VaultStatus
   'settings:setAppearance': VaultStatus
+  'settings:setThemes': VaultStatus
   'clipboard:writeSecret': void
   'data:entities': EntityInfo[]
+  'data:createCollection': EntityInfo[]
+  'data:updateCollection': EntityInfo[]
+  'data:deleteCollection': EntityInfo[]
   'data:fields': FieldDef[]
   'data:createField': FieldDef
   'data:updateField': FieldDef
@@ -429,8 +452,12 @@ export interface IpcOutputs {
   'backups:config': { intervalDays: number; keepLast: number; keepMonthly: boolean }
   'backups:setConfig': SyncStatus
   'tasks:summary': { today: number; overdue: number }
+  'home:layout': HomeLayout
+  'home:setLayout': HomeLayout
   'briefs:templates': BriefTemplate[]
   'briefs:setTemplates': BriefTemplate[]
+  'briefs:createFromTemplate': RecordRow
+  'briefs:saveAsTemplate': BriefTemplate[]
   'profile:get': Profile
   'profile:set': Profile
   'data:update': RecordRow

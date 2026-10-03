@@ -575,3 +575,42 @@ El usuario no quiere escribir comandos de desarrollo para usar la app. Los insta
   - Reimportar un periodo sustituye esos días (por cuenta y campaña), no los duplica.
 - **Mismas tablas que Meta:** las métricas van a `ad_insights_daily` (niveles cuenta y campaña) y `ad_actions`, con la plataforma en `ad_accounts.platform`. Así Análisis, Inicio, Facturación, Informes y alertas las incluyen sin cambios, y los filtros por cuenta y cliente funcionan igual. Las conversiones se guardan como compras (cuentan en ROAS y CPA) u «otras conversiones», a elección del usuario.
 - **Moneda:** cada cuenta tiene la suya. Los tipos del BCE se descargan también tras importar o sincronizar LinkedIn, aunque Meta no esté conectado.
+
+## Fase 12 · Personalización avanzada
+
+### D-081 · Temas propios: los mismos tokens, guardados en la bóveda
+
+- Un tema propio tiene la misma forma que los predefinidos (18 tokens de color y los colores de las etiquetas). Se valida con el mismo esquema, que solo admite `#rrggbb` o `rgba(…)`, así que en las variables CSS no puede entrar nada que no sea un color.
+- Los temas se guardan en la base de datos cifrada (`appearance.themes`) y viajan con la sincronización. Como mucho hay 30. No pueden reutilizar el id de un tema predefinido.
+- Si se borra el tema en uso, se vuelve al oscuro.
+- El editor parte de un tema existente y aplica los cambios al momento a toda la app. Al cancelar se vuelve al tema guardado.
+- **Contraste:** se calcula con la fórmula WCAG 2.x, componiendo la opacidad sobre el fondo, para 19 parejas de texto y fondo (texto, secundario, tenue, acento, botón, estados y etiquetas). Las que no llegan a 4,5:1 se avisan sin impedir guardar: es la app del usuario. Así se cumple la regla de no usar un amarillo de marca como texto sobre blanco (SPEC §8).
+- Se aplica con la CSSOM (`style.setProperty`), compatible con la CSP sin `unsafe-inline` (D-017).
+
+### D-082 · Inicio configurable reutilizando los widgets de Análisis
+
+- El diseño de Inicio es una lista ordenada de elementos guardada en la bóveda (`home.layout`). Cada elemento es una tarjeta de serie o un widget de Análisis con la misma definición que en los dashboards (D-068).
+- Quitar una tarjeta solo la oculta; se vuelve a añadir desde «Personalizar». «Restablecer Inicio» borra el ajuste y vuelve al diseño de serie.
+- Los widgets de Inicio miran todas las cuentas activadas. Para un cliente concreto están sus dashboards en Análisis.
+
+### D-083 · Plantillas de brief definitivas
+
+- La estructura sigue abierta, porque el usuario aún no ha fijado la suya. Una plantilla puede llevar:
+  - fecha de entrega a N días;
+  - hasta 30 tareas, cada una con su fecha límite relativa.
+- Crear desde plantilla se hace en el proceso principal. Crea el brief y sus tareas enlazadas al brief.
+  - El cliente no se copia a las tareas: en ese momento el brief aún no tiene cliente, porque las relaciones se enlazan después.
+- Guardar un brief como plantilla convierte cada título (H1-H3) de su contenido en una sección:
+  - el párrafo en cursiva de debajo pasa a ser la indicación;
+  - si debajo hay una lista, la sección es de tipo «Lista».
+- Las plantillas guardadas antes de esta fase siguen siendo válidas: los campos nuevos tienen valor por defecto.
+
+### D-084 · Colecciones personalizadas sobre el mismo motor
+
+- **Sin migración:** el motor ya guardaba registros, campos, vistas y enlaces con una columna `entity` de texto. Una colección solo añade su definición al ajuste `data.collections`: nombre, singular, género, letra e id `col-<nombre>`. La validación de entidades del proceso principal pasa a aceptar las de sistema y las colecciones.
+- Al crearla se siembra igual que una entidad de sistema: campo de título «Nombre» (obligatorio), «Notas» y la vista «Todos». El resto lo añade el usuario en Ajustes → Campos, incluidas relaciones con clientes u otras entidades (con su campo inverso).
+- **Borrado seguro:**
+  - Una colección solo se borra vacía (sus registros van antes a la papelera) y cuando ningún campo de otra entidad la enlaza.
+  - Al borrarla desaparecen sus campos, sus vistas y lo que tenga en la papelera, con confirmación. También se vacía la pila de deshacer, cuyas acciones podrían referirse a ella.
+  - Como no se pierde ningún registro activo, no hace falta copia de seguridad.
+- Como mucho hay 50 colecciones. La barra lateral las muestra en un grupo propio («04 colecciones»), y la búsqueda global y la paleta de comandos las incluyen.

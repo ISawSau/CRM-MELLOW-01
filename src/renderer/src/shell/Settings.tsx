@@ -4,14 +4,16 @@ import { MIN_PASSWORD_LENGTH, type VaultStatus } from '@shared/ipc'
 import { call } from '../lib/ipc'
 import { useAction } from '../lib/hooks'
 import { RecoveryKeyPanel } from '../screens/RecoveryKey'
-import { BUILT_IN_THEMES } from '../theme/themes'
+import { BUILT_IN_THEMES, findTheme, type Theme } from '@shared/themes'
 import { BriefTemplatesSettings } from '../data/BriefTemplatesSettings'
+import { CollectionsSettings } from '../data/CollectionsSettings'
 import { DataSettings, FieldsSettings } from '../data/FieldsSettings'
 import { ProfileSettings } from './ProfileSettings'
 import { SyncSettings } from './SyncSettings'
 import { GmailSettings } from '../gmail/GmailSettings'
 import { Alert } from '../ui/Alert'
 import { PasswordField } from '../ui/PasswordField'
+import { newThemeFrom, ThemeEditor } from '../theme/ThemeEditor'
 
 const AUTO_LOCK_OPTIONS = [5, 10, 15, 30, 60, 120]
 
@@ -37,22 +39,27 @@ function Block({
 
 function Appearance({ status }: { status: VaultStatus }) {
   const appearance = status.appearance ?? DEFAULT_APPEARANCE
+  const custom = status.themes ?? []
+  const all = [...BUILT_IN_THEMES, ...custom]
+  const current = findTheme(appearance.theme, all)
+  const [editing, setEditing] = useState<{ theme: Theme; isNew: boolean } | null>(null)
   const save = useAction((theme: string, density: Density) =>
     call('settings:setAppearance', { theme, density }),
   )
   return (
     <Block
       title="Apariencia"
-      desc="Más adelante podrás crear tus propios temas y editarlos desde aquí."
+      desc="Elige un tema o crea el tuyo: parte de uno existente y cambia sus colores. Los cambios se ven al momento y la app avisa si algún texto queda con poco contraste."
     >
       <div className="field">
         <label>Tema</label>
-        <div className="segmented" role="group" aria-label="Tema">
-          {BUILT_IN_THEMES.map((t) => (
+        <div className="segmented segmented-wrap" role="group" aria-label="Tema">
+          {all.map((t) => (
             <button
               key={t.id}
               type="button"
               aria-pressed={appearance.theme === t.id}
+              disabled={editing !== null}
               onClick={() => void save.run(t.id, appearance.density)}
               data-testid={`theme-${t.id}`}
             >
@@ -60,7 +67,38 @@ function Appearance({ status }: { status: VaultStatus }) {
             </button>
           ))}
         </div>
+        {!editing && (
+          <div className="form-actions">
+            <button
+              type="button"
+              className="btn"
+              onClick={() => setEditing({ theme: newThemeFrom(current, custom), isNew: true })}
+            >
+              Nuevo tema a partir de «{current.name}»
+            </button>
+            {custom.some((t) => t.id === current.id) && (
+              <button
+                type="button"
+                className="btn"
+                onClick={() => setEditing({ theme: current, isNew: false })}
+              >
+                Editar «{current.name}»
+              </button>
+            )}
+          </div>
+        )}
       </div>
+      {editing && (
+        <ThemeEditor
+          key={editing.theme.id}
+          initial={editing.theme}
+          isNew={editing.isNew}
+          themes={custom}
+          current={appearance.theme}
+          density={appearance.density}
+          onClose={() => setEditing(null)}
+        />
+      )}
       <div className="field">
         <label>Densidad</label>
         <div className="segmented" role="group" aria-label="Densidad">
@@ -74,6 +112,7 @@ function Appearance({ status }: { status: VaultStatus }) {
               key={id}
               type="button"
               aria-pressed={appearance.density === id}
+              disabled={editing !== null}
               onClick={() => void save.run(appearance.theme, id)}
               data-testid={`density-${id}`}
             >
@@ -242,6 +281,7 @@ export function Settings({ status }: { status: VaultStatus }) {
       <div>
         <ProfileSettings />
         <Appearance status={status} />
+        <CollectionsSettings />
         <FieldsSettings />
         <BriefTemplatesSettings />
         <DataSettings />

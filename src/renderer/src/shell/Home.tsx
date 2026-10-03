@@ -1,10 +1,24 @@
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useState } from 'react'
+import type { Widget } from '@shared/analysis'
 import { parseFieldConfig, type FieldDef } from '@shared/data/fields'
 import type { RecordRow } from '@shared/data/records'
 import { formatCurrency, formatNumber } from '@shared/format'
 import { OptionChip } from '../data/FieldValue'
 import { useFields, useRecords } from '../data/hooks'
 import { useNav, useProfile } from '../data/nav'
+import {
+  DEFAULT_HOME_LAYOUT,
+  HOME_CARD_LABELS,
+  HOME_CARDS,
+  homeItemKey,
+  type HomeCard,
+  type HomeItem,
+} from '@shared/home'
 import { AlertsCard, SpendCard } from '../analysis/HomeCards'
+import { WidgetDialog, WidgetView } from '../analysis/Widget'
+import { call, IpcCallError } from '../lib/ipc'
+import { useToast } from '../ui/Toast'
 
 const ALL = { filters: [], match: 'all' as const, sorts: [] }
 const RECENT = {
@@ -85,18 +99,11 @@ function TasksCard({ onNavigate }: { onNavigate: (section: string) => void }) {
   )
 }
 
-/** Inicio (SPEC §7.1): visión general. Gasto, ROAS y alertas llegan con Meta. */
-export function Home({ onNavigate }: { onNavigate: (section: string) => void }) {
-  const profile = useProfile()
+function useClientStats() {
   const cFields = useFields('cliente')
   const clients = useRecords('cliente', ALL)
-  const contacts = useRecords('contacto', ALL)
-  const nFields = useFields('nota')
-  const notes = useRecords('nota', RECENT)
-
   const etapa = byKey(cFields.data, 'etapa')
   const fee = byKey(cFields.data, 'fee')
-  const fijada = byKey(nFields.data, 'fijada')
   const stages = etapa?.type === 'select' ? parseFieldConfig('select', etapa.config).options : []
   const cl = clients.data ?? []
   const stageOf = (r: RecordRow) => (etapa ? (r.values[etapa.id] as string | undefined) : undefined)
@@ -107,88 +114,266 @@ export function Home({ onNavigate }: { onNavigate: (section: string) => void }) 
         0,
       )
     : 0
+  return { cl, stages, stageOf, active, monthly }
+}
+
+function KpisCard() {
+  const profile = useProfile()
+  const contacts = useRecords('contacto', ALL)
+  const notes = useRecords('nota', RECENT)
+  const { cl, active, monthly } = useClientStats()
+  const currency = profile.data?.currency ?? 'EUR'
+  return (
+    <div className="kpis" data-testid="home-kpis">
+      <Kpi
+        label="Clientes activos"
+        value={formatNumber(active.length, 0)}
+        hint={`de ${formatNumber(cl.length, 0)} en total`}
+      />
+      <Kpi
+        label="Fees mensuales"
+        value={formatCurrency(monthly, currency)}
+        hint="clientes activos"
+      />
+      <Kpi label="Contactos" value={formatNumber(contacts.data?.length ?? 0, 0)} />
+      <Kpi label="Notas" value={formatNumber(notes.data?.length ?? 0, 0)} />
+    </div>
+  )
+}
+
+function StagesCard({ onNavigate }: { onNavigate: (section: string) => void }) {
+  const { cl, stages, stageOf } = useClientStats()
   const maxCount = Math.max(1, ...stages.map((s) => cl.filter((r) => stageOf(r) === s.id).length))
+  return (
+    <section className="home-card" data-testid="home-stages">
+      <div className="home-card-head">
+        <h2 className="home-card-title">Clientes por etapa</h2>
+        <button type="button" className="btn-link" onClick={() => onNavigate('clientes')}>
+          Ver pipeline →
+        </button>
+      </div>
+      {stages.length === 0 ? (
+        <p className="faint">Sin etapas.</p>
+      ) : (
+        <ul className="stage-bars">
+          {stages.map((s) => {
+            const n = cl.filter((r) => stageOf(r) === s.id).length
+            return (
+              <li key={s.id} className="stage-bar">
+                <OptionChip option={s} />
+                <span className="bar" aria-hidden="true">
+                  <span
+                    className="bar-fill"
+                    data-color={s.color}
+                    style={{ width: `${(n / maxCount) * 100}%` }}
+                  />
+                </span>
+                <span className="num">{n}</span>
+              </li>
+            )
+          })}
+        </ul>
+      )}
+    </section>
+  )
+}
+
+function NotesCard({ onNavigate }: { onNavigate: (section: string) => void }) {
+  const nFields = useFields('nota')
+  const notes = useRecords('nota', RECENT)
+  const fijada = byKey(nFields.data, 'fijada')
   const nt = notes.data ?? []
   const pinned = fijada ? nt.filter((r) => r.values[fijada.id] === true).slice(0, 6) : []
+  return (
+    <section className="home-card" data-testid="home-notes">
+      <div className="home-card-head">
+        <h2 className="home-card-title">Notas recientes</h2>
+        <button type="button" className="btn-link" onClick={() => onNavigate('notas')}>
+          Ver notas →
+        </button>
+      </div>
+      <RecordList rows={nt.slice(0, 6)} empty="Aún no hay notas." entity="nota" />
+      {pinned.length > 0 && (
+        <>
+          <h3 className="panel-subtitle">Fijadas</h3>
+          <RecordList rows={pinned} empty="" entity="nota" />
+        </>
+      )}
+    </section>
+  )
+}
+
+function HomeCardView({ id, onNavigate }: { id: HomeCard; onNavigate: (s: string) => void }) {
+  switch (id) {
+    case 'kpis':
+      return <KpisCard />
+    case 'etapas':
+      return <StagesCard onNavigate={onNavigate} />
+    case 'notas':
+      return <NotesCard onNavigate={onNavigate} />
+    case 'gasto':
+      return <SpendCard onNavigate={onNavigate} />
+    case 'tareas':
+      return <TasksCard onNavigate={onNavigate} />
+    case 'alertas':
+      return <AlertsCard onNavigate={onNavigate} />
+  }
+}
+
+const ALL_ACCOUNTS = { type: 'all' } as const
+
+/** Inicio (SPEC §7.1): visión general con tarjetas y widgets configurables (fase 12). */
+export function Home({ onNavigate }: { onNavigate: (section: string) => void }) {
+  const profile = useProfile()
+  const qc = useQueryClient()
+  const toast = useToast()
+  const layoutQ = useQuery({
+    queryKey: ['data', 'home', 'layout'],
+    queryFn: () => call('home:layout'),
+  })
+  const [editing, setEditing] = useState(false)
+  const [widget, setWidget] = useState<Widget | 'new' | null>(null)
   const name = profile.data?.name.trim()
-  const currency = profile.data?.currency ?? 'EUR'
+  const items = layoutQ.data?.items ?? DEFAULT_HOME_LAYOUT.items
+  const hidden = HOME_CARDS.filter((c) => !items.some((i) => i.kind === 'card' && i.id === c))
+
+  const save = (next: HomeItem[] | null) =>
+    call('home:setLayout', { layout: next === null ? null : { items: next } })
+      .then((l) => qc.setQueryData(['data', 'home', 'layout'], l))
+      .catch((e: unknown) =>
+        toast.show(e instanceof IpcCallError ? e.message : 'No se ha podido guardar.', 'error'),
+      )
+  const move = (i: number, d: -1 | 1) => {
+    const next = [...items]
+    const [it] = next.splice(i, 1)
+    next.splice(i + d, 0, it!)
+    void save(next)
+  }
+  const label = (it: HomeItem) =>
+    it.kind === 'card' ? HOME_CARD_LABELS[it.id] : `Widget: ${it.widget.title || 'de análisis'}`
 
   return (
     <div className="page page-wide" data-testid="page-inicio">
-      <div className="section-head">
-        <span className="eyebrow">
-          <span className="num">00</span> inicio
-        </span>
-        <h1 className="title">{name ? `Hola, ${name.split(' ')[0]}` : 'Inicio'}</h1>
+      <div className="section-head section-head-actions">
+        <div>
+          <span className="eyebrow">
+            <span className="num">00</span> inicio
+          </span>
+          <h1 className="title">{name ? `Hola, ${name.split(' ')[0]}` : 'Inicio'}</h1>
+        </div>
+        <button
+          type="button"
+          className={editing ? 'btn btn-primary' : 'btn'}
+          onClick={() => setEditing(!editing)}
+          data-testid="home-customize"
+        >
+          {editing ? 'Listo' : 'Personalizar'}
+        </button>
       </div>
 
-      <div className="kpis" data-testid="home-kpis">
-        <Kpi
-          label="Clientes activos"
-          value={formatNumber(active.length, 0)}
-          hint={`de ${formatNumber(cl.length, 0)} en total`}
-        />
-        <Kpi
-          label="Fees mensuales"
-          value={formatCurrency(monthly, currency)}
-          hint="clientes activos"
-        />
-        <Kpi label="Contactos" value={formatNumber(contacts.data?.length ?? 0, 0)} />
-        <Kpi label="Notas" value={formatNumber(nt.length, 0)} />
-      </div>
+      {editing && (
+        <div className="home-editor" data-testid="home-editor">
+          <p className="muted">
+            Ordena o quita tarjetas con los botones de cada una, y añade las que faltan o widgets de
+            Análisis (de todas las cuentas).
+          </p>
+          <div className="form-actions">
+            {hidden.map((c) => (
+              <button
+                key={c}
+                type="button"
+                className="btn"
+                onClick={() => void save([...items, { kind: 'card', id: c }])}
+              >
+                + {HOME_CARD_LABELS[c]}
+              </button>
+            ))}
+            <button type="button" className="btn" onClick={() => setWidget('new')}>
+              + Widget de análisis
+            </button>
+            <button type="button" className="btn-link" onClick={() => void save(null)}>
+              Restablecer Inicio
+            </button>
+          </div>
+        </div>
+      )}
 
+      {items.length === 0 && (
+        <div className="empty">
+          <h2>Inicio vacío</h2>
+          <p className="muted">Pulsa «Personalizar» para añadir tarjetas o widgets.</p>
+        </div>
+      )}
       <div className="home-grid">
-        <section className="home-card">
-          <div className="home-card-head">
-            <h2 className="home-card-title">Clientes por etapa</h2>
-            <button type="button" className="btn-link" onClick={() => onNavigate('clientes')}>
-              Ver pipeline →
-            </button>
+        {items.map((it, i) => (
+          <div
+            key={homeItemKey(it)}
+            className="home-item-cell"
+            data-wide={
+              it.kind === 'card' ? it.id === 'kpis' : it.widget.size === 'l' ? true : undefined
+            }
+          >
+            {editing && (
+              <div className="home-item-tools" role="group" aria-label={label(it)}>
+                <span className="faint">{label(it)}</span>
+                <button
+                  type="button"
+                  className="icon-btn"
+                  aria-label={`Subir ${label(it)}`}
+                  disabled={i === 0}
+                  onClick={() => move(i, -1)}
+                >
+                  ↑
+                </button>
+                <button
+                  type="button"
+                  className="icon-btn"
+                  aria-label={`Bajar ${label(it)}`}
+                  disabled={i === items.length - 1}
+                  onClick={() => move(i, 1)}
+                >
+                  ↓
+                </button>
+                <button
+                  type="button"
+                  className="icon-btn"
+                  aria-label={`Quitar ${label(it)}`}
+                  onClick={() => void save(items.filter((_, j) => j !== i))}
+                >
+                  ×
+                </button>
+              </div>
+            )}
+            {it.kind === 'card' ? (
+              <HomeCardView id={it.id} onNavigate={onNavigate} />
+            ) : (
+              <WidgetView
+                w={it.widget}
+                filter={ALL_ACCOUNTS}
+                onEdit={editing ? () => setWidget(it.widget) : null}
+                onRemove={null}
+              />
+            )}
           </div>
-          {stages.length === 0 ? (
-            <p className="faint">Sin etapas.</p>
-          ) : (
-            <ul className="stage-bars">
-              {stages.map((s) => {
-                const n = cl.filter((r) => stageOf(r) === s.id).length
-                return (
-                  <li key={s.id} className="stage-bar">
-                    <OptionChip option={s} />
-                    <span className="bar" aria-hidden="true">
-                      <span
-                        className="bar-fill"
-                        data-color={s.color}
-                        style={{ width: `${(n / maxCount) * 100}%` }}
-                      />
-                    </span>
-                    <span className="num">{n}</span>
-                  </li>
-                )
-              })}
-            </ul>
-          )}
-        </section>
-
-        <section className="home-card">
-          <div className="home-card-head">
-            <h2 className="home-card-title">Notas recientes</h2>
-            <button type="button" className="btn-link" onClick={() => onNavigate('notas')}>
-              Ver notas →
-            </button>
-          </div>
-          <RecordList rows={nt.slice(0, 6)} empty="Aún no hay notas." entity="nota" />
-          {pinned.length > 0 && (
-            <>
-              <h3 className="panel-subtitle">Fijadas</h3>
-              <RecordList rows={pinned} empty="" entity="nota" />
-            </>
-          )}
-        </section>
-
-        <SpendCard onNavigate={onNavigate} />
-        <TasksCard onNavigate={onNavigate} />
-        <AlertsCard onNavigate={onNavigate} />
+        ))}
       </div>
+      {widget && (
+        <WidgetDialog
+          widget={widget === 'new' ? null : widget}
+          onClose={() => setWidget(null)}
+          onSave={(w) => {
+            const exists = items.some((x) => x.kind === 'widget' && x.widget.id === w.id)
+            void save(
+              exists
+                ? items.map((x) =>
+                    x.kind === 'widget' && x.widget.id === w.id ? { ...x, widget: w } : x,
+                  )
+                : [...items, { kind: 'widget', widget: w }],
+            )
+            setWidget(null)
+          }}
+        />
+      )}
     </div>
   )
 }

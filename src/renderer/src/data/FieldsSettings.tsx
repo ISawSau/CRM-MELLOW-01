@@ -641,7 +641,9 @@ export function FieldDialog({
 /** Ajustes → Campos: añadir, editar, ordenar, ocultar y eliminar campos de cada entidad. */
 export function FieldsSettings() {
   const entities = useEntities()
-  const [entity, setEntity] = useState('nota')
+  const [chosen, setEntity] = useState('nota')
+  // Si se borra la colección elegida, se vuelve a Notas.
+  const entity = !entities.data || entities.data.some((e) => e.id === chosen) ? chosen : 'nota'
   const fields = useFields(entity, true)
   const toast = useToast()
   const [editing, setEditing] = useState<FieldDef | 'new' | null>(null)
@@ -669,7 +671,12 @@ export function FieldsSettings() {
       </div>
       <div className="settings-body settings-body-wide">
         {(entities.data?.length ?? 0) > 1 && (
-          <select className="input" value={entity} onChange={(e) => setEntity(e.target.value)}>
+          <select
+            className="input"
+            aria-label="Entidad de los campos"
+            value={entity}
+            onChange={(e) => setEntity(e.target.value)}
+          >
             {entities.data!.map((e) => (
               <option key={e.id} value={e.id}>
                 {e.label}

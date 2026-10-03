@@ -173,6 +173,7 @@ export function createHandlers({
     'settings:setAutoLock': ({ minutes }) => vault.setAutoLockMinutes(minutes),
 
     'settings:setAppearance': (appearance) => vault.setAppearance(appearance),
+    'settings:setThemes': ({ themes }) => vault.setThemes(themes),
 
     // La clave de recuperación se copia desde el proceso principal y se borra del
     // portapapeles al minuto si sigue ahí.

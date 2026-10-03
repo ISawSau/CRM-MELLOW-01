@@ -1,13 +1,14 @@
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
-import { findEntity } from '@shared/data/entities'
 import { formatDateTime } from '@shared/format'
 import { call, IpcCallError } from '../lib/ipc'
 import { useToast } from '../ui/Toast'
+import { useEntityLookup } from './hooks'
 
 /** Papelera: lo borrado se puede restaurar durante los días configurados. */
 export function TrashPage() {
   const toast = useToast()
+  const entityOf = useEntityLookup()
   const trash = useQuery({ queryKey: ['data', 'trash'], queryFn: () => call('data:trashList', {}) })
   const [confirming, setConfirming] = useState<string[] | null>(null)
 
@@ -54,7 +55,7 @@ export function TrashPage() {
             {items.map((i) => (
               <li key={i.id} className="trash-item">
                 <span className="trash-title">{i.title}</span>
-                <span className="faint">{findEntity(i.entity)?.singular ?? i.entity}</span>
+                <span className="faint">{entityOf(i.entity)?.singular ?? i.entity}</span>
                 <span className="faint num">{formatDateTime(new Date(i.deletedAt))}</span>
                 <span className="faint">
                   {i.daysLeft === 0

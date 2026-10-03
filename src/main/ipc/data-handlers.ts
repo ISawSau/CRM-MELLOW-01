@@ -11,6 +11,7 @@ type DataChannel = Extract<
   | `profile:${string}`
   | `tasks:${string}`
   | `briefs:${string}`
+  | `home:${string}`
   | `files:${string}`
   | `versions:${string}`
 >
@@ -28,6 +29,9 @@ export function createDataHandlers(
 
   return {
     'data:entities': () => vault.data.entities(),
+    'data:createCollection': (input) => vault.data.createCollection(input),
+    'data:updateCollection': ({ id, ...input }) => vault.data.updateCollection(id, input),
+    'data:deleteCollection': ({ id }) => vault.data.deleteCollection(id),
     'data:fields': ({ entity, includeDeleted }) => vault.data.listFields(entity, includeDeleted),
     'data:createField': ({ entity, label, type, config }) =>
       vault.data.createField(entity, { label, type, ...(config ? { config } : {}) }),
@@ -96,8 +100,13 @@ export function createDataHandlers(
     'versions:create': ({ recordId, note }) => vault.data.createVersion(recordId, note),
     'versions:restore': ({ versionId }) => vault.data.restoreVersion(versionId),
     'tasks:summary': () => vault.data.taskSummary(),
+    'home:layout': () => vault.data.getHomeLayout(),
+    'home:setLayout': ({ layout }) => vault.data.setHomeLayout(layout),
     'briefs:templates': () => vault.data.getBriefTemplates(),
     'briefs:setTemplates': ({ templates }) => vault.data.setBriefTemplates(templates),
+    'briefs:createFromTemplate': ({ templateId, values }) =>
+      vault.data.createBriefFromTemplate(templateId, values),
+    'briefs:saveAsTemplate': ({ recordId, name }) => vault.data.saveBriefAsTemplate(recordId, name),
     'profile:get': () => vault.data.getProfile(),
     'profile:set': (profile) => vault.data.setProfile(profile),
     'data:update': ({ id, patch }) => vault.data.update(id, patch),
