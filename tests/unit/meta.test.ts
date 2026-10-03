@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { derived } from '../../src/shared/meta'
+import { computeMetrics } from '../../src/shared/meta-metrics'
 import { createConverter, parseEcbXml, storeRates } from '../../src/main/meta/fx'
 import { GraphClient, GraphError, parseUsage } from '../../src/main/meta/graph'
 import {
@@ -9,37 +9,8 @@ import {
   monthChunks,
   shiftMonths,
 } from '../../src/main/meta/meta-service'
-import { VaultService } from '../../src/main/vault/vault-service'
 import { dayMetrics, ECB_XML, FAKE_ECB, FAKE_GRAPH, FakeMeta, GOOD_TOKEN } from './meta-fake'
-import { TEST_KDF, tempDir } from './helpers'
-
-const PASSWORD = 'contraseña de prueba'
-
-async function setup(fake = new FakeMeta(), at = '2026-10-03T15:00:00Z') {
-  const vault = new VaultService({ kdf: TEST_KDF, hostname: 'equipo' })
-  await vault.create(tempDir(), 'Boveda', PASSWORD)
-  let now = new Date(at)
-  const sleeps: number[] = []
-  const meta = new MetaService(vault, {
-    http: fake.fetch as typeof fetch,
-    graphUrl: FAKE_GRAPH,
-    ecbUrl: FAKE_ECB,
-    now: () => now,
-    sleep: async (ms) => {
-      sleeps.push(ms)
-    },
-    pollMs: 0,
-  })
-  return {
-    vault,
-    meta,
-    fake,
-    sleeps,
-    setNow: (iso: string) => {
-      now = new Date(iso)
-    },
-  }
-}
+import { setup } from './meta-setup'
 
 describe('fechas y trozos', () => {
   it('límite de 37 meses y trozos de días y de meses', () => {
@@ -361,52 +332,61 @@ describe('sincronización con Meta', () => {
     vault.dispose()
   })
 
-  it('resumen del periodo convertido a euros con el tipo de cada día', async () => {
+  it('tabla del periodo convertida a euros con el tipo de cada día', async () => {
     const { vault, meta } = await setup()
     await meta.connect({ token: GOOD_TOKEN, appSecret: '' })
     meta.updateAccount({ id: 'act_111', enabled: true })
     await meta.idle()
-    const r = meta.performance({
+    const q = {
       accountId: 'act_111',
-      level: 'campaign',
+      level: 'campaign' as const,
       since: '2026-10-01',
       until: '2026-10-02',
-    })
+    }
+    const r = meta.table(q)
     expect(r).toMatchObject({ currency: 'EUR', accountCurrency: 'USD', unconverted: false })
     const s1 = Number(dayMetrics('c1', '2026-10-01').spend) / 1.1
     const s2 = Number(dayMetrics('c1', '2026-10-02').spend) / 1.25
     expect(r.rows).toHaveLength(1)
-    expect(r.rows[0]!.name).toBe('Prospecting')
-    expect(r.rows[0]!.spend).toBeCloseTo(s1 + s2)
-    expect(r.rows[0]!.dailyBudget).toBeCloseTo(50 / 1.25) // 5000 céntimos de USD
-    expect(r.totals.purchases).toBe(
-      dayMetrics('c1', '2026-10-01').purchases + dayMetrics('c1', '2026-10-02').purchases,
-    )
-    expect(r.totals.thruplays).toBe(200)
-    expect(derived(r.totals).roas).toBeCloseTo(r.totals.purchaseValue / r.totals.spend)
+    const row = r.rows[0]!
+    expect(row.name).toBe('Prospecting')
+    expect(row.base['gasto']).toBeCloseTo(s1 + s2)
+    expect(row.dailyBudget).toBeCloseTo(50 / 1.25) // 5000 céntimos de USD
+    const compras =
+      dayMetrics('c1', '2026-10-01').purchases + dayMetrics('c1', '2026-10-02').purchases
+    expect(r.totals['compras']).toBe(compras)
+    // Cualquier acción, por su tipo: purchase y omni_purchase traen lo mismo.
+    expect(r.totals['acc_purchase']).toBe(compras)
+    expect(r.totals['thruplays']).toBe(200)
+    const m = computeMetrics(r.totals, null)
+    expect(m['roas']).toBeCloseTo(r.totals['valor_compras']! / r.totals['gasto']!)
+    expect(m['hold_rate']).toBeCloseTo((200 / r.totals['impresiones']!) * 100)
     // Periodo anterior de la misma duración (29 y 30 de septiembre).
-    expect(r.previous.impressions).toBeGreaterThan(0)
+    expect(r.previous['impresiones']).toBeGreaterThan(0)
+    expect(row.previous).toBeNull()
+    expect(meta.table({ ...q, compare: true }).rows[0]!.previous!['impresiones']).toBe(
+      r.previous['impresiones'],
+    )
 
     // Hijos de una campaña.
-    const ads = meta.performance({
-      accountId: 'act_111',
-      level: 'ad',
-      parentId: 'c1',
-      since: '2026-10-01',
-      until: '2026-10-02',
-    })
+    const ads = meta.table({ ...q, level: 'ad', parentId: 'c1' })
     expect(ads.rows.map((x) => x.name)).toEqual(['Vídeo UGC'])
     expect(ads.rows[0]!.thumbFileId).toMatch(/^[a-f0-9]{64}$/)
+    expect(ads.rows[0]!.rankings.quality).toBe('AVERAGE')
+
+    // Configuración del conjunto: atribución y última edición del historial de actividad.
+    const sets = meta.table({ ...q, level: 'adset' })
+    expect(sets.rows[0]).toMatchObject({
+      attribution: '7 días tras hacer clic',
+      lastEdit: '2026-10-01T09:00:00.000Z',
+      lastEditExact: true,
+    })
+    // Un cambio de estado no cuenta como edición significativa.
+    expect(ads.rows[0]!.lastEditExact).toBe(false)
 
     // Moneda sin tipo del BCE: se muestra en la de la cuenta.
     meta.setSettings({ ...meta.settings(), displayCurrency: 'ARS' })
-    const raw = meta.performance({
-      accountId: 'act_111',
-      level: 'campaign',
-      since: '2026-10-01',
-      until: '2026-10-02',
-    })
-    expect(raw).toMatchObject({ currency: 'USD', unconverted: true })
+    expect(meta.table(q)).toMatchObject({ currency: 'USD', unconverted: true })
     meta.dispose()
     vault.dispose()
   })

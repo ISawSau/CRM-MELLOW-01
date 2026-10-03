@@ -423,10 +423,12 @@ export const ENTITIES: readonly EntityDef[] = [
     singular: 'creatividad',
     gender: 'f',
     titleKey: 'nombre',
-    seedVersion: 1,
+    seedVersion: 2,
     fields: [
       { key: 'nombre', label: 'Nombre', type: 'text', system: true, required: true },
       { key: 'texto', label: 'Copy o guion', type: 'longtext', system: true },
+      // Fase 7: si el nombre de un anuncio contiene este código, se vinculan solos.
+      { key: 'codigo', label: 'Código', type: 'text', since: 2 },
       {
         key: 'tipo',
         label: 'Tipo',

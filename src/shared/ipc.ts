@@ -14,13 +14,22 @@ import type {
 import { filterSchema, sortSchema, VIEW_KINDS, type View } from './data/views'
 import {
   accountUpdateSchema,
+  breakdownConfigSchema,
+  creativePerfSchema,
   metaConnectSchema,
   metaSettingsSchema,
-  perfQuerySchema,
+  rangeFetchSchema,
+  tableQuerySchema,
+  tagPerfSchema,
   type AdAccountInfo,
+  type AdSearchHit,
+  type CreativeLinkInfo,
+  type CreativePerfResult,
   type MetaStatus,
-  type PerfResult,
+  type TableResult,
+  type TagPerfResult,
 } from './meta'
+import { metaTableSettingsSchema, type MetaTableSettings } from './meta-metrics'
 
 /**
  * Contrato IPC entre la interfaz (renderer) y el proceso principal.
@@ -276,7 +285,25 @@ export const ipcSchemas = {
   'meta:retryHistory': z.object({ id: z.string().regex(/^act_\d{1,30}$/) }),
   'meta:syncNow': z.void(),
   'meta:setSettings': metaSettingsSchema,
-  'meta:performance': perfQuerySchema,
+  'meta:table': tableQuerySchema,
+  'meta:fetchRange': rangeFetchSchema,
+  'meta:tableSettings': z.void(),
+  'meta:setTableSettings': metaTableSettingsSchema,
+  'meta:actionTypes': z.void(),
+  'meta:setBreakdowns': z.object({
+    id: z.string().regex(/^act_\d{1,30}$/),
+    config: breakdownConfigSchema,
+  }),
+  'meta:searchAds': z.object({ text: z.string().max(200) }),
+  'meta:creativeLinks': z.object({ recordId: idSchema }),
+  'meta:setCreativeLink': z.object({
+    recordId: idSchema,
+    adId: z.string().regex(/^\d{1,30}$|^[A-Za-z0-9_]{1,40}$/),
+    linked: z.boolean(),
+  }),
+  'meta:creativePerf': creativePerfSchema,
+  'meta:tagPerf': tagPerfSchema,
+  'meta:autoLink': z.void(),
   'meta:clientAccounts': z.object({ clientId: idSchema }),
 } as const
 
@@ -360,7 +387,18 @@ export interface IpcOutputs {
   'meta:retryHistory': void
   'meta:syncNow': MetaStatus
   'meta:setSettings': MetaStatus
-  'meta:performance': PerfResult
+  'meta:table': TableResult
+  'meta:fetchRange': void
+  'meta:tableSettings': MetaTableSettings
+  'meta:setTableSettings': MetaTableSettings
+  'meta:actionTypes': string[]
+  'meta:setBreakdowns': AdAccountInfo[]
+  'meta:searchAds': AdSearchHit[]
+  'meta:creativeLinks': CreativeLinkInfo[]
+  'meta:setCreativeLink': CreativeLinkInfo[]
+  'meta:creativePerf': CreativePerfResult
+  'meta:tagPerf': TagPerfResult
+  'meta:autoLink': number
   'meta:clientAccounts': AdAccountInfo[]
 }
 

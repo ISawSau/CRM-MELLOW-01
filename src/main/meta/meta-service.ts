@@ -2,25 +2,39 @@ import { z } from 'zod'
 import { AppError } from '@shared/errors'
 import { shiftDate, todayIn } from '@shared/data/dates'
 import {
+  BREAKDOWNS,
   META_HISTORY_MONTHS,
+  PERF_LEVELS,
+  breakdownConfigSchema,
   metaSettingsSchema,
+  rangeFetchSchema,
   type AdAccountInfo,
+  type AdSearchHit,
+  type BreakdownConfig,
+  type BreakdownKey,
+  type CreativeLinkInfo,
+  type CreativePerfResult,
   type MetaSettings,
   type MetaStatus,
-  type PerfQuery,
-  type PerfResult,
+  type TableQuery,
+  type TableResult,
+  type TagPerfResult,
 } from '@shared/meta'
+import { metaTableSettingsSchema, type MetaTableSettings } from '@shared/meta-metrics'
 import type { SqliteDb } from '../db/connection'
 import type { FetchLike } from '../sync/remote'
 import { CHANGES_KEY } from '../sync/sync-service'
 import type { VaultService } from '../vault/vault-service'
 import { updateRates } from './fx'
 import { GraphClient, GraphError, graphErrorText } from './graph'
-import { performance } from './perf'
+import { autoLink, creativePerf, linksFor, searchAds, setLink, tagPerf } from './creatives'
+import { table } from './table'
 import {
   INSIGHT_LEVELS,
   getAccount,
+  replaceBreakdowns,
   replaceInsights,
+  storeRangeStats,
   upsertAccounts,
   upsertCreatives,
   upsertObjects,
@@ -43,6 +57,7 @@ import {
 
 const CONFIG_KEY = 'meta.config'
 const SETTINGS_KEY = 'meta.settings'
+const TABLE_KEY = 'meta.table'
 /** Días que se descargan al activar una cuenta, antes del histórico. */
 const FIRST_DAYS = 30
 /** Días por petición síncrona de Insights. */
@@ -106,6 +121,51 @@ const OPTIONAL_FIELDS = [
   'attribution_setting',
 ]
 const AD_ONLY_FIELDS = ['quality_ranking', 'engagement_rate_ranking', 'conversion_rate_ranking']
+/** Campos de las filas desglosadas (sumables). */
+const BREAKDOWN_FIELDS = [
+  'account_id',
+  'date_start',
+  'spend',
+  'impressions',
+  'clicks',
+  'inline_link_clicks',
+  'actions',
+  'action_values',
+]
+/** Campos no sumables del periodo completo. */
+const RANGE_FIELDS = ['reach', 'frequency']
+const RANGE_OPTIONAL = ['unique_inline_link_clicks', 'unique_inline_link_click_ctr']
+/**
+ * Tipos del historial de actividad que cuentan como «edición significativa»
+ * (presupuesto, puja, segmentación, optimización, creatividad, calendario).
+ */
+const SIGNIFICANT_EVENTS = new Set([
+  'create_campaign_group',
+  'update_campaign_budget',
+  'update_campaign_schedule',
+  'update_campaign_group_spend_cap',
+  'update_campaign_budget_optimization_toggling_status',
+  'update_campaign_conversion_goal',
+  'update_campaign_delivery_type',
+  'update_campaign_budget_split',
+  'create_ad_set',
+  'update_ad_set_bidding',
+  'update_ad_set_bid_strategy',
+  'update_ad_set_budget',
+  'update_ad_set_duration',
+  'update_ad_set_optimization_goal',
+  'update_ad_set_target_spec',
+  'update_ad_set_bid_adjustments',
+  'update_ad_set_spend_cap',
+  'update_ad_set_min_spend_target',
+  'update_ad_set_cost_bidding_mode',
+  'create_ad',
+  'update_ad_creative',
+  'edit_and_update_ad_creative',
+  'update_ad_bid_info',
+  'update_ad_bid_type',
+  'update_ad_targets_spec',
+])
 const LEVEL_FIELDS: Record<InsightLevel, string[]> = {
   account: [],
   campaign: ['campaign_id', 'campaign_name'],
@@ -132,6 +192,7 @@ interface JobRow {
   id: number
   account_id: string
   level: InsightLevel
+  breakdown: BreakdownKey | null
   since: string
   until: string
   status: string
@@ -375,6 +436,7 @@ export class MetaService {
         history: j && !r.history_done ? { done: j.done, total: j.total, failed: j.failed } : null,
         lastSyncAt: r.last_sync_at,
         lastError: r.last_error,
+        breakdowns: breakdownConfigSchema.parse(r.breakdowns ? JSON.parse(r.breakdowns) : {}),
       }
     })
   }
@@ -427,8 +489,173 @@ export class MetaService {
     void this.syncNow().catch(() => {})
   }
 
-  performance(q: PerfQuery): PerfResult {
-    return performance(this.db, q, this.settings().displayCurrency)
+  table(q: TableQuery): TableResult {
+    return table(this.db, q, this.settings().displayCurrency)
+  }
+
+  tableSettings(): MetaTableSettings {
+    const r = metaTableSettingsSchema.safeParse(this.read(TABLE_KEY) ?? {})
+    return r.success ? r.data : metaTableSettingsSchema.parse({})
+  }
+
+  setTableSettings(s: MetaTableSettings): MetaTableSettings {
+    const before = this.tableSettings()
+    const next = metaTableSettingsSchema.parse(s)
+    this.write(TABLE_KEY, next)
+    this.touched()
+    if (JSON.stringify(before.naming) !== JSON.stringify(next.naming)) this.runAutoLink()
+    this.emit()
+    return next
+  }
+
+  /** Tipos de acción vistos (para las métricas propias). */
+  actionTypes(): string[] {
+    return (
+      this.db.prepare('SELECT action_type FROM ad_action_types ORDER BY action_type').all() as {
+        action_type: string
+      }[]
+    ).map((r) => r.action_type)
+  }
+
+  // --- Creatividades ---------------------------------------------------------------
+
+  searchAds(text: string): AdSearchHit[] {
+    return searchAds(this.db, text)
+  }
+
+  creativeLinks(recordId: string): CreativeLinkInfo[] {
+    return linksFor(this.db, recordId)
+  }
+
+  setCreativeLink(recordId: string, adId: string, linked: boolean): CreativeLinkInfo[] {
+    setLink(this.db, recordId, adId, linked, this.now().toISOString())
+    this.touched()
+    this.dataChanged(true)
+    return linksFor(this.db, recordId)
+  }
+
+  creativePerf(recordId: string, since: string, until: string): CreativePerfResult {
+    return creativePerf(this.db, recordId, since, until, this.settings().displayCurrency)
+  }
+
+  tagPerf(fieldId: string, since: string, until: string, clientId: string | null): TagPerfResult {
+    return tagPerf(
+      this.db,
+      this.vault.data,
+      fieldId,
+      since,
+      until,
+      this.settings().displayCurrency,
+      clientId,
+    )
+  }
+
+  /** Vincula anuncios y creatividades por código o convención. Devuelve los nuevos. */
+  runAutoLink(): number {
+    const n = autoLink(
+      this.db,
+      this.vault.data,
+      this.tableSettings().naming,
+      this.now().toISOString(),
+    )
+    if (n) this.dataChanged(true)
+    return n
+  }
+
+  // --- Desgloses y periodo ---------------------------------------------------------
+
+  /**
+   * Activa o desactiva desgloses por nivel. Los nuevos se descargan para todo lo que ya
+   * hay (informes asíncronos por meses) y, después, en cada sincronización.
+   */
+  setBreakdowns(accountId: string, config: BreakdownConfig): AdAccountInfo[] {
+    const a = getAccount(this.db, accountId)
+    if (!a) throw new AppError('INVALID_INPUT', undefined, 'No existe esa cuenta.')
+    const before = breakdownConfigSchema.parse(a.breakdowns ? JSON.parse(a.breakdowns) : {})
+    const next = breakdownConfigSchema.parse(config)
+    this.db
+      .prepare('UPDATE ad_accounts SET breakdowns = ? WHERE id = ?')
+      .run(JSON.stringify(next), accountId)
+    const ins = this.db.prepare(
+      "INSERT INTO ad_jobs (account_id, level, breakdown, since, until, status) VALUES (?, ?, ?, ?, ?, 'pending')",
+    )
+    let added = 0
+    this.db.transaction(() => {
+      for (const level of PERF_LEVELS) {
+        for (const key of before[level].filter((k) => !next[level].includes(k))) {
+          this.db
+            .prepare('DELETE FROM ad_jobs WHERE account_id = ? AND level = ? AND breakdown = ?')
+            .run(accountId, level, key)
+          this.db
+            .prepare(
+              'DELETE FROM ad_breakdowns WHERE account_id = ? AND level = ? AND breakdown = ?',
+            )
+            .run(accountId, level, key)
+        }
+        if (!a.data_from || !a.data_until) continue
+        for (const key of next[level].filter((k) => !before[level].includes(k)))
+          for (const [s, u] of monthChunks(a.data_from, a.data_until)) {
+            ins.run(accountId, level, key, s, u)
+            added++
+          }
+      }
+    })()
+    if (added)
+      this.db.prepare('UPDATE ad_accounts SET history_done = 0 WHERE id = ?').run(accountId)
+    this.touched()
+    const list = this.listAccounts()
+    this.emit()
+    if (added) void this.syncNow().catch(() => {})
+    return list
+  }
+
+  /** Pide a Meta alcance, frecuencia y únicos del periodo (no se pueden sumar por días). */
+  async fetchRange(input: {
+    accountId: string
+    level: (typeof PERF_LEVELS)[number]
+    parentId?: string | null
+    since: string
+    until: string
+  }): Promise<void> {
+    const q = rangeFetchSchema.parse(input)
+    const cfg = this.config()
+    if (!cfg) throw new AppError('UNKNOWN', undefined, 'Conecta primero con Meta.')
+    const graph = this.client(cfg)
+    const node = q.parentId ?? q.accountId
+    const parentLevel: InsightLevel = q.parentId
+      ? q.level === 'adset'
+        ? 'campaign'
+        : 'adset'
+      : 'account'
+    const now = this.now().toISOString()
+    try {
+      for (const [level, params] of [
+        [q.level, { level: q.level }],
+        [parentLevel, {}],
+      ] as const) {
+        for (;;) {
+          try {
+            const rows = await graph.getAll<InsightRow>(`${node}/insights`, {
+              ...params,
+              fields: [
+                ...LEVEL_FIELDS[level],
+                ...RANGE_FIELDS,
+                ...RANGE_OPTIONAL.filter((f) => !this.rejected.has(f)),
+              ].join(','),
+              time_range: { since: q.since, until: q.until },
+              limit: 500,
+            })
+            storeRangeStats(this.db, q.accountId, level, q.since, q.until, rows, now)
+            break
+          } catch (e) {
+            if (!this.dropRejected(e, RANGE_OPTIONAL)) throw e
+          }
+        }
+      }
+    } catch (e) {
+      throw new AppError('UNKNOWN', undefined, graphErrorText(e))
+    }
+    this.dataChanged(true)
   }
 
   // --- Programación ----------------------------------------------------------------
@@ -555,6 +782,7 @@ export class MetaService {
     const today = todayIn(a.timezone, this.now())
     const days = this.settings().attributionDays
     const first = !a.data_until
+    const breakdowns = breakdownConfigSchema.parse(a.breakdowns ? JSON.parse(a.breakdowns) : {})
     const since = first
       ? shiftDate(today, -(FIRST_DAYS - 1))
       : shiftDate(a.data_until! < today ? a.data_until! : today, -(days - 1))
@@ -565,6 +793,23 @@ export class MetaService {
         if (!this.alive(epoch)) return
         replaceInsights(this.db, a.id, level, from, to, rows, this.now().toISOString())
       }
+      for (const level of PERF_LEVELS)
+        for (const key of breakdowns[level]) {
+          if (!this.alive(epoch)) return
+          const rows = await this.insights(graph, a.id, level, from, to, key)
+          if (!this.alive(epoch)) return
+          replaceBreakdowns(
+            this.db,
+            a.id,
+            level,
+            key,
+            BREAKDOWNS[key].api,
+            from,
+            to,
+            rows,
+            this.now().toISOString(),
+          )
+        }
       this.dataChanged()
     }
     const fresh = getAccount(this.db, a.id)!
@@ -622,6 +867,51 @@ export class MetaService {
       upsertCreatives(this.db, a.id, Object.values(got), now())
     }
     await this.downloadThumbs(a.id, epoch)
+    if (!this.alive(epoch)) return
+    await this.syncActivities(graph, a).catch(() => {
+      // Sin historial de actividad se usa la fecha de última actualización.
+    })
+    if (!this.alive(epoch)) return
+    try {
+      this.runAutoLink()
+    } catch {
+      // El vínculo automático se reintenta en la próxima sincronización.
+    }
+  }
+
+  /** Última edición significativa de cada objeto según el historial de actividad. */
+  private async syncActivities(graph: GraphClient, a: AccountRow): Promise<void> {
+    const fresh = getAccount(this.db, a.id)!
+    const from = fresh.activity_at
+      ? Date.parse(fresh.activity_at)
+      : this.now().getTime() - 7 * 86_400_000
+    const params = { fields: 'event_type,event_time,object_id', limit: 500 }
+    let items: { event_type?: string; event_time?: string; object_id?: string }[]
+    try {
+      items = await graph.getAll(`${a.id}/activities`, {
+        ...params,
+        since: Math.floor(from / 1000),
+      })
+    } catch (e) {
+      // Si esta versión no acepta «since», se leen los 7 días que da por defecto.
+      if (!(e instanceof GraphError) || e.code !== 100) throw e
+      items = await graph.getAll(`${a.id}/activities`, params)
+    }
+    const upd = this.db.prepare(
+      'UPDATE ad_objects SET last_edit = ? WHERE id = ? AND (last_edit IS NULL OR last_edit < ?)',
+    )
+    this.db.transaction(() => {
+      for (const it of items) {
+        if (!it.object_id || !it.event_time || !SIGNIFICANT_EVENTS.has(it.event_type ?? ''))
+          continue
+        const t = new Date(it.event_time)
+        if (Number.isNaN(t.getTime())) continue
+        upd.run(t.toISOString(), String(it.object_id), t.toISOString())
+      }
+    })()
+    this.db
+      .prepare('UPDATE ad_accounts SET activity_at = ? WHERE id = ?')
+      .run(this.now().toISOString(), a.id)
   }
 
   /** Descarga y guarda cifradas las miniaturas que falten (las URL de Meta caducan). */
@@ -662,10 +952,18 @@ export class MetaService {
     return list.filter((f) => !this.rejected.has(f)).join(',')
   }
 
-  private insightParams(level: InsightLevel, since: string, until: string) {
+  private insightParams(
+    level: InsightLevel,
+    since: string,
+    until: string,
+    breakdown: BreakdownKey | null = null,
+  ) {
     return {
       level,
-      fields: this.fields(level),
+      fields: breakdown
+        ? [...BREAKDOWN_FIELDS, ...LEVEL_FIELDS[level]].join(',')
+        : this.fields(level),
+      ...(breakdown ? { breakdowns: BREAKDOWNS[breakdown].api.join(',') } : {}),
       time_range: { since, until },
       time_increment: 1,
       // Mismos resultados que Ads Manager: la atribución configurada en cada conjunto.
@@ -678,9 +976,9 @@ export class MetaService {
    * Si Meta rechaza un campo opcional (cambia entre versiones), se quita y se repite.
    * Devuelve true si ha quitado alguno.
    */
-  private dropRejected(e: unknown): boolean {
+  private dropRejected(e: unknown, optional = [...OPTIONAL_FIELDS, ...AD_ONLY_FIELDS]): boolean {
     if (!(e instanceof GraphError) || e.code !== 100) return false
-    const bad = [...OPTIONAL_FIELDS, ...AD_ONLY_FIELDS].filter(
+    const bad = optional.filter(
       (f) => !this.rejected.has(f) && new RegExp(`\\b${f}\\b`).test(e.message),
     )
     for (const f of bad) this.rejected.add(f)
@@ -693,12 +991,13 @@ export class MetaService {
     level: InsightLevel,
     since: string,
     until: string,
+    breakdown: BreakdownKey | null = null,
   ): Promise<InsightRow[]> {
     for (;;) {
       try {
         return await graph.getAll<InsightRow>(
           `${accountId}/insights`,
-          this.insightParams(level, since, until),
+          this.insightParams(level, since, until, breakdown),
         )
       } catch (e) {
         if (!this.dropRejected(e)) throw e
@@ -725,7 +1024,7 @@ export class MetaService {
       "INSERT INTO ad_jobs (account_id, level, since, until, status) VALUES (?, ?, ?, ?, 'pending')",
     )
     this.db.transaction(() => {
-      this.db.prepare('DELETE FROM ad_jobs WHERE account_id = ?').run(a.id)
+      this.db.prepare('DELETE FROM ad_jobs WHERE account_id = ? AND breakdown IS NULL').run(a.id)
       for (const [s, u] of end >= limit ? monthChunks(limit, end) : [])
         for (const level of INSIGHT_LEVELS) ins.run(a.id, level, s, u)
     })()
@@ -765,18 +1064,23 @@ export class MetaService {
       try {
         const rows = await this.runJob(graph, job, epoch)
         if (rows === null) return
-        replaceInsights(
-          this.db,
-          accountId,
-          job.level,
-          job.since,
-          job.until,
-          rows,
-          this.now().toISOString(),
-        )
+        const now = this.now().toISOString()
+        if (job.breakdown)
+          replaceBreakdowns(
+            this.db,
+            accountId,
+            job.level,
+            job.breakdown,
+            BREAKDOWNS[job.breakdown].api,
+            job.since,
+            job.until,
+            rows,
+            now,
+          )
+        else replaceInsights(this.db, accountId, job.level, job.since, job.until, rows, now)
         this.db.prepare("UPDATE ad_jobs SET status = 'done', error = NULL WHERE id = ?").run(job.id)
         const a = getAccount(this.db, accountId)!
-        if (!a.data_from || job.since < a.data_from)
+        if (!job.breakdown && (!a.data_from || job.since < a.data_from))
           this.db
             .prepare('UPDATE ad_accounts SET data_from = ? WHERE id = ?')
             .run(job.since, accountId)
@@ -816,7 +1120,7 @@ export class MetaService {
         try {
           reportId = await graph.createInsightsReport(
             job.account_id,
-            this.insightParams(job.level, job.since, job.until),
+            this.insightParams(job.level, job.since, job.until, job.breakdown),
           )
           break
         } catch (e) {

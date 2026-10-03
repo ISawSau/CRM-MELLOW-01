@@ -388,3 +388,41 @@ El usuario no quiere escribir comandos de desarrollo para usar la app. Los insta
 - Los datos de Meta se pueden volver a descargar, así que no cuentan como cambios para la sincronización entre equipos (no provocan conflictos). Sí cuentan conectar o desconectar, activar cuentas, asignarlas a clientes y los ajustes.
 - Las fechas de las métricas son las de la zona horaria de cada cuenta (como en Ads Manager): unos datos diarios no se pueden repartir en otra zona. Las horas (sincronizaciones, inicio y fin de campañas) se muestran en la zona de la app.
 - Para los tests de interfaz, la app acepta una API de Meta y un BCE falsos con `CRM_TEST_GRAPH_URL`, `CRM_TEST_ECB_URL` y `CRM_TEST_META_POLL_MS`, solo sin empaquetar. Sin cuenta publicitaria en este entorno, el cliente se ha probado contra una API simulada que reproduce las respuestas documentadas.
+
+## Fase 7 · Meta II
+
+### D-059 · Métricas con clave corta, fórmulas propias con el parser seguro
+
+- Cada métrica tiene una clave corta que sirve de columna y de nombre en las fórmulas (`gasto`, `compras`, `roas`, `hook_rate`…). Cualquier acción de Meta se usa como `acc_<tipo>` (número) y `val_<tipo>` (valor), con los puntos del tipo cambiados por `_`. Las acciones que una fila no tiene valen 0.
+- El proceso principal suma por días (con la conversión de moneda de cada día) y la interfaz calcula las derivadas y las métricas propias con el mismo parser seguro de las fórmulas de campos (sin `eval`, D-027). Una división entre cero deja la celda vacía.
+- Los porcentajes van ya en tanto por cien (un CTR de 1,5 % vale 1.5), como en Ads Manager; las métricas propias con formato porcentaje siguen la misma regla.
+- El hold rate es configurable (por defecto `thruplays / impresiones * 100`), como pedía la SPEC (§10, cuestión abierta).
+
+### D-060 · Presets de columnas y formato condicional
+
+- Cuatro presets de serie (Rendimiento, Ecom rendimiento, Creatividades, Entrega y configuración) que no se modifican: se guardan copias. Los propios guardan columnas, orden y reglas de formato condicional (mayor que, menor que, entre; con los colores de las etiquetas, que ya cumplen el contraste AA en cada tema). Todo en los ajustes cifrados de la bóveda.
+
+### D-061 · Alcance y frecuencia del periodo, pedidos a Meta
+
+- El alcance, la frecuencia y los clics únicos no se pueden sumar por días. Si las columnas los usan, la app los pide a Meta para el periodo exacto (`/{campaña|conjunto|cuenta}/insights` sin `time_increment`, por filas y para el total) y los guarda en `ad_range_stats`. Sin conexión, se ven vacíos.
+
+### D-062 · Desgloses activables por cuenta y nivel
+
+- Edad (`age`), sexo (`gender`), país (`country`), plataforma (`publisher_platform`), ubicación (`publisher_platform,platform_position`) y dispositivo (`impression_device`), combinaciones comprobadas en la documentación de desgloses. Se guardan en `ad_breakdowns` (sumables: gasto, impresiones, clics y acciones).
+- Al activar uno se descarga para todo lo que ya hay con informes asíncronos por meses (los mismos `ad_jobs`, con su desglose) y después en cada sincronización. Al desactivarlo se borran sus datos. La interfaz avisa de que multiplican el volumen.
+- La documentación avisa de que, desde agosto de 2026, `impression_device` puede no estar disponible de forma síncrona en algunas cuentas; los informes asíncronos sí lo dan.
+
+### D-063 · Última edición significativa con el historial de actividad
+
+- `GET /act_…/activities` (AdActivity: `event_type`, `event_time`, `object_id`) devuelve por defecto una semana. Cuentan como significativos los cambios de presupuesto, puja, segmentación, optimización, creatividad y calendario, y las creaciones; no los cambios de estado ni de nombre. Se lee desde la última vez en cada sincronización.
+- Para lo anterior a la conexión se muestra la fecha de última actualización (`updated_time`) marcada como «aprox.», con la explicación en la propia celda.
+
+### D-064 · Vínculo creatividad-anuncio
+
+- Tabla `creative_links` (creatividad, anuncio, origen). Manual: desde la ficha de la creatividad se busca el anuncio y se elige. Automático: si el nombre del anuncio contiene el **código** de la creatividad (campo nuevo, como palabra) o encaja con una **convención de nombres** configurable (`{cliente}_{angulo}_{formato}_v{version}`; `{*}` vale cualquier cosa) con una sola creatividad. Lo que se desvincula a mano queda marcado para que el automático no lo rehaga.
+- Con los vínculos: rendimiento de la creatividad (ficha) y ranking por etiqueta (Campañas → Creatividades). Una creatividad con dos etiquetas cuenta en las dos. Las cuentas en otras monedas se convierten día a día; si falta un tipo de cambio, esos importes se dejan fuera y se avisa.
+- Pendiente: la coincidencia por hash de imagen (Meta usa su propio `image_hash`, que no coincide con el HMAC de la bóveda) y el rendimiento por versión.
+
+### D-065 · Moneda del cliente
+
+- Si la cuenta está asignada a un cliente con el campo «Moneda» relleno, la tabla de esa cuenta usa esa moneda; si no, la global de Campañas → Ajustes.

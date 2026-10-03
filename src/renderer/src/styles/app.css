@@ -441,12 +441,15 @@ kbd {
 
 .overlay {
   position: fixed;
+  /* Por encima de cabeceras fijas, popovers y paneles; por debajo de los avisos. */
+  z-index: 40;
   inset: 0;
   background: rgba(0, 0, 0, 0.45);
 }
 
 .palette {
   position: fixed;
+  z-index: 41;
   top: 14vh;
   left: 50%;
   transform: translateX(-50%);
@@ -508,6 +511,7 @@ kbd {
 
 .dialog {
   position: fixed;
+  z-index: 41;
   top: 20vh;
   left: 50%;
   transform: translateX(-50%);

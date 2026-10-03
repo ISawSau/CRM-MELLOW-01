@@ -175,6 +175,10 @@ export const adAccounts = sqliteTable('ad_accounts', {
   historyDone: integer('history_done', { mode: 'boolean' }).notNull().default(false),
   lastSyncAt: text('last_sync_at'),
   lastError: text('last_error'),
+  /** Desgloses activados por nivel: { campaign: ['age'], … } (fase 7). */
+  breakdowns: text('breakdowns', { mode: 'json' }),
+  /** Hasta dónde se ha leído el historial de actividad (fase 7). */
+  activityAt: text('activity_at'),
   raw: text('raw', { mode: 'json' }).notNull(),
   updatedAt: text('updated_at').notNull(),
 })
@@ -202,6 +206,8 @@ export const adObjects = sqliteTable(
     endTime: text('end_time'),
     creativeId: text('creative_id'),
     updatedTime: text('updated_time'),
+    /** Última edición significativa según el historial de actividad (fase 7). */
+    lastEdit: text('last_edit'),
     raw: text('raw', { mode: 'json' }).notNull(),
     syncedAt: text('synced_at').notNull(),
   },
@@ -299,6 +305,8 @@ export const adJobs = sqliteTable(
     id: integer('id').primaryKey({ autoIncrement: true }),
     accountId: text('account_id').notNull(),
     level: text('level').notNull(),
+    /** Desglose del trozo (null = métricas sin desglosar). */
+    breakdown: text('breakdown'),
     since: text('since').notNull(),
     until: text('until').notNull(),
     /** pending | running | done | failed */
@@ -320,4 +328,64 @@ export const fxRates = sqliteTable(
     rate: real('rate').notNull(),
   },
   (t) => [primaryKey({ columns: [t.date, t.currency] })],
+)
+
+// --- Meta II (fase 7) ---------------------------------------------------------------
+
+/** Vínculo entre una creatividad (registro del motor) y un anuncio de Meta. */
+export const creativeLinks = sqliteTable(
+  'creative_links',
+  {
+    recordId: text('record_id').notNull(),
+    adId: text('ad_id').notNull(),
+    /** manual | auto (convención de nombres) */
+    source: text('source').notNull(),
+    createdAt: text('created_at').notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.recordId, t.adId] }), index('creative_links_ad_idx').on(t.adId)],
+)
+
+/** Métricas diarias desglosadas (edad, sexo, país, plataforma, ubicación, dispositivo). */
+export const adBreakdowns = sqliteTable(
+  'ad_breakdowns',
+  {
+    level: text('level').notNull(),
+    entityId: text('entity_id').notNull(),
+    date: text('date').notNull(),
+    breakdown: text('breakdown').notNull(),
+    value: text('value').notNull(),
+    accountId: text('account_id').notNull(),
+    spend: real('spend').notNull().default(0),
+    impressions: integer('impressions').notNull().default(0),
+    clicks: integer('clicks'),
+    linkClicks: integer('link_clicks'),
+    actions: text('actions', { mode: 'json' }),
+    actionValues: text('action_values', { mode: 'json' }),
+    fetchedAt: text('fetched_at').notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.level, t.entityId, t.date, t.breakdown, t.value] }),
+    index('ad_breakdowns_account_idx').on(t.accountId, t.level, t.breakdown, t.date),
+  ],
+)
+
+/** Métricas no sumables de un periodo (alcance, frecuencia, únicos), pedidas a Meta. */
+export const adRangeStats = sqliteTable(
+  'ad_range_stats',
+  {
+    level: text('level').notNull(),
+    entityId: text('entity_id').notNull(),
+    since: text('since').notNull(),
+    until: text('until').notNull(),
+    accountId: text('account_id').notNull(),
+    reach: integer('reach'),
+    frequency: real('frequency'),
+    uniqueLinkClicks: integer('unique_link_clicks'),
+    uniqueLinkCtr: real('unique_link_ctr'),
+    fetchedAt: text('fetched_at').notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.level, t.entityId, t.since, t.until] }),
+    index('ad_range_account_idx').on(t.accountId, t.since, t.until),
+  ],
 )

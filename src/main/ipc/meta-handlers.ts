@@ -20,7 +20,20 @@ export function createMetaHandlers(meta: MetaService): MetaHandlers {
       return meta.status()
     },
     'meta:setSettings': (s) => meta.setSettings(s),
-    'meta:performance': (q) => meta.performance(q),
+    'meta:table': (q) => meta.table(q),
+    'meta:fetchRange': (q) => meta.fetchRange(q),
+    'meta:tableSettings': () => meta.tableSettings(),
+    'meta:setTableSettings': (s) => meta.setTableSettings(s),
+    'meta:actionTypes': () => meta.actionTypes(),
+    'meta:setBreakdowns': ({ id, config }) => meta.setBreakdowns(id, config),
+    'meta:searchAds': ({ text }) => meta.searchAds(text),
+    'meta:creativeLinks': ({ recordId }) => meta.creativeLinks(recordId),
+    'meta:setCreativeLink': ({ recordId, adId, linked }) =>
+      meta.setCreativeLink(recordId, adId, linked),
+    'meta:creativePerf': ({ recordId, since, until }) => meta.creativePerf(recordId, since, until),
+    'meta:tagPerf': ({ fieldId, since, until, clientId }) =>
+      meta.tagPerf(fieldId, since, until, clientId),
+    'meta:autoLink': () => meta.runAutoLink(),
     'meta:clientAccounts': ({ clientId }) => meta.accountsForClient(clientId),
   }
 }

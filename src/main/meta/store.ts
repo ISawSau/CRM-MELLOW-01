@@ -291,6 +291,8 @@ export interface AccountRow {
   history_done: number
   last_sync_at: string | null
   last_error: string | null
+  breakdowns: string | null
+  activity_at: string | null
   raw: string
 }
 
@@ -323,4 +325,90 @@ export function upsertAccounts(db: SqliteDb, items: Record<string, unknown>[], n
 
 export function getAccount(db: SqliteDb, id: string): AccountRow | undefined {
   return db.prepare('SELECT * FROM ad_accounts WHERE id = ?').get(id) as AccountRow | undefined
+}
+
+/** Valor del desglose de una fila («25-34», «instagram · feed»…). */
+export function breakdownValue(r: Record<string, unknown>, api: readonly string[]): string | null {
+  const parts = api.map((k) => r[k]).filter((v): v is string => typeof v === 'string' && v !== '')
+  return parts.length === api.length ? parts.join(' · ') : null
+}
+
+/** Sustituye las métricas desglosadas de una cuenta, nivel y desglose entre dos fechas. */
+export function replaceBreakdowns(
+  db: SqliteDb,
+  accountId: string,
+  level: InsightLevel,
+  breakdown: string,
+  api: readonly string[],
+  since: string,
+  until: string,
+  rows: InsightRow[],
+  now: string,
+): number {
+  const ins = db.prepare(`INSERT OR REPLACE INTO ad_breakdowns
+    (level, entity_id, date, breakdown, value, account_id, spend, impressions, clicks, link_clicks,
+     actions, action_values, fetched_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+  let n = 0
+  db.transaction(() => {
+    db.prepare(
+      'DELETE FROM ad_breakdowns WHERE account_id = ? AND level = ? AND breakdown = ? AND date BETWEEN ? AND ?',
+    ).run(accountId, level, breakdown, since, until)
+    for (const r of rows) {
+      const entity = entityOf(level, accountId, r)
+      const date = str(r.date_start)
+      const value = breakdownValue(r, api)
+      if (!entity || !date || !value) continue
+      ins.run(
+        level,
+        entity,
+        date,
+        breakdown,
+        value,
+        accountId,
+        num(r['spend']) ?? 0,
+        int(r['impressions']) ?? 0,
+        int(r['clicks']),
+        int(r['inline_link_clicks']),
+        r.actions ? JSON.stringify(r.actions) : null,
+        r.action_values ? JSON.stringify(r.action_values) : null,
+        now,
+      )
+      n++
+    }
+  })()
+  return n
+}
+
+/** Guarda alcance, frecuencia y únicos de un periodo para cada entidad. */
+export function storeRangeStats(
+  db: SqliteDb,
+  accountId: string,
+  level: InsightLevel,
+  since: string,
+  until: string,
+  rows: InsightRow[],
+  now: string,
+): void {
+  const ins = db.prepare(`INSERT OR REPLACE INTO ad_range_stats
+    (level, entity_id, since, until, account_id, reach, frequency, unique_link_clicks,
+     unique_link_ctr, fetched_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+  db.transaction(() => {
+    for (const r of rows) {
+      const entity = entityOf(level, accountId, r)
+      if (!entity) continue
+      ins.run(
+        level,
+        entity,
+        since,
+        until,
+        accountId,
+        int(r['reach']),
+        num(r['frequency']),
+        int(r['unique_inline_link_clicks']),
+        num(r['unique_inline_link_click_ctr']),
+        now,
+      )
+    }
+  })()
 }

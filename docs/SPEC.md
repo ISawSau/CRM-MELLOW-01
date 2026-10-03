@@ -260,6 +260,14 @@ Tabla genérica de vínculos (campo de relación, id de origen, id de destino, p
 - Divisas: moneda de visualización y lista editable en Campañas → Ajustes; conversión diaria con el BCE (D-056). Fechas de las métricas en la zona de cada cuenta (D-058). La selección de moneda por cliente llega con la tabla de la fase 7.
 - Interfaz de la fase 6: KPIs del periodo con comparación con el periodo anterior y tabla campaña → conjunto → anuncio con totales. Columnas configurables, presets, métricas calculadas, desgloses y formato condicional: fase 7.
 
+**Implementación (fase 7).**
+- Tabla tipo Ads Manager con navegación campaña → conjunto → anuncio, orden por columnas, totales, comparación por fila con el periodo anterior y desglose en subfilas.
+- Presets de columnas (cuatro de serie y los propios) con formato condicional (D-060).
+- Métricas propias con fórmula sobre cualquier métrica o acción, con formato moneda, porcentaje o número (D-059). Hold rate configurable.
+- Alcance, frecuencia y únicos del periodo pedidos a Meta (D-061). Desgloses activables por cuenta y nivel (D-062).
+- Última edición significativa con el historial de actividad (D-063). Moneda por cliente (D-065).
+- Vínculo creatividad-anuncio manual y automático (código o convención de nombres), rendimiento por creatividad y ranking por etiqueta (D-064).
+
 ### 7.4 X y LinkedIn
 
 - Los conectores de plataformas comparten una interfaz común (listar cuentas, estructura, métricas diarias), de forma que añadir una plataforma nueva no cambia el resto de la app. Las métricas se normalizan (gasto, impresiones, clics, conversiones, valor) y además se guardan las específicas de cada plataforma.
@@ -296,7 +304,7 @@ El negocio actual es ecommerce y no usa formularios de leads. Si en el futuro se
 - Rendimiento: métricas agregadas de todos los anuncios vinculados a cada creatividad y ranking por etiqueta (qué ángulos, hooks o formatos rinden mejor).
 - Archivo de referencias (swipe file) opcional: anuncios propios o de la competencia guardados como referencia, con captura o vídeo, enlace a la biblioteca de anuncios, notas y etiquetas. Se distingue del material propio con un filtro.
 - Vista galería con previsualización grande y reproducción de vídeo.
-- *Fase 4:* creatividades con tipo, archivos, copy o guion con formato, estado (Borrador, Aprobada, Activa, Pausada, Quemada), cliente, brief, enlace y las etiquetas de la lista (ángulo, hook, formato, proporción, nivel de consciencia, avatar, oferta y producto; todas editables). Vistas Biblioteca, Todas, Por estado y Swipe file. Versiones manuales («Guardar versión» con nota) con comparación de cambios respecto a la actual y restaurar. Pendiente para fases posteriores: vínculo con anuncios y rendimiento por versión y por etiqueta (fase 7), coincidencia por hash de imagen.
+- *Fase 4:* creatividades con tipo, archivos, copy o guion con formato, estado (Borrador, Aprobada, Activa, Pausada, Quemada), cliente, brief, enlace y las etiquetas de la lista (ángulo, hook, formato, proporción, nivel de consciencia, avatar, oferta y producto; todas editables). Vistas Biblioteca, Todas, Por estado y Swipe file. Versiones manuales («Guardar versión» con nota) con comparación de cambios respecto a la actual y restaurar. *Fase 7:* vínculo con anuncios (manual, por código o por convención de nombres), rendimiento por creatividad en su ficha y ranking por etiqueta en Campañas → Creatividades (D-064). Pendiente: rendimiento por versión y coincidencia por hash de imagen.
 
 ### 7.9 Facturación y cobros
 
@@ -375,8 +383,8 @@ Hasta la fase 5, el traslado entre ordenadores se hace copiando la carpeta de la
 ## 10. Cuestiones abiertas
 
 - Estructura de los briefs (cuando el usuario la defina).
-- Definición exacta de hold rate.
-- Convención de nombres de anuncios para el vínculo automático.
+- Definición exacta de hold rate (configurable desde la fase 7).
+- Convención de nombres de anuncios para el vínculo automático (configurable desde la fase 7; falta fijar la del usuario).
 - Lista final de monedas.
 - Enfoque de la versión móvil.
 - Viabilidad gratuita de las APIs de X y LinkedIn.

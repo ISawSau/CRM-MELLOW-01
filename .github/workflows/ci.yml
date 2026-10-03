@@ -250,7 +250,7 @@ jobs:
           ls -la paquetes
           (cd paquetes && sha256sum * > SHA256SUMS.txt && cat SHA256SUMS.txt)
           {
-            if [ -f .github/novedades.md ]; then cat .github/novedades.md; fi
+            if [ -f .github/novedades.md ]; then cat .github/novedades.md; echo; fi
             sed "s/{{VERSION}}/$VERSION/g" .github/notas-version.md
           } > notas.md
           gh release create "v$VERSION" paquetes/* \

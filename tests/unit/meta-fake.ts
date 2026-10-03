@@ -138,6 +138,65 @@ export class FakeMeta {
       })
   }
 
+  /** Filas del periodo completo (sin time_increment): alcance y frecuencia. */
+  private rangeRows(level: string, node: string, since: string, until: string): Json[] {
+    const all = this.rows(level, since, until)
+    const groups = new Map<string, Json[]>()
+    for (const r of all) {
+      const id = String(r['ad_id'] ?? r['adset_id'] ?? r['campaign_id'] ?? 'act')
+      if (node !== this.account.id && r['campaign_id'] !== node && r['adset_id'] !== node) continue
+      groups.set(id, [...(groups.get(id) ?? []), r])
+    }
+    return [...groups.values()].map((rs) => {
+      const impressions = rs.reduce((n, r) => n + Number(r['impressions']), 0)
+      const reach = Math.round(impressions / 2.5)
+      const { date_start: _d, date_stop: _s, ...first } = rs[0]!
+      void _d
+      void _s
+      return {
+        ...first,
+        date_start: since,
+        date_stop: until,
+        impressions: String(impressions),
+        reach: String(reach),
+        frequency: (impressions / reach).toFixed(4),
+        unique_inline_link_clicks: '42',
+        unique_inline_link_click_ctr: '1.5',
+      }
+    })
+  }
+
+  private breakdownRows(level: string, since: string, until: string, breakdowns: string): Json[] {
+    const values: Record<string, string[][]> = {
+      age: [['18-24'], ['25-34']],
+      publisher_platform: [['facebook'], ['instagram']],
+      'publisher_platform,platform_position': [
+        ['facebook', 'feed'],
+        ['instagram', 'story'],
+      ],
+    }
+    const keys = breakdowns.split(',')
+    const out: Json[] = []
+    for (const r of this.rows(level, since, until)) {
+      for (const [i, v] of (values[breakdowns] ?? [['x']]).entries()) {
+        const share = i === 0 ? 0.4 : 0.6
+        const row: Json = {
+          ...r,
+          spend: (Number(r['spend']) * share).toFixed(2),
+          impressions: String(Math.round(Number(r['impressions']) * share)),
+        }
+        keys.forEach((k, j) => (row[k] = v[j]))
+        out.push(row)
+      }
+    }
+    return out
+  }
+
+  activities: Json[] = [
+    { event_type: 'update_ad_set_budget', event_time: '2026-10-01T09:00:00+0000', object_id: 's1' },
+    { event_type: 'update_ad_run_status', event_time: '2026-10-02T09:00:00+0000', object_id: 'a1' },
+  ]
+
   private rows(level: string, since: string, until: string): Json[] {
     const entities =
       level === 'account'
@@ -273,7 +332,10 @@ export class FakeMeta {
         if (this.creatives[id]) out[id] = this.creatives[id]
       return json(out)
     }
-    if (path === `${this.account.id}/insights`) {
+    if (path === `${this.account.id}/activities`)
+      return json(this.page(path, this.activities, params))
+    const node = /^(act_111|c1|s1)\/insights$/.exec(path)?.[1]
+    if (node) {
       if (this.throttled < (this.opts.throttleFirst ?? 0)) {
         this.throttled++
         return this.error(400, 4, 'Too many calls', 1504022)
@@ -281,7 +343,14 @@ export class FakeMeta {
       const bad = this.checkFields(params)
       if (bad) return bad
       const tr = JSON.parse(params.get('time_range')!) as { since: string; until: string }
-      return json(this.page(path, this.rows(params.get('level')!, tr.since, tr.until), params))
+      const level =
+        params.get('level') ?? (node === 'c1' ? 'campaign' : node === 's1' ? 'adset' : 'account')
+      if (!params.get('time_increment'))
+        return json(this.page(path, this.rangeRows(level, node, tr.since, tr.until), params))
+      const bd = params.get('breakdowns')
+      if (bd)
+        return json(this.page(path, this.breakdownRows(level, tr.since, tr.until, bd), params))
+      return json(this.page(path, this.rows(level, tr.since, tr.until), params))
     }
     const rep = /^(rep\d+)(\/insights)?$/.exec(path)
     if (rep) {
@@ -297,7 +366,17 @@ export class FakeMeta {
         })
       }
       const tr = JSON.parse(r.params.get('time_range')!) as { since: string; until: string }
-      return json(this.page(path, this.rows(r.params.get('level')!, tr.since, tr.until), params))
+      const bd = r.params.get('breakdowns')
+      const level = r.params.get('level')!
+      return json(
+        this.page(
+          path,
+          bd
+            ? this.breakdownRows(level, tr.since, tr.until, bd)
+            : this.rows(level, tr.since, tr.until),
+          params,
+        ),
+      )
     }
     return this.error(404, 100, `Ruta desconocida ${path}`)
   }
