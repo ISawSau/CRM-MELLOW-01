@@ -2,6 +2,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState, type DragEvent } from 'react'
 import type { FieldDef, FileRef } from '@shared/data/fields'
 import { formatBytes, isPreviewImage, isVideo } from '@shared/files'
+import { t } from '@shared/i18n'
 import { MAX_UPLOAD_BYTES } from '@shared/ipc'
 import { call, IpcCallError } from '../lib/ipc'
 import { useToast } from '../ui/Toast'
@@ -124,7 +125,7 @@ export function FileThumb({
   const ext = file.name.split('.').pop()?.toUpperCase().slice(0, 4) ?? ''
   return (
     <span className={className} data-empty="true">
-      <span className="file-ext">{ext || 'ARCH'}</span>
+      <span className="file-ext">{ext || t('ARCH')}</span>
     </span>
   )
 }
@@ -167,13 +168,13 @@ export function FilePreview({ file, onClose }: { file: FileRef; onClose: () => v
             className="btn"
             onClick={() =>
               void call('files:export', { id: file.id, name: file.name })
-                .then((p) => p && toast.show(`Guardado: ${p}`))
-                .catch(() => toast.show('No se pudo guardar.', 'error'))
+                .then((p) => p && toast.show(t('Guardado: {path}', { path: p })))
+                .catch(() => toast.show(t('No se pudo guardar.'), 'error'))
             }
           >
-            Guardar una copia
+            {t('Guardar una copia')}
           </button>
-          <button type="button" className="icon-btn" aria-label="Cerrar" onClick={onClose}>
+          <button type="button" className="icon-btn" aria-label={t('Cerrar')} onClick={onClose}>
             ×
           </button>
         </div>
@@ -184,7 +185,9 @@ export function FilePreview({ file, onClose }: { file: FileRef; onClose: () => v
             <video src={fileUrl(file.id)} controls autoPlay />
           ) : (
             <p className="muted">
-              Este tipo de archivo no tiene vista previa. «Guardar una copia» lo deja donde elijas.
+              {t(
+                'Este tipo de archivo no tiene vista previa. «Guardar una copia» lo deja donde elijas.',
+              )}
             </p>
           )}
         </div>
@@ -214,7 +217,7 @@ export function FilesEditor({
     onCommit([...files, ...refs.filter((r) => !known.has(r.id))])
   }
   const fail = (e: unknown) =>
-    toast.show(e instanceof IpcCallError ? e.message : 'No se pudo añadir el archivo.', 'error')
+    toast.show(e instanceof IpcCallError ? e.message : t('No se pudo añadir el archivo.'), 'error')
 
   const onDrop = async (e: DragEvent) => {
     e.preventDefault()
@@ -226,7 +229,10 @@ export function FilesEditor({
       const refs: FileRef[] = []
       for (const f of list) {
         if (f.size > MAX_UPLOAD_BYTES) {
-          toast.show(`«${f.name}» es muy grande para arrastrarlo: usa «Añadir archivos».`, 'error')
+          toast.show(
+            t('«{name}» es muy grande para arrastrarlo: usa «Añadir archivos».', { name: f.name }),
+            'error',
+          )
           continue
         }
         refs.push(
@@ -262,7 +268,7 @@ export function FilesEditor({
               <button
                 type="button"
                 className="file-open"
-                aria-label={`Ver ${f.name}`}
+                aria-label={t('Ver {name}', { name: f.name })}
                 onClick={() => setPreview(f)}
               >
                 <FileThumb file={f} />
@@ -274,7 +280,7 @@ export function FilesEditor({
               <button
                 type="button"
                 className="icon-btn file-remove"
-                aria-label={`Quitar ${f.name}`}
+                aria-label={t('Quitar {title}', { title: f.name })}
                 onClick={() => onCommit(files.filter((x) => x.id !== f.id))}
               >
                 ×
@@ -296,9 +302,9 @@ export function FilesEditor({
               .finally(() => setBusy(false))
           }}
         >
-          {busy ? 'Cifrando…' : 'Añadir archivos'}
+          {busy ? t('Cifrando…') : t('Añadir archivos')}
         </button>
-        <span className="faint">o arrástralos aquí</span>
+        <span className="faint">{t('o arrástralos aquí')}</span>
       </div>
       {preview && <FilePreview file={preview} onClose={() => setPreview(null)} />}
     </div>

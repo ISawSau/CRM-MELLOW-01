@@ -4,6 +4,7 @@ import { writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { AppError } from '@shared/errors'
 import { safeFileName } from '@shared/files'
+import { getLocale, setLocale, t } from '@shared/i18n'
 import type { AutoLock } from '../auto-lock'
 import type { ConfigStore } from '../config'
 import type { VaultService } from '../vault/vault-service'
@@ -106,8 +107,10 @@ export function createHandlers({
       const win = getWindow()
       const options: Electron.OpenDialogOptions = {
         title:
-          purpose === 'create' ? 'Elige dónde crear la bóveda' : 'Elige la carpeta de la bóveda',
-        buttonLabel: purpose === 'create' ? 'Crear aquí' : 'Abrir bóveda',
+          purpose === 'create'
+            ? t('Elige dónde crear la bóveda')
+            : t('Elige la carpeta de la bóveda'),
+        buttonLabel: purpose === 'create' ? t('Crear aquí') : t('Abrir bóveda'),
         properties: ['openDirectory', 'createDirectory'],
       }
       const result = win
@@ -177,14 +180,22 @@ export function createHandlers({
     'settings:setAppearance': (appearance) => vault.setAppearance(appearance),
     'settings:setThemes': ({ themes }) => vault.setThemes(themes),
 
+    // Idioma: se guarda en la configuración mínima (se elige antes de abrir la bóveda) y la
+    // interfaz se recarga; el proceso principal lo usa en sus mensajes al momento.
+    'app:locale': () => getLocale(),
+    'app:setLocale': ({ locale }) => {
+      config.setLocale(locale)
+      setLocale(locale)
+    },
+
     // Exportar un tema es una acción explícita: el archivo va donde elija el usuario.
     'settings:exportTheme': async ({ name, json }) => {
       const win = getWindow()
       const options: Electron.SaveDialogOptions = {
-        title: 'Exportar tema',
+        title: t('Exportar tema'),
         defaultPath: join(app.getPath('documents'), safeFileName(`${name}.json`)),
-        buttonLabel: 'Exportar',
-        filters: [{ name: 'Tema (JSON)', extensions: ['json'] }],
+        buttonLabel: t('Exportar'),
+        filters: [{ name: t('Tema (JSON)'), extensions: ['json'] }],
       }
       const result = win
         ? await dialog.showSaveDialog(win, options)

@@ -1,6 +1,7 @@
 import { useCallback } from 'react'
 import type { FieldDef } from '@shared/data/fields'
 import { call, IpcCallError } from '../lib/ipc'
+import { t, tn } from '@shared/i18n'
 import { useToast } from '../ui/Toast'
 
 /** Escrituras de registros con aviso de error. Los datos se refrescan solos (data:changed). */
@@ -8,7 +9,7 @@ export function useRecordActions() {
   const toast = useToast()
   const fail = useCallback(
     (e: unknown) =>
-      toast.show(e instanceof IpcCallError ? e.message : 'No se pudo guardar.', 'error'),
+      toast.show(e instanceof IpcCallError ? e.message : t('No se pudo guardar.'), 'error'),
     [toast],
   )
 
@@ -46,9 +47,11 @@ export function useRecordActions() {
       try {
         await call('data:trash', { ids })
         toast.show(
-          ids.length === 1
-            ? 'Enviado a la papelera. Ctrl+Z para deshacer.'
-            : `${ids.length} registros enviados a la papelera. Ctrl+Z para deshacer.`,
+          tn(
+            ids.length,
+            'Enviado a la papelera. Ctrl+Z para deshacer.',
+            '{n} registros enviados a la papelera. Ctrl+Z para deshacer.',
+          ),
         )
       } catch (e) {
         fail(e)

@@ -9,6 +9,7 @@ import { VAULT_FILES } from '../vault/vault-file'
 import type { VaultService } from '../vault/vault-service'
 import { connectGoogle, refreshAccess, type GoogleClient } from './google-auth'
 import { DriveRemote, FolderRemote, type FetchLike, type Remote } from './remote'
+import { t } from '@shared/i18n'
 
 /**
  * Sincronización entre equipos y copias de seguridad (SPEC §4).
@@ -236,13 +237,14 @@ export class SyncService {
   // --- Configuración -------------------------------------------------------------
 
   configureFolder(path: string): SyncStatus {
-    if (!existsSync(path)) throw new AppError('INVALID_INPUT', undefined, 'La carpeta no existe.')
+    if (!existsSync(path))
+      throw new AppError('INVALID_INPUT', undefined, t('La carpeta no existe.'))
     const vaultPath = this.vault.currentPath
     if (vaultPath && (path.startsWith(vaultPath) || vaultPath.startsWith(path)))
       throw new AppError(
         'INVALID_INPUT',
         undefined,
-        'Elige una carpeta fuera de la bóveda (y que no la contenga).',
+        t('Elige una carpeta fuera de la bóveda (y que no la contenga).'),
       )
     writeSetting(this.db(), CONFIG_KEY, { kind: 'folder', path })
     this.resetState()
@@ -339,7 +341,7 @@ export class SyncService {
 
   private fail(e: unknown): void {
     this.phase = 'error'
-    this.error = e instanceof Error ? e.message : 'Error de sincronización.'
+    this.error = e instanceof Error ? e.message : t('Error de sincronización.')
     this.emit()
   }
 
@@ -347,9 +349,9 @@ export class SyncService {
     const text = await remote.readText('sync.json')
     if (!text) return null
     const m = manifestSchema.safeParse(JSON.parse(text))
-    if (!m.success) throw new Error('El destino tiene un sync.json que no es de CRM Mellow.')
+    if (!m.success) throw new Error(t('El destino tiene un sync.json que no es de CRM Mellow.'))
     if (m.data.vaultId !== this.vault.vaultId)
-      throw new Error('El destino tiene otra bóveda: elige otra carpeta o desconecta.')
+      throw new Error(t('El destino tiene otra bóveda: elige otra carpeta o desconecta.'))
     return m.data
   }
 
@@ -400,14 +402,15 @@ export class SyncService {
     const dir = this.tmpDir()
     try {
       if (!(await remote.get('crm.db', join(dir, VAULT_FILES.db))))
-        throw new Error('Falta crm.db en el destino.')
+        throw new Error(t('Falta crm.db en el destino.'))
       if (!(await remote.get('vault.json', join(dir, VAULT_FILES.manifest))))
-        throw new Error('Falta vault.json en el destino.')
+        throw new Error(t('Falta vault.json en el destino.'))
       const r = await this.vault.replaceDatabase(dir, 'antes-de-sincronizar')
       if (r === 'locked') {
         this.phase = 'idle'
-        this.error =
-          'Los datos de la nube usan otra contraseña: desbloquea con la contraseña actual.'
+        this.error = t(
+          'Los datos de la nube usan otra contraseña: desbloquea con la contraseña actual.',
+        )
         this.emit()
         return 'locked'
       }
@@ -435,7 +438,7 @@ export class SyncService {
     // 2. ¿Alguien ha subido mientras tanto?
     const latest = await this.readManifest(remote)
     if ((latest?.generation ?? 0) !== baseGen)
-      throw new Error('La nube ha cambiado: vuelve a sincronizar.')
+      throw new Error(t('La nube ha cambiado: vuelve a sincronizar.'))
     // 3. La base de datos lleva ya su nueva generación (así el otro equipo la conoce).
     const before = this.state()
     const gen = baseGen + 1
@@ -504,7 +507,7 @@ export class SyncService {
       this.phase = 'syncing'
       this.emit()
       const m = await this.readManifest(remote)
-      if (!m) throw new Error('El destino ya no tiene datos.')
+      if (!m) throw new Error(t('El destino ya no tiene datos.'))
       if (keep === 'local') {
         // La versión de la nube se guarda aquí como copia antes de sustituirla.
         const stamp = this.now()
@@ -603,12 +606,12 @@ export class SyncService {
     const dir = join(this.vault.currentPath!, VAULT_FILES.backups, name)
     if (!existsSync(join(dir, VAULT_FILES.db))) {
       const remote = this.remote()
-      if (!remote) throw new AppError('INVALID_INPUT', undefined, 'La copia no existe.')
+      if (!remote) throw new AppError('INVALID_INPUT', undefined, t('La copia no existe.'))
       mkdirSync(dir, { recursive: true })
       const ok =
         (await remote.get(`backups/${name}/crm.db`, join(dir, VAULT_FILES.db))) &&
         (await remote.get(`backups/${name}/vault.json`, join(dir, VAULT_FILES.manifest)))
-      if (!ok) throw new AppError('INVALID_INPUT', undefined, 'La copia no existe.')
+      if (!ok) throw new AppError('INVALID_INPUT', undefined, t('La copia no existe.'))
     }
     const r = await this.vault.replaceDatabase(dir, 'antes-de-restaurar')
     if (r === 'reopened') {

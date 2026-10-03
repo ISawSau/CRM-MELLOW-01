@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { AppError } from '@shared/errors'
+import { t } from '@shared/i18n'
 import { shiftDate, todayIn } from '@shared/data/dates'
 import {
   BREAKDOWNS,
@@ -79,6 +80,8 @@ const LEVEL_NAMES: Record<InsightLevel, string> = {
 }
 
 const esDate = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`
+/** Nombre del desglose en minúsculas y en el idioma activo («edad», «país»…). */
+const breakdownName = (key: BreakdownKey) => t(BREAKDOWNS[key].label).toLowerCase()
 const daysBetween = (a: string, b: string) =>
   Math.round((Date.parse(`${b}T00:00:00Z`) - Date.parse(`${a}T00:00:00Z`)) / 86_400_000)
 
@@ -425,7 +428,7 @@ export class MetaService {
 
   async refreshAccounts(): Promise<AdAccountInfo[]> {
     const cfg = this.config()
-    if (!cfg) throw new AppError('UNKNOWN', undefined, 'Conecta primero con Meta.')
+    if (!cfg) throw new AppError('UNKNOWN', undefined, t('Conecta primero con Meta.'))
     try {
       const accounts = await this.client(cfg).getAll<Record<string, unknown>>('me/adaccounts', {
         fields: ACCOUNT_FIELDS,
@@ -484,7 +487,7 @@ export class MetaService {
     clientId?: string | null
   }): AdAccountInfo[] {
     const a = getAccount(this.db, input.id)
-    if (!a) throw new AppError('INVALID_INPUT', undefined, 'No existe esa cuenta o ese cliente.')
+    if (!a) throw new AppError('INVALID_INPUT', undefined, t('No existe esa cuenta o ese cliente.'))
     if (input.clientId !== undefined) {
       if (input.clientId !== null) {
         const ok = this.db
@@ -493,7 +496,7 @@ export class MetaService {
           )
           .get(input.clientId)
         if (!ok)
-          throw new AppError('INVALID_INPUT', undefined, 'No existe esa cuenta o ese cliente.')
+          throw new AppError('INVALID_INPUT', undefined, t('No existe esa cuenta o ese cliente.'))
       }
       this.db.prepare('UPDATE ad_accounts SET client_id = ? WHERE id = ?').run(input.clientId, a.id)
     }
@@ -602,7 +605,7 @@ export class MetaService {
    */
   setBreakdowns(accountId: string, config: BreakdownConfig): AdAccountInfo[] {
     const a = getAccount(this.db, accountId)
-    if (!a) throw new AppError('INVALID_INPUT', undefined, 'No existe esa cuenta.')
+    if (!a) throw new AppError('INVALID_INPUT', undefined, t('No existe esa cuenta.'))
     const before = breakdownConfigSchema.parse(a.breakdowns ? JSON.parse(a.breakdowns) : {})
     const next = breakdownConfigSchema.parse(config)
     this.db
@@ -651,7 +654,7 @@ export class MetaService {
   }): Promise<void> {
     const q = rangeFetchSchema.parse(input)
     const cfg = this.config()
-    if (!cfg) throw new AppError('UNKNOWN', undefined, 'Conecta primero con Meta.')
+    if (!cfg) throw new AppError('UNKNOWN', undefined, t('Conecta primero con Meta.'))
     const graph = this.client(cfg)
     const node = q.parentId ?? q.accountId
     const parentLevel: InsightLevel = q.parentId
@@ -904,7 +907,7 @@ export class MetaService {
     epoch: number,
   ): Promise<string[]> {
     const warnings = new Map<string, string>()
-    this.step(`${a.name}: campañas, conjuntos y anuncios`)
+    this.step(t('{account}: campañas, conjuntos y anuncios', { account: a.name }))
     const ads = await this.syncStructure(graph, a, epoch)
     if (!this.alive(epoch) || !ads) return []
     this.advance()
@@ -922,14 +925,30 @@ export class MetaService {
       this.queueJob(a.id, level, from, to, key ?? null)
       warnings.set(
         `${level}:${key ?? ''}`,
-        `Faltan métricas por ${LEVEL_NAMES[level]}${key ? ` (desglose por ${BREAKDOWNS[key].label.toLowerCase()})` : ''} de algunos días (${graphErrorText(e)}); se reintentan en segundo plano.`,
+        t(
+          'Faltan métricas por {level}{breakdown} de algunos días ({error}); se reintentan en segundo plano.',
+          {
+            level: t(LEVEL_NAMES[level]),
+            breakdown: key
+              ? t(' (desglose por {breakdown})', { breakdown: breakdownName(key) })
+              : '',
+            error: graphErrorText(e),
+          },
+        ),
       )
     }
 
     for (const level of INSIGHT_LEVELS)
       for (const [from, to] of plan.ranges) {
         if (!this.alive(epoch)) return []
-        this.step(`${a.name}: métricas por ${LEVEL_NAMES[level]} (${esDate(from)} – ${esDate(to)})`)
+        this.step(
+          t('{account}: métricas por {level} ({from} – {to})', {
+            account: a.name,
+            level: t(LEVEL_NAMES[level]),
+            from: esDate(from),
+            to: esDate(to),
+          }),
+        )
         try {
           const rows = await this.insightsFlexible(graph, a.id, level, from, to, null, epoch)
           if (rows === null) return []
@@ -947,7 +966,11 @@ export class MetaService {
         for (const [from, to] of plan.ranges) {
           if (!this.alive(epoch)) return []
           this.step(
-            `${a.name}: desglose por ${BREAKDOWNS[key].label.toLowerCase()} (${LEVEL_NAMES[level]})`,
+            t('{account}: desglose por {breakdown} ({level})', {
+              account: a.name,
+              breakdown: breakdownName(key),
+              level: t(LEVEL_NAMES[level]),
+            }),
           )
           try {
             const rows = await this.insightsFlexible(graph, a.id, level, from, to, key, epoch)
@@ -977,11 +1000,11 @@ export class MetaService {
       .run(dataFrom, plan.today, a.id)
     this.dataChanged(true)
 
-    this.step(`${a.name}: creatividades`)
+    this.step(t('{account}: creatividades', { account: a.name }))
     await this.syncCreatives(graph, a, ads, epoch)
     if (!this.alive(epoch)) return []
     this.advance()
-    this.step(`${a.name}: miniaturas y última edición`)
+    this.step(t('{account}: miniaturas y última edición', { account: a.name }))
     await this.downloadThumbs(a.id, epoch)
     if (!this.alive(epoch)) return []
     await this.syncActivities(graph, a).catch(() => {
@@ -1339,7 +1362,15 @@ export class MetaService {
         .get(accountId) as JobRow | undefined
       if (!job) break
       this.step(
-        `Histórico de ${account.name}: ${job.breakdown ? `desglose por ${BREAKDOWNS[job.breakdown].label.toLowerCase()}, ` : ''}por ${LEVEL_NAMES[job.level]} (${esDate(job.since)}/${job.since.slice(0, 4)} – ${esDate(job.until)}/${job.until.slice(0, 4)})`,
+        t('Histórico de {account}: {breakdown}por {level} ({from} – {to})', {
+          account: account.name,
+          breakdown: job.breakdown
+            ? t('desglose por {breakdown}, ', { breakdown: breakdownName(job.breakdown) })
+            : '',
+          level: t(LEVEL_NAMES[job.level]),
+          from: `${esDate(job.since)}/${job.since.slice(0, 4)}`,
+          to: `${esDate(job.until)}/${job.until.slice(0, 4)}`,
+        }),
       )
       try {
         const rows = await this.runJob(graph, job, epoch)
@@ -1423,7 +1454,7 @@ export class MetaService {
       if (s.async_status === 'Job Completed') break
       if (s.async_status === 'Job Failed' || s.async_status === 'Job Skipped')
         throw new GraphError(
-          `El informe de Meta no se completó (${s.async_status})`,
+          t('El informe de Meta no se completó ({status})', { status: s.async_status }),
           null,
           null,
           200,

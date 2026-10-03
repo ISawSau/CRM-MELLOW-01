@@ -22,6 +22,7 @@ import {
 import type { FetchLike } from '../sync/remote'
 import { deleteSetting, readSetting, writeSetting } from '../sync/sync-service'
 import type { VaultService } from '../vault/vault-service'
+import { t } from '@shared/i18n'
 
 /**
  * Gmail en solo lectura (SPEC §7.12, D-078). Con el permiso `gmail.readonly` busca los
@@ -130,7 +131,7 @@ export class GmailService {
       throw new AppError(
         'INVALID_INPUT',
         undefined,
-        'Escribe el id de cliente de tu proyecto de Google (o conecta antes Google Drive).',
+        t('Escribe el id de cliente de tu proyecto de Google (o conecta antes Google Drive).'),
       )
     let tokens
     try {
@@ -181,7 +182,7 @@ export class GmailService {
   addressesFor(recordId: string): string[] {
     const data = this.vault.data
     const rec = data.get(recordId)
-    if (!rec) throw new AppError('INVALID_INPUT', undefined, 'Ese registro no existe.')
+    if (!rec) throw new AppError('INVALID_INPUT', undefined, t('Ese registro no existe.'))
     const emailsOf = (r: RecordRow) =>
       data
         .listFields(r.entity)
@@ -205,7 +206,7 @@ export class GmailService {
     refresh: boolean
   }): Promise<GmailThreadsResult> {
     const cfg = this.config()
-    if (!cfg) throw new AppError('GMAIL_ERROR', undefined, 'Gmail no está conectado.')
+    if (!cfg) throw new AppError('GMAIL_ERROR', undefined, t('Gmail no está conectado.'))
     const addresses = this.addressesFor(input.recordId)
     if (!addresses.length) return { addresses, threads: [], nextPageToken: null }
     const key = `${addresses.join(',')}|${input.pageToken ?? ''}`
@@ -242,25 +243,25 @@ export class GmailService {
   private async thread(id: string, snippet: string, me: string): Promise<GmailThread> {
     const params = new URLSearchParams({ format: 'metadata' })
     for (const h of ['From', 'Subject']) params.append('metadataHeaders', h)
-    const t = (await this.get(`/users/me/threads/${encodeURIComponent(id)}?${params}`)) as {
+    const res = (await this.get(`/users/me/threads/${encodeURIComponent(id)}?${params}`)) as {
       messages?: ApiMessage[]
     }
-    const messages: GmailMessage[] = (t.messages ?? []).map((m) => {
+    const messages: GmailMessage[] = (res.messages ?? []).map((m) => {
       const header = (n: string) =>
         m.payload?.headers?.find((h) => h.name.toLowerCase() === n.toLowerCase())?.value ?? ''
       const from = parseMailbox(header('From'))
       return {
         id: m.id,
-        from: from.address === me.toLowerCase() ? 'Yo' : from.name,
+        from: from.address === me.toLowerCase() ? t('Yo') : from.name,
         date: new Date(Number(m.internalDate ?? 0)).toISOString(),
         snippet: decodeEntities(m.snippet ?? ''),
         unread: m.labelIds?.includes('UNREAD') ?? false,
       }
     })
-    const first = t.messages?.[0]
+    const first = res.messages?.[0]
     const subject =
       first?.payload?.headers?.find((h) => h.name.toLowerCase() === 'subject')?.value.trim() ||
-      '(sin asunto)'
+      t('(sin asunto)')
     return {
       id,
       subject,
@@ -278,7 +279,7 @@ export class GmailService {
   private async token(): Promise<string> {
     if (this.access && this.access.expiresAt - 60_000 > this.now()) return this.access.token
     const cfg = this.config()
-    if (!cfg) throw new AppError('GMAIL_ERROR', undefined, 'Gmail no está conectado.')
+    if (!cfg) throw new AppError('GMAIL_ERROR', undefined, t('Gmail no está conectado.'))
     try {
       const fresh = await refreshAccess(cfg, cfg.refreshToken, this.http, {
         service: 'Gmail',
@@ -287,7 +288,7 @@ export class GmailService {
       this.access = { token: fresh.accessToken, expiresAt: fresh.expiresAt }
       return fresh.accessToken
     } catch (e) {
-      this.fail(e instanceof Error ? e.message : 'No se pudo renovar el acceso a Gmail.')
+      this.fail(e instanceof Error ? e.message : t('No se pudo renovar el acceso a Gmail.'))
     }
   }
 
@@ -306,7 +307,7 @@ export class GmailService {
         headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
       })
     } catch {
-      throw new AppError('GMAIL_ERROR', undefined, 'Sin conexión con Gmail.')
+      throw new AppError('GMAIL_ERROR', undefined, t('Sin conexión con Gmail.'))
     }
     if (res.status === 401 && !retried) {
       this.access = null
@@ -321,16 +322,16 @@ export class GmailService {
       throw new AppError(
         'GMAIL_ERROR',
         undefined,
-        'Gmail pide esperar un poco (límite de uso). Vuelve a intentarlo en un minuto.',
+        t('Gmail pide esperar un poco (límite de uso). Vuelve a intentarlo en un minuto.'),
       )
     if (res.status === 403 && /accessNotConfigured|SERVICE_DISABLED/i.test(JSON.stringify(body)))
-      this.fail('Activa la API de Gmail en tu proyecto de Google Cloud (Ajustes lo explica).')
+      this.fail(t('Activa la API de Gmail en tu proyecto de Google Cloud (Ajustes lo explica).'))
     if (res.status === 401 || res.status === 403)
-      this.fail('Gmail ha rechazado el acceso: vuelve a conectar Gmail en Ajustes.')
+      this.fail(t('Gmail ha rechazado el acceso: vuelve a conectar Gmail en Ajustes.'))
     throw new AppError(
       'GMAIL_ERROR',
       undefined,
-      `Gmail ha respondido con un error (${res.status}).`,
+      t('Gmail ha respondido con un error ({status}).', { status: res.status }),
     )
   }
 }

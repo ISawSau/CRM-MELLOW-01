@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { t, tn } from '@shared/i18n'
 import {
   DEFAULT_HOLD_RATE,
   knownKeys,
@@ -59,9 +60,9 @@ function MetricDialog({
         aria-labelledby="metric-t"
         data-testid="metric-dialog"
       >
-        <h2 id="metric-t">{metric ? 'Editar métrica' : 'Nueva métrica'}</h2>
+        <h2 id="metric-t">{metric ? t('Editar métrica') : t('Nueva métrica')}</h2>
         <div className="field">
-          <label htmlFor="metric-label">Nombre</label>
+          <label htmlFor="metric-label">{t('Nombre')}</label>
           <input
             id="metric-label"
             className="input"
@@ -70,12 +71,12 @@ function MetricDialog({
             onChange={(e) => setLabel(e.target.value)}
           />
           <p className="hint">
-            En las fórmulas se usa como <code>{key || '…'}</code>.
-            {clash && <span className="danger-text"> Ese nombre ya existe.</span>}
+            {t('En las fórmulas se usa como')} <code>{key || '…'}</code>.
+            {clash && <span className="danger-text"> {t('Ese nombre ya existe.')}</span>}
           </p>
         </div>
         <div className="field">
-          <label htmlFor="metric-expr">Fórmula</label>
+          <label htmlFor="metric-expr">{t('Fórmula')}</label>
           <input
             id="metric-expr"
             className="input mono"
@@ -87,17 +88,18 @@ function MetricDialog({
             <p className="hint danger-text">{problem}</p>
           ) : (
             <p className="hint">
-              Métricas: <code>gasto</code>, <code>impresiones</code>, <code>clics_enlace</code>,{' '}
-              <code>compras</code>, <code>valor_compras</code>, <code>roas</code>, <code>cpa</code>,{' '}
-              <code>alcance</code>… y cualquier acción como <code>acc_lead</code> o su valor{' '}
-              <code>val_purchase</code>. Funciones: SI, Y, O, REDONDEAR, MIN, MAX… Los decimales van
-              con punto.
+              {t('Métricas:')} <code>gasto</code>, <code>impresiones</code>,{' '}
+              <code>clics_enlace</code>, <code>compras</code>, <code>valor_compras</code>,{' '}
+              <code>roas</code>, <code>cpa</code>, <code>alcance</code>
+              {t('… y cualquier acción como')} <code>acc_lead</code> {t('o su valor')}{' '}
+              <code>val_purchase</code>
+              {t('. Funciones: SI, Y, O, REDONDEAR, MIN, MAX… Los decimales van con punto.')}
             </p>
           )}
         </div>
         <div className="field-row">
           <div className="field">
-            <label htmlFor="metric-format">Formato</label>
+            <label htmlFor="metric-format">{t('Formato')}</label>
             <select
               id="metric-format"
               className="input"
@@ -106,16 +108,18 @@ function MetricDialog({
             >
               {Object.entries(FORMAT_LABELS).map(([k, l]) => (
                 <option key={k} value={k}>
-                  {l}
+                  {t(l)}
                 </option>
               ))}
             </select>
             {format === 'percent' && (
-              <p className="hint">El resultado ya en tanto por cien: … / impresiones * 100.</p>
+              <p className="hint">
+                {t('El resultado ya en tanto por cien: … / impresiones * 100.')}
+              </p>
             )}
           </div>
           <div className="field">
-            <label htmlFor="metric-decimals">Decimales</label>
+            <label htmlFor="metric-decimals">{t('Decimales')}</label>
             <select
               id="metric-decimals"
               className="input"
@@ -132,7 +136,7 @@ function MetricDialog({
         </div>
         <div className="form-actions">
           <button type="button" className="btn" onClick={onClose}>
-            Cancelar
+            {t('Cancelar')}
           </button>
           <button
             type="button"
@@ -142,7 +146,7 @@ function MetricDialog({
               onSave({ key, label: label.trim(), expression: expression.trim(), format, decimals })
             }
           >
-            Guardar
+            {t('Guardar')}
           </button>
         </div>
       </div>
@@ -165,10 +169,11 @@ export function MetricsSettings() {
   const patternValue = pattern ?? s.naming.pattern
   return (
     <>
-      <h3 className="panel-subtitle">Métricas propias</h3>
+      <h3 className="panel-subtitle">{t('Métricas propias')}</h3>
       <p className="hint">
-        Se calculan con un parser seguro sobre cualquier métrica o acción y se pueden usar como
-        columnas en la tabla.
+        {t(
+          'Se calculan con un parser seguro sobre cualquier métrica o acción y se pueden usar como columnas en la tabla.',
+        )}
       </p>
       <ul className="metric-list" data-testid="custom-metrics">
         {s.metrics.map((m) => (
@@ -177,31 +182,31 @@ export function MetricsSettings() {
             <code className="faint">
               {m.key} = {m.expression}
             </code>
-            <span className="faint">{FORMAT_LABELS[m.format]}</span>
+            <span className="faint">{t(FORMAT_LABELS[m.format])}</span>
             <span className="form-actions">
               <button type="button" className="btn" onClick={() => setEditing(m)}>
-                Editar
+                {t('Editar')}
               </button>
               <button
                 type="button"
                 className="btn btn-danger"
                 onClick={() => void save({ metrics: s.metrics.filter((x) => x.key !== m.key) })}
               >
-                Borrar
+                {t('Borrar')}
               </button>
             </span>
           </li>
         ))}
-        {s.metrics.length === 0 && <li className="faint">Aún no hay métricas propias.</li>}
+        {s.metrics.length === 0 && <li className="faint">{t('Aún no hay métricas propias.')}</li>}
       </ul>
       <div className="form-actions">
         <button type="button" className="btn" onClick={() => setEditing('new')}>
-          + Métrica
+          {t('+ Métrica')}
         </button>
       </div>
 
       <div className="field">
-        <label htmlFor="hold-rate">Hold rate</label>
+        <label htmlFor="hold-rate">{t('Hold rate')}</label>
         <input
           id="hold-rate"
           className="input mono"
@@ -215,23 +220,24 @@ export function MetricsSettings() {
           <p className="hint danger-text">{holdProblem}</p>
         ) : (
           <p className="hint">
-            Cada media buyer lo define a su manera. Por defecto: <code>{DEFAULT_HOLD_RATE}</code>.
-            Otra opción: <code>p25 / reproducciones_3s * 100</code>.
+            {t('Cada media buyer lo define a su manera. Por defecto:')}{' '}
+            <code>{DEFAULT_HOLD_RATE}</code>. {t('Otra opción:')}{' '}
+            <code>p25 / reproducciones_3s * 100</code>.
           </p>
         )}
       </div>
 
-      <h3 className="panel-subtitle">Vincular anuncios y creatividades</h3>
+      <h3 className="panel-subtitle">{t('Vincular anuncios y creatividades')}</h3>
       <label className="check">
         <input
           type="checkbox"
           checked={s.naming.byCode}
           onChange={(e) => void save({ naming: { ...s.naming, byCode: e.target.checked } })}
         />
-        <span>Si el nombre del anuncio contiene el código de una creatividad</span>
+        <span>{t('Si el nombre del anuncio contiene el código de una creatividad')}</span>
       </label>
       <div className="field">
-        <label htmlFor="naming">Convención de nombres (opcional)</label>
+        <label htmlFor="naming">{t('Convención de nombres (opcional)')}</label>
         <input
           id="naming"
           className="input mono"
@@ -243,10 +249,12 @@ export function MetricsSettings() {
           }}
         />
         <p className="hint">
-          Entre llaves, campos de la creatividad (<code>{'{angulo}'}</code>,{' '}
+          {t('Entre llaves, campos de la creatividad')} (<code>{'{angulo}'}</code>,{' '}
           <code>{'{formato}'}</code>, <code>{'{cliente}'}</code>, <code>{'{codigo}'}</code>…);{' '}
-          <code>{'{*}'}</code> vale cualquier cosa. Si el nombre de un anuncio encaja con una sola
-          creatividad, se vinculan solos. Lo que desvincules a mano no se vuelve a vincular.
+          <code>{'{*}'}</code>{' '}
+          {t(
+            'vale cualquier cosa. Si el nombre de un anuncio encaja con una sola creatividad, se vinculan solos. Lo que desvincules a mano no se vuelve a vincular.',
+          )}
         </p>
       </div>
       <div className="form-actions">
@@ -258,16 +266,19 @@ export function MetricsSettings() {
               .then((n) =>
                 toast.show(
                   n === 0
-                    ? 'No hay vínculos nuevos.'
-                    : `${n} ${n === 1 ? 'vínculo nuevo' : 'vínculos nuevos'}.`,
+                    ? t('No hay vínculos nuevos.')
+                    : tn(n, '{n} vínculo nuevo.', '{n} vínculos nuevos.'),
                 ),
               )
               .catch((e: unknown) =>
-                toast.show(e instanceof IpcCallError ? e.message : 'No se pudo vincular.', 'error'),
+                toast.show(
+                  e instanceof IpcCallError ? e.message : t('No se pudo vincular.'),
+                  'error',
+                ),
               )
           }
         >
-          Vincular ahora
+          {t('Vincular ahora')}
         </button>
       </div>
 

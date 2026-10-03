@@ -13,6 +13,7 @@ import {
 } from '@shared/meta'
 import type { SqliteDb } from '../db/connection'
 import { addDaily, clientCurrency, moneyConverter, type DailyRow } from './sums'
+import { t, tn } from '@shared/i18n'
 
 /**
  * Tabla tipo Ads Manager (SPEC §7.3, fase 7): una fila por campaña, conjunto o anuncio
@@ -46,14 +47,16 @@ export function attributionText(raw: string): string | null {
     ).attribution_spec
     if (!Array.isArray(spec) || spec.length === 0) return null
     const label: Record<string, string> = {
-      CLICK_THROUGH: 'tras hacer clic',
-      VIEW_THROUGH: 'tras ver',
-      ENGAGED_VIDEO_VIEW: 'tras visualización interesada',
+      CLICK_THROUGH: t('tras hacer clic'),
+      VIEW_THROUGH: t('tras ver'),
+      ENGAGED_VIDEO_VIEW: t('tras visualización interesada'),
     }
     return spec
       .map((s) => {
         const d = s.window_days ?? 0
-        return `${d} ${d === 1 ? 'día' : 'días'} ${label[s.event_type ?? ''] ?? (s.event_type ?? '').toLowerCase()}`
+        return tn(d, '{n} día {event}', '{n} días {event}', {
+          event: label[s.event_type ?? ''] ?? (s.event_type ?? '').toLowerCase(),
+        })
       })
       .join(', ')
   } catch {
@@ -67,7 +70,7 @@ export function table(db: SqliteDb, input: TableQuery, displayCurrency: string):
     .prepare('SELECT currency, client_id, breakdowns FROM ad_accounts WHERE id = ?')
     .get(q.accountId) as
     { currency: string; client_id: string | null; breakdowns: string | null } | undefined
-  if (!account) throw new AppError('INVALID_INPUT', undefined, 'No existe esa cuenta.')
+  if (!account) throw new AppError('INVALID_INPUT', undefined, t('No existe esa cuenta.'))
   const target = clientCurrency(db, account.client_id) ?? displayCurrency
   const conv = moneyConverter(db, target)
 
@@ -213,7 +216,7 @@ export function table(db: SqliteDb, input: TableQuery, displayCurrency: string):
         ? String((JSON.parse(l.data) as Record<string, unknown>)[titleField.id] ?? '')
         : ''
       const list = creativesOf.get(l.ad_id) ?? []
-      list.push({ id: l.id, title: title || 'Sin nombre' })
+      list.push({ id: l.id, title: title || t('Sin nombre') })
       creativesOf.set(l.ad_id, list)
     }
   }

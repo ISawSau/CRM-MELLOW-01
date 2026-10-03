@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import { t } from '@shared/i18n'
 import { PLATFORMS } from '@shared/platforms'
 import { call } from '../lib/ipc'
 import { usePlatformAccounts } from '../platforms/platforms'
@@ -12,10 +13,11 @@ export function ClientAdAccounts({ clientId }: { clientId: string }) {
   })
   const other = (usePlatformAccounts().data ?? []).filter((a) => a.clientId === clientId)
   if (!q.data?.length && !other.length) return null
-  const since = (until: string | null) => (until ? ` · datos hasta el ${isoToEs(until)}` : '')
+  const since = (until: string | null) =>
+    until ? t(' · datos hasta el {date}', { date: isoToEs(until) }) : ''
   return (
     <section className="panel-rich" data-testid="client-ad-accounts">
-      <h3 className="panel-subtitle">Cuentas publicitarias</h3>
+      <h3 className="panel-subtitle">{t('Cuentas publicitarias')}</h3>
       <ul className="client-accounts">
         {(q.data ?? []).map((a) => (
           <li key={a.id}>
@@ -25,8 +27,8 @@ export function ClientAdAccounts({ clientId }: { clientId: string }) {
               {a.enabled
                 ? a.dataUntil
                   ? since(a.dataUntil)
-                  : ' · sincronizando'
-                : ' · sin sincronizar'}
+                  : t(' · sincronizando')
+                : t(' · sin sincronizar')}
             </span>
           </li>
         ))}
@@ -35,7 +37,7 @@ export function ClientAdAccounts({ clientId }: { clientId: string }) {
             <strong>{a.name}</strong>
             <span className="faint">
               {PLATFORMS[a.platform]} ({a.source === 'api' ? 'API' : 'CSV'}) · {a.currency}
-              {a.enabled ? since(a.dataUntil) : ' · sin usar'}
+              {a.enabled ? since(a.dataUntil) : t(' · sin usar')}
             </span>
           </li>
         ))}

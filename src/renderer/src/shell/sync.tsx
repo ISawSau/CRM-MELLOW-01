@@ -4,6 +4,7 @@ import type { SyncStatus } from '@shared/ipc'
 import { formatDateTime } from '@shared/format'
 import { call, IpcCallError, subscribe } from '../lib/ipc'
 import { useToast } from '../ui/Toast'
+import { t } from '@shared/i18n'
 
 /** Estado de la sincronización, al día con los avisos del proceso principal. */
 export function useSyncStatus() {
@@ -22,11 +23,11 @@ export function useSyncStatus() {
 }
 
 function ago(iso: string | null): string {
-  if (!iso) return 'nunca'
+  if (!iso) return t('nunca')
   const mins = Math.round((Date.now() - Date.parse(iso)) / 60_000)
-  if (mins < 1) return 'hace un momento'
-  if (mins < 60) return `hace ${mins} min`
-  if (mins < 24 * 60) return `hace ${Math.round(mins / 60)} h`
+  if (mins < 1) return t('hace un momento')
+  if (mins < 60) return t('hace {n} min', { n: mins })
+  if (mins < 24 * 60) return t('hace {n} h', { n: Math.round(mins / 60) })
   return formatDateTime(new Date(iso))
 }
 
@@ -35,12 +36,12 @@ export function syncSummary(s: SyncStatus | undefined): {
   text: string
   tone: 'ok' | 'off' | 'warn' | 'error'
 } {
-  if (!s || !s.kind) return { text: 'sincronización no configurada', tone: 'off' }
-  if (s.phase === 'syncing') return { text: 'sincronizando…', tone: 'warn' }
-  if (s.phase === 'conflict') return { text: 'conflicto: elige una versión', tone: 'error' }
-  if (s.phase === 'error') return { text: 'error de sincronización', tone: 'error' }
-  if (s.pending) return { text: 'cambios sin subir', tone: 'warn' }
-  return { text: `sincronizado ${ago(s.lastSyncAt)}`, tone: 'ok' }
+  if (!s || !s.kind) return { text: t('sincronización no configurada'), tone: 'off' }
+  if (s.phase === 'syncing') return { text: t('sincronizando…'), tone: 'warn' }
+  if (s.phase === 'conflict') return { text: t('conflicto: elige una versión'), tone: 'error' }
+  if (s.phase === 'error') return { text: t('error de sincronización'), tone: 'error' }
+  if (s.pending) return { text: t('cambios sin subir'), tone: 'warn' }
+  return { text: t('sincronizado {when}', { when: ago(s.lastSyncAt) }), tone: 'ok' }
 }
 
 /** Elemento de la barra de estado: estado y «Sincronizar ahora». */
@@ -64,12 +65,12 @@ export function SyncStatusItem({ onSettings }: { onSettings: () => void }) {
     <button
       type="button"
       className="statusbar-item btn-link btn"
-      title={s.error ?? `${s.label} · pulsa para sincronizar ahora`}
+      title={s.error ?? t('{label} · pulsa para sincronizar ahora', { label: t(s.label ?? '') })}
       disabled={s.phase === 'syncing'}
       data-testid="sync-status"
       onClick={() =>
         void call('sync:now').catch((e: unknown) =>
-          toast.show(e instanceof IpcCallError ? e.message : 'No se pudo sincronizar.', 'error'),
+          toast.show(e instanceof IpcCallError ? e.message : t('No se pudo sincronizar.'), 'error'),
         )
       }
     >
@@ -89,7 +90,7 @@ export function ConflictDialog() {
     setBusy(true)
     void call('sync:resolve', { keep })
       .catch((e: unknown) =>
-        toast.show(e instanceof IpcCallError ? e.message : 'No se pudo resolver.', 'error'),
+        toast.show(e instanceof IpcCallError ? e.message : t('No se pudo resolver.'), 'error'),
       )
       .finally(() => setBusy(false))
   }
@@ -103,12 +104,12 @@ export function ConflictDialog() {
         aria-labelledby="conflict-t"
         data-testid="sync-conflict"
       >
-        <h2 id="conflict-t">Los dos equipos han cambiado la bóveda</h2>
+        <h2 id="conflict-t">{t('Los dos equipos han cambiado la bóveda')}</h2>
         <p className="muted">
-          «{s.conflict.device}» subió una versión el{' '}
-          {formatDateTime(new Date(s.conflict.uploadedAt))} y aquí también hay cambios sin subir.
-          Elige con cuál te quedas: la otra se guarda como copia de seguridad y podrás recuperarla
-          desde Ajustes.
+          {t(
+            '«{device}» subió una versión el {date} y aquí también hay cambios sin subir. Elige con cuál te quedas: la otra se guarda como copia de seguridad y podrás recuperarla desde Ajustes.',
+            { device: s.conflict.device, date: formatDateTime(new Date(s.conflict.uploadedAt)) },
+          )}
         </p>
         <div className="form-actions">
           <button
@@ -117,10 +118,10 @@ export function ConflictDialog() {
             disabled={busy}
             onClick={() => resolve('local')}
           >
-            Quedarme con la de este equipo
+            {t('Quedarme con la de este equipo')}
           </button>
           <button type="button" className="btn" disabled={busy} onClick={() => resolve('remote')}>
-            Usar la de «{s.conflict.device}»
+            {t('Usar la de «{device}»', { device: s.conflict.device })}
           </button>
         </div>
       </div>

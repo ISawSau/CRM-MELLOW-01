@@ -2,6 +2,7 @@ import { createHash, randomBytes } from 'node:crypto'
 import { createServer, type Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import type { FetchLike } from './remote'
+import { getLocale, t } from '@shared/i18n'
 
 /**
  * OAuth 2.0 para apps de escritorio (documentación oficial de Google, «OAuth 2.0 for
@@ -34,7 +35,10 @@ export interface GoogleTokens {
 
 const b64url = (b: Buffer) => b.toString('base64url')
 
-const PAGE = (title: string, text: string) => `<!doctype html><html lang="es"><meta charset="utf-8">
+const PAGE = (
+  title: string,
+  text: string,
+) => `<!doctype html><html lang="${getLocale()}"><meta charset="utf-8">
 <title>${title}</title><body style="font-family:sans-serif;background:#0d0908;color:#fdf6ee;display:grid;place-items:center;height:100vh;margin:0">
 <div style="max-width:420px"><h1 style="font-size:20px">${title}</h1><p>${text}</p></div></body></html>`
 
@@ -56,7 +60,7 @@ export async function connectGoogle(
   const code = await new Promise<{ code: string; redirect: string }>((resolve, reject) => {
     const timer = setTimeout(() => {
       server?.close()
-      reject(new Error('Se agotó el tiempo para conectar con Google.'))
+      reject(new Error(t('Se agotó el tiempo para conectar con Google.')))
     }, LOGIN_TIMEOUT_MS)
     let redirect = ''
     server = createServer((req, res) => {
@@ -69,19 +73,19 @@ export async function connectGoogle(
       const got = url.searchParams.get('code')
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' })
       if (err || !got || url.searchParams.get('state') !== state) {
-        res.end(PAGE('No se ha conectado', 'Vuelve a CRM Mellow e inténtalo de nuevo.'))
+        res.end(PAGE(t('No se ha conectado'), t('Vuelve a CRM Mellow e inténtalo de nuevo.')))
         clearTimeout(timer)
         server?.close()
         reject(
           new Error(
             err === 'access_denied'
-              ? 'Has cancelado la conexión.'
-              : 'Respuesta de Google no válida.',
+              ? t('Has cancelado la conexión.')
+              : t('Respuesta de Google no válida.'),
           ),
         )
         return
       }
-      res.end(PAGE('Conectado', 'Ya puedes cerrar esta pestaña y volver a CRM Mellow.'))
+      res.end(PAGE(t('Conectado'), t('Ya puedes cerrar esta pestaña y volver a CRM Mellow.')))
       clearTimeout(timer)
       server?.close()
       resolve({ code: got, redirect })
@@ -127,7 +131,7 @@ export async function connectGoogle(
     error_description?: string
   }
   if (!res.ok || !json.access_token || !json.refresh_token)
-    throw new Error(json.error_description ?? 'Google no ha dado acceso.')
+    throw new Error(json.error_description ?? t('Google no ha dado acceso.'))
   return {
     accessToken: json.access_token,
     refreshToken: json.refresh_token,
@@ -161,8 +165,8 @@ export async function refreshAccess(
   if (!res.ok || !json.access_token)
     throw new Error(
       json.error === 'invalid_grant'
-        ? `Google ha retirado el acceso: vuelve a conectar ${service} en Ajustes.`
-        : `No se pudo renovar el acceso a ${service}.`,
+        ? t('Google ha retirado el acceso: vuelve a conectar {service} en Ajustes.', { service })
+        : t('No se pudo renovar el acceso a {service}.', { service }),
     )
   return {
     accessToken: json.access_token,

@@ -2,6 +2,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import type { CollectionInput } from '@shared/data/collections'
 import type { EntityInfo } from '@shared/ipc'
+import { t } from '@shared/i18n'
 import { call, IpcCallError } from '../lib/ipc'
 import { Alert } from '../ui/Alert'
 import { useToast } from '../ui/Toast'
@@ -52,12 +53,12 @@ export function CollectionForm({
     >
       <div className="field">
         <label>
-          Nombre (en plural)
+          {t('Nombre (en plural)')}
           <input
             className="input"
-            aria-label={`${prefix}Nombre (en plural)`}
+            aria-label={prefix + t('Nombre (en plural)')}
             maxLength={40}
-            placeholder="Proveedores"
+            placeholder={t('Proveedores')}
             value={c.label}
             onChange={(e) =>
               set({
@@ -70,12 +71,12 @@ export function CollectionForm({
       </div>
       <div className="field">
         <label>
-          En singular
+          {t('En singular')}
           <input
             className="input"
-            aria-label={`${prefix}En singular`}
+            aria-label={prefix + t('En singular')}
             maxLength={40}
-            placeholder="Proveedor"
+            placeholder={t('Proveedor')}
             value={c.singular}
             onChange={(e) => set({ singular: e.target.value })}
           />
@@ -83,24 +84,24 @@ export function CollectionForm({
       </div>
       <div className="field">
         <label>
-          Género
+          {t('Género')}
           <select
             className="input"
-            aria-label={`${prefix}Género`}
+            aria-label={prefix + t('Género')}
             value={c.gender}
             onChange={(e) => set({ gender: e.target.value as 'f' | 'm' })}
           >
-            <option value="m">Masculino</option>
-            <option value="f">Femenino</option>
+            <option value="m">{t('Masculino')}</option>
+            <option value="f">{t('Femenino')}</option>
           </select>
         </label>
       </div>
       <div className="field collection-letter">
         <label>
-          Letra
+          {t('Letra')}
           <input
             className="input mono"
-            aria-label={`${prefix}Letra`}
+            aria-label={prefix + t('Letra')}
             maxLength={1}
             value={c.letter}
             onChange={(e) => {
@@ -142,7 +143,7 @@ export function CollectionsSettings() {
       toast.show(ok)
       return true
     } catch (e) {
-      setError(e instanceof IpcCallError ? e.message : 'No se ha podido guardar.')
+      setError(e instanceof IpcCallError ? e.message : t('No se ha podido guardar.'))
       return false
     }
   }
@@ -150,12 +151,11 @@ export function CollectionsSettings() {
   return (
     <section className="settings-block" data-testid="collections-settings">
       <div>
-        <h2>Colecciones</h2>
+        <h2>{t('Colecciones')}</h2>
         <p className="desc">
-          Tablas propias para lo que necesites (proveedores, ideas, equipos…). Cada colección
-          aparece en la barra lateral y funciona como las demás: campos, vistas, relaciones,
-          fórmulas, búsqueda y papelera. Sus campos se añaden desde la propia colección, con «⚙
-          Ajustes».
+          {t(
+            'Tablas propias para lo que necesites (proveedores, ideas, equipos…). Cada colección aparece en la barra lateral y funciona como las demás: campos, vistas, relaciones, fórmulas, búsqueda y papelera. Sus campos se añaden desde la propia colección, con «⚙ Ajustes».',
+          )}
         </p>
       </div>
       <div className="settings-body settings-body-wide">
@@ -170,13 +170,13 @@ export function CollectionsSettings() {
                     gender: e.gender,
                     letter: e.letter ?? '',
                   }}
-                  submit="Guardar"
+                  submit={t('Guardar')}
                   onSubmit={(c) =>
-                    run(call('data:updateCollection', { id: e.id, ...c }), 'Colección guardada.')
+                    run(call('data:updateCollection', { id: e.id, ...c }), t('Colección guardada.'))
                   }
                   extra={
                     <button type="button" className="btn btn-danger" onClick={() => setConfirm(e)}>
-                      Borrar…
+                      {t('Borrar…')}
                     </button>
                   }
                 />
@@ -184,14 +184,14 @@ export function CollectionsSettings() {
             ))}
           </ul>
         )}
-        <h3 className="panel-subtitle">Nueva colección</h3>
+        <h3 className="panel-subtitle">{t('Nueva colección')}</h3>
         <CollectionForm
           initial={EMPTY_COLLECTION}
-          submit="Crear colección"
+          submit={t('Crear colección')}
           onSubmit={(c) =>
             run(
               call('data:createCollection', c),
-              `«${c.label.trim()}» ya está en la barra lateral.`,
+              t('«{name}» ya está en la barra lateral.', { name: c.label.trim() }),
             )
           }
         />
@@ -200,25 +200,29 @@ export function CollectionsSettings() {
       {confirm && (
         <>
           <div className="overlay" onClick={() => setConfirm(null)} />
-          <div className="dialog" role="dialog" aria-label="Borrar colección">
-            <h2>¿Borrar la colección «{confirm.label}»?</h2>
+          <div className="dialog" role="dialog" aria-label={t('Borrar colección')}>
+            <h2>{t('¿Borrar la colección «{name}»?', { name: confirm.label })}</h2>
             <p className="muted">
-              Solo se puede borrar vacía: se borran sus campos, sus vistas y lo que tenga en la
-              papelera. No se puede deshacer.
+              {t(
+                'Solo se puede borrar vacía: se borran sus campos, sus vistas y lo que tenga en la papelera. No se puede deshacer.',
+              )}
             </p>
             <div className="form-actions">
               <button
                 type="button"
                 className="btn btn-danger"
                 onClick={() => {
-                  void run(call('data:deleteCollection', { id: confirm.id }), 'Colección borrada.')
+                  void run(
+                    call('data:deleteCollection', { id: confirm.id }),
+                    t('Colección borrada.'),
+                  )
                   setConfirm(null)
                 }}
               >
-                Borrar colección
+                {t('Borrar colección')}
               </button>
               <button type="button" className="btn" onClick={() => setConfirm(null)}>
-                Cancelar
+                {t('Cancelar')}
               </button>
             </div>
           </div>

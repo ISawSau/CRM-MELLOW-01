@@ -7,6 +7,7 @@ import { LinkedInToggle } from '../platforms/LinkedInToggle'
 import { useLinkedInStatus, usePlatformAccounts } from '../platforms/platforms'
 import { ProfileSettings } from './ProfileSettings'
 import { useSyncStatus } from './sync'
+import { t, tc, tn } from '@shared/i18n'
 
 type Tab = 'datos' | 'cuentas'
 
@@ -45,7 +46,8 @@ function AccountCard({
   )
 }
 
-const when = (iso: string | null) => (iso ? `Última vez: ${formatDateTime(new Date(iso))}` : null)
+const when = (iso: string | null) =>
+  iso ? t('Última vez: {date}', { date: formatDateTime(new Date(iso)) }) : null
 
 /** Resumen de todas las cuentas y servicios conectados. */
 function Accounts({ onNavigate }: { onNavigate: (section: string) => void }) {
@@ -56,7 +58,6 @@ function Accounts({ onNavigate }: { onNavigate: (section: string) => void }) {
   const other = usePlatformAccounts().data ?? []
   const xAccounts = other.filter((a) => a.platform === 'x')
   const liAccounts = other.filter((a) => a.platform === 'linkedin' && a.enabled)
-  const n = (k: number, one: string, many: string) => `${k} ${k === 1 ? one : many}`
   return (
     <div className="profile-accounts">
       <ul className="account-cards">
@@ -66,24 +67,36 @@ function Accounts({ onNavigate }: { onNavigate: (section: string) => void }) {
           tone={!meta?.connected ? 'off' : meta.phase === 'error' ? 'error' : 'ok'}
           state={
             meta?.connected
-              ? `Conectado${meta.user ? ` como ${meta.user}` : ''} (solo lectura) · ${n(metaAccounts.length, 'cuenta activada', 'cuentas activadas')}`
-              : 'Sin conectar'
+              ? t(
+                  meta.user
+                    ? 'Conectado como {user} (solo lectura) · {accounts}'
+                    : 'Conectado (solo lectura) · {accounts}',
+                  {
+                    user: meta.user ?? '',
+                    accounts: tn(
+                      metaAccounts.length,
+                      '{n} cuenta activada',
+                      '{n} cuentas activadas',
+                    ),
+                  },
+                )
+              : t('Sin conectar')
           }
           detail={meta?.error ?? when(meta?.lastSyncAt ?? null)}
-          action={meta?.connected ? 'Gestionar' : 'Conectar'}
+          action={meta?.connected ? t('Gestionar') : t('Conectar')}
           onAction={() => onNavigate('campanas')}
         />
         <AccountCard
           testId="account-sync"
-          name="Sincronización y copias"
+          name={t('Sincronización y copias')}
           tone={!sync?.kind ? 'off' : sync.phase === 'error' ? 'error' : 'ok'}
           state={
             sync?.kind
-              ? `${sync.kind === 'drive' ? 'Google Drive' : 'Carpeta'}${sync.label ? ` · ${sync.label}` : ''}`
-              : 'Sin configurar: la bóveda solo está en este equipo'
+              ? `${sync.kind === 'drive' ? 'Google Drive' : t('Carpeta')}${sync.label ? ` · ${t(sync.label)}` : ''}`
+              : t('Sin configurar: la bóveda solo está en este equipo')
           }
           detail={sync?.error ?? when(sync?.lastSyncAt ?? null)}
-          action="Configurar"
+          action={t('Configurar')}
           onAction={() => onNavigate('ajustes')}
         />
         <AccountCard
@@ -92,10 +105,12 @@ function Accounts({ onNavigate }: { onNavigate: (section: string) => void }) {
           tone={xAccounts.length ? 'ok' : 'off'}
           state={
             xAccounts.length
-              ? `${n(xAccounts.length, 'cuenta', 'cuentas')} por CSV`
-              : 'Sin cuentas: se importan con los CSV de X Ads'
+              ? t('{accounts} por CSV', {
+                  accounts: tn(xAccounts.length, '{n} cuenta', '{n} cuentas'),
+                })
+              : t('Sin cuentas: se importan con los CSV de X Ads')
           }
-          action="Abrir"
+          action={t('Abrir')}
           onAction={() => onNavigate('plataformas')}
         />
         {linkedin?.enabled && (
@@ -105,11 +120,13 @@ function Accounts({ onNavigate }: { onNavigate: (section: string) => void }) {
             tone={!linkedin.connected ? 'off' : linkedin.error ? 'error' : 'ok'}
             state={
               linkedin.connected
-                ? `Conectado (solo lectura) · ${n(liAccounts.length, 'cuenta activada', 'cuentas activadas')}`
-                : 'Activado, sin conectar'
+                ? t('Conectado (solo lectura) · {accounts}', {
+                    accounts: tn(liAccounts.length, '{n} cuenta activada', '{n} cuentas activadas'),
+                  })
+                : t('Activado, sin conectar')
             }
             detail={linkedin.error ?? when(linkedin.lastSyncAt)}
-            action="Gestionar"
+            action={t('Gestionar')}
             onAction={() => onNavigate('plataformas')}
           />
         )}
@@ -133,13 +150,13 @@ export function ProfilePage({ onNavigate }: { onNavigate: (section: string) => v
         {profile?.photo && <img className="profile-photo" src={profile.photo} alt="" />}
         <div>
           <span className="eyebrow">
-            <span className="num">00</span> perfil
+            <span className="num">00</span> {t('perfil')}
           </span>
-          <h1 className="title">{profile?.name.trim() || 'Perfil'}</h1>
+          <h1 className="title">{profile?.name.trim() || t('Perfil')}</h1>
           {profile?.company && <p className="muted">{profile.company}</p>}
         </div>
       </div>
-      <div className="tabs" role="tablist" aria-label="Perfil">
+      <div className="tabs" role="tablist" aria-label={t('Perfil')}>
         {(
           [
             ['datos', 'Datos'],
@@ -154,7 +171,7 @@ export function ProfilePage({ onNavigate }: { onNavigate: (section: string) => v
             onClick={() => setTab(id)}
             data-testid={`profile-tab-${id}`}
           >
-            {label}
+            {tc('perfil', label)}
           </button>
         ))}
       </div>

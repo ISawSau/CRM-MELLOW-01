@@ -1,5 +1,5 @@
 import { ipcMain, type IpcMainInvokeEvent } from 'electron'
-import { AppError, ERROR_MESSAGES, type IpcResult } from '@shared/errors'
+import { AppError, errorMessage, type IpcResult } from '@shared/errors'
 import { ipcSchemas, type IpcChannel, type IpcOutput, type IpcParsedInput } from '@shared/ipc'
 
 export type IpcHandlers = {
@@ -23,13 +23,13 @@ export function registerIpc(
   for (const channel of Object.keys(ipcSchemas) as IpcChannel[]) {
     ipcMain.handle(channel, async (event, raw: unknown): Promise<IpcResult<unknown>> => {
       if (!isTrustedSender(event)) {
-        return { ok: false, error: { code: 'UNKNOWN', message: ERROR_MESSAGES.UNKNOWN } }
+        return { ok: false, error: { code: 'UNKNOWN', message: errorMessage('UNKNOWN') } }
       }
       const parsed = ipcSchemas[channel].safeParse(raw)
       if (!parsed.success) {
         return {
           ok: false,
-          error: { code: 'INVALID_INPUT', message: ERROR_MESSAGES.INVALID_INPUT },
+          error: { code: 'INVALID_INPUT', message: errorMessage('INVALID_INPUT') },
         }
       }
       try {
@@ -47,7 +47,7 @@ export function registerIpc(
           }
         }
         console.error(`[ipc] ${channel}:`, e instanceof Error ? e.message : 'error desconocido')
-        return { ok: false, error: { code: 'UNKNOWN', message: ERROR_MESSAGES.UNKNOWN } }
+        return { ok: false, error: { code: 'UNKNOWN', message: errorMessage('UNKNOWN') } }
       }
     })
   }

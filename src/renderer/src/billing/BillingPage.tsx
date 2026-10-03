@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { shiftDate } from '@shared/data/dates'
 import { formatCurrency, formatNumber } from '@shared/format'
+import { t, tc, tn } from '@shared/i18n'
 import { call } from '../lib/ipc'
 import { useNav } from '../data/nav'
 import { useToday } from '../analysis/kit'
@@ -66,19 +67,18 @@ export function BillingPage({ num, onNavigate }: { num: string; onNavigate: (s: 
     <div className="page page-wide" data-testid="page-facturacion">
       <div className="section-head">
         <span className="eyebrow">
-          <span className="num">{num}</span> negocio
+          <span className="num">{num}</span> {t('negocio')}
         </span>
-        <h1 className="title">Facturación</h1>
+        <h1 className="title">{t('Facturación')}</h1>
         <p className="muted">
-          Beneficio por cliente: lo facturado y cobrado, los gastos asociados, la inversión
-          publicitaria (Meta, LinkedIn y X) y lo previsto por el acuerdo de cada cliente. Las
-          facturas se emiten con tu programa de facturación (que cumpla Verifactu) y aquí se
-          registran.
+          {t(
+            'Beneficio por cliente: lo facturado y cobrado, los gastos asociados, la inversión publicitaria (Meta, LinkedIn y X) y lo previsto por el acuerdo de cada cliente. Las facturas se emiten con tu programa de facturación (que cumpla Verifactu) y aquí se registran.',
+          )}
         </p>
       </div>
       <div className="meta-toolbar">
         <div className="field">
-          <label htmlFor="bill-period">Periodo</label>
+          <label htmlFor="bill-period">{t('Periodo')}</label>
           <select
             id="bill-period"
             className="input"
@@ -87,7 +87,7 @@ export function BillingPage({ num, onNavigate }: { num: string; onNavigate: (s: 
           >
             {Object.entries(PERIOD_LABELS).map(([k, l]) => (
               <option key={k} value={k}>
-                {l}
+                {tc('facturacion', l)}
               </option>
             ))}
           </select>
@@ -97,10 +97,10 @@ export function BillingPage({ num, onNavigate }: { num: string; onNavigate: (s: 
         </span>
         <span className="form-actions">
           <button type="button" className="btn" onClick={() => onNavigate('facturas')}>
-            Facturas
+            {t('Facturas')}
           </button>
           <button type="button" className="btn" onClick={() => onNavigate('gastos')}>
-            Gastos
+            {t('Gastos')}
           </button>
         </span>
       </div>
@@ -108,21 +108,23 @@ export function BillingPage({ num, onNavigate }: { num: string; onNavigate: (s: 
         <>
           {s.partial && (
             <p className="hint danger-text">
-              Faltan tipos de cambio de alguna moneda: esos importes no se han sumado.
+              {t('Faltan tipos de cambio de alguna moneda: esos importes no se han sumado.')}
             </p>
           )}
           <div className="kpis" data-testid="billing-kpis">
             {(['facturado', 'cobrado', 'pendiente', 'beneficio'] as const).map((k) => (
               <div key={k} className="kpi">
-                <span className="kpi-label">{COLUMNS.find((c) => c[0] === k)![1]}</span>
+                <span className="kpi-label">{t(COLUMNS.find((c) => c[0] === k)![1])}</span>
                 <span className="kpi-value num">{money(s.totals[k])}</span>
                 <span className="kpi-hint faint">
                   {k === 'facturado'
-                    ? `${formatNumber(s.totals.facturas, 0)} facturas`
+                    ? tn(s.totals.facturas, '{n} factura', '{n} facturas', {
+                        n: formatNumber(s.totals.facturas, 0),
+                      })
                     : k === 'pendiente'
-                      ? `${money(s.totals.vencido)} vencido`
+                      ? t('{amount} vencido', { amount: money(s.totals.vencido) })
                       : k === 'beneficio'
-                        ? 'cobrado − gastos'
+                        ? t('cobrado − gastos')
                         : ''}
                 </span>
               </div>
@@ -132,10 +134,10 @@ export function BillingPage({ num, onNavigate }: { num: string; onNavigate: (s: 
             <table className="meta-table" data-testid="billing-table">
               <thead>
                 <tr>
-                  <th>Cliente</th>
+                  <th>{t('Cliente')}</th>
                   {COLUMNS.map(([k, l]) => (
                     <th key={k} className="num">
-                      {l}
+                      {tc('facturacion', l)}
                     </th>
                   ))}
                 </tr>
@@ -170,7 +172,7 @@ export function BillingPage({ num, onNavigate }: { num: string; onNavigate: (s: 
                 {s.rows.length === 0 && (
                   <tr>
                     <td colSpan={COLUMNS.length + 1} className="faint">
-                      Nada en este periodo. Registra facturas y gastos en sus secciones.
+                      {t('Nada en este periodo. Registra facturas y gastos en sus secciones.')}
                     </td>
                   </tr>
                 )}
@@ -178,7 +180,7 @@ export function BillingPage({ num, onNavigate }: { num: string; onNavigate: (s: 
               {s.rows.length > 0 && (
                 <tfoot>
                   <tr>
-                    <td>Total</td>
+                    <td>{t('Total')}</td>
                     {COLUMNS.map(([k]) => (
                       <td key={k} className="num">
                         {money(s.totals[k])}
@@ -189,7 +191,7 @@ export function BillingPage({ num, onNavigate }: { num: string; onNavigate: (s: 
               )}
             </table>
           </div>
-          <h3 className="panel-subtitle">Facturas vencidas</h3>
+          <h3 className="panel-subtitle">{t('Facturas vencidas')}</h3>
           <ul className="event-list" data-testid="overdue">
             {s.overdue.map((o) => (
               <li key={o.id}>
@@ -204,17 +206,25 @@ export function BillingPage({ num, onNavigate }: { num: string; onNavigate: (s: 
                 <span>{o.client}</span>
                 <span className="num">{formatCurrency(o.total, o.currency)}</span>
                 <span className="danger-text num">
-                  venció el {isoToEs(o.vencimiento)} (hace {formatNumber(o.days, 0)}{' '}
-                  {o.days === 1 ? 'día' : 'días'})
+                  {tn(
+                    o.days,
+                    'venció el {date} (hace {n} día)',
+                    'venció el {date} (hace {n} días)',
+                    {
+                      date: isoToEs(o.vencimiento),
+                      n: formatNumber(o.days, 0),
+                    },
+                  )}
                 </span>
               </li>
             ))}
-            {s.overdue.length === 0 && <li className="faint">Ninguna factura vencida.</li>}
+            {s.overdue.length === 0 && <li className="faint">{t('Ninguna factura vencida.')}</li>}
           </ul>
           <p className="hint">
-            Importes en {s.currency}, convertidos con el tipo del BCE de cada fecha. El fee se
-            prorratea por los días del periodo y el porcentaje se calcula sobre la inversión en las
-            cuentas publicitarias asignadas al cliente.
+            {t(
+              'Importes en {currency}, convertidos con el tipo del BCE de cada fecha. El fee se prorratea por los días del periodo y el porcentaje se calcula sobre la inversión en las cuentas publicitarias asignadas al cliente.',
+              { currency: s.currency },
+            )}
           </p>
         </>
       )}

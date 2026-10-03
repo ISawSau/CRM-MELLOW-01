@@ -18,6 +18,7 @@ import { Alert } from '../ui/Alert'
 import { SECTION_GROUPS } from '../shell/sections'
 import { applyAppearance } from './apply'
 import { ThemeBackground } from './ThemeBackground'
+import { t } from '@shared/i18n'
 
 type ColorKey = keyof ThemeColors
 
@@ -112,7 +113,7 @@ function ColorRow({
       <span className="theme-color-label">{label}</span>
       <input
         className="input mono theme-hex"
-        aria-label={`${label} (código)`}
+        aria-label={t('{label} (código)', { label })}
         value={text ?? hex}
         maxLength={7}
         onBlur={() => setText(null)}
@@ -126,7 +127,7 @@ function ColorRow({
           <input
             type="number"
             className="input num"
-            aria-label={`Opacidad de ${label.toLowerCase()}`}
+            aria-label={t('Opacidad de {label}', { label: label.toLowerCase() })}
             min={0}
             max={100}
             value={Math.round(c.a * 100)}
@@ -191,17 +192,17 @@ export function ThemeEditor({
 
   const save = async () => {
     setError(null)
-    const t = { ...draft, name: draft.name.trim() }
-    if (!t.name) return setError('Ponle un nombre al tema.')
-    const list = isNew ? [...themes, t] : themes.map((x) => (x.id === t.id ? t : x))
+    const th = { ...draft, name: draft.name.trim() }
+    if (!th.name) return setError(t('Ponle un nombre al tema.'))
+    const list = isNew ? [...themes, th] : themes.map((x) => (x.id === th.id ? th : x))
     try {
       committed.current = true
       await call('settings:setThemes', { themes: list })
-      await call('settings:setAppearance', { theme: t.id, density })
+      await call('settings:setAppearance', { theme: th.id, density })
       onClose()
     } catch (e) {
       committed.current = false
-      setError(e instanceof IpcCallError ? e.message : 'No se ha podido guardar el tema.')
+      setError(e instanceof IpcCallError ? e.message : t('No se ha podido guardar el tema.'))
     }
   }
 
@@ -212,7 +213,7 @@ export function ThemeEditor({
       onClose()
     } catch (e) {
       committed.current = false
-      setError(e instanceof IpcCallError ? e.message : 'No se ha podido borrar el tema.')
+      setError(e instanceof IpcCallError ? e.message : t('No se ha podido borrar el tema.'))
     }
   }
 
@@ -222,7 +223,7 @@ export function ThemeEditor({
       {draft.background && <ThemeBackground key={draft.background.fileId} bg={draft.background} />}
       <div className="theme-editor-head">
         <div className="field">
-          <label htmlFor="theme-name">Nombre del tema</label>
+          <label htmlFor="theme-name">{t('Nombre del tema')}</label>
           <input
             id="theme-name"
             className="input"
@@ -232,22 +233,22 @@ export function ThemeEditor({
           />
         </div>
         <div className="field">
-          <label htmlFor="theme-scheme">Tipo</label>
+          <label htmlFor="theme-scheme">{t('Tipo')}</label>
           <select
             id="theme-scheme"
             className="input"
             value={draft.scheme}
             onChange={(e) => setDraft({ ...draft, scheme: e.target.value as Theme['scheme'] })}
           >
-            <option value="dark">Oscuro</option>
-            <option value="light">Claro</option>
+            <option value="dark">{t('Oscuro')}</option>
+            <option value="light">{t('Claro')}</option>
           </select>
           <span className="hint">
-            Ajusta los controles del sistema (barras de desplazamiento…).
+            {t('Ajusta los controles del sistema (barras de desplazamiento…).')}
           </span>
         </div>
         <div className="field">
-          <label htmlFor="theme-base">Partir de</label>
+          <label htmlFor="theme-base">{t('Partir de')}</label>
           <select
             id="theme-base"
             className="input"
@@ -257,12 +258,12 @@ export function ThemeEditor({
               setDraft({ ...draft, scheme: b.scheme, colors: b.colors, options: b.options })
             }}
           >
-            <option value="">Elegir un tema…</option>
+            <option value="">{t('Elegir un tema…')}</option>
             {[...BUILT_IN_THEMES, ...themes]
-              .filter((t) => t.id !== draft.id)
-              .map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name}
+              .filter((th) => th.id !== draft.id)
+              .map((th) => (
+                <option key={th.id} value={th.id}>
+                  {t(th.name)}
                 </option>
               ))}
           </select>
@@ -272,11 +273,11 @@ export function ThemeEditor({
       <div className="theme-groups">
         {GROUPS.map((g) => (
           <fieldset key={g.title} className="theme-group">
-            <legend>{g.title}</legend>
+            <legend>{t(g.title)}</legend>
             {g.keys.map(([k, label]) => (
               <ColorRow
                 key={k}
-                label={label}
+                label={t(label)}
                 value={draft.colors[k]}
                 onChange={(v) => setColor(k, v)}
               />
@@ -284,20 +285,20 @@ export function ThemeEditor({
           </fieldset>
         ))}
         <fieldset className="theme-group theme-group-wide">
-          <legend>Etiquetas (fondo y texto)</legend>
+          <legend>{t('Etiquetas (fondo y texto)')}</legend>
           <div className="theme-options">
             {OPTION_COLORS.map((o) => (
               <div key={o} className="theme-option">
                 <span className="chip" data-color={o}>
-                  {OPTION_LABELS[o]}
+                  {t(OPTION_LABELS[o])}
                 </span>
                 <ColorRow
-                  label={`Fondo ${OPTION_LABELS[o].toLowerCase()}`}
+                  label={t('Fondo {color}', { color: t(OPTION_LABELS[o]).toLowerCase() })}
                   value={draft.options[o].bg}
                   onChange={(v) => setOption(o, 'bg', v)}
                 />
                 <ColorRow
-                  label={`Texto ${OPTION_LABELS[o].toLowerCase()}`}
+                  label={t('Texto {color}', { color: t(OPTION_LABELS[o]).toLowerCase() })}
                   value={draft.options[o].text}
                   onChange={(v) => setOption(o, 'text', v)}
                 />
@@ -306,15 +307,15 @@ export function ThemeEditor({
           </div>
         </fieldset>
         <fieldset className="theme-group">
-          <legend>Forma</legend>
+          <legend>{t('Forma')}</legend>
           <label className="theme-range">
-            <span>Esquinas redondeadas</span>
+            <span>{t('Esquinas redondeadas')}</span>
             <input
               type="range"
               min={0}
               max={24}
               value={draft.radius}
-              aria-label="Redondeo de esquinas"
+              aria-label={t('Redondeo de esquinas')}
               onChange={(e) => setDraft({ ...draft, radius: Number(e.target.value) })}
             />
             <span className="num faint">{draft.radius} px</span>
@@ -325,16 +326,16 @@ export function ThemeEditor({
           onChange={(background) => setDraft({ ...draft, background })}
         />
         <fieldset className="theme-group theme-group-wide">
-          <legend>Iconos de la barra lateral</legend>
+          <legend>{t('Iconos de la barra lateral')}</legend>
           <p className="hint">
-            Una o dos letras, una cifra o un emoji por sección. Vacío: la letra de serie.
+            {t('Una o dos letras, una cifra o un emoji por sección. Vacío: la letra de serie.')}
           </p>
           <div className="theme-icons">
             {SECTION_GROUPS.flatMap((g) => g.sections).map((sec) => (
               <label key={sec.id} className="theme-icon">
                 <input
                   className="input"
-                  aria-label={`Icono de ${sec.label}`}
+                  aria-label={t('Icono de {section}', { section: t(sec.label) })}
                   placeholder={sec.letter}
                   maxLength={8}
                   value={draft.icons[sec.id] ?? ''}
@@ -346,7 +347,7 @@ export function ThemeEditor({
                     setDraft({ ...draft, icons })
                   }}
                 />
-                <span>{sec.label}</span>
+                <span>{t(sec.label)}</span>
               </label>
             ))}
           </div>
@@ -357,15 +358,16 @@ export function ThemeEditor({
         {issues.length === 0 ? (
           <p className="report-saved">
             <span className="marker" aria-hidden="true" />
-            <span>Todo el texto cumple el contraste AA (4,5:1).</span>
+            <span>{t('Todo el texto cumple el contraste AA (4,5:1).')}</span>
           </p>
         ) : (
           <Alert>
-            <strong>Poco contraste</strong> (mínimo 4,5:1, se puede guardar igualmente):
+            <strong>{t('Poco contraste')}</strong>{' '}
+            {t('(mínimo 4,5:1, se puede guardar igualmente):')}
             <ul>
               {issues.map((i) => (
                 <li key={i.label}>
-                  {i.label}: {formatNumber(i.ratio, 1)}:1
+                  {t(i.label)}: {formatNumber(i.ratio, 1)}:1
                 </li>
               ))}
             </ul>
@@ -376,24 +378,24 @@ export function ThemeEditor({
       {error && <Alert>{error}</Alert>}
       <div className="form-actions">
         <button type="button" className="btn btn-primary" onClick={() => void save()}>
-          Guardar tema
+          {t('Guardar tema')}
         </button>
         <button type="button" className="btn" onClick={onClose}>
-          Cancelar
+          {t('Cancelar')}
         </button>
         {!isNew &&
           (confirmDelete ? (
             <>
               <button type="button" className="btn btn-danger" onClick={() => void remove()}>
-                Sí, borrar «{draft.name}»
+                {t('Sí, borrar «{name}»', { name: draft.name })}
               </button>
               <button type="button" className="btn" onClick={() => setConfirmDelete(false)}>
-                No
+                {t('No')}
               </button>
             </>
           ) : (
             <button type="button" className="btn btn-danger" onClick={() => setConfirmDelete(true)}>
-              Borrar tema
+              {t('Borrar tema')}
             </button>
           ))}
       </div>
@@ -404,12 +406,16 @@ export function ThemeEditor({
 /** Copia de un tema como punto de partida de uno nuevo. */
 export function newThemeFrom(base: Theme, existing: Theme[]): Theme {
   let n = 1
-  const names = new Set([...BUILT_IN_THEMES, ...existing].map((t) => t.name))
-  while (names.has(`${base.name} (copia${n > 1 ? ` ${n}` : ''})`)) n++
+  const names = new Set([...BUILT_IN_THEMES, ...existing].map((th) => th.name))
+  const copyName = (k: number) =>
+    k > 1
+      ? t('{name} (copia {n})', { name: t(base.name), n: k })
+      : t('{name} (copia)', { name: t(base.name) })
+  while (names.has(copyName(n))) n++
   return {
     ...base,
     id: `propio-${Date.now().toString(36)}`,
-    name: `${base.name} (copia${n > 1 ? ` ${n}` : ''})`,
+    name: copyName(n),
   }
 }
 
@@ -432,7 +438,7 @@ function BackgroundEditor({
         : file.mime.startsWith('image/')
           ? 'image'
           : null
-      if (!kind) return setError('Elige una imagen (JPG, PNG, WebP…) o un vídeo (MP4, WebM).')
+      if (!kind) return setError(t('Elige una imagen (JPG, PNG, WebP…) o un vídeo (MP4, WebM).'))
       onChange({
         fileId: file.id,
         kind,
@@ -441,64 +447,64 @@ function BackgroundEditor({
         blur: value?.blur ?? 0,
       })
     } catch (e) {
-      setError(e instanceof IpcCallError ? e.message : 'No se ha podido añadir el archivo.')
+      setError(e instanceof IpcCallError ? e.message : t('No se ha podido añadir el archivo.'))
     }
   }
   return (
     <fieldset className="theme-group">
-      <legend>Fondo</legend>
+      <legend>{t('Fondo')}</legend>
       <div className="form-actions">
         <button type="button" className="btn" onClick={() => void pick()}>
-          {value ? 'Cambiar imagen o vídeo…' : 'Elegir imagen o vídeo…'}
+          {value ? t('Cambiar imagen o vídeo…') : t('Elegir imagen o vídeo…')}
         </button>
         {value && (
           <button type="button" className="btn" onClick={() => onChange(null)}>
-            Quitar fondo
+            {t('Quitar fondo')}
           </button>
         )}
       </div>
       {value && (
         <>
           <label className="theme-range">
-            <span>Velo del color de fondo</span>
+            <span>{t('Velo del color de fondo')}</span>
             <input
               type="range"
               min={0}
               max={100}
               value={Math.round(value.dim * 100)}
-              aria-label="Velo del fondo"
+              aria-label={t('Velo del fondo')}
               onChange={(e) => onChange({ ...value, dim: Number(e.target.value) / 100 })}
             />
             <span className="num faint">{Math.round(value.dim * 100)} %</span>
           </label>
           <label className="theme-range">
-            <span>Desenfoque</span>
+            <span>{t('Desenfoque')}</span>
             <input
               type="range"
               min={0}
               max={30}
               value={value.blur}
-              aria-label="Desenfoque del fondo"
+              aria-label={t('Desenfoque del fondo')}
               onChange={(e) => onChange({ ...value, blur: Number(e.target.value) })}
             />
             <span className="num faint">{value.blur} px</span>
           </label>
           <label className="theme-range">
-            <span>Ajuste</span>
+            <span>{t('Ajuste')}</span>
             <select
               className="input"
               value={value.fit}
               onChange={(e) => onChange({ ...value, fit: e.target.value as 'cover' | 'contain' })}
             >
-              <option value="cover">Cubrir la ventana</option>
-              <option value="contain">Entera</option>
+              <option value="cover">{t('Cubrir la ventana')}</option>
+              <option value="contain">{t('Entera')}</option>
             </select>
           </label>
         </>
       )}
       <p className="hint">
-        {value?.kind === 'video' ? 'Vídeo sin sonido y en bucle. ' : ''}Se guarda cifrado en la
-        bóveda. No viaja al exportar el tema.
+        {value?.kind === 'video' ? `${t('Vídeo sin sonido y en bucle.')} ` : ''}
+        {t('Se guarda cifrado en la bóveda. No viaja al exportar el tema.')}
       </p>
       {error && <Alert>{error}</Alert>}
     </fieldset>

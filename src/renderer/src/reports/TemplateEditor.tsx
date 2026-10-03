@@ -11,6 +11,7 @@ import {
   type ReportTemplate,
 } from '@shared/reports'
 import type { MetricDef } from '@shared/meta-metrics'
+import { t } from '@shared/i18n'
 import { call, IpcCallError } from '../lib/ipc'
 import { useToast } from '../ui/Toast'
 import { MetricSelect, useMetricKit } from '../analysis/kit'
@@ -57,12 +58,12 @@ export function TemplateEditor() {
   const [selected, setSelected] = useState(0)
   const [saving, setSaving] = useState(false)
   const list = draft ?? saved ?? []
-  const t = list[Math.min(selected, list.length - 1)]
+  const tpl = list[Math.min(selected, list.length - 1)]
   const dirty = draft !== null
 
   const update = (next: ReportTemplate) =>
     setDraft(list.map((x, i) => (i === Math.min(selected, list.length - 1) ? next : x)))
-  const setBlocks = (blocks: ReportBlock[]) => t && update({ ...t, blocks })
+  const setBlocks = (blocks: ReportBlock[]) => tpl && update({ ...tpl, blocks })
 
   const save = async () => {
     setSaving(true)
@@ -70,20 +71,20 @@ export function TemplateEditor() {
       const r = await call('reports:setTemplates', { templates: list })
       qc.setQueryData(['data', 'reports', 'templates'], r)
       setDraft(null)
-      toast.show('Plantillas guardadas.')
+      toast.show(t('Plantillas guardadas.'))
     } catch (e) {
-      toast.show(e instanceof IpcCallError ? e.message : 'No se han podido guardar.', 'error')
+      toast.show(e instanceof IpcCallError ? e.message : t('No se han podido guardar.'), 'error')
     } finally {
       setSaving(false)
     }
   }
 
-  if (!t) return null
+  if (!tpl) return null
   return (
     <div className="template-editor" data-testid="template-editor">
       <div className="template-bar">
         <div className="field">
-          <label htmlFor="tpl-select">Plantilla</label>
+          <label htmlFor="tpl-select">{t('Plantilla')}</label>
           <select
             id="tpl-select"
             className="input"
@@ -92,19 +93,19 @@ export function TemplateEditor() {
           >
             {list.map((x, i) => (
               <option key={x.id} value={i}>
-                {x.name}
+                {t(x.name)}
               </option>
             ))}
           </select>
         </div>
         <div className="field">
-          <label htmlFor="tpl-name">Nombre</label>
+          <label htmlFor="tpl-name">{t('Nombre')}</label>
           <input
             id="tpl-name"
             className="input"
             maxLength={80}
-            value={t.name}
-            onChange={(e) => update({ ...t, name: e.target.value })}
+            value={tpl.name}
+            onChange={(e) => update({ ...tpl, name: e.target.value })}
           />
         </div>
         <span className="form-actions">
@@ -112,49 +113,55 @@ export function TemplateEditor() {
             type="button"
             className="btn"
             onClick={() => {
-              setDraft([...list, { ...t, id: newId('p'), name: `${t.name} (copia)` }])
+              setDraft([
+                ...list,
+                { ...tpl, id: newId('p'), name: t('{name} (copia)', { name: tpl.name }) },
+              ])
               setSelected(list.length)
             }}
           >
-            Duplicar
+            {t('Duplicar')}
           </button>
           <button
             type="button"
             className="btn"
             onClick={() => {
-              setDraft([...list, { ...DEFAULT_TEMPLATE, id: newId('p'), name: 'Nueva plantilla' }])
+              setDraft([
+                ...list,
+                { ...DEFAULT_TEMPLATE, id: newId('p'), name: t('Nueva plantilla') },
+              ])
               setSelected(list.length)
             }}
           >
-            + Plantilla
+            {t('+ Plantilla')}
           </button>
           <button
             type="button"
             className="btn btn-danger"
             disabled={list.length <= 1}
             onClick={() => {
-              setDraft(list.filter((x) => x.id !== t.id))
+              setDraft(list.filter((x) => x.id !== tpl.id))
               setSelected(0)
             }}
           >
-            Eliminar
+            {t('Eliminar')}
           </button>
         </span>
       </div>
 
       <ol className="block-list">
-        {t.blocks.map((b, i) => (
+        {tpl.blocks.map((b, i) => (
           <li key={b.id} className="block-item" data-testid="report-block">
             <div className="block-head">
-              <span className="block-kind">{BLOCK_LABELS[b.kind]}</span>
+              <span className="block-kind">{t(BLOCK_LABELS[b.kind])}</span>
               <span className="form-actions">
                 <button
                   type="button"
                   className="icon-btn"
-                  aria-label={`Subir ${BLOCK_LABELS[b.kind]}`}
+                  aria-label={t('Subir {block}', { block: t(BLOCK_LABELS[b.kind]) })}
                   disabled={i === 0}
                   onClick={() => {
-                    const next = [...t.blocks]
+                    const next = [...tpl.blocks]
                     next.splice(i - 1, 0, next.splice(i, 1)[0]!)
                     setBlocks(next)
                   }}
@@ -164,10 +171,10 @@ export function TemplateEditor() {
                 <button
                   type="button"
                   className="icon-btn"
-                  aria-label={`Bajar ${BLOCK_LABELS[b.kind]}`}
-                  disabled={i === t.blocks.length - 1}
+                  aria-label={t('Bajar {block}', { block: t(BLOCK_LABELS[b.kind]) })}
+                  disabled={i === tpl.blocks.length - 1}
                   onClick={() => {
-                    const next = [...t.blocks]
+                    const next = [...tpl.blocks]
                     next.splice(i + 1, 0, next.splice(i, 1)[0]!)
                     setBlocks(next)
                   }}
@@ -177,9 +184,9 @@ export function TemplateEditor() {
                 <button
                   type="button"
                   className="icon-btn"
-                  aria-label={`Quitar ${BLOCK_LABELS[b.kind]}`}
-                  disabled={t.blocks.length <= 1}
-                  onClick={() => setBlocks(t.blocks.filter((x) => x.id !== b.id))}
+                  aria-label={t('Quitar {title}', { title: t(BLOCK_LABELS[b.kind]) })}
+                  disabled={tpl.blocks.length <= 1}
+                  onClick={() => setBlocks(tpl.blocks.filter((x) => x.id !== b.id))}
                 >
                   ×
                 </button>
@@ -187,14 +194,14 @@ export function TemplateEditor() {
             </div>
             <BlockOptions
               block={b}
-              onChange={(nb) => setBlocks(t.blocks.map((x) => (x.id === b.id ? nb : x)))}
+              onChange={(nb) => setBlocks(tpl.blocks.map((x) => (x.id === b.id ? nb : x)))}
             />
           </li>
         ))}
       </ol>
 
       <div className="form-actions">
-        <AddBlock onAdd={(kind) => setBlocks([...t.blocks, newBlock(kind)])} />
+        <AddBlock onAdd={(kind) => setBlocks([...tpl.blocks, newBlock(kind)])} />
       </div>
       <div className="form-actions template-save">
         <button
@@ -203,11 +210,11 @@ export function TemplateEditor() {
           disabled={!dirty || saving || list.some((x) => !x.name.trim())}
           onClick={() => void save()}
         >
-          Guardar plantillas
+          {t('Guardar plantillas')}
         </button>
         {dirty && (
           <button type="button" className="btn" onClick={() => setDraft(null)}>
-            Descartar cambios
+            {t('Descartar cambios')}
           </button>
         )}
       </div>
@@ -220,7 +227,7 @@ function AddBlock({ onAdd }: { onAdd: (k: ReportBlockKind) => void }) {
   return (
     <>
       <div className="field">
-        <label htmlFor="tpl-add">Añadir bloque</label>
+        <label htmlFor="tpl-add">{t('Añadir bloque')}</label>
         <select
           id="tpl-add"
           className="input"
@@ -229,13 +236,13 @@ function AddBlock({ onAdd }: { onAdd: (k: ReportBlockKind) => void }) {
         >
           {Object.entries(BLOCK_LABELS).map(([k, l]) => (
             <option key={k} value={k}>
-              {l}
+              {t(l)}
             </option>
           ))}
         </select>
       </div>
       <button type="button" className="btn" onClick={() => onAdd(kind)}>
-        + Bloque
+        {t('+ Bloque')}
       </button>
     </>
   )
@@ -250,15 +257,17 @@ function BlockOptions({
 }) {
   const { defs } = useMetricKit()
   if (b.kind === 'portada')
-    return <p className="hint">Cliente, periodo, moneda y tu nombre o empresa (del perfil).</p>
+    return (
+      <p className="hint">{t('Cliente, periodo, moneda y tu nombre o empresa (del perfil).')}</p>
+    )
   const title = (
     <div className="field">
-      <label htmlFor={`${b.id}-title`}>Título</label>
+      <label htmlFor={`${b.id}-title`}>{t('Título')}</label>
       <input
         id={`${b.id}-title`}
         className="input"
         maxLength={120}
-        placeholder={BLOCK_LABELS[b.kind]}
+        placeholder={t(BLOCK_LABELS[b.kind])}
         value={b.title}
         onChange={(e) => onChange({ ...b, title: e.target.value })}
       />
@@ -266,7 +275,7 @@ function BlockOptions({
   )
   const group = (value: ReportGroup, set: (g: ReportGroup) => void) => (
     <div className="field">
-      <label htmlFor={`${b.id}-group`}>Por</label>
+      <label htmlFor={`${b.id}-group`}>{t('Por')}</label>
       <select
         id={`${b.id}-group`}
         className="input"
@@ -275,7 +284,7 @@ function BlockOptions({
       >
         {REPORT_GROUPS.map((g) => (
           <option key={g} value={g}>
-            {GROUP_LABELS[g]}
+            {t(GROUP_LABELS[g])}
           </option>
         ))}
       </select>
@@ -283,7 +292,7 @@ function BlockOptions({
   )
   const limit = (value: number, max: number, set: (n: number) => void) => (
     <div className="field">
-      <label htmlFor={`${b.id}-limit`}>Filas</label>
+      <label htmlFor={`${b.id}-limit`}>{t('Filas')}</label>
       <input
         id={`${b.id}-limit`}
         className="input"
@@ -316,7 +325,7 @@ function BlockOptions({
               checked={b.compare}
               onChange={(e) => onChange({ ...b, compare: e.target.checked })}
             />
-            <span>Variación frente al periodo anterior</span>
+            <span>{t('Variación frente al periodo anterior')}</span>
           </label>
         </div>
       )
@@ -336,7 +345,7 @@ function BlockOptions({
               checked={b.compare}
               onChange={(e) => onChange({ ...b, compare: e.target.checked })}
             />
-            <span>Con el periodo anterior</span>
+            <span>{t('Con el periodo anterior')}</span>
           </label>
         </div>
       )
@@ -381,15 +390,15 @@ function BlockOptions({
             onChange={(metrics) => onChange({ ...b, metrics })}
           />
           <div className="field">
-            <label htmlFor={`${b.id}-compare`}>Frente a</label>
+            <label htmlFor={`${b.id}-compare`}>{t('Frente a')}</label>
             <select
               id={`${b.id}-compare`}
               className="input"
               value={b.compare}
               onChange={(e) => onChange({ ...b, compare: e.target.value as 'previous' | 'year' })}
             >
-              <option value="previous">El periodo anterior</option>
-              <option value="year">El mismo periodo del año anterior</option>
+              <option value="previous">{t('El periodo anterior')}</option>
+              <option value="year">{t('El mismo periodo del año anterior')}</option>
             </select>
           </div>
         </div>
@@ -399,7 +408,7 @@ function BlockOptions({
         <div className="block-options">
           {title}
           <div className="field block-text">
-            <label htmlFor={`${b.id}-text`}>Texto</label>
+            <label htmlFor={`${b.id}-text`}>{t('Texto')}</label>
             <textarea
               id={`${b.id}-text`}
               className="input textarea"
@@ -416,7 +425,7 @@ function BlockOptions({
         <div className="block-options">
           {title}
           <p className="hint">
-            Lo que escribas en «Comentarios del periodo» al generar el informe.
+            {t('Lo que escribas en «Comentarios del periodo» al generar el informe.')}
           </p>
         </div>
       )
@@ -446,7 +455,7 @@ function MetricList({
             <button
               type="button"
               className="icon-btn"
-              aria-label={`Quitar ${defs.get(k)?.label ?? k}`}
+              aria-label={t('Quitar {title}', { title: defs.get(k)?.label ?? k })}
               disabled={value.length <= 1}
               onClick={() => onChange(value.filter((x) => x !== k))}
             >
@@ -458,7 +467,7 @@ function MetricList({
       <span className="metric-add">
         <MetricSelect
           id={`${id}-add`}
-          label="Añadir métrica"
+          label={t('Añadir métrica')}
           value={pick}
           defs={defs}
           onChange={setPick}
@@ -469,7 +478,7 @@ function MetricList({
           disabled={value.includes(pick) || value.length >= max}
           onClick={() => onChange([...value, pick])}
         >
-          Añadir
+          {t('Añadir')}
         </button>
       </span>
     </div>

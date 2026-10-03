@@ -17,11 +17,14 @@
  *   VERDADERO, FALSO
  */
 
+import { t } from '../i18n'
+
 export type FormulaValue = number | string | boolean | null
 
 export class FormulaError extends Error {
-  constructor(message: string) {
-    super(message)
+  /** `message` va en español; se traduce al idioma de la interfaz (variables entre llaves). */
+  constructor(message: string, vars?: Record<string, string | number>) {
+    super(t(message, vars))
     this.name = 'FormulaError'
   }
 }
@@ -46,7 +49,9 @@ const OPERATORS = ['<=', '>=', '<>', '!=', '+', '-', '*', '/', '%', '^', '&', '=
 
 function tokenize(src: string): Token[] {
   if (src.length > MAX_LENGTH)
-    throw new FormulaError(`La fórmula es demasiado larga (máximo ${MAX_LENGTH} caracteres).`)
+    throw new FormulaError('La fórmula es demasiado larga (máximo {max} caracteres).', {
+      max: MAX_LENGTH,
+    })
   const out: Token[] = []
   let i = 0
   while (i < src.length) {
@@ -93,7 +98,7 @@ function tokenize(src: string): Token[] {
       i++
     } else {
       const op = OPERATORS.find((o) => src.startsWith(o, i))
-      if (!op) throw new FormulaError(`Carácter no válido: «${c}».`)
+      if (!op) throw new FormulaError('Carácter no válido: «{c}».', { c })
       out.push({ t: 'op', v: op })
       i += op.length
     }
@@ -212,8 +217,10 @@ export function parseFormula(src: string): Node {
             } while (peek().t === ',' && next())
           }
           depth--
-          if (next().t !== ')') throw new FormulaError(`Falta cerrar el paréntesis de ${up}.`)
-          if (!FUNCTIONS.has(up)) throw new FormulaError(`La función ${t.v} no existe.`)
+          if (next().t !== ')')
+            throw new FormulaError('Falta cerrar el paréntesis de {name}.', { name: up })
+          if (!FUNCTIONS.has(up))
+            throw new FormulaError('La función {name} no existe.', { name: t.v })
           return { k: 'call', name: up, args }
         }
         if (up === 'VERDADERO' || up === 'TRUE') return { k: 'bool', v: true }
@@ -223,12 +230,12 @@ export function parseFormula(src: string): Node {
       case 'end':
         throw new FormulaError('La fórmula está incompleta.')
       default:
-        throw new FormulaError(`No se esperaba «${t.v}».`)
+        throw new FormulaError('No se esperaba «{token}».', { token: t.v })
     }
   }
 
   const ast = comparison()
-  if (peek().t !== 'end') throw new FormulaError(`No se esperaba «${peek().v}».`)
+  if (peek().t !== 'end') throw new FormulaError('No se esperaba «{token}».', { token: peek().v })
   return ast
 }
 
@@ -260,7 +267,7 @@ function toNumber(v: FormulaValue): number {
   if (typeof v === 'boolean') return v ? 1 : 0
   const n = Number(v.trim().replace(',', '.'))
   if (v.trim() === '' || !Number.isFinite(n))
-    throw new FormulaError(`Se esperaba un número y llegó «${v}».`)
+    throw new FormulaError('Se esperaba un número y llegó «{value}».', { value: v })
   return n
 }
 
@@ -290,7 +297,7 @@ const DAY_MS = 86_400_000
 function dateToDays(v: FormulaValue): number {
   const s = toText(v)
   const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s)
-  if (!m) throw new FormulaError(`Se esperaba una fecha y llegó «${s}».`)
+  if (!m) throw new FormulaError('Se esperaba una fecha y llegó «{value}».', { value: s })
   return Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])) / DAY_MS
 }
 
@@ -311,8 +318,17 @@ type Fn = (args: Node[], ctx: EvalContext, ev: (n: Node) => FormulaValue) => For
 const all = (args: Node[], ev: (n: Node) => FormulaValue) => args.map(ev)
 const arity = (name: string, args: Node[], min: number, max = min) => {
   if (args.length < min || args.length > max) {
-    const n = min === max ? `${min}` : `entre ${min} y ${max}`
-    throw new FormulaError(`${name} necesita ${n} argumento${max === 1 ? '' : 's'}.`)
+    if (min === max)
+      throw new FormulaError(
+        max === 1 ? '{name} necesita {n} argumento.' : '{name} necesita {n} argumentos.',
+        { name, n: min },
+      )
+    throw new FormulaError(
+      max === 1
+        ? '{name} necesita entre {min} y {max} argumento.'
+        : '{name} necesita entre {min} y {max} argumentos.',
+      { name, min, max },
+    )
   }
 }
 
@@ -423,7 +439,8 @@ export function evaluate(node: Node, ctx: EvalContext): FormulaValue {
       case 'bool':
         return n.v
       case 'field': {
-        if (!ctx.fields.has(n.key)) throw new FormulaError(`No existe ningún campo «${n.key}».`)
+        if (!ctx.fields.has(n.key))
+          throw new FormulaError('No existe ningún campo «{key}».', { key: n.key })
         return ctx.fields.get(n.key) ?? null
       }
       case 'call':
@@ -469,7 +486,7 @@ export function evaluate(node: Node, ctx: EvalContext): FormulaValue {
           case '>=':
             return compare(a, b) >= 0
         }
-        throw new FormulaError(`Operador desconocido «${n.op}».`)
+        throw new FormulaError('Operador desconocido «{op}».', { op: n.op })
       }
     }
   }
@@ -485,6 +502,6 @@ export function runFormula(src: string, ctx: EvalContext): FormulaResult {
     return { ok: true, value: evaluate(parseFormula(src), ctx) }
   } catch (e) {
     if (e instanceof FormulaError) return { ok: false, error: e.message }
-    return { ok: false, error: 'Error en la fórmula.' }
+    return { ok: false, error: t('Error en la fórmula.') }
   }
 }

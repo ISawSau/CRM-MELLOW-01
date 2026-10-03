@@ -2,6 +2,8 @@ import { app, dialog, type BrowserWindow } from 'electron'
 import { closeSync, openSync, writeFileSync, writeSync } from 'node:fs'
 import { safeFileName } from '@shared/files'
 import { join } from 'node:path'
+import { t } from '@shared/i18n'
+import { uiField, uiView } from '../data/data-service'
 import type { VaultService } from '../vault/vault-service'
 import type { IpcHandlers } from './register'
 
@@ -32,25 +34,30 @@ export function createDataHandlers(
     'data:createCollection': (input) => vault.data.createCollection(input),
     'data:updateCollection': ({ id, ...input }) => vault.data.updateCollection(id, input),
     'data:deleteCollection': ({ id }) => vault.data.deleteCollection(id),
-    'data:fields': ({ entity, includeDeleted }) => vault.data.listFields(entity, includeDeleted),
+    // Campos y vistas salen con los textos de serie en el idioma activo (uiField, uiView).
+    'data:fields': ({ entity, includeDeleted }) =>
+      vault.data.listFields(entity, includeDeleted).map(uiField),
     'data:createField': ({ entity, label, type, config }) =>
-      vault.data.createField(entity, { label, type, ...(config ? { config } : {}) }),
-    'data:updateField': ({ id, ...patch }) => vault.data.updateField(id, patch),
-    'data:reorderFields': ({ entity, ids }) => vault.data.reorderFields(entity, ids),
+      uiField(vault.data.createField(entity, { label, type, ...(config ? { config } : {}) })),
+    'data:updateField': ({ id, ...patch }) => uiField(vault.data.updateField(id, patch)),
+    'data:reorderFields': ({ entity, ids }) => vault.data.reorderFields(entity, ids).map(uiField),
     'data:deleteField': ({ id }) => vault.data.deleteField(id),
-    'data:restoreField': ({ id }) => vault.data.restoreField(id),
+    'data:restoreField': ({ id }) => uiField(vault.data.restoreField(id)),
     'data:formulaProblem': ({ entity, expression, fieldId }) => {
       const self = fieldId ? vault.data.getField(fieldId) : undefined
       return vault.data.formulaProblem(entity, expression, self?.id, self?.key)
     },
 
-    'data:views': ({ entity }) => vault.data.listViews(entity),
-    'data:createView': ({ entity, name, kind }) => vault.data.createView(entity, name, kind),
+    'data:views': ({ entity }) => vault.data.listViews(entity).map(uiView),
+    'data:createView': ({ entity, name, kind }) =>
+      uiView(vault.data.createView(entity, name, kind)),
     'data:updateView': ({ id, name, config }) =>
-      vault.data.updateView(id, {
-        ...(name !== undefined ? { name } : {}),
-        ...(config ? { config } : {}),
-      }),
+      uiView(
+        vault.data.updateView(id, {
+          ...(name !== undefined ? { name } : {}),
+          ...(config ? { config } : {}),
+        }),
+      ),
     'data:deleteView': ({ id }) => vault.data.deleteView(id),
 
     'data:query': ({ entity, ...opts }) => vault.data.query(entity, opts),
@@ -58,13 +65,13 @@ export function createDataHandlers(
     'data:create': ({ entity, values, title }) =>
       vault.data.create(entity, values, title ? { title } : {}),
     'data:createInverseField': ({ fieldId, label, multiple }) =>
-      vault.data.createInverseField(fieldId, label, multiple),
+      uiField(vault.data.createInverseField(fieldId, label, multiple)),
     // Archivos: se eligen en el diálogo del sistema (la interfaz no puede pedir rutas).
     'files:pick': async () => {
       const win = getWindow()
       const options: Electron.OpenDialogOptions = {
-        title: 'Añadir archivos a la bóveda',
-        buttonLabel: 'Añadir',
+        title: t('Añadir archivos a la bóveda'),
+        buttonLabel: t('Añadir'),
         properties: ['openFile', 'multiSelections'],
       }
       const r = win
@@ -80,9 +87,9 @@ export function createDataHandlers(
       if (!vault.data.fileInfo(id)) return null
       const win = getWindow()
       const options: Electron.SaveDialogOptions = {
-        title: 'Guardar una copia del archivo',
+        title: t('Guardar una copia del archivo'),
         defaultPath: join(app.getPath('downloads'), safeFileName(name)),
-        buttonLabel: 'Guardar',
+        buttonLabel: t('Guardar'),
       }
       const r = win
         ? await dialog.showSaveDialog(win, options)
@@ -134,9 +141,9 @@ export function createDataHandlers(
       const { csv, filename } = vault.data.exportCsv(viewId)
       const win = getWindow()
       const options: Electron.SaveDialogOptions = {
-        title: 'Exportar a CSV',
+        title: t('Exportar a CSV'),
         defaultPath: join(app.getPath('documents'), filename),
-        buttonLabel: 'Exportar',
+        buttonLabel: t('Exportar'),
         filters: [{ name: 'CSV (Excel)', extensions: ['csv'] }],
       }
       const result = win

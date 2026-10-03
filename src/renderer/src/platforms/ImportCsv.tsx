@@ -1,6 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
 import { formatNumber } from '@shared/format'
+import { t } from '@shared/i18n'
 import {
   CSV_FIELDS,
   DATE_FORMATS,
@@ -53,19 +54,20 @@ export function ImportCsv({ onDone, linkedin }: { onDone: () => void; linkedin: 
     const text = await f.text()
     const rows = parseCsv(text)
     if (rows.length < 2) {
-      setError('El archivo no parece un CSV con datos.')
+      setError(t('El archivo no parece un CSV con datos.'))
       return
     }
-    const t = detectTable(rows)
-    setFile({ name: f.name, text, rows, headerRow: t.headerRow, headers: t.headers })
-    const saved = await call('platforms:savedMapping', { platform: p, headers: t.headers }).catch(
-      () => null,
-    )
+    const table = detectTable(rows)
+    setFile({ name: f.name, text, rows, headerRow: table.headerRow, headers: table.headers })
+    const saved = await call('platforms:savedMapping', {
+      platform: p,
+      headers: table.headers,
+    }).catch(() => null)
     setRemembered(saved !== null)
     setMapping(
       saved ?? {
-        columns: t.columns,
-        ...guessFormats(rows.slice(t.headerRow + 1), t.columns),
+        columns: table.columns,
+        ...guessFormats(rows.slice(table.headerRow + 1), table.columns),
         conversionsAs: 'compras',
       },
     )
@@ -117,7 +119,7 @@ export function ImportCsv({ onDone, linkedin }: { onDone: () => void; linkedin: 
       setFile(null)
       void qc.invalidateQueries({ queryKey: ['data'] })
     } catch (e) {
-      setError(e instanceof IpcCallError ? e.message : 'No se ha podido importar.')
+      setError(e instanceof IpcCallError ? e.message : t('No se ha podido importar.'))
     } finally {
       setBusy(false)
     }
@@ -126,7 +128,7 @@ export function ImportCsv({ onDone, linkedin }: { onDone: () => void; linkedin: 
   return (
     <div className="tool import-csv" data-testid="import-csv">
       <div className="field">
-        <label htmlFor="imp-platform">Plataforma</label>
+        <label htmlFor="imp-platform">{t('Plataforma')}</label>
         <select
           id="imp-platform"
           className="input"
@@ -142,14 +144,16 @@ export function ImportCsv({ onDone, linkedin }: { onDone: () => void; linkedin: 
         </select>
         <span className="hint">
           {platform === 'linkedin'
-            ? 'En Campaign Manager: Analizar → Exportar → informe de rendimiento de campañas, por día.'
-            : 'En X Ads: Exportar → por campaña y por día.'}
+            ? t(
+                'En Campaign Manager: Analizar → Exportar → informe de rendimiento de campañas, por día.',
+              )
+            : t('En X Ads: Exportar → por campaña y por día.')}
         </span>
       </div>
       <DropZone
         accept=".csv,text/csv"
         multiple={false}
-        hint="Arrastra aquí el CSV exportado."
+        hint={t('Arrastra aquí el CSV exportado.')}
         onFiles={(f) => void load(f[0]!, platform)}
         testId="csv-drop"
         disabled={busy}
@@ -159,14 +163,19 @@ export function ImportCsv({ onDone, linkedin }: { onDone: () => void; linkedin: 
         <p className="report-saved" data-testid="import-result">
           <span className="marker" aria-hidden="true" />
           <span>
-            Importados {formatNumber(result.rows, 0)} días de {formatNumber(result.campaigns, 0)}{' '}
-            campañas, del {isoToEs(result.since)} al {isoToEs(result.until)}
+            {t('Importados {rows} días de {campaigns} campañas, del {since} al {until}', {
+              rows: formatNumber(result.rows, 0),
+              campaigns: formatNumber(result.campaigns, 0),
+              since: isoToEs(result.since),
+              until: isoToEs(result.until),
+            })}
             {result.skipped
-              ? ` (${formatNumber(result.skipped, 0)} filas sin fecha o de totales)`
+              ? ' ' +
+                t('({n} filas sin fecha o de totales)', { n: formatNumber(result.skipped, 0) })
               : ''}
             .{' '}
             <button type="button" className="btn-link" onClick={onDone}>
-              Ver cuentas
+              {t('Ver cuentas')}
             </button>
           </span>
         </p>
@@ -174,17 +183,17 @@ export function ImportCsv({ onDone, linkedin }: { onDone: () => void; linkedin: 
       {file && mapping && (
         <>
           <p className="muted">
-            <strong>{file.name}</strong> · {formatNumber(file.rows.length - file.headerRow - 1, 0)}{' '}
-            filas
-            {remembered && ' · mapeo recordado de la última vez'}
+            <strong>{file.name}</strong> ·{' '}
+            {t('{n} filas', { n: formatNumber(file.rows.length - file.headerRow - 1, 0) })}
+            {remembered && ' · ' + t('mapeo recordado de la última vez')}
           </p>
           <fieldset className="tool-dest">
-            <legend>Columnas</legend>
+            <legend>{t('Columnas')}</legend>
             <div className="tool-options mapping-grid">
               {(Object.keys(CSV_FIELDS) as CsvField[]).map((f) => (
                 <div key={f} className="field">
                   <label htmlFor={`map-${f}`}>
-                    {CSV_FIELDS[f]}
+                    {t(CSV_FIELDS[f])}
                     {REQUIRED_FIELDS.includes(f) ? ' *' : ''}
                   </label>
                   <select
@@ -204,14 +213,14 @@ export function ImportCsv({ onDone, linkedin }: { onDone: () => void; linkedin: 
                     <option value="">—</option>
                     {file.headers.map((h, i) => (
                       <option key={i} value={i}>
-                        {h || `Columna ${i + 1}`}
+                        {h || t('Columna {n}', { n: i + 1 })}
                       </option>
                     ))}
                   </select>
                 </div>
               ))}
               <div className="field">
-                <label htmlFor="map-date">Formato de fecha</label>
+                <label htmlFor="map-date">{t('Formato de fecha')}</label>
                 <select
                   id="map-date"
                   className="input"
@@ -222,25 +231,25 @@ export function ImportCsv({ onDone, linkedin }: { onDone: () => void; linkedin: 
                 >
                   {Object.entries(DATE_FORMATS).map(([k, l]) => (
                     <option key={k} value={k}>
-                      {l}
+                      {t(l)}
                     </option>
                   ))}
                 </select>
               </div>
               <div className="field">
-                <label htmlFor="map-decimal">Decimales</label>
+                <label htmlFor="map-decimal">{t('Decimales')}</label>
                 <select
                   id="map-decimal"
                   className="input"
                   value={mapping.decimal}
                   onChange={(e) => setMapping({ ...mapping, decimal: e.target.value as ',' | '.' })}
                 >
-                  <option value=",">Coma (1.234,56)</option>
-                  <option value=".">Punto (1,234.56)</option>
+                  <option value=",">{t('Coma (1.234,56)')}</option>
+                  <option value=".">{t('Punto (1,234.56)')}</option>
                 </select>
               </div>
               <div className="field">
-                <label htmlFor="map-conv">Las conversiones son</label>
+                <label htmlFor="map-conv">{t('Las conversiones son')}</label>
                 <select
                   id="map-conv"
                   className="input"
@@ -249,32 +258,34 @@ export function ImportCsv({ onDone, linkedin }: { onDone: () => void; linkedin: 
                     setMapping({ ...mapping, conversionsAs: e.target.value as 'compras' | 'otras' })
                   }
                 >
-                  <option value="compras">Compras (cuentan en ROAS y CPA)</option>
-                  <option value="otras">Otras conversiones (leads…)</option>
+                  <option value="compras">{t('Compras (cuentan en ROAS y CPA)')}</option>
+                  <option value="otras">{t('Otras conversiones (leads…)')}</option>
                 </select>
               </div>
             </div>
           </fieldset>
           {missing.length > 0 && (
             <p className="danger-text">
-              Falta asignar: {missing.map((f) => CSV_FIELDS[f]).join(', ')}.
+              {t('Falta asignar: {fields}.', {
+                fields: missing.map((f) => t(CSV_FIELDS[f])).join(', '),
+              })}
             </p>
           )}
           <div className="meta-table-scroll">
             <table className="meta-table" data-testid="csv-preview">
               <thead>
                 <tr>
-                  <th>Fecha</th>
-                  <th>Campaña</th>
-                  <th className="num">Importe</th>
-                  <th className="num">Impresiones</th>
+                  <th>{t('Fecha')}</th>
+                  <th>{t('Campaña')}</th>
+                  <th className="num">{t('Importe')}</th>
+                  <th className="num">{t('Impresiones')}</th>
                 </tr>
               </thead>
               <tbody>
                 {preview.map((r, i) => (
                   <tr key={i}>
                     <td className={r.date ? 'num' : 'danger-text'}>
-                      {r.date ? isoToEs(r.date) : 'sin fecha'}
+                      {r.date ? isoToEs(r.date) : t('sin fecha')}
                     </td>
                     <td>{r.campaign}</td>
                     <td className="num">{r.spend === null ? '—' : formatNumber(r.spend, 2)}</td>
@@ -287,16 +298,16 @@ export function ImportCsv({ onDone, linkedin }: { onDone: () => void; linkedin: 
             </table>
           </div>
           <fieldset className="tool-dest">
-            <legend>Cuenta</legend>
+            <legend>{t('Cuenta')}</legend>
             <div className="field">
-              <label htmlFor="imp-account">Importar en</label>
+              <label htmlFor="imp-account">{t('Importar en')}</label>
               <select
                 id="imp-account"
                 className="input"
                 value={accountId}
                 onChange={(e) => setAccountId(e.target.value)}
               >
-                <option value="">Una cuenta nueva</option>
+                <option value="">{t('Una cuenta nueva')}</option>
                 {own.map((a) => (
                   <option key={a.id} value={a.id}>
                     {a.name}
@@ -307,7 +318,7 @@ export function ImportCsv({ onDone, linkedin }: { onDone: () => void; linkedin: 
             {!accountId && (
               <>
                 <div className="field">
-                  <label htmlFor="imp-name">Nombre de la cuenta</label>
+                  <label htmlFor="imp-name">{t('Nombre de la cuenta')}</label>
                   <input
                     id="imp-name"
                     className="input"
@@ -317,7 +328,7 @@ export function ImportCsv({ onDone, linkedin }: { onDone: () => void; linkedin: 
                   />
                 </div>
                 <div className="field">
-                  <label htmlFor="imp-currency">Moneda de los importes</label>
+                  <label htmlFor="imp-currency">{t('Moneda de los importes')}</label>
                   <select
                     id="imp-currency"
                     className="input"
@@ -341,10 +352,12 @@ export function ImportCsv({ onDone, linkedin }: { onDone: () => void; linkedin: 
               disabled={busy || missing.length > 0 || !accountOk}
               onClick={() => void run()}
             >
-              {busy ? 'Importando…' : `Importar en ${PLATFORMS[platform]}`}
+              {busy
+                ? t('Importando…')
+                : t('Importar en {platform}', { platform: PLATFORMS[platform] })}
             </button>
             <span className="faint">
-              Si ya habías importado esas fechas, se sustituyen (no se duplican).
+              {t('Si ya habías importado esas fechas, se sustituyen (no se duplican).')}
             </span>
           </div>
         </>

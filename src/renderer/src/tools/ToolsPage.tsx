@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { t } from '@shared/i18n'
 import { ImageTool } from './ImageTool'
 import { PdfTool } from './PdfTool'
 import { VideoTool } from './VideoTool'
@@ -12,16 +13,16 @@ export function ToolsPage({ num }: { num: string }) {
     <div className="page" data-testid="page-herramientas">
       <div className="section-head">
         <span className="eyebrow">
-          <span className="num">{num}</span> negocio
+          <span className="num">{num}</span> {t('negocio')}
         </span>
-        <h1 className="title">Herramientas</h1>
+        <h1 className="title">{t('Herramientas')}</h1>
         <p className="muted">
-          Comprime y convierte imágenes, PDF y vídeos sin salir de la app. Todo se procesa en tu
-          ordenador: el resultado se guarda cifrado en Documentos o se exporta a la carpeta que
-          elijas.
+          {t(
+            'Comprime y convierte imágenes, PDF y vídeos sin salir de la app. Todo se procesa en tu ordenador: el resultado se guarda cifrado en Documentos o se exporta a la carpeta que elijas.',
+          )}
         </p>
       </div>
-      <div className="tabs" role="tablist" aria-label="Herramientas">
+      <div className="tabs" role="tablist" aria-label={t('Herramientas')}>
         {(
           [
             ['imagenes', 'Imágenes'],
@@ -37,7 +38,7 @@ export function ToolsPage({ num }: { num: string }) {
             onClick={() => setTab(id)}
             data-testid={`tools-tab-${id}`}
           >
-            {label}
+            {t(label)}
           </button>
         ))}
       </div>

@@ -673,3 +673,12 @@ El usuario no quiere escribir comandos de desarrollo para usar la app. Los insta
 - **Exportar** guarda un JSON (`formato: crm-mellow-tema`) donde elige el usuario. No incluye el id ni el fondo, que es un archivo de esta bóveda.
 - **Importar** acepta ese archivo o el JSON pegado. Admite el objeto del tema solo y el bloque de código con el que suelen responder las IA. Se valida con el mismo esquema y explica qué campo falla.
 - **Crear con IA:** no hay IA dentro de la app, porque costaría dinero (regla de cero costes). La app copia unas instrucciones para cualquier chat de IA: la descripción del usuario, la estructura con el tema actual de ejemplo y las reglas de contraste. El usuario pega la respuesta en Importar.
+
+### D-090 · Interfaz en inglés, sin dependencias
+
+- Petición del usuario: poder cambiar a inglés desde la pantalla de contraseña, con formatos ingleses. Cambia la regla «toda la interfaz en español» de CLAUDE.md, con la aprobación expresa del usuario, que eligió «toda la app» y «formato inglés».
+- **Sin biblioteca de traducciones:** un `t()` propio de unas líneas (`src/shared/i18n`). El texto en español es la clave del diccionario inglés, así que el español sigue siendo el texto de origen y los tests en español no cambian. Hay variables `{x}`, plurales con `tn()` y contexto con `tc()` para palabras con dos sentidos («Beneficio»: *benefit* o *profit*).
+- **Datos de serie y datos del usuario:** el proceso principal traduce al leerlos los nombres de entidades, campos, opciones y vistas. Lo que el usuario escribió no está en el diccionario y no cambia. Si se guarda un texto de serie tal y como se vio traducido, en la bóveda se queda el original en español.
+- **Formatos:** `en-GB` (1,234.56, dd/mm/aaaa, semana desde el lunes). Los números que escribe el usuario se leen según el idioma.
+- **Dónde se guarda:** en la configuración mínima de fuera de la bóveda, junto a la ruta de la última bóveda. Hace falta antes de desbloquear y no es un dato del usuario. Al cambiar de idioma la ventana se recarga y vuelve a la misma sección. El proceso principal usa el idioma para sus mensajes y para el `--lang` de Chromium.
+- **Cobertura:** un test recorre `src` y falla si un texto pasado a `t()`/`tn()`/`tc()` no tiene traducción o usa `${}`, que debe ir como variable. Ahora hay unos 1.800 textos traducidos. Las fórmulas siguen con sus funciones en español (SI, Y, O…), porque son la sintaxis de los datos.

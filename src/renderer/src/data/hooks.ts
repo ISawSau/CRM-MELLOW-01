@@ -5,6 +5,7 @@ import type { FieldDef } from '@shared/data/fields'
 import type { EntityInfo } from '@shared/ipc'
 import type { DataChange, UndoState } from '@shared/data/records'
 import type { Filter, Sort, View } from '@shared/data/views'
+import { t } from '@shared/i18n'
 import { call, subscribe } from '../lib/ipc'
 import { withCollections } from '../shell/sections'
 
@@ -144,8 +145,8 @@ export function useEntityLookup(): (id: string) => EntityInfo | undefined {
       return sys
         ? {
             id: sys.id,
-            label: sys.label,
-            singular: sys.singular,
+            label: t(sys.label),
+            singular: t(sys.singular),
             gender: sys.gender,
             titleKey: sys.titleKey,
             custom: false,

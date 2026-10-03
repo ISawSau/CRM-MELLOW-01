@@ -7,6 +7,7 @@ import { call, IpcCallError } from '../lib/ipc'
 import { Alert } from '../ui/Alert'
 import { useToast } from '../ui/Toast'
 import { syncSummary, useSyncStatus } from './sync'
+import { t, tn } from '@shared/i18n'
 
 const REASONS: Record<string, string> = {
   automatica: 'Automática',
@@ -18,14 +19,14 @@ const REASONS: Record<string, string> = {
 }
 
 function reasonLabel(r: string): string {
-  if (REASONS[r]) return REASONS[r]
-  if (r.startsWith('antes-de-migrar')) return 'Antes de actualizar la app'
-  if (r.startsWith('automatica')) return 'Automática'
+  if (REASONS[r]) return t(REASONS[r])
+  if (r.startsWith('antes-de-migrar')) return t('Antes de actualizar la app')
+  if (r.startsWith('automatica')) return t('Automática')
   return r
 }
 
 function errorText(e: unknown): string {
-  return e instanceof IpcCallError ? e.message : 'No se pudo completar.'
+  return e instanceof IpcCallError ? e.message : t('No se pudo completar.')
 }
 
 function GoogleForm({ onDone }: { onDone: () => void }) {
@@ -37,34 +38,42 @@ function GoogleForm({ onDone }: { onDone: () => void }) {
     <div className="google-form">
       <ol className="steps">
         <li>
-          Entra en <strong>console.cloud.google.com</strong> con tu cuenta de Google y crea un
-          proyecto (gratis), por ejemplo «CRM Mellow».
+          {t('Entra en')} <strong>console.cloud.google.com</strong>{' '}
+          {t('con tu cuenta de Google y crea un proyecto (gratis), por ejemplo «CRM Mellow».')}
         </li>
         <li>
-          En <strong>APIs y servicios → Biblioteca</strong>, busca y activa{' '}
-          <strong>Google Drive API</strong>.
+          {t('En')} <strong>{t('APIs y servicios → Biblioteca')}</strong>
+          {t(', busca y activa')} <strong>Google Drive API</strong>.
         </li>
         <li>
-          Abre <strong>Google Auth Platform</strong>: en <strong>Branding</strong> pon un nombre y
-          tu email; en <strong>Audience</strong> elige <strong>External</strong> (externo); en{' '}
-          <strong>Data Access</strong> añade el permiso <code>…/auth/drive.file</code>.
+          {t('Abre')} <strong>Google Auth Platform</strong>
+          {t(': en')} <strong>Branding</strong> {t('pon un nombre y tu email; en')}{' '}
+          <strong>Audience</strong> {t('elige')} <strong>External</strong> {t('(externo); en')}{' '}
+          <strong>Data Access</strong> {t('añade el permiso')} <code>…/auth/drive.file</code>.
         </li>
         <li>
-          En <strong>Audience</strong>, pulsa <strong>Publish app</strong> (publicar, en
-          producción). Con solo ese permiso Google no pide verificación y el acceso no caduca cada 7
-          días, como pasa en modo de pruebas.
+          {t('En')} <strong>Audience</strong>
+          {t(', pulsa')} <strong>Publish app</strong>{' '}
+          {t(
+            '(publicar, en producción). Con solo ese permiso Google no pide verificación y el acceso no caduca cada 7 días, como pasa en modo de pruebas.',
+          )}
         </li>
         <li>
-          En <strong>Clients → Create client</strong>, tipo <strong>Desktop app</strong> (app de
-          escritorio). Copia aquí el ID de cliente y, si Google te lo muestra, el secreto.
+          {t('En')} <strong>Clients → Create client</strong>
+          {t(', tipo')} <strong>Desktop app</strong>{' '}
+          {t(
+            '(app de escritorio). Copia aquí el ID de cliente y, si Google te lo muestra, el secreto.',
+          )}
         </li>
         <li>
-          Pulsa <strong>Conectar</strong>: se abrirá tu navegador para dar permiso. La app solo
-          podrá ver los archivos que ella misma cree en tu Drive.
+          {t('Pulsa')} <strong>{t('Conectar')}</strong>
+          {t(
+            ': se abrirá tu navegador para dar permiso. La app solo podrá ver los archivos que ella misma cree en tu Drive.',
+          )}
         </li>
       </ol>
       <div className="field">
-        <label htmlFor="g-id">ID de cliente</label>
+        <label htmlFor="g-id">{t('ID de cliente')}</label>
         <input
           id="g-id"
           className="input mono"
@@ -74,7 +83,7 @@ function GoogleForm({ onDone }: { onDone: () => void }) {
         />
       </div>
       <div className="field">
-        <label htmlFor="g-secret">Secreto de cliente</label>
+        <label htmlFor="g-secret">{t('Secreto de cliente')}</label>
         <input
           id="g-secret"
           className="input mono"
@@ -83,7 +92,7 @@ function GoogleForm({ onDone }: { onDone: () => void }) {
           value={clientSecret}
           onChange={(e) => setClientSecret(e.target.value)}
         />
-        <p className="hint">Se guarda dentro de la base de datos cifrada de la bóveda.</p>
+        <p className="hint">{t('Se guarda dentro de la base de datos cifrada de la bóveda.')}</p>
       </div>
       {error && <Alert>{error}</Alert>}
       <div className="form-actions">
@@ -100,7 +109,7 @@ function GoogleForm({ onDone }: { onDone: () => void }) {
               .finally(() => setBusy(false))
           }}
         >
-          {busy ? 'Esperando a Google…' : 'Conectar'}
+          {busy ? t('Esperando a Google…') : t('Conectar')}
         </button>
       </div>
     </div>
@@ -125,7 +134,7 @@ function Backups() {
       {cfg.data && (
         <div className="field-row">
           <div className="field">
-            <label htmlFor="bk-days">Copia automática cada</label>
+            <label htmlFor="bk-days">{t('Copia automática cada')}</label>
             <select
               id="bk-days"
               className="input"
@@ -134,13 +143,13 @@ function Backups() {
             >
               {[1, 2, 3, 5, 7, 14, 30].map((d) => (
                 <option key={d} value={d}>
-                  {d === 1 ? '1 día' : `${d} días`}
+                  {tn(d, '{n} día', '{n} días')}
                 </option>
               ))}
             </select>
           </div>
           <div className="field">
-            <label htmlFor="bk-keep">Conservar las últimas</label>
+            <label htmlFor="bk-keep">{t('Conservar las últimas')}</label>
             <select
               id="bk-keep"
               className="input"
@@ -163,7 +172,7 @@ function Backups() {
             checked={cfg.data.keepMonthly}
             onChange={(e) => setCfg({ keepMonthly: e.target.checked })}
           />
-          <span>Y además una por mes</span>
+          <span>{t('Y además una por mes')}</span>
         </label>
       )}
       <div className="form-actions">
@@ -174,13 +183,13 @@ function Backups() {
           onClick={() =>
             void call('backups:create')
               .then(() => {
-                toast.show('Copia de seguridad hecha.')
+                toast.show(t('Copia de seguridad hecha.'))
                 return refresh()
               })
               .catch((e: unknown) => toast.show(errorText(e), 'error'))
           }
         >
-          Hacer una copia ahora
+          {t('Hacer una copia ahora')}
         </button>
       </div>
       <ul className="backup-list" data-testid="backup-list">
@@ -190,26 +199,27 @@ function Backups() {
             <span className="muted">{reasonLabel(b.reason)}</span>
             <span className="faint num">{b.size !== null ? formatBytes(b.size) : '—'}</span>
             <span className="faint">
-              {[b.local ? 'aquí' : null, b.remote ? 'en el destino' : null]
+              {[b.local ? t('aquí') : null, b.remote ? t('en el destino') : null]
                 .filter(Boolean)
-                .join(' y ')}
+                .join(` ${t('y')} `)}
             </span>
             <button type="button" className="btn" onClick={() => setConfirm(b)}>
-              Restaurar
+              {t('Restaurar')}
             </button>
           </li>
         ))}
-        {list.data?.length === 0 && <li className="faint">Aún no hay copias.</li>}
+        {list.data?.length === 0 && <li className="faint">{t('Aún no hay copias.')}</li>}
       </ul>
       {confirm && (
         <>
           <div className="overlay" onClick={() => setConfirm(null)} />
           <div className="dialog" role="alertdialog" aria-modal="true" aria-labelledby="restore-t">
-            <h2 id="restore-t">¿Restaurar esta copia?</h2>
+            <h2 id="restore-t">{t('¿Restaurar esta copia?')}</h2>
             <p className="muted">
-              La bóveda volverá al {formatDateTime(new Date(confirm.date))}. Lo de ahora se guarda
-              antes como copia, así que no pierdes nada. Si la copia es de una contraseña anterior,
-              la bóveda se bloqueará y tendrás que entrar con aquella contraseña.
+              {t(
+                'La bóveda volverá al {date}. Lo de ahora se guarda antes como copia, así que no pierdes nada. Si la copia es de una contraseña anterior, la bóveda se bloqueará y tendrás que entrar con aquella contraseña.',
+                { date: formatDateTime(new Date(confirm.date)) },
+              )}
             </p>
             <div className="form-actions">
               <button
@@ -218,7 +228,7 @@ function Backups() {
                 autoFocus
                 onClick={() => setConfirm(null)}
               >
-                Cancelar
+                {t('Cancelar')}
               </button>
               <button
                 type="button"
@@ -231,15 +241,15 @@ function Backups() {
                     .then((r) => {
                       toast.show(
                         r === 'reopened'
-                          ? 'Copia restaurada.'
-                          : 'Copia restaurada: entra con su contraseña.',
+                          ? t('Copia restaurada.')
+                          : t('Copia restaurada: entra con su contraseña.'),
                       )
                       return qc.invalidateQueries()
                     })
                     .catch((e: unknown) => toast.show(errorText(e), 'error'))
                 }}
               >
-                Restaurar
+                {t('Restaurar')}
               </button>
             </div>
           </div>
@@ -260,18 +270,18 @@ export function SyncSettings() {
   return (
     <section className="settings-block" data-testid="sync-settings">
       <div>
-        <h2>Sincronización y copias</h2>
+        <h2>{t('Sincronización y copias')}</h2>
         <p className="desc">
-          Para usar la bóveda en varios equipos. Todo se sube ya cifrado: ni Google ni nadie ve tus
-          datos. Se sincroniza al abrir, al bloquear o cerrar, cada media hora si hay cambios y con
-          el botón de la barra de estado.
+          {t(
+            'Para usar la bóveda en varios equipos. Todo se sube ya cifrado: ni Google ni nadie ve tus datos. Se sincroniza al abrir, al bloquear o cerrar, cada media hora si hay cambios y con el botón de la barra de estado.',
+          )}
         </p>
       </div>
       <div className="settings-body settings-body-wide">
         <div className="sync-state">
           <span className={`marker marker-${summary.tone}`} aria-hidden="true" />
           <span>
-            <strong>{s?.kind ? s.label : 'Sin destino'}</strong>
+            <strong>{s?.kind ? t(s.label ?? '') : t('Sin destino')}</strong>
             <span className="muted"> · {summary.text}</span>
           </span>
         </div>
@@ -284,20 +294,20 @@ export function SyncSettings() {
                 className="btn btn-primary"
                 onClick={() => run(call('sync:now'))}
               >
-                Sincronizar ahora
+                {t('Sincronizar ahora')}
               </button>
               <button
                 type="button"
                 className="btn btn-danger"
                 onClick={() => run(call('sync:disconnect'))}
               >
-                Desconectar
+                {t('Desconectar')}
               </button>
             </>
           ) : (
             <>
               <button type="button" className="btn" onClick={() => setGoogle((g) => !g)}>
-                Conectar Google Drive…
+                {t('Conectar Google Drive…')}
               </button>
               <button
                 type="button"
@@ -305,19 +315,20 @@ export function SyncSettings() {
                 data-testid="sync-folder"
                 onClick={() => run(call('sync:pickFolder'))}
               >
-                Usar una carpeta…
+                {t('Usar una carpeta…')}
               </button>
             </>
           )}
         </div>
         {!s?.kind && (
           <p className="hint">
-            «Usar una carpeta» sirve para un USB, un disco de red o una carpeta que ya sincroniza
-            otro programa.
+            {t(
+              '«Usar una carpeta» sirve para un USB, un disco de red o una carpeta que ya sincroniza otro programa.',
+            )}
           </p>
         )}
         {google && !s?.kind && <GoogleForm onDone={() => setGoogle(false)} />}
-        <h3 className="panel-subtitle">Copias de seguridad</h3>
+        <h3 className="panel-subtitle">{t('Copias de seguridad')}</h3>
         <Backups />
       </div>
     </section>

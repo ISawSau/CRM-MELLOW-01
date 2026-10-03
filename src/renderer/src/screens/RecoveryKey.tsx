@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { call } from '../lib/ipc'
 import { Alert } from '../ui/Alert'
+import { t } from '@shared/i18n'
 
 /**
  * Muestra la clave de recuperación una sola vez. No se puede continuar sin
@@ -9,7 +10,7 @@ import { Alert } from '../ui/Alert'
 export function RecoveryKeyPanel({
   recoveryKey,
   onDone,
-  doneLabel = 'Continuar',
+  doneLabel,
 }: {
   recoveryKey: string
   onDone: () => void
@@ -31,17 +32,18 @@ export function RecoveryKeyPanel({
         <span className="recovery-key-line">{recoveryKey.slice(20)}</span>
       </p>
       <Alert tone="warning">
-        Guárdala fuera del ordenador (en papel o en un gestor de contraseñas). Si olvidas la
-        contraseña y pierdes esta clave, los datos de la bóveda{' '}
-        <strong>no se pueden recuperar</strong>: nadie puede, ni siquiera tú. Esta clave no se
-        volverá a mostrar.
+        {t(
+          'Guárdala fuera del ordenador (en papel o en un gestor de contraseñas). Si olvidas la contraseña y pierdes esta clave, los datos de la bóveda',
+        )}{' '}
+        <strong>{t('no se pueden recuperar')}</strong>
+        {t(': nadie puede, ni siquiera tú. Esta clave no se volverá a mostrar.')}
       </Alert>
       <div className="form-actions">
         <button type="button" className="btn" onClick={() => void copy()}>
-          Copiar clave
+          {t('Copiar clave')}
         </button>
         {copied && (
-          <span className="faint">Copiada. Se borrará del portapapeles en un minuto.</span>
+          <span className="faint">{t('Copiada. Se borrará del portapapeles en un minuto.')}</span>
         )}
       </div>
       <label className="check">
@@ -51,7 +53,7 @@ export function RecoveryKeyPanel({
           onChange={(e) => setSaved(e.target.checked)}
           data-testid="recovery-saved"
         />
-        <span>He guardado la clave de recuperación en un lugar seguro.</span>
+        <span>{t('He guardado la clave de recuperación en un lugar seguro.')}</span>
       </label>
       <div className="form-actions">
         <button
@@ -61,7 +63,7 @@ export function RecoveryKeyPanel({
           onClick={onDone}
           data-testid="recovery-continue"
         >
-          {doneLabel}
+          {doneLabel ?? t('Continuar')}
         </button>
       </div>
     </div>

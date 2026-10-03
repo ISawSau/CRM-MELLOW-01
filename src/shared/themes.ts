@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { themeIdSchema } from './appearance'
 import { OPTION_COLORS, type OptionColor } from './data/fields'
+import { t } from './i18n'
 
 /**
  * Temas de la interfaz (docs/DESIGN.md §3).
@@ -185,7 +186,7 @@ export const BUILT_IN_THEMES: readonly Theme[] = [
 export const DEFAULT_THEME = BUILT_IN_THEMES[0]!
 
 export function findTheme(id: string, themes: readonly Theme[] = BUILT_IN_THEMES): Theme {
-  return themes.find((t) => t.id === id) ?? DEFAULT_THEME
+  return themes.find((th) => th.id === id) ?? DEFAULT_THEME
 }
 
 const kebab = (k: string) => k.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`)
@@ -207,9 +208,9 @@ export const MAX_CUSTOM_THEMES = 30
 export const customThemesSchema = z
   .array(themeSchema)
   .max(MAX_CUSTOM_THEMES)
-  .refine((list) => new Set(list.map((t) => t.id)).size === list.length, 'Hay temas repetidos.')
+  .refine((list) => new Set(list.map((th) => th.id)).size === list.length, 'Hay temas repetidos.')
   .refine(
-    (list) => list.every((t) => !BUILT_IN_THEMES.some((b) => b.id === t.id)),
+    (list) => list.every((th) => !BUILT_IN_THEMES.some((b) => b.id === th.id)),
     'Un tema propio no puede usar el id de uno predefinido.',
   )
 
@@ -273,24 +274,24 @@ const OPTION_LABELS: Record<OptionColor, string> = {
 }
 
 /** Parejas de texto y fondo que no llegan al contraste AA (4,5:1). */
-export function contrastIssues(t: Theme): ContrastIssue[] {
-  const c = t.colors
+export function contrastIssues(theme: Theme): ContrastIssue[] {
+  const c = theme.colors
   const pairs: [string, string, string][] = [
-    ['Texto sobre el fondo', c.text, c.bg],
-    ['Texto sobre las superficies', c.text, c.bgRaised],
-    ['Texto secundario sobre el fondo', c.textMuted, c.bg],
-    ['Texto secundario sobre las superficies', c.textMuted, c.bgRaised],
-    ['Texto tenue sobre el fondo', c.textFaint, c.bg],
-    ['Texto de acento sobre el fondo', c.accentText, c.bg],
-    ['Texto sobre el botón de acento', c.onAccent, c.accent],
-    ['Numeración sobre el fondo', c.index, c.bg],
-    ['Correcto sobre el fondo', c.success, c.bg],
-    ['Error sobre el fondo', c.danger, c.bg],
-    ['Aviso sobre el fondo', c.warning, c.bg],
+    [t('Texto sobre el fondo'), c.text, c.bg],
+    [t('Texto sobre las superficies'), c.text, c.bgRaised],
+    [t('Texto secundario sobre el fondo'), c.textMuted, c.bg],
+    [t('Texto secundario sobre las superficies'), c.textMuted, c.bgRaised],
+    [t('Texto tenue sobre el fondo'), c.textFaint, c.bg],
+    [t('Texto de acento sobre el fondo'), c.accentText, c.bg],
+    [t('Texto sobre el botón de acento'), c.onAccent, c.accent],
+    [t('Numeración sobre el fondo'), c.index, c.bg],
+    [t('Correcto sobre el fondo'), c.success, c.bg],
+    [t('Error sobre el fondo'), c.danger, c.bg],
+    [t('Aviso sobre el fondo'), c.warning, c.bg],
     ...OPTION_COLORS.map((o): [string, string, string] => [
-      `Etiqueta ${OPTION_LABELS[o]}`,
-      t.options[o].text,
-      t.options[o].bg,
+      t('Etiqueta {color}', { color: t(OPTION_LABELS[o]) }),
+      theme.options[o].text,
+      theme.options[o].bg,
     ]),
   ]
   return pairs
@@ -303,8 +304,8 @@ export function contrastIssues(t: Theme): ContrastIssue[] {
 export const THEME_FILE_FORMAT = 'crm-mellow-tema'
 
 /** Tema listo para compartir: sin id ni fondo (el fondo es un archivo de esta bóveda). */
-export function exportTheme(t: Theme): string {
-  const tema: Partial<Theme> = { ...t }
+export function exportTheme(theme: Theme): string {
+  const tema: Partial<Theme> = { ...theme }
   delete tema.id
   delete tema.background
   return JSON.stringify({ formato: THEME_FILE_FORMAT, version: 1, tema }, null, 2)
@@ -323,7 +324,7 @@ export function importTheme(
     // Una IA suele envolverlo en un bloque de código: se quita.
     raw = JSON.parse(text.trim().replace(/^```(?:json)?\s*|\s*```$/g, ''))
   } catch {
-    return { ok: false, error: 'No es un JSON válido.' }
+    return { ok: false, error: t('No es un JSON válido.') }
   }
   const obj = raw as Record<string, unknown> | null
   const candidate = obj && typeof obj === 'object' && 'tema' in obj ? (obj['tema'] as unknown) : raw
@@ -335,9 +336,9 @@ export function importTheme(
   if (!r.success) {
     const first = r.error.issues
       .slice(0, 3)
-      .map((i) => `${i.path.join('.') || 'tema'}: ${i.message}`)
+      .map((i) => `${i.path.join('.') || t('tema')}: ${t(i.message)}`)
       .join('; ')
-    return { ok: false, error: `El tema no es válido (${first}).` }
+    return { ok: false, error: t('El tema no es válido ({detail}).', { detail: first }) }
   }
   return { ok: true, theme: r.data }
 }
@@ -345,16 +346,22 @@ export function importTheme(
 /** Instrucciones para pedir un tema a cualquier IA y pegarlo después en «Importar». */
 export function aiThemePrompt(example: Theme, wish: string): string {
   return [
-    'Crea un tema de colores para mi app de escritorio CRM Mellow.',
-    wish.trim() ? `Lo que quiero: ${wish.trim()}` : '',
-    'Responde SOLO con un JSON con exactamente esta estructura (mismas claves):',
+    t('Crea un tema de colores para mi app de escritorio CRM Mellow.'),
+    wish.trim() ? t('Lo que quiero: {wish}', { wish: wish.trim() }) : '',
+    t('Responde SOLO con un JSON con exactamente esta estructura (mismas claves):'),
     exportTheme(example),
-    'Reglas:',
-    '- Colores en formato #rrggbb (minúsculas). Solo "line", "lineStrong" y "shadow" pueden ser rgba(r, g, b, a).',
-    '- "scheme" es "dark" o "light" según el fondo.',
-    '- Contraste mínimo 4,5:1 entre cada texto y su fondo: text, textMuted, textFaint, accentText, index, success, danger y warning sobre bg; onAccent sobre accent; y en "options", text sobre bg.',
-    '- "radius" son píxeles de redondeo de esquinas (0 a 24).',
-    '- "icons" puede quedar vacío o dar 1-2 caracteres (letra o emoji) por sección, con estas claves: perfil, inicio, notas, clientes, contactos, tareas, briefs, campanas, plataformas, creatividades, analisis, facturacion, facturas, gastos, informes, documentos, herramientas.',
+    t('Reglas:'),
+    t(
+      '- Colores en formato #rrggbb (minúsculas). Solo "line", "lineStrong" y "shadow" pueden ser rgba(r, g, b, a).',
+    ),
+    t('- "scheme" es "dark" o "light" según el fondo.'),
+    t(
+      '- Contraste mínimo 4,5:1 entre cada texto y su fondo: text, textMuted, textFaint, accentText, index, success, danger y warning sobre bg; onAccent sobre accent; y en "options", text sobre bg.',
+    ),
+    t('- "radius" son píxeles de redondeo de esquinas (0 a 24).'),
+    t(
+      '- "icons" puede quedar vacío o dar 1-2 caracteres (letra o emoji) por sección, con estas claves: perfil, inicio, notas, clientes, contactos, tareas, briefs, campanas, plataformas, creatividades, analisis, facturacion, facturas, gastos, informes, documentos, herramientas.',
+    ),
   ]
     .filter(Boolean)
     .join('\n')

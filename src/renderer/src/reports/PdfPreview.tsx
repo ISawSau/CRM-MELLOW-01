@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { t } from '@shared/i18n'
 import { renderPages } from '../tools/pdf'
 
 /** Vista previa de un PDF: cada página pintada con pdf.js como imagen. */
@@ -29,15 +30,15 @@ export function PdfPreview({ data, maxPages = 12 }: { data: Uint8Array; maxPages
     }
   }, [data, maxPages])
 
-  if (failed) return <p className="danger-text">No se ha podido mostrar la vista previa.</p>
+  if (failed) return <p className="danger-text">{t('No se ha podido mostrar la vista previa.')}</p>
   return (
     <div className="pdf-preview" data-testid="pdf-preview">
       {pages.map((src, i) => (
-        <img key={src} src={src} alt={`Página ${i + 1}`} />
+        <img key={src} src={src} alt={t('Página {n}', { n: i + 1 })} />
       ))}
       {total > maxPages && (
         <p className="faint">
-          Y {total - maxPages} páginas más: abre el documento para verlas todas.
+          {t('Y {n} páginas más: abre el documento para verlas todas.', { n: total - maxPages })}
         </p>
       )}
     </div>

@@ -14,6 +14,7 @@ import type { BaseSums } from '@shared/meta'
 import type { SqliteDb } from '../db/connection'
 import type { DataService } from '../data/data-service'
 import { addDaily, moneyConverter, type DailyRow } from '../meta/sums'
+import { getLocale, intlLocale, t } from '@shared/i18n'
 
 /**
  * Motor de los dashboards, comparativas y alertas (SPEC §7.13). Suma las métricas
@@ -26,6 +27,14 @@ import { addDaily, moneyConverter, type DailyRow } from '../meta/sums'
 const OTHERS = '__otros__'
 const NONE = '__sin__'
 const MONTHS = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sept', 'oct', 'nov', 'dic']
+
+/** Mes abreviado: «sept» en español; en inglés, el de Intl («Sept»). */
+function monthName(m: number): string {
+  if (getLocale() === 'es') return MONTHS[m - 1]!
+  return new Intl.DateTimeFormat(intlLocale(), { month: 'short', timeZone: 'UTC' }).format(
+    new Date(Date.UTC(2000, m - 1, 1)),
+  )
+}
 
 type Row = DailyRow & { entity_id: string; account_id: string; currency: string }
 
@@ -51,8 +60,8 @@ function bucket(dim: Dimension, date: string): string {
 }
 
 function bucketLabel(dim: Dimension, key: string): string {
-  if (dim === 'mes') return `${MONTHS[Number(key.slice(5, 7)) - 1]} ${key.slice(0, 4)}`
-  if (dim === 'semana') return `Semana del ${dd(key)}`
+  if (dim === 'mes') return `${monthName(Number(key.slice(5, 7)))} ${key.slice(0, 4)}`
+  if (dim === 'semana') return t('Semana del {date}', { date: dd(key) })
   return dd(key)
 }
 
@@ -111,7 +120,7 @@ export function analyze(
     const field = fieldId ? data.listFields('creatividad').find((x) => x.id === fieldId) : null
     if (field) {
       for (const o of (field.config['options'] as { id: string; label: string }[]) ?? [])
-        optionLabel.set(o.id, o.label)
+        optionLabel.set(o.id, t(o.label))
       for (const r of records) {
         const v = r.values[field.id]
         optionsOf.set(r.id, Array.isArray(v) ? (v as string[]) : v ? [v as string] : [])
@@ -205,20 +214,20 @@ export function analyze(
     (db.prepare('SELECT name FROM ad_objects WHERE id = ?').get(id) as { name: string } | undefined)
       ?.name ?? id
   const label = (key: string): string => {
-    if (key === OTHERS) return 'Otros'
+    if (key === OTHERS) return t('Otros')
     if (key === NONE)
       return dim === 'cliente'
-        ? 'Sin cliente'
+        ? t('Sin cliente')
         : dim === 'creatividad'
-          ? 'Sin creatividad vinculada'
-          : 'Sin etiqueta'
+          ? t('Sin creatividad vinculada')
+          : t('Sin etiqueta')
     if (dim && byTime) return bucketLabel(dim, key)
     if (dim === 'cuenta') return accountById.get(key)?.name ?? key
-    if (dim === 'cliente') return clientTitle.get(key) ?? 'Cliente borrado'
+    if (dim === 'cliente') return clientTitle.get(key) ?? t('Cliente borrado')
     if (dim === 'campana') return campaignName(key)
-    if (dim === 'creatividad') return creativeTitle.get(key) ?? 'Creatividad borrada'
+    if (dim === 'creatividad') return creativeTitle.get(key) ?? t('Creatividad borrada')
     if (dim === 'etiqueta') return optionLabel.get(key) ?? key
-    return 'Total'
+    return t('Total')
   }
 
   let groups: AnalysisGroup[]
@@ -246,7 +255,7 @@ export function analyze(
       const others: BaseSums = {}
       for (const [, b] of rest)
         for (const [k, v] of Object.entries(b)) others[k] = (others[k] ?? 0) + v
-      groups.push({ key: OTHERS, label: 'Otros', base: others })
+      groups.push({ key: OTHERS, label: t('Otros'), base: others })
     }
     if (before)
       compareGroups = groups.map((g) => ({

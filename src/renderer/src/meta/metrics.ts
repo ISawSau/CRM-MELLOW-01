@@ -1,4 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { t } from '@shared/i18n'
 import type { MetaTableSettings } from '@shared/meta-metrics'
 import { call, IpcCallError } from '../lib/ipc'
 import { useToast } from '../ui/Toast'
@@ -25,7 +26,7 @@ export function useSaveTableSettings() {
       .then((s) => qc.setQueryData(key, s))
       .catch((e: unknown) => {
         void qc.invalidateQueries({ queryKey: key })
-        toast.show(e instanceof IpcCallError ? e.message : 'No se pudo guardar.', 'error')
+        toast.show(e instanceof IpcCallError ? e.message : t('No se pudo guardar.'), 'error')
       })
   }
 }

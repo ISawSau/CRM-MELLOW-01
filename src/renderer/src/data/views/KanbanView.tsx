@@ -10,10 +10,11 @@ import {
 } from '@dnd-kit/core'
 import { parseFieldConfig, type FieldDef, type SelectOption } from '@shared/data/fields'
 import type { RecordRow } from '@shared/data/records'
+import { t } from '@shared/i18n'
 import { useRecordActions } from '../actions'
 import { OptionChip } from '../FieldValue'
 import { CardFields } from './Cards'
-import { DND_ACCESSIBILITY } from './dnd'
+import { dndAccessibility } from './dnd'
 
 const NONE = '__ninguno__'
 
@@ -38,7 +39,7 @@ function KanbanCard({
       style={transform ? { transform: `translate(${transform.x}px, ${transform.y}px)` } : undefined}
       {...listeners}
       {...attributes}
-      aria-roledescription="tarjeta arrastrable"
+      aria-roledescription={t('tarjeta arrastrable')}
       onClick={() => onOpen(row.id)}
       onKeyDown={(e) => {
         if (e.key === 'Enter') onOpen(row.id)
@@ -72,11 +73,11 @@ function KanbanColumn({
       ref={setNodeRef}
       className="kanban-col"
       data-over={isOver}
-      aria-label={option?.label ?? 'Sin valor'}
+      aria-label={option?.label ?? t('Sin valor')}
       data-testid="kanban-col"
     >
       <header className="kanban-col-head">
-        {option ? <OptionChip option={option} /> : <span className="faint">Sin valor</span>}
+        {option ? <OptionChip option={option} /> : <span className="faint">{t('Sin valor')}</span>}
         <span className="faint num">{rows.length}</span>
       </header>
       <div className="kanban-cards">
@@ -85,7 +86,7 @@ function KanbanColumn({
         ))}
       </div>
       <button type="button" className="btn-link kanban-add" onClick={onAdd}>
-        + Añadir
+        + {t('Añadir')}
       </button>
     </section>
   )
@@ -113,7 +114,9 @@ export function KanbanView({
   if (!groupField || groupField.type !== 'select') {
     return (
       <div className="empty">
-        <p className="muted">Elige en «Agrupar por» un campo de selección para ver el kanban.</p>
+        <p className="muted">
+          {t('Elige en «Agrupar por» un campo de selección para ver el kanban.')}
+        </p>
       </div>
     )
   }
@@ -138,7 +141,7 @@ export function KanbanView({
 
   const columns: (SelectOption | null)[] = [...options, null]
   return (
-    <DndContext sensors={sensors} onDragEnd={onDragEnd} accessibility={DND_ACCESSIBILITY}>
+    <DndContext sensors={sensors} onDragEnd={onDragEnd} accessibility={dndAccessibility()}>
       <div className="kanban" data-testid="kanban">
         {columns.map((o) => {
           const id = o?.id ?? NONE

@@ -1,0 +1,86 @@
+/** Traducciones al inglés: tools. Clave: el texto en español tal y como aparece en `t()`. */
+export const tools: Record<string, string> = {
+  // Página y pestañas
+  Herramientas: 'Tools',
+  'Comprime y convierte imágenes, PDF y vídeos sin salir de la app. Todo se procesa en tu ordenador: el resultado se guarda cifrado en Documentos o se exporta a la carpeta que elijas.':
+    'Compress and convert images, PDFs and videos without leaving the app. Everything is processed on your computer: the result is saved encrypted in Documents or exported to the folder you choose.',
+  Imágenes: 'Images',
+  PDF: 'PDF',
+  Vídeo: 'Video',
+  // Piezas comunes
+  Resultado: 'Result',
+  'Guardar en la bóveda (Documentos)': 'Save in the vault (Documents)',
+  'Exportar a una carpeta': 'Export to a folder',
+  'Sin cliente': 'No client',
+  'Elegir archivos': 'Choose files',
+  'Elegir archivo': 'Choose file',
+  'Procesando…': 'Processing…',
+  Cancelado: 'Cancelled',
+  'Ver documento': 'View document',
+  'Guardado en Documentos': 'Saved in Documents',
+  Exportado: 'Exported',
+  'Quitar {name}': 'Remove {name}',
+  // Imágenes
+  'No se ha podido leer la imagen.': 'The image could not be read.',
+  'Arrastra aquí imágenes JPEG, PNG, WebP, GIF o AVIF.':
+    'Drag JPEG, PNG, WebP, GIF or AVIF images here.',
+  'El mismo': 'Same as original',
+  'Calidad: {n} %': 'Quality: {n}%',
+  'PNG no tiene pérdida.': 'PNG is lossless.',
+  'Solo JPEG y WebP.': 'JPEG and WebP only.',
+  'Ancho máximo (px)': 'Maximum width (px)',
+  'Sin cambiar': 'Unchanged',
+  'Entre 16 y 20.000 píxeles.': 'Between 16 and 20,000 pixels.',
+  'Procesar imagen': 'Process image',
+  'Procesar {n} imagen': 'Process {n} image',
+  'Procesar {n} imágenes': 'Process {n} images',
+  // PDF
+  'El PDF está protegido con contraseña: quítasela antes.':
+    'The PDF is password-protected: remove the password first.',
+  'El archivo no es un PDF válido.': 'The file is not a valid PDF.',
+  'PDF no válido.': 'Invalid PDF.',
+  'No se han podido unir.': 'The files could not be merged.',
+  '{size} · ya estaba optimizado': '{size} · already optimised',
+  'No se ha podido comprimir.': 'Could not compress.',
+  'No se ha podido procesar el PDF.': 'The PDF could not be processed.',
+  'Qué hacer': 'What to do',
+  Unir: 'Merge',
+  Dividir: 'Split',
+  Comprimir: 'Compress',
+  'Arrastra aquí los PDF que quieras unir, en orden.':
+    'Drag the PDFs you want to merge here, in order.',
+  'Arrastra aquí el PDF que quieras dividir.': 'Drag the PDF you want to split here.',
+  'Arrastra aquí los PDF que quieras comprimir.': 'Drag the PDFs you want to compress here.',
+  'Subir {name}': 'Move {name} up',
+  'Bajar {name}': 'Move {name} down',
+  'Páginas de cada PDF': 'Pages of each PDF',
+  'Un PDF por cada rango. Vacío: uno por página.': 'One PDF per range. Empty: one per page.',
+  Compresión: 'Compression',
+  'Reorganiza el archivo sin tocar el contenido.':
+    'Reorganises the file without touching the content.',
+  'Convierte cada página en imagen: el texto deja de poder seleccionarse.':
+    'Turns each page into an image: the text can no longer be selected.',
+  'Unir {n} PDF': 'Merge {n} PDFs',
+  'Unir PDF': 'Merge PDFs',
+  'Dividir PDF': 'Split PDF',
+  'Comprimir PDF': 'Compress PDF',
+  'Añade al menos otro PDF.': 'Add at least one more PDF.',
+  '{n} página': '{n} page',
+  '{n} páginas': '{n} pages',
+  // Vídeo
+  'Ese archivo no se puede abrir.': 'That file cannot be opened.',
+  'No se ha podido convertir.': 'Could not convert.',
+  'Falta FFmpeg': 'FFmpeg is missing',
+  'La conversión de vídeo usa FFmpeg, que viene con el instalador. Si estás en modo desarrollo, ejecuta':
+    'Video conversion uses FFmpeg, which comes with the installer. If you are in development mode, run',
+  'Arrastra aquí un vídeo (MP4, MOV, WebM, MKV o AVI).':
+    'Drag a video here (MP4, MOV, WebM, MKV or AVI).',
+  'Leyendo el vídeo…': 'Reading the video…',
+  Formato: 'Format',
+  'Si no encaja': "If it doesn't fit",
+  Calidad: 'Quality',
+  'Quitar el sonido': 'Remove the sound',
+  'Convirtiendo…': 'Converting…',
+  'Convertir vídeo': 'Convert video',
+  'Avance de la conversión': 'Conversion progress',
+}

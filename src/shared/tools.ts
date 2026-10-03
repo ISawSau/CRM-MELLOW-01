@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { t } from './i18n'
 
 /**
  * Herramientas de archivos (SPEC §7.11, fase 9). Las imágenes y los PDF se procesan en
@@ -189,21 +190,23 @@ export const VIDEO_EXTENSIONS = ['mp4', 'mov', 'm4v', 'webm', 'mkv', 'avi']
  * «cada» (o vacío) → una página por PDF. Devuelve un mensaje si algo no es válido.
  */
 export function parseRanges(text: string, pages: number): number[][] | string {
-  const t = text.trim().toLowerCase()
-  if (t === '' || t === 'cada' || t === 'todas') return Array.from({ length: pages }, (_, i) => [i])
+  const s = text.trim().toLowerCase()
+  if (['', 'cada', 'todas', 'each', 'all'].includes(s))
+    return Array.from({ length: pages }, (_, i) => [i])
   const groups: number[][] = []
-  for (const part of t.split(/[,;]/)) {
+  for (const part of s.split(/[,;]/)) {
     const p = part.trim()
     if (!p) continue
     const m = /^(\d+)?\s*(-)?\s*(\d+)?$/.exec(p)
-    if (!m || (!m[1] && !m[3])) return `«${p}» no es un rango válido (ejemplo: 1-3, 5, 8-).`
+    if (!m || (!m[1] && !m[3]))
+      return t('«{p}» no es un rango válido (ejemplo: 1-3, 5, 8-).', { p })
     const from = m[1] ? Number(m[1]) : 1
     const to = m[2] ? (m[3] ? Number(m[3]) : pages) : from
     if (from < 1 || to > pages || from > to)
-      return `«${p}» no cabe en el documento (tiene ${pages} páginas).`
+      return t('«{p}» no cabe en el documento (tiene {pages} páginas).', { p, pages })
     groups.push(Array.from({ length: to - from + 1 }, (_, i) => from - 1 + i))
   }
-  return groups.length ? groups : 'Indica al menos un rango.'
+  return groups.length ? groups : t('Indica al menos un rango.')
 }
 
 export const PDF_LEVELS = {

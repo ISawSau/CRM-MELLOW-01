@@ -839,3 +839,15 @@ kbd {
   cursor: pointer;
   font-weight: 600;
 }
+
+.gate-top-right {
+  display: inline-flex;
+  gap: var(--space-4);
+  align-items: center;
+}
+
+.segmented-compact button {
+  min-height: 24px;
+  padding: 0 var(--space-2);
+  font-size: var(--text-xs);
+}

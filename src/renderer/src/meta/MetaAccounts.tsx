@@ -9,11 +9,13 @@ import {
   type BreakdownConfig,
 } from '@shared/meta'
 import { formatDateTime } from '@shared/format'
+import { t } from '@shared/i18n'
 import { call, IpcCallError } from '../lib/ipc'
 import { useToast } from '../ui/Toast'
 import { isoToEs, useMetaAccounts } from './meta'
 
-const errorText = (e: unknown) => (e instanceof IpcCallError ? e.message : 'No se pudo completar.')
+const errorText = (e: unknown) =>
+  e instanceof IpcCallError ? e.message : t('No se pudo completar.')
 
 function useClients() {
   return useQuery({
@@ -38,30 +40,36 @@ function Breakdowns({ a }: { a: AdAccountInfo }) {
       open={open}
       onToggle={(e) => setOpen((e.target as HTMLDetailsElement).open)}
     >
-      <summary>Desgloses{active ? ` (${active})` : ''}</summary>
+      <summary>
+        {t('Desgloses')}
+        {active ? ` (${active})` : ''}
+      </summary>
       <p className="hint">
-        Edad, sexo, país, plataforma, ubicación o dispositivo. Cada desglose multiplica el volumen
-        de datos y el tiempo de sincronización: actívalos solo donde los vayas a mirar. Al
-        activarlos se descargan también para todo el histórico.
+        {t(
+          'Edad, sexo, país, plataforma, ubicación o dispositivo. Cada desglose multiplica el volumen de datos y el tiempo de sincronización: actívalos solo donde los vayas a mirar. Al activarlos se descargan también para todo el histórico.',
+        )}
       </p>
       <table className="breakdown-grid">
         <thead>
           <tr>
             <th />
             {BREAKDOWN_KEYS.map((b) => (
-              <th key={b}>{BREAKDOWNS[b].label}</th>
+              <th key={b}>{t(BREAKDOWNS[b].label)}</th>
             ))}
           </tr>
         </thead>
         <tbody>
           {PERF_LEVELS.map((level) => (
             <tr key={level}>
-              <th scope="row">{LEVEL_LABELS[level]}</th>
+              <th scope="row">{t(LEVEL_LABELS[level])}</th>
               {BREAKDOWN_KEYS.map((b) => (
                 <td key={b}>
                   <input
                     type="checkbox"
-                    aria-label={`${BREAKDOWNS[b].label} en ${LEVEL_LABELS[level].toLowerCase()}`}
+                    aria-label={t('{breakdown} en {level}', {
+                      breakdown: t(BREAKDOWNS[b].label),
+                      level: t(LEVEL_LABELS[level]).toLowerCase(),
+                    })}
                     checked={cfg[level].includes(b)}
                     onChange={(e) =>
                       setCfg({
@@ -87,12 +95,12 @@ function Breakdowns({ a }: { a: AdAccountInfo }) {
             void call('meta:setBreakdowns', { id: a.id, config: cfg })
               .then((list) => {
                 qc.setQueryData(['data', 'meta', 'accounts'], list)
-                toast.show('Desgloses guardados.')
+                toast.show(t('Desgloses guardados.'))
               })
               .catch((e: unknown) => toast.show(errorText(e), 'error'))
           }
         >
-          Guardar desgloses
+          {t('Guardar desgloses')}
         </button>
       </div>
     </details>
@@ -118,7 +126,7 @@ function AccountRow({
             type="checkbox"
             checked={a.enabled}
             onChange={(e) => onUpdate({ enabled: e.target.checked })}
-            aria-label={`Sincronizar ${a.name}`}
+            aria-label={t('Sincronizar {name}', { name: a.name })}
           />
           <span>
             <strong>{a.name}</strong>
@@ -129,7 +137,11 @@ function AccountRow({
           {[
             a.currency,
             a.timezone,
-            a.status !== null ? (ACCOUNT_STATUS_LABELS[a.status] ?? `estado ${a.status}`) : null,
+            a.status !== null
+              ? ACCOUNT_STATUS_LABELS[a.status]
+                ? t(ACCOUNT_STATUS_LABELS[a.status]!)
+                : t('estado {status}', { status: a.status })
+              : null,
             a.business,
           ]
             .filter(Boolean)
@@ -137,14 +149,14 @@ function AccountRow({
         </span>
       </div>
       <div className="field account-client">
-        <label htmlFor={`client-${a.id}`}>Cliente</label>
+        <label htmlFor={`client-${a.id}`}>{t('Cliente')}</label>
         <select
           id={`client-${a.id}`}
           className="input"
           value={a.clientId ?? ''}
           onChange={(e) => onUpdate({ clientId: e.target.value || null })}
         >
-          <option value="">Sin asignar</option>
+          <option value="">{t('Sin asignar')}</option>
           {clients.map((c) => (
             <option key={c.id} value={c.id}>
               {c.title}
@@ -156,9 +168,13 @@ function AccountRow({
         <div className="account-sync">
           <span className="muted">
             {a.dataFrom
-              ? `Datos del ${isoToEs(a.dataFrom)} al ${isoToEs(a.dataUntil)}`
-              : 'Aún sin datos'}
-            {a.lastSyncAt && ` · sincronizada ${formatDateTime(new Date(a.lastSyncAt))}`}
+              ? t('Datos del {from} al {until}', {
+                  from: isoToEs(a.dataFrom),
+                  until: isoToEs(a.dataUntil),
+                })
+              : t('Aún sin datos')}
+            {a.lastSyncAt &&
+              t(' · sincronizada {date}', { date: formatDateTime(new Date(a.lastSyncAt)) })}
           </span>
           {a.history && (
             <span className="account-history" data-testid="meta-history">
@@ -166,11 +182,14 @@ function AccountRow({
                 <span className="bar-fill" data-color="azul" style={{ width: `${pct}%` }} />
               </span>
               <span className="faint num">
-                Histórico: {a.history.done} de {a.history.total} trozos
+                {t('Histórico: {done} de {total} trozos', {
+                  done: a.history.done,
+                  total: a.history.total,
+                })}
               </span>
             </span>
           )}
-          {a.historyDone && <span className="faint">Histórico completo</span>}
+          {a.historyDone && <span className="faint">{t('Histórico completo')}</span>}
           {a.history && a.history.failed > 0 && (
             <button
               type="button"
@@ -181,7 +200,7 @@ function AccountRow({
                 )
               }
             >
-              Reintentar {a.history.failed} trozos fallidos
+              {t('Reintentar {n} trozos fallidos', { n: a.history.failed })}
             </button>
           )}
           {a.lastError && <span className="danger-text">{a.lastError}</span>}
@@ -205,9 +224,9 @@ export function MetaAccounts() {
   return (
     <div className="meta-accounts">
       <p className="muted">
-        Elige qué cuentas sincronizar y asígnalas a un cliente. Al activar una cuenta se descargan
-        los últimos 30 días y después, en segundo plano, todo el histórico que permite Meta (37
-        meses). Si cierras la app, sigue donde lo dejó.
+        {t(
+          'Elige qué cuentas sincronizar y asígnalas a un cliente. Al activar una cuenta se descargan los últimos 30 días y después, en segundo plano, todo el histórico que permite Meta (37 meses). Si cierras la app, sigue donde lo dejó.',
+        )}
       </p>
       <ul className="account-list" data-testid="meta-accounts">
         {list.map((a) => (
@@ -234,8 +253,9 @@ export function MetaAccounts() {
         ))}
         {list.length === 0 && (
           <li className="faint">
-            El token no da acceso a ninguna cuenta. Asígnalas al usuario del sistema en el Business
-            Manager.
+            {t(
+              'El token no da acceso a ninguna cuenta. Asígnalas al usuario del sistema en el Business Manager.',
+            )}
           </li>
         )}
       </ul>
@@ -249,20 +269,21 @@ export function MetaAccounts() {
               .catch((e: unknown) => toast.show(errorText(e), 'error'))
           }
         >
-          Actualizar la lista de cuentas
+          {t('Actualizar la lista de cuentas')}
         </button>
         <button type="button" className="btn btn-danger" onClick={() => setConfirm(true)}>
-          Desconectar
+          {t('Desconectar')}
         </button>
       </div>
       {confirm && (
         <>
           <div className="overlay" onClick={() => setConfirm(false)} />
           <div className="dialog" role="alertdialog" aria-modal="true" aria-labelledby="meta-off">
-            <h2 id="meta-off">¿Desconectar Meta?</h2>
+            <h2 id="meta-off">{t('¿Desconectar Meta?')}</h2>
             <p className="muted">
-              Se borra el token de la bóveda y se deja de sincronizar. Los datos ya descargados se
-              quedan y puedes volver a conectar cuando quieras.
+              {t(
+                'Se borra el token de la bóveda y se deja de sincronizar. Los datos ya descargados se quedan y puedes volver a conectar cuando quieras.',
+              )}
             </p>
             <div className="form-actions">
               <button
@@ -271,7 +292,7 @@ export function MetaAccounts() {
                 autoFocus
                 onClick={() => setConfirm(false)}
               >
-                Cancelar
+                {t('Cancelar')}
               </button>
               <button
                 type="button"
@@ -283,7 +304,7 @@ export function MetaAccounts() {
                   )
                 }}
               >
-                Desconectar
+                {t('Desconectar')}
               </button>
             </div>
           </div>

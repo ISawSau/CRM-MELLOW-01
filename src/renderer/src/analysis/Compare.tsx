@@ -8,6 +8,7 @@ import {
   type AnalysisResult,
   type RangePreset,
 } from '@shared/analysis'
+import { t } from '@shared/i18n'
 import { call } from '../lib/ipc'
 import { useFields } from '../data/hooks'
 import { isoToEs } from '../meta/meta'
@@ -67,7 +68,7 @@ function useOptions(mode: Mode, since: string, until: string, tagFieldId: string
   if (mode === 'etiqueta') {
     const f = (fields.data ?? []).find((x) => x.id === tagFieldId)
     return ((f?.config['options'] as { id: string; label: string }[] | undefined) ?? []).map(
-      (o) => ({ key: o.id, label: o.label }),
+      (o) => ({ key: o.id, label: t(o.label) }),
     )
   }
   if (mode === 'campana' || mode === 'creatividad')
@@ -193,7 +194,7 @@ export function Compare() {
     <div className="meta-perf" data-testid="compare">
       <div className="meta-toolbar">
         <div className="field">
-          <label htmlFor="cmp-mode">Comparar</label>
+          <label htmlFor="cmp-mode">{t('Comparar')}</label>
           <select
             id="cmp-mode"
             className="input"
@@ -206,13 +207,13 @@ export function Compare() {
           >
             {Object.entries(MODE_LABELS).map(([k, l]) => (
               <option key={k} value={k}>
-                {l}
+                {t(l)}
               </option>
             ))}
           </select>
         </div>
         <div className="field">
-          <label htmlFor="cmp-range">Periodo</label>
+          <label htmlFor="cmp-range">{t('Periodo')}</label>
           <select
             id="cmp-range"
             className="input"
@@ -221,29 +222,29 @@ export function Compare() {
           >
             {RANGE_PRESETS.map((p) => (
               <option key={p} value={p}>
-                {RANGE_LABELS[p]}
+                {t(RANGE_LABELS[p])}
               </option>
             ))}
           </select>
         </div>
         {isPeriods ? (
           <div className="field">
-            <label htmlFor="cmp-against">Frente a</label>
+            <label htmlFor="cmp-against">{t('Frente a')}</label>
             <select
               id="cmp-against"
               className="input"
               value={against}
               onChange={(e) => setAgainst(e.target.value as 'previous' | 'year')}
             >
-              <option value="previous">El periodo anterior</option>
-              <option value="year">El mismo periodo del año anterior</option>
+              <option value="previous">{t('El periodo anterior')}</option>
+              <option value="year">{t('El mismo periodo del año anterior')}</option>
             </select>
           </div>
         ) : (
           <>
             {mode === 'etiqueta' && (
               <div className="field">
-                <label htmlFor="cmp-tag">Etiqueta</label>
+                <label htmlFor="cmp-tag">{t('Etiqueta')}</label>
                 <select
                   id="cmp-tag"
                   className="input"
@@ -256,7 +257,7 @@ export function Compare() {
                 >
                   {tagFields.map((f) => (
                     <option key={f.id} value={f.id}>
-                      {f.label}
+                      {t(f.label)}
                     </option>
                   ))}
                 </select>
@@ -283,7 +284,9 @@ export function Compare() {
         )}
       </div>
       {!isPeriods && options.length < 2 && (
-        <p className="hint">Hacen falta al menos dos con datos en este periodo para comparar.</p>
+        <p className="hint">
+          {t('Hacen falta al menos dos con datos en este periodo para comparar.')}
+        </p>
       )}
       {sides && va && vb && (
         <>
@@ -291,10 +294,10 @@ export function Compare() {
             <table className="meta-table" data-testid="compare-table">
               <thead>
                 <tr>
-                  <th>Métrica</th>
+                  <th>{t('Métrica')}</th>
                   <th className="num">{sides.nameA}</th>
                   <th className="num">{sides.nameB}</th>
-                  <th className="num">Diferencia</th>
+                  <th className="num">{t('Diferencia')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -328,7 +331,7 @@ export function Compare() {
           <div className="meta-toolbar">
             <MetricSelect
               id="cmp-metric"
-              label="Evolución de"
+              label={t('Evolución de')}
               value={metric}
               defs={kit.defs}
               onChange={setMetric}
@@ -340,11 +343,15 @@ export function Compare() {
               labels={sides.daysA.map((g) => g.label)}
               series={series}
               format={format}
-              title={`${def?.label ?? metric}: ${sides.nameA} frente a ${sides.nameB}`}
+              title={t('{metric}: {a} frente a {b}', {
+                metric: def?.label ?? metric,
+                a: sides.nameA,
+                b: sides.nameB,
+              })}
             />
           )}
           <p className="hint">
-            La diferencia es de A frente a B. En verde lo que mejora; en rojo lo que empeora.
+            {t('La diferencia es de A frente a B. En verde lo que mejora; en rojo lo que empeora.')}
           </p>
         </>
       )}

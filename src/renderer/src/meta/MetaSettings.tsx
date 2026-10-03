@@ -1,5 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
+import { t, tn } from '@shared/i18n'
 import { SYNC_INTERVALS, type MetaSettings, type MetaStatus } from '@shared/meta'
 import { call, IpcCallError } from '../lib/ipc'
 import { useToast } from '../ui/Toast'
@@ -28,7 +29,7 @@ export function MetaSettingsPanel({ status }: { status: MetaStatus }) {
       .then((st) => qc.setQueryData(key, st))
       .catch((e: unknown) => {
         void qc.invalidateQueries({ queryKey: key })
-        toast.show(e instanceof IpcCallError ? e.message : 'No se pudo guardar.', 'error')
+        toast.show(e instanceof IpcCallError ? e.message : t('No se pudo guardar.'), 'error')
       })
   }
   const code = newCurrency.trim().toUpperCase()
@@ -36,7 +37,7 @@ export function MetaSettingsPanel({ status }: { status: MetaStatus }) {
     <div className="meta-settings" data-testid="meta-settings">
       <div className="field-row">
         <div className="field">
-          <label htmlFor="meta-interval">Sincronizar con la app abierta</label>
+          <label htmlFor="meta-interval">{t('Sincronizar con la app abierta')}</label>
           <select
             id="meta-interval"
             className="input"
@@ -45,13 +46,13 @@ export function MetaSettingsPanel({ status }: { status: MetaStatus }) {
           >
             {SYNC_INTERVALS.map((m) => (
               <option key={m} value={m}>
-                {INTERVAL_LABELS[m]}
+                {t(INTERVAL_LABELS[m] ?? '')}
               </option>
             ))}
           </select>
         </div>
         <div className="field">
-          <label htmlFor="meta-window">Ventana de atribución</label>
+          <label htmlFor="meta-window">{t('Ventana de atribución')}</label>
           <select
             id="meta-window"
             className="input"
@@ -60,18 +61,19 @@ export function MetaSettingsPanel({ status }: { status: MetaStatus }) {
           >
             {Array.from({ length: 28 }, (_, i) => i + 1).map((d) => (
               <option key={d} value={d}>
-                {d === 1 ? '1 día' : `${d} días`}
+                {tn(d, '{n} día', '{n} días')}
               </option>
             ))}
           </select>
           <p className="hint">
-            Meta sigue atribuyendo conversiones a días pasados: en cada sincronización se vuelven a
-            descargar estos últimos días.
+            {t(
+              'Meta sigue atribuyendo conversiones a días pasados: en cada sincronización se vuelven a descargar estos últimos días.',
+            )}
           </p>
         </div>
       </div>
       <div className="field">
-        <label htmlFor="meta-currency">Moneda en la que ver los importes</label>
+        <label htmlFor="meta-currency">{t('Moneda en la que ver los importes')}</label>
         <select
           id="meta-currency"
           className="input"
@@ -85,12 +87,13 @@ export function MetaSettingsPanel({ status }: { status: MetaStatus }) {
           ))}
         </select>
         <p className="hint">
-          Se convierte con el tipo de referencia del Banco Central Europeo de cada día (sin coste).
-          Las fechas de las métricas son las de la zona horaria de cada cuenta, como en Ads Manager.
+          {t(
+            'Se convierte con el tipo de referencia del Banco Central Europeo de cada día (sin coste). Las fechas de las métricas son las de la zona horaria de cada cuenta, como en Ads Manager.',
+          )}
         </p>
       </div>
       <div className="field">
-        <label>Monedas disponibles</label>
+        <label>{t('Monedas disponibles')}</label>
         <div className="chips chips-edit">
           {s.currencies.map((c) => (
             <span key={c} className="chip">
@@ -99,7 +102,7 @@ export function MetaSettingsPanel({ status }: { status: MetaStatus }) {
                 <button
                   type="button"
                   className="chip-x"
-                  aria-label={`Quitar ${c}`}
+                  aria-label={t('Quitar {c}', { c })}
                   onClick={() => save({ currencies: s.currencies.filter((x) => x !== c) })}
                 >
                   ×
@@ -111,10 +114,10 @@ export function MetaSettingsPanel({ status }: { status: MetaStatus }) {
         <div className="inline-add">
           <input
             className="input mono"
-            placeholder="Código ISO (p. ej. COP)"
+            placeholder={t('Código ISO (p. ej. COP)')}
             maxLength={3}
             value={newCurrency}
-            aria-label="Añadir moneda"
+            aria-label={t('Añadir moneda')}
             onChange={(e) => setNewCurrency(e.target.value)}
           />
           <button
@@ -126,7 +129,7 @@ export function MetaSettingsPanel({ status }: { status: MetaStatus }) {
               setNewCurrency('')
             }}
           >
-            Añadir
+            {t('Añadir')}
           </button>
         </div>
       </div>

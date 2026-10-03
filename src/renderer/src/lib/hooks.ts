@@ -2,6 +2,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { VaultStatus } from '@shared/ipc'
 import { call, IpcCallError, subscribe } from './ipc'
+import { t } from '@shared/i18n'
 
 /** Estado de la bóveda, siempre al día con los eventos del proceso principal. */
 export function useVaultStatus() {
@@ -35,7 +36,7 @@ export function useAction<A extends unknown[], R>(fn: (...args: A) => Promise<R>
       setError(
         e instanceof IpcCallError
           ? e
-          : new IpcCallError({ code: 'UNKNOWN', message: 'Ha ocurrido un error inesperado.' }),
+          : new IpcCallError({ code: 'UNKNOWN', message: t('Ha ocurrido un error inesperado.') }),
       )
       return undefined
     } finally {

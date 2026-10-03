@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { parseFieldConfig, type FieldDef } from '@shared/data/fields'
 import { parseNumberEs } from '@shared/format'
+import { getLocale, t } from '@shared/i18n'
 import {
   FILTER_OP_LABELS,
   OPS_BY_TYPE,
@@ -44,7 +45,10 @@ function FilterValue({
   const { op, value } = filter
   const [text, setText] = useState(() =>
     typeof value === 'number'
-      ? String(field.type === 'percent' ? value * 100 : value).replace('.', ',')
+      ? String(field.type === 'percent' ? value * 100 : value).replace(
+          '.',
+          getLocale() === 'en' ? '.' : ',',
+        )
       : typeof value === 'string'
         ? value
         : '',
@@ -82,15 +86,15 @@ function FilterValue({
           <input
             className="input"
             type="date"
-            aria-label="Desde"
+            aria-label={t('Desde')}
             value={a ?? ''}
             onChange={(e) => onChange([e.target.value, b ?? ''])}
           />
-          <span className="faint">y</span>
+          <span className="faint">{t('y')}</span>
           <input
             className="input"
             type="date"
-            aria-label="Hasta"
+            aria-label={t('Hasta')}
             value={b ?? ''}
             onChange={(e) => onChange([a ?? '', e.target.value])}
           />
@@ -101,7 +105,7 @@ function FilterValue({
       <input
         className="input"
         type="date"
-        aria-label="Fecha"
+        aria-label={t('Fecha')}
         value={typeof value === 'string' ? value : ''}
         onChange={(e) => onChange(e.target.value || null)}
       />
@@ -111,10 +115,10 @@ function FilterValue({
   return (
     <input
       className={numeric ? 'input num' : 'input'}
-      aria-label="Valor"
+      aria-label={t('Valor')}
       inputMode={numeric ? 'decimal' : undefined}
       value={text}
-      placeholder={numeric ? '0' : 'texto'}
+      placeholder={numeric ? '0' : t('texto')}
       onChange={(e) => {
         setText(e.target.value)
         if (!numeric) return onChange(e.target.value || null)
@@ -158,16 +162,21 @@ export function FilterMenu({
 
   return (
     <Popover
-      label="Filtrar"
+      label={t('Filtrar')}
       testId="filter-button"
       className={count ? 'btn btn-on' : 'btn'}
-      button={<>Filtrar{count ? ` · ${count}` : ''}</>}
+      button={
+        <>
+          {t('Filtrar')}
+          {count ? ` · ${count}` : ''}
+        </>
+      }
     >
       {() => (
         <div className="menu menu-wide" data-testid="filter-menu">
           {draft.length > 1 && (
             <label className="menu-row">
-              <span className="muted">Mostrar los que cumplan</span>
+              <span className="muted">{t('Mostrar los que cumplan')}</span>
               <select
                 className="input"
                 value={match}
@@ -177,12 +186,14 @@ export function FilterMenu({
                   save(draft, m)
                 }}
               >
-                <option value="all">todas las condiciones</option>
-                <option value="any">alguna condición</option>
+                <option value="all">{t('todas las condiciones')}</option>
+                <option value="any">{t('alguna condición')}</option>
               </select>
             </label>
           )}
-          {draft.length === 0 && <p className="faint menu-empty">Sin filtros: se ve todo.</p>}
+          {draft.length === 0 && (
+            <p className="faint menu-empty">{t('Sin filtros: se ve todo.')}</p>
+          )}
           {draft.map((flt, i) => {
             const f = byId.get(flt.fieldId)
             if (!f) return null
@@ -192,7 +203,7 @@ export function FilterMenu({
               <div key={i} className="filter-row" data-testid="filter-row">
                 <select
                   className="input"
-                  aria-label="Campo"
+                  aria-label={t('Campo')}
                   value={f.id}
                   onChange={(e) => {
                     const nf = byId.get(e.target.value)!
@@ -208,7 +219,7 @@ export function FilterMenu({
                 </select>
                 <select
                   className="input"
-                  aria-label="Condición"
+                  aria-label={t('Condición')}
                   value={flt.op}
                   onChange={(e) => {
                     const op = e.target.value as FilterOp
@@ -217,7 +228,7 @@ export function FilterMenu({
                 >
                   {OPS_BY_TYPE[f.type].map((op) => (
                     <option key={op} value={op}>
-                      {FILTER_OP_LABELS[op]}
+                      {t(FILTER_OP_LABELS[op])}
                     </option>
                   ))}
                 </select>
@@ -230,7 +241,7 @@ export function FilterMenu({
                 <button
                   type="button"
                   className="icon-btn"
-                  aria-label="Quitar filtro"
+                  aria-label={t('Quitar filtro')}
                   onClick={() => save(draft.filter((_, j) => j !== i))}
                 >
                   ×
@@ -249,11 +260,11 @@ export function FilterMenu({
                 save([...draft, { fieldId: f.id, op, value: defaultValue(f, op) }])
               }}
             >
-              + Añadir filtro
+              + {t('Añadir filtro')}
             </button>
             {draft.length > 0 && (
               <button type="button" className="btn-link" onClick={() => save([])}>
-                Quitar todos
+                {t('Quitar todos')}
               </button>
             )}
           </div>
@@ -282,21 +293,26 @@ export function SortMenu({
   const set = (next: Sort[]) => onSave({ sorts: next })
   return (
     <Popover
-      label="Ordenar"
+      label={t('Ordenar')}
       testId="sort-button"
       className={sorts.length ? 'btn btn-on' : 'btn'}
-      button={<>Ordenar{sorts.length ? ` · ${sorts.length}` : ''}</>}
+      button={
+        <>
+          {t('Ordenar')}
+          {sorts.length ? ` · ${sorts.length}` : ''}
+        </>
+      }
     >
       {() => (
         <div className="menu menu-wide">
           {sorts.length === 0 && (
-            <p className="faint menu-empty">Sin orden: primero lo más reciente.</p>
+            <p className="faint menu-empty">{t('Sin orden: primero lo más reciente.')}</p>
           )}
           {sorts.map((s, i) => (
             <div key={i} className="filter-row">
               <select
                 className="input"
-                aria-label="Ordenar por"
+                aria-label={t('Ordenar por')}
                 value={s.fieldId}
                 onChange={(e) =>
                   set(sorts.map((x, j) => (j === i ? { ...x, fieldId: e.target.value } : x)))
@@ -309,13 +325,13 @@ export function SortMenu({
                 ))}
                 {FIXED_SORTS.map((f) => (
                   <option key={f.id} value={f.id}>
-                    {f.label}
+                    {t(f.label)}
                   </option>
                 ))}
               </select>
               <select
                 className="input"
-                aria-label="Dirección"
+                aria-label={t('Dirección')}
                 value={s.dir}
                 onChange={(e) =>
                   set(
@@ -325,13 +341,13 @@ export function SortMenu({
                   )
                 }
               >
-                <option value="asc">ascendente (A → Z, 0 → 9)</option>
-                <option value="desc">descendente (Z → A, 9 → 0)</option>
+                <option value="asc">{t('ascendente (A → Z, 0 → 9)')}</option>
+                <option value="desc">{t('descendente (Z → A, 9 → 0)')}</option>
               </select>
               <button
                 type="button"
                 className="icon-btn"
-                aria-label="Quitar orden"
+                aria-label={t('Quitar orden')}
                 onClick={() => set(sorts.filter((_, j) => j !== i))}
               >
                 ×
@@ -347,7 +363,7 @@ export function SortMenu({
                   set([...sorts, { fieldId: sortable[0]?.id ?? 'createdAt', dir: 'asc' }])
                 }
               >
-                + Añadir orden
+                + {t('Añadir orden')}
               </button>
             </div>
           )}
@@ -375,7 +391,7 @@ export function ColumnsMenu({
     save(next)
   }
   return (
-    <Popover label="Columnas" testId="columns-button" button="Columnas">
+    <Popover label={t('Columnas')} testId="columns-button" button={t('Columnas')}>
       {() => (
         <ul className="menu">
           {columns.map((c, i) => (
@@ -396,7 +412,7 @@ export function ColumnsMenu({
                   <button
                     type="button"
                     className="icon-btn"
-                    aria-label={`Mover ${c.field.label} a la izquierda`}
+                    aria-label={t('Mover {field} a la izquierda', { field: c.field.label })}
                     disabled={i <= 1}
                     onClick={() => move(i, -1)}
                   >
@@ -405,7 +421,7 @@ export function ColumnsMenu({
                   <button
                     type="button"
                     className="icon-btn"
-                    aria-label={`Mover ${c.field.label} a la derecha`}
+                    aria-label={t('Mover {field} a la derecha', { field: c.field.label })}
                     disabled={i >= columns.length - 1}
                     onClick={() => move(i, 1)}
                   >
@@ -466,7 +482,7 @@ export function CardFieldsMenu({
   const sel = new Set(view.config.cardFields)
   const options = fields.filter((f) => f.type !== 'longtext' && f.type !== 'files')
   return (
-    <Popover label="Campos visibles en las tarjetas" button="Campos visibles">
+    <Popover label={t('Campos visibles en las tarjetas')} button={t('Campos visibles')}>
       {() => (
         <ul className="menu">
           {options.map((f) => (

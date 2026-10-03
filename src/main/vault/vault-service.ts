@@ -53,6 +53,7 @@ import {
   writeManifest,
   type VaultManifest,
 } from './vault-file'
+import { t } from '@shared/i18n'
 
 export const DEFAULT_AUTO_LOCK_MINUTES = 15
 const AUTO_LOCK_KEY = 'security.autoLockMinutes'
@@ -155,7 +156,7 @@ export class VaultService {
       const vaultPath = this.requirePath()
       const incoming = readManifest(srcDir)
       if (incoming.vaultId !== readManifest(vaultPath).vaultId)
-        throw new AppError('UNKNOWN', undefined, 'Esos datos son de otra bóveda.')
+        throw new AppError('UNKNOWN', undefined, t('Esos datos son de otra bóveda.'))
       this.checkSchema(incoming)
       let canOpen: boolean
       const dbKey = deriveSubkey(u.masterKey, DB_KEY_PURPOSE)
@@ -591,7 +592,7 @@ export class VaultService {
   }
 
   private async exclusive<T>(fn: () => Promise<T>): Promise<T> {
-    if (this.busy) throw new AppError('UNKNOWN', undefined, 'Hay otra operación en curso.')
+    if (this.busy) throw new AppError('UNKNOWN', undefined, t('Hay otra operación en curso.'))
     this.busy = true
     try {
       return await fn()

@@ -10,6 +10,7 @@ import { Shell } from './shell/Shell'
 import { applyAppearance } from './theme/apply'
 import { BUILT_IN_THEMES, findTheme } from '@shared/themes'
 import { ThemeBackground } from './theme/ThemeBackground'
+import { t } from '@shared/i18n'
 
 export function App() {
   const status = useVaultStatus()
@@ -32,14 +33,14 @@ export function App() {
 
   if (newRecoveryKey && s.state === 'unlocked') {
     return (
-      <Gate step="03 · clave de recuperación">
+      <Gate step={t('03 · clave de recuperación')}>
         <div className="section-head">
           <span className="eyebrow">
-            <span className="num">03</span> imprescindible
+            <span className="num">03</span> {t('imprescindible')}
           </span>
-          <h1 className="title">Tu clave de recuperación</h1>
+          <h1 className="title">{t('Tu clave de recuperación')}</h1>
           <p className="muted">
-            Sirve para entrar si olvidas la contraseña. Cópiala y guárdala ahora.
+            {t('Sirve para entrar si olvidas la contraseña. Cópiala y guárdala ahora.')}
           </p>
         </div>
         <RecoveryKeyPanel
@@ -48,7 +49,7 @@ export function App() {
             setNewRecoveryKey(null)
             setCreating(false)
           }}
-          doneLabel="Entrar en la bóveda"
+          doneLabel={t('Entrar en la bóveda')}
         />
       </Gate>
     )

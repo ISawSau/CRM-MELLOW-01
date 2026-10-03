@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { rangeFor } from '@shared/analysis'
 import { formatDateTime } from '@shared/format'
+import { t } from '@shared/i18n'
 import { call } from '../lib/ipc'
 import { useMetaStatus } from '../meta/meta'
 import { useHasAdData } from '../platforms/platforms'
@@ -25,41 +26,41 @@ export function SpendCard({ onNavigate }: { onNavigate: (s: string) => void }) {
   return (
     <section className="home-card" data-testid="home-spend">
       <div className="home-card-head">
-        <h2 className="home-card-title">Gasto y ROAS</h2>
+        <h2 className="home-card-title">{t('Gasto y ROAS')}</h2>
         <button
           type="button"
           className="btn-link"
           onClick={() => onNavigate(connected ? 'analisis' : 'campanas')}
         >
-          {connected ? 'Ver análisis →' : 'Conectar Meta →'}
+          {connected ? t('Ver análisis →') : t('Conectar Meta →')}
         </button>
       </div>
       {!connected ? (
         <p className="faint">
-          Conecta Meta en Campañas o importa LinkedIn o X para ver el gasto aquí.
+          {t('Conecta Meta en Campañas o importa LinkedIn o X para ver el gasto aquí.')}
         </p>
       ) : (
         <dl className="mini-kpis">
           <div>
-            <dt>Hoy</dt>
+            <dt>{t('Hoy')}</dt>
             <dd className="num">
               {formatMetric(kit.compute(d0.data?.totals ?? {})['gasto'], money, c)}
             </dd>
           </div>
           <div>
-            <dt>Últimos 7 días</dt>
+            <dt>{t('Últimos 7 días')}</dt>
             <dd className="num">
               {formatMetric(kit.compute(d7.data?.totals ?? {})['gasto'], money, c)}
             </dd>
           </div>
           <div>
-            <dt>Últimos 30 días</dt>
+            <dt>{t('Últimos 30 días')}</dt>
             <dd className="num">
               {formatMetric(kit.compute(d30.data?.totals ?? {})['gasto'], money, c)}
             </dd>
           </div>
           <div>
-            <dt>ROAS 30 días</dt>
+            <dt>{t('ROAS 30 días')}</dt>
             <dd className="num">
               {formatMetric(kit.compute(d30.data?.totals ?? {})['roas'], roas, c)}
             </dd>
@@ -81,13 +82,15 @@ export function AlertsCard({ onNavigate }: { onNavigate: (s: string) => void }) 
   return (
     <section className="home-card" data-testid="home-alerts">
       <div className="home-card-head">
-        <h2 className="home-card-title">Alertas{unseen > 0 ? ` · ${unseen} sin ver` : ''}</h2>
+        <h2 className="home-card-title">
+          {unseen > 0 ? t('Alertas · {n} sin ver', { n: unseen }) : t('Alertas')}
+        </h2>
         <button type="button" className="btn-link" onClick={() => onNavigate('analisis')}>
-          Ver alertas →
+          {t('Ver alertas →')}
         </button>
       </div>
       {recent.length === 0 ? (
-        <p className="faint">Ningún aviso. Crea alertas en Análisis → Alertas.</p>
+        <p className="faint">{t('Ningún aviso. Crea alertas en Análisis → Alertas.')}</p>
       ) : (
         <ul className="event-list">
           {recent.map((e) => (

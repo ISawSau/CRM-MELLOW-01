@@ -5,6 +5,7 @@ import { useProfile } from '../data/nav'
 import { call, IpcCallError } from '../lib/ipc'
 import { Alert } from '../ui/Alert'
 import { useToast } from '../ui/Toast'
+import { t } from '@shared/i18n'
 
 const PHOTO_SIZE = 256
 
@@ -72,9 +73,9 @@ function ProfileForm({ initial }: { initial: Profile }) {
     try {
       const saved = await call('profile:set', draft)
       qc.setQueryData(['data', 'profile'], saved)
-      toast.show('Perfil guardado.')
+      toast.show(t('Perfil guardado.'))
     } catch (err) {
-      setError(err instanceof IpcCallError ? err.message : 'No se pudo guardar el perfil.')
+      setError(err instanceof IpcCallError ? err.message : t('No se pudo guardar el perfil.'))
     } finally {
       setSaving(false)
     }
@@ -84,7 +85,7 @@ function ProfileForm({ initial }: { initial: Profile }) {
     <form className="form" onSubmit={(e) => void submit(e)} data-testid="profile-form">
       <div className="profile-photo">
         {draft.photo ? (
-          <img src={draft.photo} alt="Tu foto" className="avatar avatar-large" />
+          <img src={draft.photo} alt={t('Tu foto')} className="avatar avatar-large" />
         ) : (
           <span className="avatar avatar-large avatar-empty" aria-hidden="true">
             {(draft.name || '?').slice(0, 1).toUpperCase()}
@@ -92,7 +93,7 @@ function ProfileForm({ initial }: { initial: Profile }) {
         )}
         <div className="form-actions">
           <label className="btn">
-            Elegir foto
+            {t('Elegir foto')}
             <input
               type="file"
               accept="image/png,image/jpeg,image/webp"
@@ -102,14 +103,14 @@ function ProfileForm({ initial }: { initial: Profile }) {
                 if (f)
                   void shrinkPhoto(f)
                     .then((photo) => set({ photo }))
-                    .catch(() => setError('No se pudo leer la imagen.'))
+                    .catch(() => setError(t('No se pudo leer la imagen.')))
                 e.target.value = ''
               }}
             />
           </label>
           {draft.photo && (
             <button type="button" className="btn-link" onClick={() => set({ photo: null })}>
-              Quitar
+              {t('Quitar')}
             </button>
           )}
         </div>
@@ -117,7 +118,7 @@ function ProfileForm({ initial }: { initial: Profile }) {
       <div className="field-grid">
         {TEXT_FIELDS.map((f) => (
           <div key={f.key} className={f.wide ? 'field field-wide' : 'field'}>
-            <label htmlFor={`profile-${f.key}`}>{f.label}</label>
+            <label htmlFor={`profile-${f.key}`}>{t(f.label)}</label>
             <input
               id={`profile-${f.key}`}
               className="input"
@@ -128,7 +129,7 @@ function ProfileForm({ initial }: { initial: Profile }) {
           </div>
         ))}
         <div className="field">
-          <label htmlFor="profile-currency">Moneda por defecto</label>
+          <label htmlFor="profile-currency">{t('Moneda por defecto')}</label>
           <select
             id="profile-currency"
             className="input"
@@ -141,7 +142,7 @@ function ProfileForm({ initial }: { initial: Profile }) {
           </select>
         </div>
         <div className="field">
-          <label htmlFor="profile-tz">Zona horaria</label>
+          <label htmlFor="profile-tz">{t('Zona horaria')}</label>
           <select
             id="profile-tz"
             className="input"
@@ -157,7 +158,7 @@ function ProfileForm({ initial }: { initial: Profile }) {
       {error && <Alert>{error}</Alert>}
       <div className="form-actions">
         <button type="submit" className="btn btn-primary" disabled={saving}>
-          Guardar perfil
+          {t('Guardar perfil')}
         </button>
       </div>
     </form>
@@ -170,10 +171,11 @@ export function ProfileSettings() {
   return (
     <section className="settings-block" data-testid="profile-settings">
       <div>
-        <h2>Perfil</h2>
+        <h2>{t('Perfil')}</h2>
         <p className="desc">
-          Tus datos y los de tu empresa. La zona horaria decide qué es «hoy» en filtros y
-          calendarios; los datos fiscales se usarán en las facturas.
+          {t(
+            'Tus datos y los de tu empresa. La zona horaria decide qué es «hoy» en filtros y calendarios; los datos fiscales se usarán en las facturas.',
+          )}
         </p>
       </div>
       <div className="settings-body settings-body-wide">

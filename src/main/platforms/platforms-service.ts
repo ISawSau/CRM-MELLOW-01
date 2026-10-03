@@ -25,6 +25,7 @@ import {
   LI_API,
   type LinkedInDaily,
 } from './linkedin'
+import { t } from '@shared/i18n'
 
 /**
  * Otras plataformas (SPEC §7.4): cuentas de LinkedIn (API o CSV) y X (CSV). Comparten
@@ -153,7 +154,7 @@ export class PlatformsService {
     const a = this.db()
       .prepare("SELECT * FROM ad_accounts WHERE id = ? AND platform IN ('linkedin', 'x')")
       .get(id) as AccountRow | undefined
-    if (!a) throw new AppError('INVALID_INPUT', undefined, 'Esa cuenta no existe.')
+    if (!a) throw new AppError('INVALID_INPUT', undefined, t('Esa cuenta no existe.'))
     return a
   }
 
@@ -172,7 +173,7 @@ export class PlatformsService {
           )
           .get(input.clientId)
       )
-        throw new AppError('INVALID_INPUT', undefined, 'Ese cliente no existe.')
+        throw new AppError('INVALID_INPUT', undefined, t('Ese cliente no existe.'))
       this.db()
         .prepare('UPDATE ad_accounts SET client_id = ? WHERE id = ?')
         .run(input.clientId, a.id)
@@ -279,7 +280,7 @@ export class PlatformsService {
       error:
         this.error ??
         (daysLeft !== null && daysLeft < 0
-          ? 'El acceso a LinkedIn ha caducado: vuelve a conectar.'
+          ? t('El acceso a LinkedIn ha caducado: vuelve a conectar.')
           : null),
       lastSyncAt: last,
     }
@@ -295,7 +296,7 @@ export class PlatformsService {
       throw new AppError(
         'INVALID_INPUT',
         undefined,
-        'Activa LinkedIn en Ajustes antes de conectarlo.',
+        t('Activa LinkedIn en Ajustes antes de conectarlo.'),
       )
     let cfg: LiConfig
     if (input.token) {
@@ -311,7 +312,7 @@ export class PlatformsService {
         throw new AppError(
           'INVALID_INPUT',
           undefined,
-          'Escribe el id y el secreto de tu app de LinkedIn.',
+          t('Escribe el id y el secreto de tu app de LinkedIn.'),
         )
       try {
         const t = await connectLinkedIn(
@@ -375,7 +376,7 @@ export class PlatformsService {
     const cfg = this.liConfig()
     if (!cfg || !this.linkedinEnabled()) return
     if (cfg.expiresAt < this.now().getTime()) {
-      this.error = 'El acceso a LinkedIn ha caducado: vuelve a conectar.'
+      this.error = t('El acceso a LinkedIn ha caducado: vuelve a conectar.')
       this.phase = 'error'
       this.opts.onChange?.()
       return
@@ -495,7 +496,7 @@ export class PlatformsService {
         rows.map((r) =>
           liInsightRow(r, {
             id: `li:${r.campaignId}`,
-            name: names.get(r.campaignId) ?? `Campaña ${r.campaignId}`,
+            name: names.get(r.campaignId) ?? t('Campaña {id}', { id: r.campaignId }),
           }),
         ),
         now,

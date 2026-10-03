@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { t } from '../i18n'
 import { recurrenceSchema } from './recurrence'
 
 /**
@@ -293,7 +294,12 @@ export function parseValue(
   if (Array.isArray(raw) && raw.length === 0) return null
   const r = valueSchema(field).safeParse(raw)
   if (!r.success) {
-    throw new Error(`Valor no válido para «${field.label}»: ${r.error.issues[0]?.message ?? ''}`)
+    throw new Error(
+      t('Valor no válido para «{label}»: {message}', {
+        label: t(field.label),
+        message: t(r.error.issues[0]?.message ?? ''),
+      }),
+    )
   }
   return r.data
 }

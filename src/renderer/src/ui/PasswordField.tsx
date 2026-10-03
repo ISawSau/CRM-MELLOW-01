@@ -1,4 +1,5 @@
 import { useId, useState } from 'react'
+import { t } from '@shared/i18n'
 
 interface Props {
   label: string
@@ -33,7 +34,7 @@ export function PasswordField({
           onClick={() => setVisible((v) => !v)}
           aria-controls={id}
         >
-          {visible ? 'ocultar' : 'mostrar'}
+          {visible ? t('ocultar') : t('mostrar')}
         </button>
       </div>
       <input

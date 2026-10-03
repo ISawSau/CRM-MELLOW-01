@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { formatDateTime } from '@shared/format'
+import { t, tn } from '@shared/i18n'
 import { call, IpcCallError } from '../lib/ipc'
 import { useToast } from '../ui/Toast'
 import { useEntityLookup } from './hooks'
@@ -17,7 +18,7 @@ export function TrashPage() {
       await fn()
       toast.show(ok)
     } catch (e) {
-      toast.show(e instanceof IpcCallError ? e.message : 'No se pudo completar.', 'error')
+      toast.show(e instanceof IpcCallError ? e.message : t('No se pudo completar.'), 'error')
     }
   }
 
@@ -26,19 +27,23 @@ export function TrashPage() {
     <div className="page" data-testid="page-papelera">
       <div className="section-head">
         <span className="eyebrow">
-          <span className="num">—</span> papelera
+          <span className="num">—</span> {t('papelera')}
         </span>
-        <h1 className="title">Papelera</h1>
+        <h1 className="title">{t('Papelera')}</h1>
         <p className="muted">
-          Lo que envías aquí se borra para siempre a los {trash.data?.days ?? 30} días. Cámbialo en
-          Ajustes → Datos.
+          {t(
+            'Lo que envías aquí se borra para siempre a los {n} días. Cámbialo en Ajustes → Datos.',
+            {
+              n: trash.data?.days ?? 30,
+            },
+          )}
         </p>
       </div>
 
       {items.length === 0 ? (
         <div className="empty">
-          <h2>Vacía</h2>
-          <p className="muted">No hay nada en la papelera.</p>
+          <h2>{t('Vacía')}</h2>
+          <p className="muted">{t('No hay nada en la papelera.')}</p>
         </div>
       ) : (
         <>
@@ -48,7 +53,7 @@ export function TrashPage() {
               className="btn btn-danger"
               onClick={() => setConfirming(items.map((i) => i.id))}
             >
-              Vaciar la papelera
+              {t('Vaciar la papelera')}
             </button>
           </div>
           <ul className="trash-list" data-testid="trash-list">
@@ -59,25 +64,25 @@ export function TrashPage() {
                 <span className="faint num">{formatDateTime(new Date(i.deletedAt))}</span>
                 <span className="faint">
                   {i.daysLeft === 0
-                    ? 'se borra hoy'
-                    : `quedan ${i.daysLeft} ${i.daysLeft === 1 ? 'día' : 'días'}`}
+                    ? t('se borra hoy')
+                    : tn(i.daysLeft, 'quedan {n} día', 'quedan {n} días')}
                 </span>
                 <span className="form-actions">
                   <button
                     type="button"
                     className="btn"
                     onClick={() =>
-                      void run(() => call('data:restore', { ids: [i.id] }), 'Restaurado.')
+                      void run(() => call('data:restore', { ids: [i.id] }), t('Restaurado.'))
                     }
                   >
-                    Restaurar
+                    {t('Restaurar')}
                   </button>
                   <button
                     type="button"
                     className="btn btn-danger"
                     onClick={() => setConfirming([i.id])}
                   >
-                    Borrar para siempre
+                    {t('Borrar para siempre')}
                   </button>
                 </span>
               </li>
@@ -90,12 +95,14 @@ export function TrashPage() {
         <>
           <div className="overlay" onClick={() => setConfirming(null)} />
           <div className="dialog" role="alertdialog" aria-modal="true" aria-labelledby="purge-t">
-            <h2 id="purge-t">¿Borrar para siempre?</h2>
+            <h2 id="purge-t">{t('¿Borrar para siempre?')}</h2>
             <p className="muted">
               {confirming.length === 1
-                ? 'Este registro se borrará sin posibilidad de recuperarlo.'
-                : `Se borrarán ${confirming.length} registros sin posibilidad de recuperarlos.`}{' '}
-              Esta acción no se puede deshacer.
+                ? t('Este registro se borrará sin posibilidad de recuperarlo.')
+                : t('Se borrarán {n} registros sin posibilidad de recuperarlos.', {
+                    n: confirming.length,
+                  })}{' '}
+              {t('Esta acción no se puede deshacer.')}
             </p>
             <div className="form-actions">
               <button
@@ -104,7 +111,7 @@ export function TrashPage() {
                 autoFocus
                 onClick={() => setConfirming(null)}
               >
-                Cancelar
+                {t('Cancelar')}
               </button>
               <button
                 type="button"
@@ -113,10 +120,10 @@ export function TrashPage() {
                 onClick={() => {
                   const ids = confirming
                   setConfirming(null)
-                  void run(() => call('data:purge', { ids }), 'Borrado para siempre.')
+                  void run(() => call('data:purge', { ids }), t('Borrado para siempre.'))
                 }}
               >
-                Borrar para siempre
+                {t('Borrar para siempre')}
               </button>
             </div>
           </div>

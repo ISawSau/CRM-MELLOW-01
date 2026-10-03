@@ -1,4 +1,6 @@
 import { useState, type ReactNode } from 'react'
+import { currentLocale } from '@shared/format'
+import { t } from '@shared/i18n'
 import type { SavedResult, ToolTarget } from '@shared/tools'
 import { call, IpcCallError } from '../lib/ipc'
 import { useRecords } from '../data/hooks'
@@ -18,7 +20,7 @@ export function useClients() {
   const q = useRecords('cliente', NO_FILTERS)
   return (q.data ?? [])
     .map((r) => ({ id: r.id, title: r.title }))
-    .sort((a, b) => a.title.localeCompare(b.title, 'es'))
+    .sort((a, b) => a.title.localeCompare(b.title, currentLocale()))
 }
 
 export function DestinationPicker({
@@ -33,7 +35,7 @@ export function DestinationPicker({
   const clients = useClients()
   return (
     <fieldset className="tool-dest" data-testid="tool-destination">
-      <legend>Resultado</legend>
+      <legend>{t('Resultado')}</legend>
       <label className="check">
         <input
           type="radio"
@@ -41,7 +43,7 @@ export function DestinationPicker({
           checked={value.target === 'boveda'}
           onChange={() => onChange({ ...value, target: 'boveda' })}
         />
-        <span>Guardar en la bóveda (Documentos)</span>
+        <span>{t('Guardar en la bóveda (Documentos)')}</span>
       </label>
       <label className="check">
         <input
@@ -50,18 +52,18 @@ export function DestinationPicker({
           checked={value.target === 'exportar'}
           onChange={() => onChange({ ...value, target: 'exportar' })}
         />
-        <span>Exportar a una carpeta</span>
+        <span>{t('Exportar a una carpeta')}</span>
       </label>
       {value.target === 'boveda' && (
         <div className="field">
-          <label htmlFor={`${idPrefix}-client`}>Cliente</label>
+          <label htmlFor={`${idPrefix}-client`}>{t('Cliente')}</label>
           <select
             id={`${idPrefix}-client`}
             className="input"
             value={value.clientId ?? ''}
             onChange={(e) => onChange({ ...value, clientId: e.target.value || null })}
           >
-            <option value="">Sin cliente</option>
+            <option value="">{t('Sin cliente')}</option>
             {clients.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.title}
@@ -113,7 +115,7 @@ export function DropZone({
     >
       <p className="muted">{hint}</p>
       <label className="btn" aria-disabled={disabled}>
-        {multiple ? 'Elegir archivos' : 'Elegir archivo'}
+        {multiple ? t('Elegir archivos') : t('Elegir archivo')}
         <input
           type="file"
           className="sr-only"
@@ -155,9 +157,9 @@ export function ResultList({ rows }: { rows: ResultRow[] }) {
           <span className={r.status === 'error' ? 'danger-text' : 'muted'}>
             {r.message ??
               (r.status === 'trabajando'
-                ? 'Procesando…'
+                ? t('Procesando…')
                 : r.status === 'cancelado'
-                  ? 'Cancelado'
+                  ? t('Cancelado')
                   : '')}
           </span>
           {r.recordId && (
@@ -166,7 +168,7 @@ export function ResultList({ rows }: { rows: ResultRow[] }) {
               className="btn-link"
               onClick={() => nav.openRecord('documento', r.recordId!)}
             >
-              Ver documento
+              {t('Ver documento')}
             </button>
           )}
         </li>
@@ -198,8 +200,8 @@ export function describeSaved(
 ): Pick<ResultRow, 'status' | 'message' | 'recordId'> {
   if (!r) return { status: 'cancelado' }
   return r.recordId
-    ? { status: 'ok', message: 'Guardado en Documentos', recordId: r.recordId }
-    : { status: 'ok', message: 'Exportado' }
+    ? { status: 'ok', message: t('Guardado en Documentos'), recordId: r.recordId }
+    : { status: 'ok', message: t('Exportado') }
 }
 
 export function errorMessage(e: unknown, fallback: string): string {

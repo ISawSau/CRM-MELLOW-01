@@ -6,6 +6,7 @@ import {
   type BriefTemplate,
   type SectionKind,
 } from '@shared/data/brief-templates'
+import { t } from '@shared/i18n'
 import { call, IpcCallError } from '../lib/ipc'
 import { Alert } from '../ui/Alert'
 import { useToast } from '../ui/Toast'
@@ -20,10 +21,10 @@ function Editor({ initial }: { initial: BriefTemplate[] }) {
   const [error, setError] = useState<string | null>(null)
   const qc = useQueryClient()
   const toast = useToast()
-  const t = list.find((x) => x.id === selected) ?? null
+  const tpl = list.find((x) => x.id === selected) ?? null
   const update = (patch: Partial<BriefTemplate>) =>
     setList((l) => l.map((x) => (x.id === selected ? { ...x, ...patch } : x)))
-  const sections = t?.sections ?? []
+  const sections = tpl?.sections ?? []
   const setSection = (i: number, patch: Partial<BriefTemplate['sections'][number]>) =>
     update({ sections: sections.map((s, j) => (j === i ? { ...s, ...patch } : s)) })
   const move = (i: number, d: number) => {
@@ -39,17 +40,17 @@ function Editor({ initial }: { initial: BriefTemplate[] }) {
     try {
       const saved = await call('briefs:setTemplates', { templates: list })
       qc.setQueryData(['data', 'brief-templates'], saved)
-      toast.show('Plantillas guardadas.')
+      toast.show(t('Plantillas guardadas.'))
     } catch (e) {
       setError(
-        e instanceof IpcCallError ? e.message : 'Revisa que ninguna sección quede sin título.',
+        e instanceof IpcCallError ? e.message : t('Revisa que ninguna sección quede sin título.'),
       )
     }
   }
 
   return (
     <div className="form">
-      <div className="template-tabs" role="tablist" aria-label="Plantillas">
+      <div className="template-tabs" role="tablist" aria-label={t('Plantillas')}>
         {list.map((x) => (
           <button
             key={x.id}
@@ -58,7 +59,7 @@ function Editor({ initial }: { initial: BriefTemplate[] }) {
             aria-selected={x.id === selected}
             onClick={() => setSelected(x.id)}
           >
-            {x.name || 'Sin nombre'}
+            {x.name || t('Sin nombre')}
           </button>
         ))}
         <button
@@ -67,8 +68,8 @@ function Editor({ initial }: { initial: BriefTemplate[] }) {
           onClick={() => {
             const n: BriefTemplate = {
               id: newId('plantilla'),
-              name: 'Nueva plantilla',
-              sections: [{ id: newId('s'), title: 'Objetivo', kind: 'text', hint: '' }],
+              name: t('Nueva plantilla'),
+              sections: [{ id: newId('s'), title: t('Objetivo'), kind: 'text', hint: '' }],
               dueDays: null,
               tasks: [],
             }
@@ -76,63 +77,63 @@ function Editor({ initial }: { initial: BriefTemplate[] }) {
             setSelected(n.id)
           }}
         >
-          + Plantilla
+          + {t('Plantilla')}
         </button>
       </div>
-      {t && (
+      {tpl && (
         <>
           <div className="tool-options">
             <div className="field">
-              <label htmlFor="tpl-name">Nombre de la plantilla</label>
+              <label htmlFor="tpl-name">{t('Nombre de la plantilla')}</label>
               <input
                 id="tpl-name"
                 className="input"
                 maxLength={80}
-                value={t.name}
+                value={tpl.name}
                 onChange={(e) => update({ name: e.target.value })}
               />
             </div>
             <div className="field">
-              <label htmlFor="tpl-due">Entrega a los (días)</label>
+              <label htmlFor="tpl-due">{t('Entrega a los (días)')}</label>
               <input
                 id="tpl-due"
                 className="input num"
                 type="number"
                 min={0}
                 max={365}
-                placeholder="Sin fecha"
-                value={t.dueDays ?? ''}
+                placeholder={t('Sin fecha')}
+                value={tpl.dueDays ?? ''}
                 onChange={(e) => update({ dueDays: days(e.target.value) })}
               />
             </div>
           </div>
-          <h3 className="panel-subtitle">Secciones</h3>
+          <h3 className="panel-subtitle">{t('Secciones')}</h3>
           <ul className="template-sections">
             {sections.map((s, i) => (
               <li key={s.id} className="template-section">
                 <input
                   className="input"
-                  aria-label="Título de la sección"
+                  aria-label={t('Título de la sección')}
                   maxLength={120}
                   value={s.title}
                   onChange={(e) => setSection(i, { title: e.target.value })}
                 />
                 <select
                   className="input"
-                  aria-label="Tipo de sección"
+                  aria-label={t('Tipo de sección')}
                   value={s.kind}
                   onChange={(e) => setSection(i, { kind: e.target.value as SectionKind })}
                 >
                   {SECTION_KINDS.map((k) => (
                     <option key={k} value={k}>
-                      {SECTION_KIND_LABELS[k]}
+                      {t(SECTION_KIND_LABELS[k])}
                     </option>
                   ))}
                 </select>
                 <input
                   className="input template-hint"
-                  aria-label="Indicación"
-                  placeholder="Indicación para quien rellena el brief"
+                  aria-label={t('Indicación')}
+                  placeholder={t('Indicación para quien rellena el brief')}
                   maxLength={300}
                   value={s.hint}
                   onChange={(e) => setSection(i, { hint: e.target.value })}
@@ -141,7 +142,7 @@ function Editor({ initial }: { initial: BriefTemplate[] }) {
                   <button
                     type="button"
                     className="icon-btn"
-                    aria-label="Subir sección"
+                    aria-label={t('Subir sección')}
                     disabled={i === 0}
                     onClick={() => move(i, -1)}
                   >
@@ -150,7 +151,7 @@ function Editor({ initial }: { initial: BriefTemplate[] }) {
                   <button
                     type="button"
                     className="icon-btn"
-                    aria-label="Bajar sección"
+                    aria-label={t('Bajar sección')}
                     disabled={i === sections.length - 1}
                     onClick={() => move(i, 1)}
                   >
@@ -159,7 +160,7 @@ function Editor({ initial }: { initial: BriefTemplate[] }) {
                   <button
                     type="button"
                     className="icon-btn"
-                    aria-label={`Quitar ${s.title}`}
+                    aria-label={t('Quitar {title}', { title: s.title })}
                     onClick={() => update({ sections: sections.filter((_, j) => j !== i) })}
                   >
                     ×
@@ -168,37 +169,39 @@ function Editor({ initial }: { initial: BriefTemplate[] }) {
               </li>
             ))}
           </ul>
-          <h3 className="panel-subtitle">Tareas que se crean con el brief</h3>
-          {t.tasks.length === 0 && (
-            <p className="faint">Ninguna. Se crean enlazadas al brief y a su cliente.</p>
+          <h3 className="panel-subtitle">{t('Tareas que se crean con el brief')}</h3>
+          {tpl.tasks.length === 0 && (
+            <p className="faint">{t('Ninguna. Se crean enlazadas al brief y a su cliente.')}</p>
           )}
           <ul className="template-sections">
-            {t.tasks.map((k, i) => (
+            {tpl.tasks.map((k, i) => (
               <li key={k.id} className="template-task">
                 <input
                   className="input"
-                  aria-label="Tarea"
+                  aria-label={t('Tarea')}
                   maxLength={200}
                   value={k.title}
                   onChange={(e) =>
                     update({
-                      tasks: t.tasks.map((x, j) => (j === i ? { ...x, title: e.target.value } : x)),
+                      tasks: tpl.tasks.map((x, j) =>
+                        j === i ? { ...x, title: e.target.value } : x,
+                      ),
                     })
                   }
                 />
                 <label className="template-task-due">
-                  <span className="faint">para el día</span>
+                  <span className="faint">{t('para el día')}</span>
                   <input
                     className="input num"
                     type="number"
-                    aria-label={`Días para «${k.title}»`}
+                    aria-label={t('Días para «{title}»', { title: k.title })}
                     min={0}
                     max={365}
                     placeholder="—"
                     value={k.dueDays ?? ''}
                     onChange={(e) =>
                       update({
-                        tasks: t.tasks.map((x, j) =>
+                        tasks: tpl.tasks.map((x, j) =>
                           j === i ? { ...x, dueDays: days(e.target.value) } : x,
                         ),
                       })
@@ -208,8 +211,8 @@ function Editor({ initial }: { initial: BriefTemplate[] }) {
                 <button
                   type="button"
                   className="icon-btn"
-                  aria-label={`Quitar la tarea ${k.title}`}
-                  onClick={() => update({ tasks: t.tasks.filter((_, j) => j !== i) })}
+                  aria-label={t('Quitar la tarea {title}', { title: k.title })}
+                  onClick={() => update({ tasks: tpl.tasks.filter((_, j) => j !== i) })}
                 >
                   ×
                 </button>
@@ -220,14 +223,14 @@ function Editor({ initial }: { initial: BriefTemplate[] }) {
             <button
               type="button"
               className="btn"
-              disabled={t.tasks.length >= 30}
+              disabled={tpl.tasks.length >= 30}
               onClick={() =>
                 update({
-                  tasks: [...t.tasks, { id: newId('t'), title: 'Nueva tarea', dueDays: null }],
+                  tasks: [...tpl.tasks, { id: newId('t'), title: t('Nueva tarea'), dueDays: null }],
                 })
               }
             >
-              + Tarea
+              + {t('Tarea')}
             </button>
             <button
               type="button"
@@ -236,38 +239,38 @@ function Editor({ initial }: { initial: BriefTemplate[] }) {
                 update({
                   sections: [
                     ...sections,
-                    { id: newId('s'), title: 'Sección', kind: 'text', hint: '' },
+                    { id: newId('s'), title: t('Sección'), kind: 'text', hint: '' },
                   ],
                 })
               }
             >
-              + Sección
+              + {t('Sección')}
             </button>
             <button
               type="button"
               className="btn"
               onClick={() => {
                 const copy: BriefTemplate = {
-                  ...t,
+                  ...tpl,
                   id: newId('plantilla'),
-                  name: `${t.name} (copia)`.slice(0, 80),
+                  name: t('{name} (copia)', { name: tpl.name }).slice(0, 80),
                 }
                 setList((l) => [...l, copy])
                 setSelected(copy.id)
               }}
             >
-              Duplicar
+              {t('Duplicar')}
             </button>
             <button
               type="button"
               className="btn btn-danger"
               onClick={() => {
-                const rest = list.filter((x) => x.id !== t.id)
+                const rest = list.filter((x) => x.id !== tpl.id)
                 setList(rest)
                 setSelected(rest[0]?.id ?? null)
               }}
             >
-              Eliminar plantilla
+              {t('Eliminar plantilla')}
             </button>
           </div>
         </>
@@ -275,13 +278,13 @@ function Editor({ initial }: { initial: BriefTemplate[] }) {
       {error && <Alert>{error}</Alert>}
       <div className="form-actions">
         <button type="button" className="btn btn-primary" onClick={() => void save()}>
-          Guardar plantillas
+          {t('Guardar plantillas')}
         </button>
       </div>
       <p className="hint">
-        Las secciones de enlaces y de archivos recuerdan dónde completarlas: en los campos
-        «Creatividades» y «Archivos» del brief. Los días cuentan desde que se crea el brief. También
-        puedes guardar un brief ya escrito como plantilla desde su ficha.
+        {t(
+          'Las secciones de enlaces y de archivos recuerdan dónde completarlas: en los campos «Creatividades» y «Archivos» del brief. Los días cuentan desde que se crea el brief. También puedes guardar un brief ya escrito como plantilla desde su ficha.',
+        )}
       </p>
     </div>
   )
@@ -296,8 +299,9 @@ export function BriefTemplatesPanel() {
   return (
     <div data-testid="brief-templates">
       <p className="muted">
-        Un brief creado «desde plantilla» empieza con estas secciones, su fecha de entrega y sus
-        tareas ya enlazadas.
+        {t(
+          'Un brief creado «desde plantilla» empieza con estas secciones, su fecha de entrega y sus tareas ya enlazadas.',
+        )}
       </p>
       {templates.data && <Editor key={JSON.stringify(templates.data)} initial={templates.data} />}
     </div>

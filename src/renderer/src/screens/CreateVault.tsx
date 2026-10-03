@@ -5,6 +5,7 @@ import { useAction } from '../lib/hooks'
 import { Alert } from '../ui/Alert'
 import { PasswordField } from '../ui/PasswordField'
 import { Gate } from './Gate'
+import { t } from '@shared/i18n'
 
 const DEFAULT_NAME = 'CRM-Boveda'
 
@@ -47,19 +48,19 @@ export function CreateVault({
   }
 
   return (
-    <Gate step="02 · crear bóveda">
+    <Gate step={t('02 · crear bóveda')}>
       <div className="section-head">
         <span className="eyebrow">
-          <span className="num">02</span> nueva bóveda
+          <span className="num">02</span> {t('nueva bóveda')}
         </span>
-        <h1 className="title">Crear bóveda</h1>
+        <h1 className="title">{t('Crear bóveda')}</h1>
       </div>
 
       <form className="form" onSubmit={submit} noValidate>
         <div className="field">
-          <label>Dónde guardarla</label>
+          <label>{t('Dónde guardarla')}</label>
           <div className="path-box">
-            <span data-testid="create-parent">{parent ?? 'Ninguna carpeta elegida'}</span>
+            <span data-testid="create-parent">{parent ?? t('Ninguna carpeta elegida')}</span>
             <button
               type="button"
               className="btn"
@@ -67,14 +68,14 @@ export function CreateVault({
               disabled={pick.pending}
               data-testid="create-pick"
             >
-              Elegir carpeta…
+              {t('Elegir carpeta…')}
             </button>
           </div>
-          {tried && parent === null && <span className="hint">Elige una carpeta.</span>}
+          {tried && parent === null && <span className="hint">{t('Elige una carpeta.')}</span>}
         </div>
 
         <div className="field">
-          <label htmlFor="vault-name">Nombre de la carpeta de la bóveda</label>
+          <label htmlFor="vault-name">{t('Nombre de la carpeta de la bóveda')}</label>
           <input
             id="vault-name"
             className="input"
@@ -90,15 +91,17 @@ export function CreateVault({
         </div>
 
         <PasswordField
-          label="Contraseña"
+          label={t('Contraseña')}
           value={password}
           onChange={setPassword}
           autoComplete="new-password"
-          hint={`Como mínimo ${MIN_PASSWORD_LENGTH} caracteres. Cuanto más larga, más segura.`}
+          hint={t('Como mínimo {n} caracteres. Cuanto más larga, más segura.', {
+            n: MIN_PASSWORD_LENGTH,
+          })}
           testId="create-password"
         />
         <PasswordField
-          label="Repite la contraseña"
+          label={t('Repite la contraseña')}
           value={confirm}
           onChange={setConfirm}
           autoComplete="new-password"
@@ -106,9 +109,11 @@ export function CreateVault({
         />
 
         {tried && tooShort && (
-          <Alert>La contraseña debe tener al menos {MIN_PASSWORD_LENGTH} caracteres.</Alert>
+          <Alert>
+            {t('La contraseña debe tener al menos {n} caracteres.', { n: MIN_PASSWORD_LENGTH })}
+          </Alert>
         )}
-        {tried && !tooShort && mismatch && <Alert>Las contraseñas no coinciden.</Alert>}
+        {tried && !tooShort && mismatch && <Alert>{t('Las contraseñas no coinciden.')}</Alert>}
         {create.error && <Alert>{create.error.message}</Alert>}
 
         <div className="form-actions">
@@ -118,10 +123,10 @@ export function CreateVault({
             disabled={create.pending}
             data-testid="create-submit"
           >
-            {create.pending ? 'Creando bóveda…' : 'Crear bóveda'}
+            {create.pending ? t('Creando bóveda…') : t('Crear bóveda')}
           </button>
           <button type="button" className="btn btn-link" onClick={onCancel}>
-            Volver
+            {t('Volver')}
           </button>
         </div>
       </form>

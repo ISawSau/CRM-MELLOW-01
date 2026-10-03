@@ -16,7 +16,7 @@ La especificación completa está en `docs/SPEC.md`. Léela antes de cualquier t
 ## Reglas fijas
 
 - Cero costes: nada de servicios de pago, servidores propios ni dependencias con licencia comercial obligatoria.
-- Toda la interfaz en español de España: fechas dd/mm/aaaa, números 1.234,56, semana empieza en lunes, zona horaria por defecto Europe/Madrid.
+- Interfaz en español de España por defecto (fechas dd/mm/aaaa, números 1.234,56, semana empieza en lunes, zona horaria por defecto Europe/Madrid) y también en inglés británico (1,234.56), elegible en la pantalla de contraseña y en Ajustes. Todo texto visible se escribe en español dentro de `t()` / `tn()` / `tc()` de `@shared/i18n` y su traducción va en `src/shared/i18n/en/` (el test de cobertura falla si falta alguna). Nunca `t()` en el nivel superior de un módulo.
 - Los datos solo viven en la bóveda. Nunca escribas datos de usuario fuera de ella (salvo la configuración mínima que indica qué bóveda abrir).
 - La base de datos va siempre cifrada. Tokens y credenciales solo dentro de la base de datos cifrada, nunca en archivos de texto ni en variables de entorno.
 - Conexión con Meta en solo lectura. No implementes ninguna acción que modifique campañas.

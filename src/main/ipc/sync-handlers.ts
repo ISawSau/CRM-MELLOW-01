@@ -1,6 +1,7 @@
 import { dialog, type BrowserWindow } from 'electron'
 import type { SyncService } from '../sync/sync-service'
 import type { IpcHandlers } from './register'
+import { t } from '@shared/i18n'
 
 type SyncChannel = Extract<keyof IpcHandlers, `sync:${string}` | `backups:${string}`>
 export type SyncHandlers = Pick<IpcHandlers, SyncChannel>
@@ -16,8 +17,8 @@ export function createSyncHandlers(
     'sync:pickFolder': async () => {
       const win = getWindow()
       const options: Electron.OpenDialogOptions = {
-        title: 'Carpeta para sincronizar la bóveda',
-        buttonLabel: 'Usar esta carpeta',
+        title: t('Carpeta para sincronizar la bóveda'),
+        buttonLabel: t('Usar esta carpeta'),
         properties: ['openDirectory', 'createDirectory'],
       }
       const r = win

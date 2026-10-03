@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { t } from '@shared/i18n'
 
 /** Diálogo pequeño para pedir un nombre (en Electron no existe window.prompt). */
 export function NameDialog({
@@ -53,10 +54,10 @@ export function NameDialog({
           </div>
           <div className="form-actions">
             <button type="submit" className="btn btn-primary" disabled={!name.trim()}>
-              Crear
+              {t('Crear')}
             </button>
             <button type="button" className="btn" onClick={onCancel}>
-              Cancelar
+              {t('Cancelar')}
             </button>
           </div>
         </form>

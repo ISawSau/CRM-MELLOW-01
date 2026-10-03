@@ -378,6 +378,8 @@ Perfil · bóveda · seguridad (contraseña, autobloqueo, clave de recuperación
 
 ## 8. Diseño visual
 
+- **Idiomas (arreglos tras la 0.13, D-090):** español de España (por defecto) e inglés británico. El idioma se elige en la pantalla de contraseña (ES/EN) y en Ajustes → Apariencia; la ventana se recarga en el nuevo idioma. En inglés los números son 1,234.56, las fechas siguen dd/mm/aaaa y la semana empieza en lunes. Los textos que crea la app de serie (campos, vistas, etapas, plantillas) se ven traducidos; los que escribe el usuario no se tocan.
+
 - Debe parecerse al portfolio del usuario: https://yellowmellow.cc
 - **Primera tarea de diseño (fase 0):** abrir la web, extraer colores, tipografías, radios, espaciados, tono de los textos y elementos característicos, y documentarlos como tokens en `docs/DESIGN.md`. Si la web no se puede leer, pedir capturas al usuario. No construir pantallas antes de que el usuario apruebe esos tokens.
 - Adaptación a una app con mucha densidad de datos: cifras con números tabulares, dos densidades (compacta por defecto y cómoda), tema oscuro por defecto y tema claro, contraste accesible.

@@ -1,13 +1,14 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
 import { shiftDate, todayIn } from '@shared/data/dates'
+import { t } from '@shared/i18n'
 import { computeMetrics, DEFAULT_HOLD_RATE } from '@shared/meta-metrics'
 import { call, IpcCallError } from '../lib/ipc'
 import { useToast } from '../ui/Toast'
 import { fileUrl } from '../data/files'
 import { useTimeZone } from '../data/nav'
 import { DELIVERY_LABELS, deliveryTone } from './meta'
-import { formatMetric, metricDefs, useActionTypes, useTableSettings } from './metrics'
+import { columnLabel, formatMetric, metricDefs, useActionTypes, useTableSettings } from './metrics'
 
 const KPIS = ['gasto', 'compras', 'roas', 'cpa', 'ctr_enlace', 'hook_rate', 'hold_rate']
 
@@ -57,7 +58,7 @@ export function CreativeAds({ recordId }: { recordId: string }) {
         return qc.invalidateQueries({ queryKey: ['data', 'meta', 'creative-perf', recordId] })
       })
       .catch((e: unknown) =>
-        toast.show(e instanceof IpcCallError ? e.message : 'No se pudo vincular.', 'error'),
+        toast.show(e instanceof IpcCallError ? e.message : t('No se pudo vincular.'), 'error'),
       )
   const linked = new Set((links.data ?? []).map((l) => l.id))
   const values = perf.data
@@ -70,19 +71,19 @@ export function CreativeAds({ recordId }: { recordId: string }) {
 
   return (
     <section className="panel-rich" data-testid="creative-ads">
-      <h3 className="panel-subtitle">Anuncios de Meta</h3>
+      <h3 className="panel-subtitle">{t('Anuncios de Meta')}</h3>
       {values && perf.data && (
         <>
           <div className="field-row">
             <select
               className="input"
-              aria-label="Periodo del rendimiento"
+              aria-label={t('Periodo del rendimiento')}
               value={days}
               onChange={(e) => setDays(Number(e.target.value))}
             >
               {[7, 30, 90, 365].map((d) => (
                 <option key={d} value={d}>
-                  Últimos {d} días
+                  {t('Últimos {n} días', { n: d })}
                 </option>
               ))}
             </select>
@@ -90,7 +91,7 @@ export function CreativeAds({ recordId }: { recordId: string }) {
           <dl className="mini-kpis" data-testid="creative-kpis">
             {KPIS.map((k) => (
               <div key={k}>
-                <dt>{defs.get(k)?.label ?? k}</dt>
+                <dt>{columnLabel(k, defs)}</dt>
                 <dd className="num">{formatMetric(values[k], defs.get(k), perf.data.currency)}</dd>
               </div>
             ))}
@@ -110,30 +111,32 @@ export function CreativeAds({ recordId }: { recordId: string }) {
               <span className="faint">
                 {l.accountName}
                 {l.campaignName && ` · ${l.campaignName}`}
-                {l.source === 'auto' && ' · vinculado solo'}
+                {l.source === 'auto' && t(' · vinculado solo')}
               </span>
             </span>
             {l.effectiveStatus && (
               <span className="chip" data-color={deliveryTone(l.effectiveStatus)}>
-                {DELIVERY_LABELS[l.effectiveStatus] ?? l.effectiveStatus}
+                {DELIVERY_LABELS[l.effectiveStatus]
+                  ? t(DELIVERY_LABELS[l.effectiveStatus]!)
+                  : l.effectiveStatus}
               </span>
             )}
             <button
               type="button"
               className="icon-btn"
-              aria-label={`Desvincular ${l.name}`}
+              aria-label={t('Desvincular {name}', { name: l.name })}
               onClick={() => setLink(l.id, false)}
             >
               ×
             </button>
           </li>
         ))}
-        {links.data?.length === 0 && <li className="faint">Ningún anuncio vinculado.</li>}
+        {links.data?.length === 0 && <li className="faint">{t('Ningún anuncio vinculado.')}</li>}
       </ul>
       <input
         className="input"
-        placeholder="Buscar un anuncio para vincular…"
-        aria-label="Buscar anuncio"
+        placeholder={t('Buscar un anuncio para vincular…')}
+        aria-label={t('Buscar anuncio')}
         value={text}
         onChange={(e) => setText(e.target.value)}
       />
@@ -153,7 +156,7 @@ export function CreativeAds({ recordId }: { recordId: string }) {
                 </span>
               </li>
             ))}
-          {hits.data?.length === 0 && <li className="faint">Sin resultados.</li>}
+          {hits.data?.length === 0 && <li className="faint">{t('Sin resultados.')}</li>}
         </ul>
       )}
     </section>

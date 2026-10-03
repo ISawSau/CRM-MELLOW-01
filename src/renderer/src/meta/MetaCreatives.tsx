@@ -1,13 +1,14 @@
 import { useQuery } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
 import { todayIn } from '@shared/data/dates'
+import { t } from '@shared/i18n'
 import type { GroupPerf } from '@shared/meta'
 import { computeMetrics, DEFAULT_HOLD_RATE } from '@shared/meta-metrics'
 import { call } from '../lib/ipc'
 import { useFields } from '../data/hooks'
 import { useNav, useTimeZone } from '../data/nav'
 import { isoToEs, RANGE_LABELS, rangeFor, type RangePreset } from './meta'
-import { formatMetric, metricDefs, useActionTypes, useTableSettings } from './metrics'
+import { columnLabel, formatMetric, metricDefs, useActionTypes, useTableSettings } from './metrics'
 
 const COLUMNS = [
   'gasto',
@@ -51,11 +52,11 @@ function Ranking({
         <thead>
           <tr>
             <th>{title}</th>
-            <th className="num">Creatividades</th>
-            <th className="num">Anuncios</th>
+            <th className="num">{t('Creatividades')}</th>
+            <th className="num">{t('Anuncios')}</th>
             {COLUMNS.map((c) => (
               <th key={c} className="num">
-                {defs.get(c)?.label ?? c}
+                {columnLabel(c, defs)}
               </th>
             ))}
           </tr>
@@ -72,10 +73,10 @@ function Ranking({
                     </button>
                   ) : g.color ? (
                     <span className="chip" data-color={g.color}>
-                      {g.label}
+                      {t(g.label)}
                     </span>
                   ) : (
-                    <span>{g.label}</span>
+                    <span>{t(g.label)}</span>
                   )}
                 </td>
                 <td className="num">{g.creatives}</td>
@@ -91,7 +92,7 @@ function Ranking({
           {groups.length === 0 && (
             <tr>
               <td colSpan={COLUMNS.length + 3} className="faint">
-                Ninguna creatividad con anuncios vinculados en este periodo.
+                {t('Ninguna creatividad con anuncios vinculados en este periodo.')}
               </td>
             </tr>
           )}
@@ -136,12 +137,13 @@ export function MetaCreatives() {
   return (
     <div className="meta-perf" data-testid="meta-creatives">
       <p className="muted">
-        Métricas de los anuncios vinculados a cada creatividad (Biblioteca de creatividades → ficha
-        → Anuncios). Una creatividad con dos etiquetas cuenta en las dos.
+        {t(
+          'Métricas de los anuncios vinculados a cada creatividad (Biblioteca de creatividades → ficha → Anuncios). Una creatividad con dos etiquetas cuenta en las dos.',
+        )}
       </p>
       <div className="meta-toolbar">
         <div className="field">
-          <label htmlFor="tag-field">Agrupar por</label>
+          <label htmlFor="tag-field">{t('Agrupar por')}</label>
           <select
             id="tag-field"
             className="input"
@@ -150,13 +152,13 @@ export function MetaCreatives() {
           >
             {tagFields.map((f) => (
               <option key={f.id} value={f.id}>
-                {f.label}
+                {t(f.label)}
               </option>
             ))}
           </select>
         </div>
         <div className="field">
-          <label htmlFor="tag-range">Periodo</label>
+          <label htmlFor="tag-range">{t('Periodo')}</label>
           <select
             id="tag-range"
             className="input"
@@ -165,20 +167,20 @@ export function MetaCreatives() {
           >
             {(Object.keys(RANGE_LABELS) as RangePreset[]).map((p) => (
               <option key={p} value={p}>
-                {RANGE_LABELS[p]}
+                {t(RANGE_LABELS[p])}
               </option>
             ))}
           </select>
         </div>
         <div className="field">
-          <label htmlFor="tag-client">Cliente</label>
+          <label htmlFor="tag-client">{t('Cliente')}</label>
           <select
             id="tag-client"
             className="input"
             value={clientId ?? ''}
             onChange={(e) => setClientId(e.target.value || null)}
           >
-            <option value="">Todos</option>
+            <option value="">{t('Todos')}</option>
             {(clients.data ?? []).map((c) => (
               <option key={c.id} value={c.id}>
                 {c.title}
@@ -194,18 +196,18 @@ export function MetaCreatives() {
         <>
           {perf.data.partial && (
             <p className="hint danger-text">
-              Faltan tipos de cambio de alguna moneda: esos importes no se han sumado.
+              {t('Faltan tipos de cambio de alguna moneda: esos importes no se han sumado.')}
             </p>
           )}
           <Ranking
-            title={field.label}
+            title={t(field.label)}
             groups={perf.data.groups}
             currency={perf.data.currency}
             testId="tag-ranking"
           />
-          <h3 className="panel-subtitle">Creatividades</h3>
+          <h3 className="panel-subtitle">{t('Creatividades')}</h3>
           <Ranking
-            title="Creatividad"
+            title={t('Creatividad')}
             groups={perf.data.creatives}
             currency={perf.data.currency}
             onOpen={(id) => nav.openRecord('creatividad', id)}

@@ -17,6 +17,7 @@ import type { VaultService } from '../vault/vault-service'
 import { analyze } from './query'
 import { billingSummary } from '../billing/billing'
 import type { BillingSummary } from '@shared/billing'
+import { t } from '@shared/i18n'
 
 /**
  * Análisis (SPEC §7.13): dashboards configurables, comparativas y alertas que solo avisan
@@ -103,7 +104,7 @@ export class AnalysisService {
   setDashboards(list: Dashboard[]): Dashboard[] {
     const parsed = dashboardsSchema.parse(list)
     if (new Set(parsed.map((d) => d.id)).size !== parsed.length)
-      throw new AppError('INVALID_INPUT', undefined, 'Hay dos dashboards con el mismo id.')
+      throw new AppError('INVALID_INPUT', undefined, t('Hay dos dashboards con el mismo id.'))
     this.write(DASHBOARDS_KEY, parsed)
     return this.dashboards()
   }

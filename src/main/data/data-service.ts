@@ -70,6 +70,7 @@ import { mimeFromName, safeFileName } from '@shared/files'
 import { DEFAULT_HOME_LAYOUT, homeLayoutSchema, type HomeLayout } from '@shared/home'
 import { DEFAULT_PROFILE, profileSchema, type Profile } from '@shared/profile'
 import { AppError } from '@shared/errors'
+import { t, tn } from '@shared/i18n'
 import type { EntityInfo, FileInfo, VersionEntry } from '@shared/ipc'
 import type { SqliteDb } from '../db/connection'
 import type { FileStore } from '../files/file-store'
@@ -174,6 +175,65 @@ interface LinkRow {
 const sameValue = (a: unknown, b: unknown) =>
   JSON.stringify(a ?? null) === JSON.stringify(b ?? null)
 
+/**
+ * Campo tal y como lo ve la interfaz: el nombre y las opciones que crea la app de serie
+ * («Título», «Prospecto»…) en el idioma activo. Lo que ha escrito el usuario no está en el
+ * diccionario y se queda igual. En la base de datos siempre va el texto original.
+ */
+export function uiField(f: FieldDef): FieldDef {
+  const options = f.config['options']
+  const translated =
+    (f.type === 'select' || f.type === 'multiselect') && Array.isArray(options)
+      ? {
+          config: {
+            ...f.config,
+            options: (options as { label: string }[]).map((o) => ({ ...o, label: t(o.label) })),
+          },
+        }
+      : {}
+  return { ...f, label: t(f.label), ...translated }
+}
+
+/** Vista tal y como la ve la interfaz (nombres de serie traducidos: «Todas», «Por tipo»…). */
+export function uiView(v: View): View {
+  return { ...v, name: t(v.name) }
+}
+
+/** Si la interfaz devuelve un texto de serie tal y como lo mostró (traducido), se guarda el original. */
+const untranslated = (shown: string, stored: string) => (shown === t(stored) ? stored : shown)
+
+/** Lo mismo con las etiquetas de las opciones de un campo de selección. */
+function untranslatedOptions(
+  f: FieldDef,
+  config: Record<string, unknown>,
+): Record<string, unknown> {
+  const before = f.config['options']
+  const after = config['options']
+  if (!Array.isArray(before) || !Array.isArray(after)) return config
+  const stored = new Map((before as { id: string; label: string }[]).map((o) => [o.id, o.label]))
+  return {
+    ...config,
+    options: (after as unknown[]).map((o) => {
+      if (!o || typeof o !== 'object') return o
+      const opt = o as { id?: unknown; label?: unknown }
+      const label = typeof opt.id === 'string' ? stored.get(opt.id) : undefined
+      return label !== undefined && typeof opt.label === 'string'
+        ? { ...opt, label: untranslated(opt.label, label) }
+        : o
+    }),
+  }
+}
+
+/** Plantillas de brief de serie, en el idioma activo. */
+function defaultBriefTemplates(): BriefTemplate[] {
+  return DEFAULT_BRIEF_TEMPLATES.map((tpl) => ({
+    ...tpl,
+    name: t(tpl.name),
+    sections: tpl.sections.map((s) => ({ ...s, title: t(s.title), hint: t(s.hint) })),
+    tasks: tpl.tasks.map((k) => ({ ...k, title: t(k.title) })),
+  }))
+}
+
 export class DataService {
   private readonly db: SqliteDb
   private readonly timeZone: string
@@ -270,7 +330,7 @@ export class DataService {
 
   getBriefTemplates(): BriefTemplate[] {
     const r = briefTemplatesSchema.safeParse(this.getSetting(BRIEF_TEMPLATES_KEY))
-    return r.success ? r.data : DEFAULT_BRIEF_TEMPLATES
+    return r.success ? r.data : defaultBriefTemplates()
   }
 
   setBriefTemplates(templates: BriefTemplate[]): BriefTemplate[] {
@@ -284,8 +344,8 @@ export class DataService {
    * enlazadas al brief, con su fecha límite (fase 12).
    */
   createBriefFromTemplate(templateId: string, values: Values = {}): RecordRow {
-    const t = this.getBriefTemplates().find((x) => x.id === templateId)
-    if (!t) throw new AppError('INVALID_INPUT', undefined, 'Esa plantilla no existe.')
+    const tpl = this.getBriefTemplates().find((x) => x.id === templateId)
+    if (!tpl) throw new AppError('INVALID_INPUT', undefined, t('Esa plantilla no existe.'))
     const bf = (k: string) => this.listFields('brief').find((f) => f.key === k)
     const tf = (k: string) => this.listFields('tarea').find((f) => f.key === k)
     const today = this.ctx().today
@@ -295,14 +355,14 @@ export class DataService {
       'brief',
       {
         ...values,
-        ...(content ? { [content.id]: briefDocFromTemplate(t) } : {}),
-        ...(entrega && t.dueDays !== null ? { [entrega.id]: shiftDate(today, t.dueDays) } : {}),
+        ...(content ? { [content.id]: briefDocFromTemplate(tpl) } : {}),
+        ...(entrega && tpl.dueDays !== null ? { [entrega.id]: shiftDate(today, tpl.dueDays) } : {}),
       },
-      { title: t.name },
+      { title: tpl.name },
     )
     const toBrief = tf('brief')
     const due = tf('fecha_limite')
-    for (const k of t.tasks) {
+    for (const k of tpl.tasks) {
       const task = this.create(
         'tarea',
         due && k.dueDays !== null ? { [due.id]: shiftDate(today, k.dueDays) } : {},
@@ -319,14 +379,14 @@ export class DataService {
     if (r.entity !== 'brief') throw new AppError('INVALID_INPUT')
     const content = this.listFields('brief').find((f) => f.key === 'contenido')
     const rich = content ? (r.values[content.id] as { doc?: unknown } | undefined) : undefined
-    const t = templateFromBriefDoc(name, rich?.doc, () => randomUUID().slice(0, 8))
-    if (!t.sections.length)
+    const tpl = templateFromBriefDoc(name, rich?.doc, () => randomUUID().slice(0, 8))
+    if (!tpl.sections.length)
       throw new AppError(
         'INVALID_INPUT',
         undefined,
-        'El brief no tiene títulos: cada título del contenido se convierte en una sección.',
+        t('El brief no tiene títulos: cada título del contenido se convierte en una sección.'),
       )
-    return this.setBriefTemplates([...this.getBriefTemplates(), t])
+    return this.setBriefTemplates([...this.getBriefTemplates(), tpl])
   }
 
   /** Tarjetas y widgets de Inicio (fase 12). */
@@ -370,8 +430,8 @@ export class DataService {
     const letters = new Map(this.collections().map((c) => [c.id, c.letter]))
     return this.allEntities().map((e) => ({
       id: e.id,
-      label: e.label,
-      singular: e.singular,
+      label: t(e.label),
+      singular: t(e.singular),
       gender: e.gender,
       titleKey: e.titleKey,
       custom: letters.has(e.id),
@@ -393,7 +453,8 @@ export class DataService {
 
   private requireEntity(id: string) {
     const e = this.entityDef(id)
-    if (!e) throw new AppError('INVALID_INPUT', undefined, `No existe la entidad «${id}».`)
+    if (!e)
+      throw new AppError('INVALID_INPUT', undefined, t('No existe la entidad «{id}».', { id }))
     return e
   }
 
@@ -417,7 +478,7 @@ export class DataService {
     const c = collectionInputSchema.parse(input)
     const list = this.collections()
     if (list.length >= 50)
-      throw new AppError('INVALID_INPUT', undefined, 'Como mucho puede haber 50 colecciones.')
+      throw new AppError('INVALID_INPUT', undefined, t('Como mucho puede haber 50 colecciones.'))
     const taken = new Set([...ENTITIES.map((e) => e.id), ...list.map((x) => x.id)])
     const id = collectionIdFor(c.label, (x) => taken.has(x))
     const col: Collection = { ...c, id, createdAt: this.nowIso() }
@@ -453,7 +514,12 @@ export class DataService {
       throw new AppError(
         'INVALID_INPUT',
         undefined,
-        `«${col.label}» tiene ${live.n} ${live.n === 1 ? 'registro' : 'registros'}: bórralos antes (van a la papelera).`,
+        tn(
+          live.n,
+          '«{name}» tiene {n} registro: bórralos antes (van a la papelera).',
+          '«{name}» tiene {n} registros: bórralos antes (van a la papelera).',
+          { name: col.label },
+        ),
       )
     const refs = (
       this.db
@@ -466,9 +532,16 @@ export class DataService {
       throw new AppError(
         'INVALID_INPUT',
         undefined,
-        `Antes quita los campos que la enlazan: ${refs
-          .map((f) => `«${f.label}» de ${this.entityDef(f.entity)?.label ?? f.entity}`)
-          .join(', ')}.`,
+        t('Antes quita los campos que la enlazan: {fields}.', {
+          fields: refs
+            .map((f) =>
+              t('«{field}» de {entity}', {
+                field: t(f.label),
+                entity: t(this.entityDef(f.entity)?.label ?? f.entity),
+              }),
+            )
+            .join(', '),
+        }),
       )
     this.tx(() => {
       const trashed = this.db.prepare('SELECT id FROM records WHERE entity = ?').all(id) as {
@@ -629,7 +702,7 @@ export class DataService {
   getField(id: string): FieldDef {
     const r = this.db.prepare('SELECT * FROM field_defs WHERE id = ?').get(id) as
       FieldRow | undefined
-    if (!r) throw new AppError('INVALID_INPUT', undefined, 'El campo no existe.')
+    if (!r) throw new AppError('INVALID_INPUT', undefined, t('El campo no existe.'))
     return this.fieldFromRow(r)
   }
 
@@ -662,7 +735,7 @@ export class DataService {
         throw new AppError(
           'INVALID_INPUT',
           undefined,
-          'La relación apunta a una entidad que no existe.',
+          t('La relación apunta a una entidad que no existe.'),
         )
       const inv = parseFieldConfig('relation', config).inverseOf
       if (inv) {
@@ -672,7 +745,7 @@ export class DataService {
           throw new AppError(
             'INVALID_INPUT',
             undefined,
-            'El campo inverso no encaja con su relación.',
+            t('El campo inverso no encaja con su relación.'),
           )
       }
     }
@@ -684,11 +757,11 @@ export class DataService {
         throw new AppError(
           'INVALID_INPUT',
           undefined,
-          'El resumen necesita un campo de relación de esta entidad.',
+          t('El resumen necesita un campo de relación de esta entidad.'),
         )
       if (c.fn !== 'count') {
         if (!c.targetField)
-          throw new AppError('INVALID_INPUT', undefined, 'Elige el campo que se resume.')
+          throw new AppError('INVALID_INPUT', undefined, t('Elige el campo que se resume.'))
         const target = this.getField(c.targetField)
         const relTarget = parseFieldConfig('relation', rel.config).target
         if (
@@ -698,7 +771,7 @@ export class DataService {
           throw new AppError(
             'INVALID_INPUT',
             undefined,
-            'Solo se pueden resumir campos numéricos de la entidad relacionada.',
+            t('Solo se pueden resumir campos numéricos de la entidad relacionada.'),
           )
       }
     }
@@ -721,13 +794,13 @@ export class DataService {
     try {
       ast = parseFormula(expression)
     } catch (e) {
-      return e instanceof FormulaError ? e.message : 'Error en la fórmula.'
+      return e instanceof FormulaError ? e.message : t('Error en la fórmula.')
     }
     const fields = this.listFields(entity).filter((f) => f.id !== selfId)
     const byKey = new Map(fields.map((f) => [f.key, f]))
     for (const ref of formulaReferences(ast)) {
-      if (ref === selfKey) return 'Una fórmula no puede usarse a sí misma.'
-      if (!byKey.has(ref)) return `No existe ningún campo «${ref}».`
+      if (ref === selfKey) return t('Una fórmula no puede usarse a sí misma.')
+      if (!byKey.has(ref)) return t('No existe ningún campo «{ref}».', { ref })
     }
     // Ciclos entre fórmulas: a → b → a.
     const graph = new Map<string, string[]>()
@@ -755,7 +828,7 @@ export class DataService {
       path.delete(k)
       return false
     }
-    return visit(me, new Set()) ? 'La fórmula crea una referencia circular.' : null
+    return visit(me, new Set()) ? t('La fórmula crea una referencia circular.') : null
   }
 
   createField(
@@ -765,9 +838,9 @@ export class DataService {
     this.requireEntity(entity)
     if (!FIELD_TYPES.includes(input.type)) throw new AppError('INVALID_INPUT')
     const unavailable = UNAVAILABLE_TYPES[input.type]
-    if (unavailable) throw new AppError('INVALID_INPUT', undefined, unavailable)
+    if (unavailable) throw new AppError('INVALID_INPUT', undefined, t(unavailable))
     const label = input.label.trim()
-    if (!label) throw new AppError('INVALID_INPUT', undefined, 'El campo necesita un nombre.')
+    if (!label) throw new AppError('INVALID_INPUT', undefined, t('El campo necesita un nombre.'))
     const config = fieldConfigSchemas[input.type].parse(input.config ?? {}) as Record<
       string,
       unknown
@@ -813,19 +886,19 @@ export class DataService {
     },
   ): FieldDef {
     const f = this.getField(id)
-    const label = patch.label !== undefined ? patch.label.trim() : f.label
-    if (!label) throw new AppError('INVALID_INPUT', undefined, 'El campo necesita un nombre.')
+    const label = patch.label !== undefined ? untranslated(patch.label.trim(), f.label) : f.label
+    if (!label) throw new AppError('INVALID_INPUT', undefined, t('El campo necesita un nombre.'))
     let key = f.key
     if (patch.key !== undefined && patch.key !== f.key) {
       if (f.system)
         throw new AppError(
           'INVALID_INPUT',
           undefined,
-          'La clave de un campo de sistema no se puede cambiar.',
+          t('La clave de un campo de sistema no se puede cambiar.'),
         )
       key = fieldKeySchema.parse(patch.key)
       if (this.uniqueKey(f.entity, key) !== key)
-        throw new AppError('INVALID_INPUT', undefined, 'Ya hay un campo con esa clave.')
+        throw new AppError('INVALID_INPUT', undefined, t('Ya hay un campo con esa clave.'))
     }
     // En una relación no cambian ni la entidad de destino ni de qué campo es inversa.
     const fixed =
@@ -836,10 +909,10 @@ export class DataService {
           : {}
     const config =
       patch.config !== undefined
-        ? (fieldConfigSchemas[f.type].parse({ ...patch.config, ...fixed }) as Record<
-            string,
-            unknown
-          >)
+        ? (fieldConfigSchemas[f.type].parse({
+            ...untranslatedOptions(f, patch.config),
+            ...fixed,
+          }) as Record<string, unknown>)
         : f.config
     if (patch.config !== undefined) this.validateComputed(f.entity, f.type, config, f.id, key)
     const required =
@@ -882,7 +955,7 @@ export class DataService {
       throw new AppError(
         'INVALID_INPUT',
         undefined,
-        'Los campos de sistema no se pueden eliminar, solo ocultar.',
+        t('Los campos de sistema no se pueden eliminar, solo ocultar.'),
       )
     this.db
       .prepare('UPDATE field_defs SET deleted_at = ?, updated_at = ? WHERE id = ?')
@@ -944,7 +1017,7 @@ export class DataService {
 
   getView(id: string): View {
     const r = this.db.prepare('SELECT * FROM views WHERE id = ?').get(id) as ViewRow | undefined
-    if (!r) throw new AppError('INVALID_INPUT', undefined, 'La vista no existe.')
+    if (!r) throw new AppError('INVALID_INPUT', undefined, t('La vista no existe.'))
     return this.viewFromRow(r)
   }
 
@@ -971,7 +1044,7 @@ export class DataService {
       .run(
         id,
         entity,
-        name.trim() || 'Vista',
+        name.trim() || t('Vista'),
         kind,
         JSON.stringify(config),
         (max.m ?? -1) + 1,
@@ -992,7 +1065,12 @@ export class DataService {
     }
     this.db
       .prepare('UPDATE views SET name = ?, config = ?, updated_at = ? WHERE id = ?')
-      .run(patch.name?.trim() || v.name, JSON.stringify(config), this.nowIso(), id)
+      .run(
+        (patch.name && untranslated(patch.name.trim(), v.name)) || v.name,
+        JSON.stringify(config),
+        this.nowIso(),
+        id,
+      )
     return this.getView(id)
   }
 
@@ -1004,7 +1082,7 @@ export class DataService {
       }
     ).n
     if (count <= 1)
-      throw new AppError('INVALID_INPUT', undefined, 'Tiene que quedar al menos una vista.')
+      throw new AppError('INVALID_INPUT', undefined, t('Tiene que quedar al menos una vista.'))
     this.db.prepare('DELETE FROM views WHERE id = ?').run(id)
     this.emit(v.entity)
   }
@@ -1124,7 +1202,7 @@ export class DataService {
           values[f.id] = res
           env.set(f.key, 'value' in res ? res.value : null)
         }
-        for (const f of order.cyclic) values[f.id] = { error: 'Referencia circular.' }
+        for (const f of order.cyclic) values[f.id] = { error: t('Referencia circular.') }
       }
       return {
         id: r.id,
@@ -1214,16 +1292,16 @@ export class DataService {
 
   private evalFormula(f: FieldDef, env: Map<string, FormulaValue>, today: string): ComputedValue {
     const ast = this.parsedFormula(f)
-    if (ast instanceof FormulaError) return { error: ast.message }
+    if (ast instanceof FormulaError) return { error: t(ast.message) }
     try {
       const raw = evaluate(ast, { fields: env, today })
       const c = parseFieldConfig('formula', f.config)
       if (raw === null || raw === '') return { value: null }
       if (['number', 'currency', 'percent'].includes(c.format) && typeof raw !== 'number')
-        return { error: 'La fórmula no devuelve un número.' }
+        return { error: t('La fórmula no devuelve un número.') }
       return { value: raw }
     } catch (e) {
-      return { error: e instanceof FormulaError ? e.message : 'Error en la fórmula.' }
+      return { error: e instanceof FormulaError ? t(e.message) : t('Error en la fórmula.') }
     }
   }
 
@@ -1304,7 +1382,7 @@ export class DataService {
 
   get(id: string): RecordRow {
     const r = this.db.prepare('SELECT * FROM records WHERE id = ?').get(id) as StoredRow | undefined
-    if (!r) throw new AppError('INVALID_INPUT', undefined, 'El registro no existe.')
+    if (!r) throw new AppError('INVALID_INPUT', undefined, t('El registro no existe.'))
     return this.hydrate([r], this.listFields(r.entity))[0]!
   }
 
@@ -1315,29 +1393,37 @@ export class DataService {
     const out: Values = {}
     for (const [fid, raw] of Object.entries(patch)) {
       const f = fields.get(fid)
-      if (!f) throw new AppError('INVALID_INPUT', undefined, 'Ese campo no existe.')
+      if (!f) throw new AppError('INVALID_INPUT', undefined, t('Ese campo no existe.'))
       if (COMPUTED_TYPES.includes(f.type) || f.type === 'relation')
-        throw new AppError('INVALID_INPUT', undefined, `«${f.label}» no se edita directamente.`)
+        throw new AppError(
+          'INVALID_INPUT',
+          undefined,
+          t('«{field}» no se edita directamente.', { field: t(f.label) }),
+        )
       let value: unknown
       try {
         value = parseValue(f, raw)
       } catch (e) {
-        throw new AppError('INVALID_INPUT', undefined, (e as Error).message)
+        throw new AppError('INVALID_INPUT', undefined, t((e as Error).message))
       }
       if (f.type === 'longtext' && value) {
         const rt = value as RichText
         if (JSON.stringify(rt.doc).length > 1_000_000)
-          throw new AppError('INVALID_INPUT', undefined, 'El texto es demasiado largo.')
+          throw new AppError('INVALID_INPUT', undefined, t('El texto es demasiado largo.'))
         value = { doc: rt.doc, text: richTextToPlain(rt.doc).trim() }
       }
       if (f.type === 'files' && value) {
         const refs = value as FileRef[]
         const known = this.db.prepare('SELECT id FROM files WHERE id = ?')
         if (refs.some((r) => !known.get(r.id)))
-          throw new AppError('INVALID_INPUT', undefined, 'Algún archivo no está en la bóveda.')
+          throw new AppError('INVALID_INPUT', undefined, t('Algún archivo no está en la bóveda.'))
       }
       if (f.required && value === null)
-        throw new AppError('INVALID_INPUT', undefined, `«${f.label}» no puede quedar vacío.`)
+        throw new AppError(
+          'INVALID_INPUT',
+          undefined,
+          t('«{field}» no puede quedar vacío.', { field: t(f.label) }),
+        )
       out[fid] = value
     }
     return out
@@ -1394,7 +1480,7 @@ export class DataService {
   private storedData(id: string): { row: StoredRow; data: Values } {
     const row = this.db.prepare('SELECT * FROM records WHERE id = ?').get(id) as
       StoredRow | undefined
-    if (!row) throw new AppError('INVALID_INPUT', undefined, 'El registro no existe.')
+    if (!row) throw new AppError('INVALID_INPUT', undefined, t('El registro no existe.'))
     return { row, data: JSON.parse(row.data) as Values }
   }
 
@@ -1443,7 +1529,7 @@ export class DataService {
       titleId &&
       (withTitle[titleId] === undefined || withTitle[titleId] === '' || withTitle[titleId] === null)
     )
-      withTitle[titleId] = 'Sin título'
+      withTitle[titleId] = t('Sin título')
     const data = this.validatePatch(entity, withTitle)
     const id = newId()
     const createdAt = this.nowIso()
@@ -1458,7 +1544,11 @@ export class DataService {
       )
       this.reindex(id)
     })
-    const label = opts.label ?? `Crear ${def.gender === 'f' ? 'una' : 'un'} ${def.singular}`
+    const label =
+      opts.label ??
+      t(def.gender === 'f' ? 'Crear una {singular}' : 'Crear un {singular}', {
+        singular: t(def.singular),
+      })
     this.undoStack.push({
       label,
       undo: () => this.tx(() => this.hardDelete(id)),
@@ -1476,7 +1566,7 @@ export class DataService {
   update(id: string, patch: Values): RecordRow {
     const { row, data } = this.storedData(id)
     if (row.deleted_at)
-      throw new AppError('INVALID_INPUT', undefined, 'El registro está en la papelera.')
+      throw new AppError('INVALID_INPUT', undefined, t('El registro está en la papelera.'))
     const clean = this.validatePatch(row.entity, patch)
     const changes: Record<string, { from: unknown; to: unknown }> = {}
     for (const [k, v] of Object.entries(clean))
@@ -1512,9 +1602,12 @@ export class DataService {
         : null
     if (spawn) this.doSpawn(spawn)
     const fields = new Map(this.listFields(row.entity).map((f) => [f.id, f]))
-    const names = Object.keys(changes).map((k) => fields.get(k)?.label ?? 'campo')
+    const names = Object.keys(changes).map((k) => t(fields.get(k)?.label ?? 'campo'))
     this.undoStack.push({
-      label: `Editar ${names.length === 1 ? `«${names[0]}»` : `${names.length} campos`}`,
+      label:
+        names.length === 1
+          ? t('Editar «{field}»', { field: names[0]! })
+          : t('Editar {n} campos', { n: names.length }),
       undo: () => {
         if (spawn) this.undoSpawn(spawn)
         apply('from')
@@ -1575,7 +1668,7 @@ export class DataService {
   restoreVersion(versionId: number): RecordRow {
     const v = this.db.prepare('SELECT * FROM versions WHERE id = ?').get(versionId) as
       { record_id: string; data: string } | undefined
-    if (!v) throw new AppError('INVALID_INPUT', undefined, 'La versión no existe.')
+    if (!v) throw new AppError('INVALID_INPUT', undefined, t('La versión no existe.'))
     const { row } = this.storedData(v.record_id)
     const snapshot = JSON.parse(v.data) as Values
     const patch: Values = {}
@@ -1591,7 +1684,8 @@ export class DataService {
   // --- Archivos ---------------------------------------------------------------
 
   get files(): FileStore {
-    if (!this.store) throw new AppError('UNKNOWN', undefined, 'Los archivos no están disponibles.')
+    if (!this.store)
+      throw new AppError('UNKNOWN', undefined, t('Los archivos no están disponibles.'))
     return this.store
   }
 
@@ -1650,7 +1744,8 @@ export class DataService {
     id: string,
     meta: { width?: number; height?: number; duration?: number; thumb?: Uint8Array },
   ): FileInfo {
-    if (!this.fileInfo(id)) throw new AppError('INVALID_INPUT', undefined, 'El archivo no existe.')
+    if (!this.fileInfo(id))
+      throw new AppError('INVALID_INPUT', undefined, t('El archivo no existe.'))
     if (meta.thumb) this.files.saveThumb(id, meta.thumb)
     this.db
       .prepare(
@@ -1878,13 +1973,13 @@ export class DataService {
     const c = parseFieldConfig('relation', f.config)
     const unique = [...new Set(toIds)].filter((t) => t !== recordId)
     if (!c.multiple && unique.length > 1)
-      throw new AppError('INVALID_INPUT', undefined, 'Esta relación admite un solo registro.')
+      throw new AppError('INVALID_INPUT', undefined, t('Esta relación admite un solo registro.'))
     const targets = this.loadRows(unique)
     if (
       targets.length !== unique.length ||
       targets.some((t) => t.entity !== c.target || t.deleted_at)
     )
-      throw new AppError('INVALID_INPUT', undefined, 'Algún registro enlazado no existe.')
+      throw new AppError('INVALID_INPUT', undefined, t('Algún registro enlazado no existe.'))
 
     const isInverse = !!c.inverseOf
     const owner = isInverse ? this.getField(c.inverseOf!) : f
@@ -1974,7 +2069,7 @@ export class DataService {
     })
     const next = snapshot()
     this.undoStack.push({
-      label: `Editar «${f.label}»`,
+      label: t('Editar «{field}»', { field: t(f.label) }),
       undo: () => restore(prev, unique, before),
       redo: () => restore(next, before, unique),
     })
@@ -1987,9 +2082,11 @@ export class DataService {
     const def = this.requireEntity(row.entity)
     const titleId = this.titleFieldId(row.entity)
     const copy = { ...data }
-    if (titleId) copy[titleId] = `${this.titleOf(row.entity, data)} (copia)`
+    if (titleId) copy[titleId] = t('{title} (copia)', { title: this.titleOf(row.entity, data) })
     const created = this.create(row.entity, copy, {
-      label: `Duplicar ${def.gender === 'f' ? 'una' : 'un'} ${def.singular}`,
+      label: t(def.gender === 'f' ? 'Duplicar una {singular}' : 'Duplicar un {singular}', {
+        singular: t(def.singular),
+      }),
     })
     // Los vínculos salientes también se copian.
     // (salvo los de relaciones cuyo otro lado admite un solo registro: no se pueden repetir).
@@ -2033,7 +2130,9 @@ export class DataService {
     setDeleted(true)
     const one = rows.length === 1
     this.undoStack.push({
-      label: one ? 'Enviar a la papelera' : `Enviar ${rows.length} registros a la papelera`,
+      label: one
+        ? t('Enviar a la papelera')
+        : t('Enviar {n} registros a la papelera', { n: rows.length }),
       undo: () => setDeleted(false),
       redo: () => setDeleted(true),
     })
@@ -2057,7 +2156,7 @@ export class DataService {
       })
     set(true)
     this.undoStack.push({
-      label: 'Restaurar de la papelera',
+      label: t('Restaurar de la papelera'),
       undo: () => set(false),
       redo: () => set(true),
     })
@@ -2128,7 +2227,7 @@ export class DataService {
         JSON.parse(h.changes) as Record<string, { from: unknown; to: unknown }>,
       ).map(([fieldId, c]) => ({
         fieldId,
-        label: fields.get(fieldId)?.label ?? 'Campo eliminado',
+        label: t(fields.get(fieldId)?.label ?? 'Campo eliminado'),
         from: c.from,
         to: c.to,
       })),
@@ -2166,7 +2265,7 @@ export class DataService {
       return label
     } catch {
       this.undoStack.clear()
-      throw new AppError('UNKNOWN', undefined, 'No se pudo deshacer: el registro ya no existe.')
+      throw new AppError('UNKNOWN', undefined, t('No se pudo deshacer: el registro ya no existe.'))
     }
   }
 
@@ -2177,7 +2276,7 @@ export class DataService {
       return label
     } catch {
       this.undoStack.clear()
-      throw new AppError('UNKNOWN', undefined, 'No se pudo rehacer: el registro ya no existe.')
+      throw new AppError('UNKNOWN', undefined, t('No se pudo rehacer: el registro ya no existe.'))
     }
   }
 
@@ -2202,7 +2301,7 @@ export class DataService {
     const safe = (s: string) => s.replace(/[\\/:*?"<>|]/g, '-')
     return {
       csv: toCsv(ordered, rows),
-      filename: safe(`${def.label} - ${v.name} - ${d}-${m}-${y}.csv`),
+      filename: safe(`${t(def.label)} - ${t(v.name)} - ${d}-${m}-${y}.csv`),
     }
   }
 }

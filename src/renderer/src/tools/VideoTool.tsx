@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { formatBytes } from '@shared/files'
 import { formatNumber } from '@shared/format'
+import { t } from '@shared/i18n'
 import {
   VIDEO_FITS,
   VIDEO_PRESETS,
@@ -59,7 +60,7 @@ export function VideoTool() {
     const r = await window.api.openDroppedVideo(file).catch(() => null)
     setOpening(false)
     if (r?.ok) setVideo(r.data)
-    else setOpenError(r ? r.error.message : 'Ese archivo no se puede abrir.')
+    else setOpenError(r ? r.error.message : t('Ese archivo no se puede abrir.'))
   }
 
   const run = async () => {
@@ -84,7 +85,7 @@ export function VideoTool() {
         {
           ...row,
           status: cancelled ? 'cancelado' : 'error',
-          message: cancelled ? 'Cancelado' : errorMessage(e, 'No se ha podido convertir.'),
+          message: cancelled ? t('Cancelado') : errorMessage(e, t('No se ha podido convertir.')),
         },
       ])
     }
@@ -94,10 +95,12 @@ export function VideoTool() {
   if (status.data && !status.data.ffmpeg)
     return (
       <div className="empty" data-testid="tool-video">
-        <h2>Falta FFmpeg</h2>
+        <h2>{t('Falta FFmpeg')}</h2>
         <p className="muted">
-          La conversión de vídeo usa FFmpeg, que viene con el instalador. Si estás en modo
-          desarrollo, ejecuta <code>node scripts/descargar-ffmpeg.mjs</code>.
+          {t(
+            'La conversión de vídeo usa FFmpeg, que viene con el instalador. Si estás en modo desarrollo, ejecuta',
+          )}{' '}
+          <code>node scripts/descargar-ffmpeg.mjs</code>.
         </p>
       </div>
     )
@@ -108,12 +111,12 @@ export function VideoTool() {
       <DropZone
         accept="video/mp4,video/quicktime,video/webm,video/x-matroska,.mov,.mkv,.avi,.m4v"
         multiple={false}
-        hint="Arrastra aquí un vídeo (MP4, MOV, WebM, MKV o AVI)."
+        hint={t('Arrastra aquí un vídeo (MP4, MOV, WebM, MKV o AVI).')}
         onFiles={(f) => void open(f[0]!)}
         testId="video-drop"
         disabled={busy || opening}
       />
-      {opening && <p className="muted">Leyendo el vídeo…</p>}
+      {opening && <p className="muted">{t('Leyendo el vídeo…')}</p>}
       {openError && <p className="danger-text">{openError}</p>}
       {video && (
         <p className="tool-video-info" data-testid="video-info">
@@ -125,7 +128,7 @@ export function VideoTool() {
         </p>
       )}
       <fieldset className="tool-presets">
-        <legend>Formato</legend>
+        <legend>{t('Formato')}</legend>
         {Object.entries(VIDEO_PRESETS).map(([k, p]) => (
           <label key={k} className="tool-preset" data-checked={preset === k}>
             <input
@@ -136,14 +139,14 @@ export function VideoTool() {
               onChange={() => setPreset(k as VideoPreset)}
             />
             <span className="tool-aspect" aria-hidden="true" data-preset={k} />
-            <span>{p.label}</span>
+            <span>{t(p.label)}</span>
           </label>
         ))}
       </fieldset>
       <div className="tool-options">
         {preset !== 'comprimir' && (
           <div className="field">
-            <label htmlFor="video-fit">Si no encaja</label>
+            <label htmlFor="video-fit">{t('Si no encaja')}</label>
             <select
               id="video-fit"
               className="input"
@@ -152,14 +155,14 @@ export function VideoTool() {
             >
               {Object.entries(VIDEO_FITS).map(([k, l]) => (
                 <option key={k} value={k}>
-                  {l}
+                  {t(l)}
                 </option>
               ))}
             </select>
           </div>
         )}
         <div className="field">
-          <label htmlFor="video-quality">Calidad</label>
+          <label htmlFor="video-quality">{t('Calidad')}</label>
           <select
             id="video-quality"
             className="input"
@@ -168,14 +171,14 @@ export function VideoTool() {
           >
             {Object.entries(VIDEO_QUALITY).map(([k, q]) => (
               <option key={k} value={k}>
-                {q.label}
+                {t(q.label)}
               </option>
             ))}
           </select>
         </div>
         <label className="check tool-check">
           <input type="checkbox" checked={mute} onChange={(e) => setMute(e.target.checked)} />
-          <span>Quitar el sonido</span>
+          <span>{t('Quitar el sonido')}</span>
         </label>
       </div>
       <DestinationPicker value={dest} onChange={setDest} idPrefix="video" />
@@ -186,7 +189,7 @@ export function VideoTool() {
           disabled={!video || busy}
           onClick={() => void run()}
         >
-          {busy ? 'Convirtiendo…' : 'Convertir vídeo'}
+          {busy ? t('Convirtiendo…') : t('Convertir vídeo')}
         </button>
         {busy && (
           <>
@@ -194,7 +197,7 @@ export function VideoTool() {
               className="tool-progress"
               max={1}
               value={progress}
-              aria-label="Avance de la conversión"
+              aria-label={t('Avance de la conversión')}
             />
             <span className="num muted">{formatNumber(progress * 100, 0)} %</span>
             <button
@@ -202,7 +205,7 @@ export function VideoTool() {
               className="btn"
               onClick={() => void call('tools:cancel', { token: video!.token })}
             >
-              Cancelar
+              {t('Cancelar')}
             </button>
           </>
         )}

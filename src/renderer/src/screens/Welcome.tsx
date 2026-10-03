@@ -2,6 +2,7 @@ import { call } from '../lib/ipc'
 import { useAction } from '../lib/hooks'
 import { Alert } from '../ui/Alert'
 import { Gate } from './Gate'
+import { t } from '@shared/i18n'
 
 export function Welcome({ onCreate }: { onCreate: () => void }) {
   const open = useAction(async () => {
@@ -10,25 +11,26 @@ export function Welcome({ onCreate }: { onCreate: () => void }) {
   })
 
   return (
-    <Gate step="01 · empezar" wide>
+    <Gate step={t('01 · empezar')} wide>
       <h1 className="title-hero">
-        Todo tu trabajo,
+        {t('Todo tu trabajo,')}
         <br />
-        <span className="shift">en una carpeta.</span>
+        <span className="shift">{t('en una carpeta.')}</span>
       </h1>
       <p className="muted">
-        La bóveda es la carpeta donde se guardan tus datos, cifrados. Puedes copiarla a otro
-        ordenador o a un USB y seguir trabajando allí.
+        {t(
+          'La bóveda es la carpeta donde se guardan tus datos, cifrados. Puedes copiarla a otro ordenador o a un USB y seguir trabajando allí.',
+        )}
       </p>
       <div className="choices">
         <button type="button" className="choice" onClick={onCreate} data-testid="welcome-create">
           <span className="eyebrow">
-            <span className="num">A</span> primera vez
+            <span className="num">A</span> {t('primera vez')}
           </span>
           <h2>
-            Crear bóveda nueva <span className="arrow">→</span>
+            {t('Crear bóveda nueva')} <span className="arrow">→</span>
           </h2>
-          <span className="muted">Eliges dónde guardarla y una contraseña.</span>
+          <span className="muted">{t('Eliges dónde guardarla y una contraseña.')}</span>
         </button>
         <button
           type="button"
@@ -38,12 +40,12 @@ export function Welcome({ onCreate }: { onCreate: () => void }) {
           data-testid="welcome-open"
         >
           <span className="eyebrow">
-            <span className="num">B</span> ya tengo una
+            <span className="num">B</span> {t('ya tengo una')}
           </span>
           <h2>
-            Abrir bóveda existente <span className="arrow">→</span>
+            {t('Abrir bóveda existente')} <span className="arrow">→</span>
           </h2>
-          <span className="muted">Elige la carpeta que contiene vault.json.</span>
+          <span className="muted">{t('Elige la carpeta que contiene vault.json.')}</span>
         </button>
       </div>
       {open.error && <Alert>{open.error.message}</Alert>}

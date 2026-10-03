@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { FormulaError, evaluate, parseFormula, formulaReferences, type Node } from './data/formula'
 import { OPTION_COLORS } from './data/fields'
+import { t } from './i18n'
 
 /**
  * Métricas de Meta para la tabla tipo Ads Manager (SPEC §7.3, fase 7).
@@ -448,8 +449,8 @@ export function computeMetrics(
 ): MetricValues {
   const v: MetricValues = {}
   for (const m of BASE_METRICS) v[m.key] = base[m.key] ?? 0
-  for (const t of opts.actionTypes ?? []) {
-    const k = actionKey(t)
+  for (const type of opts.actionTypes ?? []) {
+    const k = actionKey(type)
     v[`acc_${k}`] = 0
     v[`val_${k}`] = 0
   }
@@ -505,11 +506,11 @@ export function metricProblem(expression: string, known: ReadonlySet<string>): s
   try {
     node = parseFormula(expression)
   } catch (e) {
-    return e instanceof FormulaError ? e.message : 'La fórmula no es válida.'
+    return e instanceof FormulaError ? e.message : t('La fórmula no es válida.')
   }
   for (const ref of formulaReferences(node)) {
     if (!known.has(ref) && !/^(acc|val)_[a-z0-9_]+$/.test(ref))
-      return `No existe ninguna métrica «${ref}».`
+      return t('No existe ninguna métrica «{ref}».', { ref })
   }
   return null
 }

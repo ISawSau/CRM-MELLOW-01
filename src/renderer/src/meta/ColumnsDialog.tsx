@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { OPTION_COLORS, type OptionColor } from '@shared/data/fields'
 import { parseNumberEs, formatNumber } from '@shared/format'
+import { t } from '@shared/i18n'
 import {
   CONFIG_COLUMNS,
   type ColumnPreset,
@@ -67,7 +68,9 @@ export function ColumnsDialog({
   onDelete: (() => void) | null
   onClose: () => void
 }) {
-  const [name, setName] = useState(builtIn ? `${preset.name} (copia)` : preset.name)
+  const [name, setName] = useState(
+    builtIn ? t('{name} (copia)', { name: t(preset.name) }) : preset.name,
+  )
   const [columns, setColumns] = useState(preset.columns)
   const [rules, setRules] = useState<ConditionalRule[]>(preset.rules)
   const [search, setSearch] = useState('')
@@ -80,8 +83,16 @@ export function ColumnsDialog({
     setColumns(next)
   }
   const available = [
-    ...CONFIG_COLUMNS.map((c) => ({ key: c.key, label: c.label, group: 'Configuración' })),
-    ...[...defs.values()].map((d) => ({ key: d.key, label: d.label, group: d.group as string })),
+    ...CONFIG_COLUMNS.map((c) => ({
+      key: c.key,
+      label: columnLabel(c.key, defs),
+      group: 'Configuración',
+    })),
+    ...[...defs.values()].map((d) => ({
+      key: d.key,
+      label: columnLabel(d.key, defs),
+      group: d.group as string,
+    })),
   ].filter(
     (c) =>
       !columns.includes(c.key) &&
@@ -93,7 +104,7 @@ export function ColumnsDialog({
     onSave(
       {
         id: preset.id,
-        name: name.trim() || 'Sin nombre',
+        name: name.trim() || t('Sin nombre'),
         columns,
         rules: rules.filter((r) => columns.includes(r.column)),
       },
@@ -110,9 +121,9 @@ export function ColumnsDialog({
         aria-labelledby="cols-t"
         data-testid="columns-dialog"
       >
-        <h2 id="cols-t">Columnas</h2>
+        <h2 id="cols-t">{t('Columnas')}</h2>
         <div className="field">
-          <label htmlFor="preset-name">Nombre del preset</label>
+          <label htmlFor="preset-name">{t('Nombre del preset')}</label>
           <input
             id="preset-name"
             className="input"
@@ -123,7 +134,7 @@ export function ColumnsDialog({
         </div>
         <div className="columns-editor">
           <div>
-            <h3 className="panel-subtitle">Elegidas</h3>
+            <h3 className="panel-subtitle">{t('Elegidas')}</h3>
             <ol className="column-list" data-testid="chosen-columns">
               {columns.map((c, i) => (
                 <li key={c}>
@@ -131,7 +142,7 @@ export function ColumnsDialog({
                   <button
                     type="button"
                     className="icon-btn"
-                    aria-label={`Subir ${columnLabel(c, defs)}`}
+                    aria-label={t('Subir {column}', { column: columnLabel(c, defs) })}
                     disabled={i === 0}
                     onClick={() => move(i, -1)}
                   >
@@ -140,7 +151,7 @@ export function ColumnsDialog({
                   <button
                     type="button"
                     className="icon-btn"
-                    aria-label={`Bajar ${columnLabel(c, defs)}`}
+                    aria-label={t('Bajar {column}', { column: columnLabel(c, defs) })}
                     disabled={i === columns.length - 1}
                     onClick={() => move(i, 1)}
                   >
@@ -149,7 +160,7 @@ export function ColumnsDialog({
                   <button
                     type="button"
                     className="icon-btn"
-                    aria-label={`Quitar ${columnLabel(c, defs)}`}
+                    aria-label={t('Quitar {column}', { column: columnLabel(c, defs) })}
                     disabled={columns.length === 1}
                     onClick={() => setColumns(columns.filter((x) => x !== c))}
                   >
@@ -160,18 +171,18 @@ export function ColumnsDialog({
             </ol>
           </div>
           <div>
-            <h3 className="panel-subtitle">Añadir</h3>
+            <h3 className="panel-subtitle">{t('Añadir')}</h3>
             <input
               className="input"
-              placeholder="Buscar métrica o acción…"
-              aria-label="Buscar columna"
+              placeholder={t('Buscar métrica o acción…')}
+              aria-label={t('Buscar columna')}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
             <div className="column-catalog">
               {groups.map((g) => (
                 <div key={g}>
-                  <h4 className="eyebrow">{g}</h4>
+                  <h4 className="eyebrow">{t(g)}</h4>
                   <ul>
                     {available
                       .filter((a) => a.group === g)
@@ -189,12 +200,12 @@ export function ColumnsDialog({
                   </ul>
                 </div>
               ))}
-              {available.length === 0 && <p className="faint">Nada que añadir.</p>}
+              {available.length === 0 && <p className="faint">{t('Nada que añadir.')}</p>}
             </div>
           </div>
         </div>
 
-        <h3 className="panel-subtitle">Formato condicional</h3>
+        <h3 className="panel-subtitle">{t('Formato condicional')}</h3>
         <ul className="rule-list" data-testid="rules">
           {rules.map((r, i) => {
             const set = (patch: Partial<ConditionalRule>) =>
@@ -203,7 +214,7 @@ export function ColumnsDialog({
               <li key={i} className="rule-item">
                 <select
                   className="input"
-                  aria-label="Columna de la regla"
+                  aria-label={t('Columna de la regla')}
                   value={r.column}
                   onChange={(e) => set({ column: e.target.value })}
                 >
@@ -215,36 +226,36 @@ export function ColumnsDialog({
                 </select>
                 <select
                   className="input"
-                  aria-label="Condición"
+                  aria-label={t('Condición')}
                   value={r.op}
                   onChange={(e) => set({ op: e.target.value as ConditionalRule['op'] })}
                 >
                   {Object.entries(OPS).map(([k, l]) => (
                     <option key={k} value={k}>
-                      {l}
+                      {t(l)}
                     </option>
                   ))}
                 </select>
-                <NumberInput value={r.a} label="Valor" onChange={(a) => set({ a })} />
+                <NumberInput value={r.a} label={t('Valor')} onChange={(a) => set({ a })} />
                 {r.op === 'between' && (
                   <>
-                    <span className="faint">y</span>
+                    <span className="faint">{t('y')}</span>
                     <NumberInput
                       value={r.b ?? r.a}
-                      label="Segundo valor"
+                      label={t('Segundo valor')}
                       onChange={(b) => set({ b })}
                     />
                   </>
                 )}
                 <select
                   className="input"
-                  aria-label="Color"
+                  aria-label={t('Color')}
                   value={r.color}
                   onChange={(e) => set({ color: e.target.value as OptionColor })}
                 >
                   {OPTION_COLORS.map((c) => (
                     <option key={c} value={c}>
-                      {COLOR_LABELS[c]}
+                      {t(COLOR_LABELS[c])}
                     </option>
                   ))}
                 </select>
@@ -252,7 +263,7 @@ export function ColumnsDialog({
                 <button
                   type="button"
                   className="icon-btn"
-                  aria-label="Quitar regla"
+                  aria-label={t('Quitar regla')}
                   onClick={() => setRules(rules.filter((_, j) => j !== i))}
                 >
                   ×
@@ -270,28 +281,30 @@ export function ColumnsDialog({
               setRules([...rules, { column: numeric[0]!, op: 'gt', a: 0, color: 'verde' }])
             }
           >
-            + Regla
+            {t('+ Regla')}
           </button>
         </div>
         <p className="hint">
-          Colorea la celda si cumple la condición. Los porcentajes van en tanto por cien (2 = 2 %).
+          {t(
+            'Colorea la celda si cumple la condición. Los porcentajes van en tanto por cien (2 = 2 %).',
+          )}
         </p>
 
         <div className="form-actions">
           <button type="button" className="btn" onClick={onClose}>
-            Cancelar
+            {t('Cancelar')}
           </button>
           {onDelete && (
             <button type="button" className="btn btn-danger" onClick={onDelete}>
-              Borrar preset
+              {t('Borrar preset')}
             </button>
           )}
           <button type="button" className="btn" onClick={() => save(true)}>
-            Guardar como preset nuevo
+            {t('Guardar como preset nuevo')}
           </button>
           {!builtIn && (
             <button type="button" className="btn btn-primary" onClick={() => save(false)}>
-              Guardar
+              {t('Guardar')}
             </button>
           )}
         </div>
