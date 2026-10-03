@@ -4,7 +4,8 @@ import type { Alert, AnalysisFilter } from '@shared/analysis'
 import { formatDateTime, formatNumber, parseNumberEs } from '@shared/format'
 import { call, IpcCallError } from '../lib/ipc'
 import { useToast } from '../ui/Toast'
-import { isoToEs, useMetaAccounts, useMetaStatus } from '../meta/meta'
+import { isoToEs, useMetaStatus } from '../meta/meta'
+import { useAllAccounts } from '../platforms/platforms'
 import { formatMetric } from '../meta/metrics'
 import { MetricSelect, useMetricKit } from './kit'
 
@@ -24,7 +25,7 @@ function AlertDialog({
   onClose: () => void
 }) {
   const kit = useMetricKit()
-  const accounts = useMetaAccounts()
+  const accounts = useAllAccounts()
   const clients = useQuery({
     queryKey: ['data', 'meta', 'clients'],
     queryFn: () => call('data:query', { entity: 'cliente' }),
@@ -94,13 +95,11 @@ function AlertDialog({
               ))}
             </optgroup>
             <optgroup label="Cuentas">
-              {(accounts.data ?? [])
-                .filter((x) => x.enabled)
-                .map((x) => (
-                  <option key={x.id} value={`account:${x.id}`}>
-                    {x.name}
-                  </option>
-                ))}
+              {accounts.map((x) => (
+                <option key={x.id} value={`account:${x.id}`}>
+                  {x.name}
+                </option>
+              ))}
             </optgroup>
           </select>
         </div>

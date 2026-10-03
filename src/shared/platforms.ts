@@ -264,7 +264,7 @@ export function detectTable(rows: string[][]): {
 
 /** «1.234,56 €», «$1,234.56», «12 %», «-» → número (o null si no lo es). */
 export function parseAmount(raw: string, decimal: ',' | '.'): number | null {
-  let s = raw.trim().replace(/[^\d,.\-]/g, '')
+  let s = raw.trim().replace(/[^\d,.-]/g, '')
   if (s === '' || s === '-') return null
   s = decimal === ',' ? s.replace(/\./g, '').replace(',', '.') : s.replace(/,/g, '')
   const n = Number(s)

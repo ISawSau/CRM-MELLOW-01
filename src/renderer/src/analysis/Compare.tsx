@@ -10,7 +10,8 @@ import {
 } from '@shared/analysis'
 import { call } from '../lib/ipc'
 import { useFields } from '../data/hooks'
-import { isoToEs, useMetaAccounts } from '../meta/meta'
+import { isoToEs } from '../meta/meta'
+import { useAllAccounts } from '../platforms/platforms'
 import { delta, formatMetric } from '../meta/metrics'
 import { Chart } from './Chart'
 import { MetricSelect, useAnalysis, useFormatter, useMetricKit, useToday } from './kit'
@@ -54,7 +55,7 @@ function useOptions(mode: Mode, since: string, until: string, tagFieldId: string
     queryFn: () => call('data:query', { entity: 'cliente' }),
     enabled: mode === 'cliente',
   })
-  const accounts = useMetaAccounts()
+  const accounts = useAllAccounts()
   const fields = useFields('creatividad')
   const byDim = useAnalysis(
     mode === 'campana' || mode === 'creatividad'
@@ -63,7 +64,7 @@ function useOptions(mode: Mode, since: string, until: string, tagFieldId: string
   )
   if (mode === 'cliente') return (clients.data ?? []).map((c) => ({ key: c.id, label: c.title }))
   if (mode === 'cuenta')
-    return (accounts.data ?? []).filter((a) => a.enabled).map((a) => ({ key: a.id, label: a.name }))
+    return accounts.map((a) => ({ key: a.id, label: a.name }))
   if (mode === 'etiqueta') {
     const f = (fields.data ?? []).find((x) => x.id === tagFieldId)
     return ((f?.config['options'] as { id: string; label: string }[] | undefined) ?? []).map(
