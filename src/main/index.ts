@@ -28,6 +28,7 @@ import { reportFonts } from './reports/fonts'
 import { htmlToPdf } from './reports/print'
 import { ReportService } from './reports/report-service'
 import { GmailService } from './gmail/gmail-service'
+import { PlatformsService } from './platforms/platforms-service'
 import { isVaultFolder } from './vault/vault-file'
 import { VaultService } from './vault/vault-service'
 import { createMainWindow } from './window'
@@ -117,12 +118,22 @@ if (process.argv.includes('--autoprueba')) {
         }
       : {}),
   })
+  // API de LinkedIn falsa para los tests (solo sin empaquetar).
+  const linkedinUrl = testUrl('CRM_TEST_LINKEDIN_URL')
+  const platforms = new PlatformsService(vault, {
+    openBrowser: openExternalSafely,
+    onChange: () => mainWindow?.webContents.send('platforms:changed', null),
+    updateRates: () => meta.syncRates(),
+    onSynced: () => analysis.evaluate(),
+    ...(linkedinUrl ? { apiUrl: linkedinUrl } : {}),
+  })
   /** Bloqueo con subida previa de lo pendiente (manual o por inactividad). */
   const lockWithSync = async () => {
     autoLock.stop()
     meta.dispose()
     tools.dispose()
     gmail.dispose()
+    platforms.dispose()
     try {
       await sync.beforeClose()
     } finally {
@@ -191,6 +202,7 @@ if (process.argv.includes('--autoprueba')) {
         tools,
         reports,
         gmail,
+        platforms,
         lockWithSync,
         getWindow: () => mainWindow,
       }),
@@ -205,6 +217,7 @@ if (process.argv.includes('--autoprueba')) {
       meta.dispose()
       tools.dispose()
       gmail.dispose()
+      platforms.dispose()
       sync.dispose()
       vault.lock()
     }
@@ -224,6 +237,7 @@ if (process.argv.includes('--autoprueba')) {
     if (quitting) return
     meta.dispose()
     tools.dispose()
+    platforms.dispose()
     if (vault.status().state === 'unlocked' && sync.status().pending && sync.status().kind) {
       event.preventDefault()
       quitting = true

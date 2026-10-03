@@ -44,7 +44,7 @@ const COLUMNS = [
   ['vencido', 'Vencido'],
   ['gastos', 'Gastos'],
   ['beneficio', 'Beneficio'],
-  ['inversion', 'Inversión en Meta'],
+  ['inversion', 'Inversión publicitaria'],
   ['feePrevisto', 'Fee previsto'],
   ['porcentajePrevisto', '% del gasto previsto'],
 ] as const
@@ -70,9 +70,10 @@ export function BillingPage({ num, onNavigate }: { num: string; onNavigate: (s: 
         </span>
         <h1 className="title">Facturación</h1>
         <p className="muted">
-          Beneficio por cliente: lo facturado y cobrado, los gastos asociados, la inversión en Meta
-          y lo previsto por el acuerdo de cada cliente. Las facturas se emiten con tu programa de
-          facturación (que cumpla Verifactu) y aquí se registran.
+          Beneficio por cliente: lo facturado y cobrado, los gastos asociados, la inversión
+          publicitaria (Meta, LinkedIn y X) y lo previsto por el acuerdo de cada cliente. Las
+          facturas se emiten con tu programa de facturación (que cumpla Verifactu) y aquí se
+          registran.
         </p>
       </div>
       <div className="meta-toolbar">
@@ -213,7 +214,7 @@ export function BillingPage({ num, onNavigate }: { num: string; onNavigate: (s: 
           <p className="hint">
             Importes en {s.currency}, convertidos con el tipo del BCE de cada fecha. El fee se
             prorratea por los días del periodo y el porcentaje se calcula sobre la inversión en las
-            cuentas de Meta asignadas al cliente.
+            cuentas publicitarias asignadas al cliente.
           </p>
         </>
       )}

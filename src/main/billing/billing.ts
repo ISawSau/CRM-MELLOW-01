@@ -11,7 +11,7 @@ import { moneyConverter } from '../meta/sums'
  * Resumen de facturación y beneficio por cliente (SPEC §7.9). Las facturas se registran
  * (se emiten con un programa que cumple Verifactu, D-071); aquí se suman, se convierten a
  * la moneda de visualización con el tipo del BCE de cada fecha y se cruzan con los
- * gastos, los fees acordados y la inversión en Meta.
+ * gastos, los fees acordados y la inversión publicitaria.
  */
 
 const NONE = '__sin__'
@@ -136,7 +136,7 @@ export function billingSummary(
     row(clientOf(gf('cliente'), g)).gastos += money(importe, cur, fecha as string)
   }
 
-  // Inversión en Meta por cliente (cuentas asignadas).
+  // Inversión publicitaria (Meta, LinkedIn y X) por cliente (cuentas asignadas).
   const meta = analyze(db, data, { since, until, groupBy: 'cliente', limit: 50 }, currency)
   partial ||= meta.partial
   for (const g of meta.groups) {

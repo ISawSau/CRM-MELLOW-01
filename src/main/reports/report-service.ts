@@ -5,6 +5,7 @@ import { AppError } from '@shared/errors'
 import { safeFileName } from '@shared/files'
 import { computeMetrics, type MetaTableSettings } from '@shared/meta-metrics'
 import { metricDefs } from '@shared/metric-format'
+import { PLATFORMS, type Platform } from '@shared/platforms'
 import {
   DEFAULT_TEMPLATE,
   reportTemplatesSchema,
@@ -96,6 +97,23 @@ export class ReportService {
     const types = this.deps.actionTypes()
     const profile = data.getProfile()
     const today = todayIn(profile.timeZone, this.now())
+    // Plataformas con métricas en el periodo, para la portada.
+    const platforms = (
+      this.db
+        .prepare(
+          `SELECT DISTINCT a.platform FROM ad_accounts a
+           WHERE a.enabled = 1 AND (? IS NULL OR a.client_id = ?) AND EXISTS (
+             SELECT 1 FROM ad_insights_daily d
+             WHERE d.account_id = a.id AND d.level = 'account' AND d.date BETWEEN ? AND ?)`,
+        )
+        .all(client?.id ?? null, client?.id ?? null, input.since, input.until) as {
+        platform: string
+      }[]
+    )
+      .map((r) => r.platform)
+      .filter((p): p is Platform => p in PLATFORMS)
+      .sort((a, b) => Object.keys(PLATFORMS).indexOf(a) - Object.keys(PLATFORMS).indexOf(b))
+      .map((p) => `${PLATFORMS[p]} Ads`)
     const html = buildReportHtml({
       template,
       since: input.since,
@@ -106,6 +124,7 @@ export class ReportService {
       author: profile.company || profile.name,
       logo: profile.photo,
       today,
+      platforms,
       comments: input.comments,
       defs: metricDefs(settings.metrics, types),
       compute: (base) =>

@@ -345,3 +345,18 @@
   min-height: 0;
   padding: 0;
 }
+
+/* --- LinkedIn y X ----------------------------------------------------------- */
+
+.import-csv {
+  max-width: 980px;
+}
+
+.mapping-grid {
+  flex: 1 1 100%;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+}
+
+.mapping-grid .field {
+  min-width: 0;
+}

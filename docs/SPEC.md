@@ -274,6 +274,11 @@ Tabla genérica de vínculos (campo de relación, id de origen, id de destino, p
 - Los conectores de plataformas comparten una interfaz común (listar cuentas, estructura, métricas diarias), de forma que añadir una plataforma nueva no cambia el resto de la app. Las métricas se normalizan (gasto, impresiones, clics, conversiones, valor) y además se guardan las específicas de cada plataforma.
 - **Aviso sobre "gratis":** el acceso de lectura a la API de X ha sido de pago en los últimos años, y la API de publicidad de LinkedIn es gratuita pero requiere solicitar y obtener aprobación. **Verificar** el estado actual antes de implementar.
 - Alternativa gratuita garantizada: importar los CSV que exportan X Ads y LinkedIn Campaign Manager, con un mapeo de columnas que se guarda para reutilizarlo cada semana.
+- *Fase 11:*
+  - Sección **LinkedIn y X** con tres pestañas: Cuentas (cliente, uso en Análisis y borrado), Importar CSV y API de LinkedIn.
+  - LinkedIn se conecta por su API de publicidad en solo lectura (D-079). X, solo por CSV porque su API es de pago (D-080). LinkedIn también admite CSV.
+  - Las métricas comparten tablas con Meta (gasto, impresiones, clics, clics en el enlace, conversiones y valor, por campaña y día). Así entran en Análisis, Inicio, Facturación, Informes y alertas, y en la ficha del cliente.
+  - No hay conjuntos, anuncios ni desgloses de estas plataformas; la tabla tipo Ads Manager sigue siendo solo de Meta. Tampoco se guardan todavía las métricas propias de cada plataforma (solo las normalizadas).
 
 ### 7.5 Leads de Meta (opcional, baja prioridad)
 

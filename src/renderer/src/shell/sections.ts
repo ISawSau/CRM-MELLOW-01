@@ -53,6 +53,7 @@ export const SECTION_GROUPS: SectionGroup[] = [
         phase: null,
         summary: '',
       },
+      { id: 'plataformas', label: 'LinkedIn y X', letter: 'L', phase: null, summary: '' },
       {
         id: 'creatividades',
         label: 'Creatividades',

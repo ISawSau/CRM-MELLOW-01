@@ -1,6 +1,17 @@
 import { z } from 'zod'
 import { saveResultSchema, videoJobSchema, type SavedResult, type ToolsProgress } from './tools'
 import {
+  csvImportSchema,
+  linkedinConnectSchema,
+  OTHER_PLATFORMS,
+  otherAccountId,
+  platformAccountUpdateSchema,
+  type CsvImportResult,
+  type CsvMapping,
+  type LinkedInStatus,
+  type PlatformAccount,
+} from './platforms'
+import {
   gmailConnectSchema,
   gmailThreadsSchema,
   type GmailStatus,
@@ -338,6 +349,21 @@ export const ipcSchemas = {
   'analysis:markSeen': z.void(),
   'billing:summary': billingQuerySchema,
   'tools:status': z.void(),
+  'platforms:accounts': z.void(),
+  'platforms:updateAccount': platformAccountUpdateSchema,
+  'platforms:deleteAccount': z.object({ id: otherAccountId }),
+  'platforms:savedMapping': z.object({
+    platform: z.enum(OTHER_PLATFORMS),
+    headers: z.array(z.string().max(300)).max(300),
+  }),
+  'platforms:importCsv': z.object({
+    input: csvImportSchema,
+    headers: z.array(z.string().max(300)).max(300),
+  }),
+  'linkedin:status': z.void(),
+  'linkedin:connect': linkedinConnectSchema,
+  'linkedin:disconnect': z.void(),
+  'linkedin:sync': z.void(),
   'gmail:status': z.void(),
   'gmail:connect': gmailConnectSchema,
   'gmail:disconnect': z.void(),
@@ -454,6 +480,15 @@ export interface IpcOutputs {
   'analysis:markSeen': void
   'billing:summary': BillingSummary
   'tools:status': { ffmpeg: boolean }
+  'platforms:accounts': PlatformAccount[]
+  'platforms:updateAccount': PlatformAccount[]
+  'platforms:deleteAccount': PlatformAccount[]
+  'platforms:savedMapping': CsvMapping | null
+  'platforms:importCsv': CsvImportResult
+  'linkedin:status': LinkedInStatus
+  'linkedin:connect': LinkedInStatus
+  'linkedin:disconnect': LinkedInStatus
+  'linkedin:sync': LinkedInStatus
   'gmail:status': GmailStatus
   'gmail:connect': GmailStatus
   'gmail:disconnect': GmailStatus
@@ -481,6 +516,8 @@ export interface IpcEvents {
   /** Hay avisos de alertas nuevos o se han marcado como vistos. */
   'analysis:changed': null
   'gmail:changed': GmailStatus
+  /** Cambian las cuentas o los datos de LinkedIn y X. */
+  'platforms:changed': null
   /** Avance de una conversión de vídeo. */
   'tools:progress': ToolsProgress
 }
