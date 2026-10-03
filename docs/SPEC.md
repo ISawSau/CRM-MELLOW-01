@@ -158,6 +158,8 @@ Más adelante (fase 12), colecciones personalizadas: el usuario crea sus propias
 
 ### Campos personalizados
 
+*Arreglos tras la 0.13:* los campos de cada sección se editan desde la propia sección (botón «⚙ Ajustes»), no desde Ajustes generales (D-088).
+
 - Tabla de definiciones: entidad, clave, etiqueta, tipo, configuración, orden, visible, obligatorio.
 - Tipos: texto, texto largo con formato, número, moneda, porcentaje, fecha, fecha y hora, casilla, selección, selección múltiple (opciones con color, editables), URL, email, teléfono, archivos, relación con otra entidad, valoración, lista de comprobación, repetición, fórmula y resumen (agregado sobre una relación, p. ej. "gasto total de las campañas de este cliente").
 - Filtros de fecha relativos a hoy: es hoy, antes de hoy, próximos 7 días, últimos 7 días y este mes.
@@ -196,6 +198,7 @@ Tabla genérica de vínculos (campo de relación, id de origen, id de destino, p
 
 - Pantalla de contraseña.
 - Perfil: nombre, foto, datos fiscales y de empresa, moneda y zona horaria por defecto.
+- *Arreglos tras la 0.13:* Perfil es una sección propia antes de Inicio, con Datos y Cuentas conectadas (Meta, sincronización, X, LinkedIn y Gmail) (D-087).
 - Inicio: visión general con gasto de hoy, 7 y 30 días, ROAS, alertas activas, tareas de hoy y atrasadas, estado de la última sincronización. En una fase posterior, widgets configurables.
 - *Fase 12:* Inicio configurable con «Personalizar»:
   - quitar, ordenar y volver a añadir las tarjetas (cifras clave, clientes por etapa, notas, gasto y ROAS, tareas y alertas);
@@ -287,6 +290,7 @@ Tabla genérica de vínculos (campo de relación, id de origen, id de destino, p
   - Sección **LinkedIn y X** con tres pestañas: Cuentas (cliente, uso en Análisis y borrado), Importar CSV y API de LinkedIn.
   - LinkedIn se conecta por su API de publicidad en solo lectura (D-079). X, solo por CSV porque su API es de pago (D-080). LinkedIn también admite CSV.
   - Las métricas comparten tablas con Meta (gasto, impresiones, clics, clics en el enlace, conversiones y valor, por campaña y día). Así entran en Análisis, Inicio, Facturación, Informes y alertas, y en la ficha del cliente.
+  - LinkedIn es una integración opcional, desactivada de serie (Ajustes → Integraciones opcionales). Sin ella, la sección es «X Ads» (D-086).
   - No hay conjuntos, anuncios ni desgloses de estas plataformas; la tabla tipo Ads Manager sigue siendo solo de Meta. Tampoco se guardan todavía las métricas propias de cada plataforma (solo las normalizadas).
 
 ### 7.5 Leads de Meta (opcional, baja prioridad)
@@ -377,7 +381,7 @@ Perfil · bóveda · seguridad (contraseña, autobloqueo, clave de recuperación
 - Debe parecerse al portfolio del usuario: https://yellowmellow.cc
 - **Primera tarea de diseño (fase 0):** abrir la web, extraer colores, tipografías, radios, espaciados, tono de los textos y elementos característicos, y documentarlos como tokens en `docs/DESIGN.md`. Si la web no se puede leer, pedir capturas al usuario. No construir pantallas antes de que el usuario apruebe esos tokens.
 - Adaptación a una app con mucha densidad de datos: cifras con números tabulares, dos densidades (compacta por defecto y cómoda), tema oscuro por defecto y tema claro, contraste accesible.
-- **Temas:** el diseño se define con tokens. Cada tema da un valor a cada token y la app tiene un selector de temas. En la fase 12 el usuario crea temas propios y los edita desde la propia app (Ajustes → Apariencia): parte de un tema, cambia cada token con vista previa en directo y la app avisa de las parejas de texto y fondo que no llegan a contraste AA (D-081). Si el color de marca es claro (p. ej. un amarillo), usarlo como fondo de acento o en superficies con texto oscuro, nunca como color de texto sobre blanco.
+- **Temas:** el diseño se define con tokens. Cada tema da un valor a cada token y la app tiene un selector de temas. En la fase 12 el usuario crea temas propios y los edita desde la propia app (Ajustes → Apariencia): parte de un tema, cambia cada token con vista previa en directo y la app avisa de las parejas de texto y fondo que no llegan a contraste AA (D-081). Los temas se exportan e importan como archivo JSON, se pueden pedir a cualquier IA y admiten esquinas redondeadas, fondo de imagen o vídeo e iconos propios por sección (D-089). Si el color de marca es claro (p. ej. un amarillo), usarlo como fondo de acento o en superficies con texto oscuro, nunca como color de texto sobre blanco.
 - Evitar el aspecto genérico de SaaS (todo en tarjetas iguales con sombra gris y degradados). La identidad del portfolio manda.
 - Textos de interfaz en español, en minúscula inicial, con verbos claros en los botones ("Guardar cambios", no "Enviar"). Los estados vacíos indican qué hacer a continuación.
 

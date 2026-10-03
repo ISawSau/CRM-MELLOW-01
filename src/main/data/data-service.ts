@@ -1697,6 +1697,11 @@ export class DataService {
       }>)
         collect(JSON.parse(r.data) as Values)
     }
+    // Fondos de los temas propios (se guardan en la bóveda como cualquier archivo).
+    const themes = this.getSetting('appearance.themes')
+    if (Array.isArray(themes))
+      for (const t of themes as { background?: { fileId?: unknown } | null }[])
+        if (typeof t?.background?.fileId === 'string') used.add(t.background.fileId)
     // Miniaturas de las creatividades de Meta (fase 6).
     for (const r of this.db
       .prepare('SELECT thumb_file_id AS id FROM ad_creatives WHERE thumb_file_id IS NOT NULL')

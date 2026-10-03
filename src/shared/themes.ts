@@ -45,14 +45,43 @@ export const themeOptionsSchema = z.object(
 )
 export type ThemeOptions = z.infer<typeof themeOptionsSchema>
 
+/**
+ * Fondo del tema: una imagen o un vídeo guardado (cifrado) en la bóveda, con un velo del
+ * color de fondo encima para que el texto se siga leyendo.
+ */
+export const themeBackgroundSchema = z.object({
+  fileId: z.string().regex(/^[a-f0-9]{64}$/),
+  kind: z.enum(['image', 'video']),
+  fit: z.enum(['cover', 'contain']).default('cover'),
+  /** Opacidad del velo del color de fondo (0: solo la imagen; 1: no se ve). */
+  dim: z.number().min(0).max(1).default(0.7),
+  /** Desenfoque en píxeles. */
+  blur: z.number().int().min(0).max(30).default(0),
+})
+export type ThemeBackground = z.infer<typeof themeBackgroundSchema>
+
+/** Icono de una sección: una o dos letras, una cifra o un emoji (sin controles). */
+const iconSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(8)
+  .refine((s) => [...s].length <= 2 && !/[\p{Cc}<>]/u.test(s), 'Icono no válido')
+
 export const themeSchema = z.object({
   id: themeIdSchema,
   name: z.string().min(1).max(60),
   scheme: z.enum(['dark', 'light']),
   colors: themeColorsSchema,
   options: themeOptionsSchema,
+  /** Redondeo de esquinas de botones, campos, tarjetas y ventanas (px). */
+  radius: z.number().int().min(0).max(24).default(0),
+  background: themeBackgroundSchema.nullable().default(null),
+  /** Iconos de la barra lateral por sección (id de sección → icono). */
+  icons: z.record(z.string().regex(/^[a-z0-9-]{1,48}$/), iconSchema).default({}),
 })
 export type Theme = z.infer<typeof themeSchema>
+export type ThemeInput = z.input<typeof themeSchema>
 
 const PALETTE = {
   ink: '#0d0908',
@@ -99,6 +128,9 @@ export const BUILT_IN_THEMES: readonly Theme[] = [
       focus: PALETTE.peach,
       shadow: 'rgba(0, 0, 0, 0.35)',
     },
+    radius: 0,
+    background: null,
+    icons: {},
     options: {
       gris: { bg: '#2a2422', text: '#d9cec7' },
       melocoton: { bg: '#3a2619', text: '#f0c3a3' },
@@ -134,6 +166,9 @@ export const BUILT_IN_THEMES: readonly Theme[] = [
       focus: PALETTE.wine,
       shadow: 'rgba(13, 9, 8, 0.12)',
     },
+    radius: 0,
+    background: null,
+    icons: {},
     options: {
       gris: { bg: '#ece4dc', text: '#4a3f39' },
       melocoton: { bg: '#f7dcc7', text: '#7a3f1c' },
@@ -158,6 +193,7 @@ const kebab = (k: string) => k.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`)
 /** Variables CSS de un tema: { '--bg': '#0d0908', … } */
 export function themeToCssVars(theme: Theme): Record<string, string> {
   return Object.fromEntries([
+    ['--radius', `${theme.radius ?? 0}px`],
     ...Object.entries(theme.colors).map(([k, v]) => [`--${kebab(k)}`, v]),
     ...Object.entries(theme.options).flatMap(([k, v]) => [
       [`--opt-${k}-bg`, v.bg],
@@ -260,4 +296,66 @@ export function contrastIssues(t: Theme): ContrastIssue[] {
   return pairs
     .map(([label, fg, bg]) => ({ label, ratio: contrast(fg, bg), min: 4.5 }))
     .filter((p) => p.ratio < p.min)
+}
+
+// --- Importar y exportar --------------------------------------------------------------
+
+export const THEME_FILE_FORMAT = 'crm-mellow-tema'
+
+/** Tema listo para compartir: sin id ni fondo (el fondo es un archivo de esta bóveda). */
+export function exportTheme(t: Theme): string {
+  const tema: Partial<Theme> = { ...t }
+  delete tema.id
+  delete tema.background
+  return JSON.stringify({ formato: THEME_FILE_FORMAT, version: 1, tema }, null, 2)
+}
+
+/**
+ * Lee un tema exportado (o el JSON que haya escrito una IA): admite el archivo completo o
+ * solo el objeto del tema. Devuelve el tema con un id nuevo o un error en español.
+ */
+export function importTheme(
+  text: string,
+  newId: string,
+): { ok: true; theme: Theme } | { ok: false; error: string } {
+  let raw: unknown
+  try {
+    // Una IA suele envolverlo en un bloque de código: se quita.
+    raw = JSON.parse(text.trim().replace(/^```(?:json)?\s*|\s*```$/g, ''))
+  } catch {
+    return { ok: false, error: 'No es un JSON válido.' }
+  }
+  const obj = raw as Record<string, unknown> | null
+  const candidate = obj && typeof obj === 'object' && 'tema' in obj ? (obj['tema'] as unknown) : raw
+  const r = themeSchema.safeParse({
+    ...(candidate as object),
+    id: newId,
+    background: null,
+  })
+  if (!r.success) {
+    const first = r.error.issues
+      .slice(0, 3)
+      .map((i) => `${i.path.join('.') || 'tema'}: ${i.message}`)
+      .join('; ')
+    return { ok: false, error: `El tema no es válido (${first}).` }
+  }
+  return { ok: true, theme: r.data }
+}
+
+/** Instrucciones para pedir un tema a cualquier IA y pegarlo después en «Importar». */
+export function aiThemePrompt(example: Theme, wish: string): string {
+  return [
+    'Crea un tema de colores para mi app de escritorio CRM Mellow.',
+    wish.trim() ? `Lo que quiero: ${wish.trim()}` : '',
+    'Responde SOLO con un JSON con exactamente esta estructura (mismas claves):',
+    exportTheme(example),
+    'Reglas:',
+    '- Colores en formato #rrggbb (minúsculas). Solo "line", "lineStrong" y "shadow" pueden ser rgba(r, g, b, a).',
+    '- "scheme" es "dark" o "light" según el fondo.',
+    '- Contraste mínimo 4,5:1 entre cada texto y su fondo: text, textMuted, textFaint, accentText, index, success, danger y warning sobre bg; onAccent sobre accent; y en "options", text sobre bg.',
+    '- "radius" son píxeles de redondeo de esquinas (0 a 24).',
+    '- "icons" puede quedar vacío o dar 1-2 caracteres (letra o emoji) por sección, con estas claves: perfil, inicio, notas, clientes, contactos, tareas, briefs, campanas, plataformas, creatividades, analisis, facturacion, facturas, gastos, informes, documentos, herramientas.',
+  ]
+    .filter(Boolean)
+    .join('\n')
 }

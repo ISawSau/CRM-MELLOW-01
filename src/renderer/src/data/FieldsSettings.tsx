@@ -638,12 +638,11 @@ export function FieldDialog({
   )
 }
 
-/** Ajustes → Campos: añadir, editar, ordenar, ocultar y eliminar campos de cada entidad. */
-export function FieldsSettings() {
-  const entities = useEntities()
-  const [chosen, setEntity] = useState('nota')
-  // Si se borra la colección elegida, se vuelve a Notas.
-  const entity = !entities.data || entities.data.some((e) => e.id === chosen) ? chosen : 'nota'
+/**
+ * Campos de una sección (sus ajustes, fase 12 y arreglos): añadir, editar, ordenar, ocultar
+ * y eliminar. Eliminar un campo no borra sus datos: se puede restaurar.
+ */
+export function FieldsEditor({ entity }: { entity: string }) {
   const fields = useFields(entity, true)
   const toast = useToast()
   const [editing, setEditing] = useState<FieldDef | 'new' | null>(null)
@@ -662,102 +661,83 @@ export function FieldsSettings() {
   }
 
   return (
-    <section className="settings-block" data-testid="fields-settings">
-      <div>
-        <h2>Campos</h2>
-        <p className="desc">
-          Añade los campos que necesites. Eliminar un campo no borra sus datos: se puede restaurar.
-        </p>
+    <div className="fields-editor" data-testid="fields-settings">
+      <ul className="fields-list">
+        {active.map((f, i) => (
+          <li key={f.id} className="fields-row" data-testid="field-row">
+            <span className="fields-label">
+              {f.label}
+              {!f.visible && <span className="faint"> · oculto</span>}
+            </span>
+            <span className="faint">{FIELD_TYPE_LABELS[f.type]}</span>
+            <span className="faint">{f.system ? 'de serie' : ''}</span>
+            <span className="fields-actions">
+              <button
+                type="button"
+                className="icon-btn"
+                aria-label={`Subir ${f.label}`}
+                disabled={i === 0}
+                onClick={() => move(i, -1)}
+              >
+                ↑
+              </button>
+              <button
+                type="button"
+                className="icon-btn"
+                aria-label={`Bajar ${f.label}`}
+                disabled={i === active.length - 1}
+                onClick={() => move(i, 1)}
+              >
+                ↓
+              </button>
+              <button type="button" className="btn" onClick={() => setEditing(f)}>
+                Editar
+              </button>
+              {!f.system && (
+                <button
+                  type="button"
+                  className="btn btn-danger"
+                  onClick={() => run(call('data:deleteField', { id: f.id }))}
+                >
+                  Eliminar
+                </button>
+              )}
+            </span>
+          </li>
+        ))}
+      </ul>
+      <div className="form-actions">
+        <button
+          type="button"
+          className="btn btn-primary"
+          onClick={() => setEditing('new')}
+          data-testid="add-field"
+        >
+          + Añadir campo
+        </button>
       </div>
-      <div className="settings-body settings-body-wide">
-        {(entities.data?.length ?? 0) > 1 && (
-          <select
-            className="input"
-            aria-label="Entidad de los campos"
-            value={entity}
-            onChange={(e) => setEntity(e.target.value)}
-          >
-            {entities.data!.map((e) => (
-              <option key={e.id} value={e.id}>
-                {e.label}
-              </option>
-            ))}
-          </select>
-        )}
-        <ul className="fields-list">
-          {active.map((f, i) => (
-            <li key={f.id} className="fields-row" data-testid="field-row">
-              <span className="fields-label">{f.label}</span>
-              <span className="faint">{FIELD_TYPE_LABELS[f.type]}</span>
-              <code className="faint mono">{f.key}</code>
-              <span className="fields-actions">
-                <button
-                  type="button"
-                  className="icon-btn"
-                  aria-label={`Subir ${f.label}`}
-                  disabled={i === 0}
-                  onClick={() => move(i, -1)}
-                >
-                  ↑
-                </button>
-                <button
-                  type="button"
-                  className="icon-btn"
-                  aria-label={`Bajar ${f.label}`}
-                  disabled={i === active.length - 1}
-                  onClick={() => move(i, 1)}
-                >
-                  ↓
-                </button>
-                <button type="button" className="btn" onClick={() => setEditing(f)}>
-                  Editar
-                </button>
-                {!f.system && (
+      {deleted.length > 0 && (
+        <div className="field">
+          <label>Eliminados</label>
+          <ul className="fields-list">
+            {deleted.map((f) => (
+              <li key={f.id} className="fields-row">
+                <span className="fields-label faint">{f.label}</span>
+                <span className="faint">{FIELD_TYPE_LABELS[f.type]}</span>
+                <span className="fields-actions">
                   <button
                     type="button"
-                    className="btn btn-danger"
-                    onClick={() => run(call('data:deleteField', { id: f.id }))}
+                    className="btn"
+                    onClick={() => run(call('data:restoreField', { id: f.id }))}
                   >
-                    Eliminar
+                    Restaurar
                   </button>
-                )}
-              </span>
-            </li>
-          ))}
-        </ul>
-        <div className="form-actions">
-          <button
-            type="button"
-            className="btn btn-primary"
-            onClick={() => setEditing('new')}
-            data-testid="add-field"
-          >
-            + Añadir campo
-          </button>
+                </span>
+              </li>
+            ))}
+          </ul>
         </div>
-        {deleted.length > 0 && (
-          <div className="field">
-            <label>Eliminados</label>
-            <ul className="fields-list">
-              {deleted.map((f) => (
-                <li key={f.id} className="fields-row">
-                  <span className="fields-label faint">{f.label}</span>
-                  <span className="faint">{FIELD_TYPE_LABELS[f.type]}</span>
-                  <span className="fields-actions">
-                    <button
-                      type="button"
-                      className="btn"
-                      onClick={() => run(call('data:restoreField', { id: f.id }))}
-                    >
-                      Restaurar
-                    </button>
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-      </div>
+      )}
       {editing && (
         <FieldDialog
           entity={entity}
@@ -766,7 +746,7 @@ export function FieldsSettings() {
           onClose={() => setEditing(null)}
         />
       )}
-    </section>
+    </div>
   )
 }
 

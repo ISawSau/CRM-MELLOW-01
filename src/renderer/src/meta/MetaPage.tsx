@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { formatDateTime } from '@shared/format'
 import { call, IpcCallError } from '../lib/ipc'
 import { Alert } from '../ui/Alert'
+import { SyncProgress } from './SyncProgress'
 import { useToast } from '../ui/Toast'
 import { MetaAccounts } from './MetaAccounts'
 import { MetaCreatives } from './MetaCreatives'
@@ -138,18 +139,9 @@ export function MetaPage({ num }: { num: string }) {
               ))}
             </div>
             <span className="meta-sync" data-testid="meta-sync-state">
-              {status.progress ? (
-                <>
-                  <span className="muted">{status.progress.label}</span>
-                  {status.progress.total > 1 && (
-                    <span className="num faint">
-                      {status.progress.done}/{status.progress.total}
-                    </span>
-                  )}
-                </>
-              ) : status.phase === 'syncing' ? (
+              {status.phase === 'syncing' && !status.progress && (
                 <span className="muted">Sincronizando…</span>
-              ) : null}
+              )}
               <button
                 type="button"
                 className="btn"
@@ -163,6 +155,7 @@ export function MetaPage({ num }: { num: string }) {
               </button>
             </span>
           </div>
+          {status.progress && <SyncProgress progress={status.progress} />}
           {status.error && <Alert>{status.error}</Alert>}
           {tab === 'rendimiento' && <MetaPerformance onAccounts={() => setTab('cuentas')} />}
           {tab === 'creatividades' && <MetaCreatives />}

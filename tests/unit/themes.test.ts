@@ -7,6 +7,9 @@ import {
   contrastIssues,
   parseColor,
   contrast as sharedContrast,
+  exportTheme,
+  importTheme,
+  aiThemePrompt,
 } from '../../src/shared/themes'
 
 // Contraste WCAG 2.x entre dos colores hexadecimales.
@@ -77,5 +80,61 @@ describe('temas', () => {
     // Negro al 50 % sobre blanco se ve gris medio.
     expect(sharedContrast('rgba(0, 0, 0, 0.5)', '#ffffff')).toBeCloseTo(3.95, 1)
     expect(parseColor('rgba(10, 20, 30, 0.4)')).toEqual({ r: 10, g: 20, b: 30, a: 0.4 })
+  })
+
+  it('exportar e importar un tema (archivo o JSON de una IA), sin su fondo', () => {
+    const t = {
+      ...findTheme('claro'),
+      id: 'propio-x',
+      name: 'Marca',
+      radius: 8,
+      icons: { inicio: '🏠', clientes: 'CL' },
+      background: {
+        fileId: 'a'.repeat(64),
+        kind: 'image' as const,
+        fit: 'cover' as const,
+        dim: 0.5,
+        blur: 4,
+      },
+    }
+    const json = exportTheme(t)
+    expect(json).not.toContain('propio-x')
+    expect(json).not.toContain('a'.repeat(64))
+    const r = importTheme(json, 'propio-nuevo')
+    expect(r.ok && r.theme).toMatchObject({
+      id: 'propio-nuevo',
+      name: 'Marca',
+      radius: 8,
+      background: null,
+      icons: { inicio: '🏠', clientes: 'CL' },
+    })
+    // Lo que responde una IA: solo el objeto del tema y dentro de un bloque de código.
+    const solo = JSON.parse(json).tema
+    expect(importTheme('```json\n' + JSON.stringify(solo) + '\n```', 'p2').ok).toBe(true)
+    // Un color que no lo es, o un icono con marcas, se rechazan con un mensaje claro.
+    const malo = importTheme(
+      JSON.stringify({ ...solo, colors: { ...solo.colors, bg: 'red' } }),
+      'p3',
+    )
+    expect(malo.ok ? '' : malo.error).toMatch(/colors\.bg/)
+    expect(importTheme(JSON.stringify({ ...solo, icons: { inicio: '<b>' } }), 'p4').ok).toBe(false)
+    expect(importTheme('esto no es json', 'p5')).toEqual({
+      ok: false,
+      error: 'No es un JSON válido.',
+    })
+    // Los temas guardados antes de esta versión siguen valiendo (sin radio, fondo ni iconos).
+    const viejo = { ...findTheme('oscuro'), id: 'propio-viejo' } as Record<string, unknown>
+    delete viejo['radius']
+    delete viejo['background']
+    delete viejo['icons']
+    expect(themeSchema.parse(viejo)).toMatchObject({ radius: 0, background: null, icons: {} })
+    expect(themeToCssVars(t)['--radius']).toBe('8px')
+  })
+
+  it('las instrucciones para la IA llevan la estructura y las reglas de contraste', () => {
+    const p = aiThemePrompt(findTheme('oscuro'), 'amarillo y negro')
+    expect(p).toContain('amarillo y negro')
+    expect(p).toContain('"formato": "crm-mellow-tema"')
+    expect(p).toContain('4,5:1')
   })
 })

@@ -614,3 +614,62 @@ El usuario no quiere escribir comandos de desarrollo para usar la app. Los insta
   - Al borrarla desaparecen sus campos, sus vistas y lo que tenga en la papelera, con confirmación. También se vacía la pila de deshacer, cuyas acciones podrían referirse a ella.
   - Como no se pierde ningún registro activo, no hace falta copia de seguridad.
 - Como mucho hay 50 colecciones. La barra lateral las muestra en un grupo propio («04 colecciones»), y la búsqueda global y la paleta de comandos las incluyen.
+
+## Arreglos tras la v0.13.0
+
+### D-085 · Meta en cuentas grandes: primero las métricas, límites de desarrollo y progreso
+
+- **Fallo:** con una cuenta grande solo llegaban la estructura y los presupuestos, sin métricas. La app pedía las creatividades nuevas una a una **antes** de las métricas. La documentación oficial («Rate Limiting» de la Marketing API) da al acceso de desarrollo, que es el de una app sin App Review, una puntuación máxima de 60 cada 300 s, a 1 punto por lectura, con 300 s de bloqueo al llegar al tope. Con cientos de creatividades se llegaba al límite, se agotaban los reintentos y la cuenta fallaba antes de pedir Insights.
+- **Orden nuevo:**
+  1. Estructura: campañas, conjuntos y anuncios.
+  2. Métricas por cuenta, campaña, conjunto y anuncio, cada nivel de los días más recientes a los más antiguos.
+  3. Desgloses.
+  4. Creatividades, miniaturas y actividad.
+- **Creatividades:** con más de 15 nuevas se leen por páginas de 100 del listado `GET /act_{id}/adcreatives`, que la documentación da como forma de lectura, con `thumbnail_width` y `thumbnail_height`. Si quedan, se piden de una en una con un tope de 15 por sincronización. Si Meta limita, se espera como mucho una vez y el resto queda para la próxima sincronización: las creatividades nunca hacen fallar la cuenta.
+- **Límites:** ante un error de límite se espera lo que indica Meta en `estimated_time_to_regain_access`, o una espera exponencial de hasta 5 minutos, hasta 12 veces, en vez de rendirse a la quinta. La espera se ve en la interfaz.
+- **Demasiados datos:** el error «Please reduce the amount of data you're asking for» ya no se reintenta igual. El trozo se parte por la mitad hasta llegar a un día y, si ni así, se pide como informe asíncrono.
+- **Fallos parciales:** si un nivel o un desglose falla, se sigue con los demás y ese trozo pasa a la cola del histórico, que lo reintenta como informe asíncrono. La cuenta muestra un aviso («Faltan métricas por anuncio de algunos días…») hasta la siguiente sincronización.
+- **Progreso:** se calculan los pasos de la sincronización (estructura, cada nivel y trozo de días, cada desglose, creatividades y actividad) y los del histórico. La barra de Campañas muestra:
+  - el paso en curso;
+  - los pasos hechos y totales;
+  - el tiempo restante, estimado con el ritmo real, esperas incluidas;
+  - la cuenta atrás si Meta ha pedido esperar.
+  
+  La barra de estado muestra el porcentaje.
+
+### D-086 · LinkedIn, integración opcional desactivada de serie
+
+- Petición del usuario: LinkedIn sobra en el día a día. Pasa a ser una integración opcional en Ajustes → Integraciones opcionales, **desactivada de serie** (`linkedin.enabled`).
+- Desactivada, la sección se llama «X Ads»: solo importa CSV de X y no tiene pestaña de API. LinkedIn no se sincroniza ni se puede conectar. Los datos y la conexión que ya hubiera se conservan, y al reactivarla vuelve todo.
+
+### D-087 · Sección Perfil antes de Inicio
+
+- Petición del usuario: lo propio va en una sección **Perfil**, la primera de la barra lateral, y no en Ajustes. Tiene dos pestañas:
+  - **Datos:** los datos personales, fiscales y de empresa, la moneda y la zona horaria.
+  - **Cuentas conectadas:** el estado de Meta, la sincronización y copias, X y LinkedIn, con un botón a donde se gestiona cada uno. También la conexión de Gmail y las integraciones opcionales.
+- Ajustes se queda con lo que es de la app y de la bóveda: apariencia, colecciones, campos, papelera, sincronización, seguridad y bóveda.
+
+### D-088 · Los ajustes de cada sección, dentro de la sección
+
+- Petición del usuario: los campos no deben estar todos en Ajustes, sino en cada sección. Cada sección del motor de datos (Notas, Clientes, Tareas, Briefs, las colecciones…) tiene un botón **⚙ Ajustes** junto a «+ Nuevo…» que abre sus ajustes:
+  - **Campos:** qué datos se guardan de cada registro, con su tipo, si son de serie y si están ocultos. Se añaden, editan, ordenan, eliminan y restauran.
+  - **Plantillas:** solo en Briefs (D-083).
+  - **Colección:** solo en las colecciones; nombre, singular, género y letra.
+- Ajustes conserva lo general. Las colecciones se siguen creando y borrando en Ajustes → Colecciones.
+- La clave interna de cada campo deja de mostrarse: no le dice nada al usuario.
+
+### D-089 · Temas: importar, exportar, crear con IA, fondo, esquinas e iconos
+
+- **Estructura ampliada.** Los temas guardados antes siguen valiendo, porque todo lo nuevo tiene valor por defecto:
+  - `radius`: esquinas, de 0 a 24 px. Se aplica a botones, campos, tarjetas, ventanas, menús y etiquetas.
+  - `background`: imagen o vídeo con ajuste, velo y desenfoque.
+  - `icons`: icono de cada sección de la barra lateral, de 1 o 2 caracteres. Se valida para que no entren marcas ni caracteres de control.
+  - La fase de diseño puede añadir más tokens (tipografías, sombras…) con el mismo método.
+- **Fondo:**
+  - El archivo se elige con el diálogo del sistema y se guarda cifrado en la bóveda, como los adjuntos. Se ve por `vault://`, ya permitido en la CSP para imágenes y vídeo.
+  - El vídeo va sin sonido y en bucle.
+  - Un velo del color de fondo encima mantiene el texto legible.
+  - La limpieza de archivos huérfanos no borra los fondos de los temas.
+- **Exportar** guarda un JSON (`formato: crm-mellow-tema`) donde elige el usuario. No incluye el id ni el fondo, que es un archivo de esta bóveda.
+- **Importar** acepta ese archivo o el JSON pegado. Admite el objeto del tema solo y el bloque de código con el que suelen responder las IA. Se valida con el mismo esquema y explica qué campo falla.
+- **Crear con IA:** no hay IA dentro de la app, porque costaría dinero (regla de cero costes). La app copia unas instrucciones para cualquier chat de IA: la descripción del usuario, la estructura con el tema actual de ejemplo y las reglas de contraste. El usuario pega la respuesta en Importar.

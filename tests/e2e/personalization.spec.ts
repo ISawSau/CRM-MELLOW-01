@@ -1,8 +1,14 @@
 import { expect, test, type Page } from '@playwright/test'
-import { mkdtempSync, rmSync } from 'node:fs'
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
-import { collectConsoleErrors, createVaultAndEnter, launchApp, type Launched } from './app'
+import { join, resolve } from 'node:path'
+import {
+  collectConsoleErrors,
+  createVaultAndEnter,
+  launchApp,
+  stubSaveDialog,
+  type Launched,
+} from './app'
 
 /** Fase 12: temas propios, Inicio configurable, plantillas de brief y colecciones. */
 
@@ -71,6 +77,65 @@ test('cancelar la edición deshace la vista previa; la paleta lista los temas pr
   await expect.poll(() => cssVar('--accent')).toBe('#f5d000')
 })
 
+test('el tema propio redondea esquinas, cambia iconos y pone una imagen de fondo', async () => {
+  await page.getByRole('button', { name: 'Editar «Marca»' }).click()
+  const ed = page.getByTestId('theme-editor')
+  await ed.getByLabel('Redondeo de esquinas').fill('10')
+  await expect.poll(() => cssVar('--radius')).toBe('10px')
+  await ed.getByLabel('Icono de Inicio').fill('🏠')
+  await ctx.app.evaluate(({ dialog }, file) => {
+    dialog.showOpenDialog = (async () => ({ canceled: false, filePaths: [file] })) as never
+  }, resolve('build/icon.png'))
+  await ed.getByRole('button', { name: 'Elegir imagen o vídeo…' }).click()
+  await expect(ed.getByLabel('Velo del fondo')).toBeVisible()
+  await ed.getByLabel('Velo del fondo').fill('40')
+  await ed.getByRole('button', { name: 'Guardar tema' }).click()
+  await expect(ed).toBeHidden()
+  await expect(page.getByTestId('nav-inicio')).toContainText('🏠')
+  const bg = page.getByTestId('theme-background').locator('img')
+  await expect(bg).toHaveCount(1)
+  await expect.poll(() => bg.evaluate((i: HTMLImageElement) => i.naturalWidth)).toBe(512)
+  await expect.poll(() => page.evaluate(() => document.documentElement.dataset['bg'])).toBe('image')
+  if (shots) await page.screenshot({ path: join(shots, '85-tema-fondo.png') })
+})
+
+test('exportar el tema a un archivo e importarlo (como haría con lo que da una IA)', async () => {
+  const file = join(parent, 'marca.json')
+  await stubSaveDialog(ctx.app, file)
+  await page.getByRole('button', { name: 'Exportar «Marca»' }).click()
+  await expect(page.getByTestId('toast')).toContainText('exportado')
+  const exported = JSON.parse(readFileSync(file, 'utf8')) as {
+    formato: string
+    tema: { name: string; radius: number; background?: unknown }
+  }
+  expect(exported.formato).toBe('crm-mellow-tema')
+  expect(exported.tema.radius).toBe(10)
+  expect(exported.tema.background).toBeUndefined()
+
+  await page.getByTestId('theme-import-open').click()
+  const dlg = page.getByTestId('theme-import')
+  await dlg
+    .getByLabel('JSON del tema')
+    .fill(JSON.stringify({ ...exported, tema: { ...exported.tema, name: 'Importado' } }))
+  await dlg.getByRole('button', { name: 'Importar y aplicar' }).click()
+  await expect(dlg).toBeHidden()
+  await expect(page.getByRole('button', { name: 'Importado', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  )
+  // Un JSON roto se explica sin guardar nada.
+  await page.getByTestId('theme-import-open').click()
+  await dlg.getByLabel('JSON del tema').fill('{"tema": {"colors": {"bg": "rojo"}}}')
+  await dlg.getByRole('button', { name: 'Importar y aplicar' }).click()
+  await expect(dlg.getByRole('alert')).toContainText('El tema no es válido')
+  await dlg.getByRole('button', { name: 'Cancelar' }).click()
+  await page.getByRole('button', { name: 'Marca', exact: true }).click()
+  await expect(page.getByRole('button', { name: 'Marca', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  )
+})
+
 test('borrar el tema en uso vuelve al oscuro', async () => {
   await page.getByRole('button', { name: 'Editar «Marca»' }).click()
   const ed = page.getByTestId('theme-editor')
@@ -136,8 +201,9 @@ test('brief desde plantilla con entrega y tareas; guardar un brief como plantill
   await expect(page.getByText('Plantilla «Otoño» guardada')).toBeVisible()
   await panel.getByRole('button', { name: 'Cerrar ficha' }).click()
 
-  // En Ajustes: la plantilla nueva, con una tarea propia.
-  await page.getByTestId('nav-ajustes').click()
+  // En los ajustes de Briefs: la plantilla nueva, con una tarea propia.
+  await page.getByTestId('open-section-settings').click()
+  await page.getByTestId('section-tab-plantillas').click()
   const box = page.getByTestId('brief-templates')
   await box.getByRole('tab', { name: 'Otoño' }).click()
   await expect(box.getByRole('textbox', { name: 'Título de la sección' })).toHaveCount(7)
@@ -148,8 +214,8 @@ test('brief desde plantilla con entrega y tareas; guardar un brief como plantill
   if (shots) await page.screenshot({ path: join(shots, '82-plantillas-brief.png') })
   await box.getByRole('button', { name: 'Guardar plantillas' }).click()
   await expect(page.getByText('Plantillas guardadas.')).toBeVisible()
+  await page.getByRole('button', { name: 'Cerrar ajustes' }).click()
 
-  await page.getByTestId('nav-briefs').click()
   await page.getByTestId('from-template').click()
   await page.getByRole('button', { name: 'Otoño' }).click()
   await expect(panel.locator('#panel-title')).toHaveValue('Otoño')
@@ -167,9 +233,10 @@ test('crear una colección: aparece en la barra lateral y se le añaden campos',
   await expect(page.getByText('«Proveedores» ya está en la barra lateral.')).toBeVisible()
   await expect(page.getByTestId('nav-col-proveedores')).toContainText('Proveedores')
 
-  // Un campo de moneda en la colección.
+  // Un campo de moneda, desde los ajustes de la propia colección.
+  await page.getByTestId('nav-col-proveedores').click()
+  await page.getByTestId('open-section-settings').click()
   const fields = page.getByTestId('fields-settings')
-  await fields.getByLabel('Entidad de los campos').selectOption('col-proveedores')
   await expect(fields.getByTestId('field-row')).toHaveCount(2)
   await fields.getByTestId('add-field').click()
   const dialog = page.getByTestId('field-dialog')
@@ -177,7 +244,13 @@ test('crear una colección: aparece en la barra lateral y se le añaden campos',
   await dialog.getByLabel('Tipo').selectOption({ label: 'Moneda' })
   await dialog.getByRole('button', { name: 'Crear campo' }).click()
   await expect(fields.getByTestId('field-row').filter({ hasText: 'Tarifa' })).toHaveCount(1)
+  // La pestaña «Colección» renombra sin salir de la sección.
+  await page.getByTestId('section-tab-coleccion').click()
+  await expect(
+    page.getByTestId('section-settings').getByLabel('Proveedores: Nombre (en plural)'),
+  ).toHaveValue('Proveedores')
   if (shots) await page.screenshot({ path: join(shots, '83-colecciones-ajustes.png') })
+  await page.getByRole('button', { name: 'Cerrar ajustes' }).click()
 })
 
 test('usar la colección: registros, búsqueda y borrado protegido', async () => {

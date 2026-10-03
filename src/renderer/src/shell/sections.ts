@@ -20,6 +20,7 @@ export const SECTION_GROUPS: SectionGroup[] = [
     num: '01',
     title: 'trabajo',
     sections: [
+      { id: 'perfil', label: 'Perfil', letter: 'Y', phase: null, summary: '' },
       { id: 'inicio', label: 'Inicio', letter: 'I', phase: null, summary: '' },
       { id: 'notas', label: 'Notas', letter: 'O', phase: null, summary: '', entity: 'nota' },
       {
@@ -122,13 +123,22 @@ export const ALL_SECTIONS: Section[] = [
 ]
 
 /** Grupo de la barra lateral con las colecciones del usuario (fase 12). */
-export function withCollections(custom: { id: string; label: string; letter: string | null }[]): {
-  groups: SectionGroup[]
-  all: Section[]
-} {
+export function withCollections(
+  custom: { id: string; label: string; letter: string | null }[],
+  opts: { linkedin?: boolean } = {},
+): { groups: SectionGroup[]; all: Section[] } {
+  // Sin LinkedIn (opcional, desactivado de serie) la sección es solo de X.
+  const base = opts.linkedin
+    ? SECTION_GROUPS
+    : SECTION_GROUPS.map((g) => ({
+        ...g,
+        sections: g.sections.map((s) =>
+          s.id === 'plataformas' ? { ...s, label: 'X Ads', letter: 'X' } : s,
+        ),
+      }))
   const groups = custom.length
     ? [
-        ...SECTION_GROUPS,
+        ...base,
         {
           num: '04',
           title: 'colecciones',
@@ -142,6 +152,6 @@ export function withCollections(custom: { id: string; label: string; letter: str
           })),
         },
       ]
-    : SECTION_GROUPS
+    : base
   return { groups, all: [...groups.flatMap((g) => g.sections), TRASH_SECTION, SETTINGS_SECTION] }
 }

@@ -61,6 +61,10 @@ export interface MetaProgress {
   label: string
   done: number
   total: number
+  /** Segundos que faltan, estimados con el ritmo de esta sincronización (null: aún no se sabe). */
+  etaSeconds: number | null
+  /** Meta ha pedido esperar por sus límites de uso hasta esta hora (ISO). */
+  waitingUntil: string | null
 }
 
 export interface MetaStatus {

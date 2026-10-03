@@ -7,6 +7,7 @@ import { Popover } from '../ui/Popover'
 import { useToast } from '../ui/Toast'
 import { useRecordActions } from './actions'
 import { viewColumns } from './columns'
+import { SectionSettings } from './SectionSettings'
 import { useEntity, useFields, useRecords, useSaveView, useViews } from './hooks'
 import { FieldDialog } from './FieldsSettings'
 import { RecordPanel } from './RecordPanel'
@@ -38,6 +39,7 @@ export function DataPage({
   onOpenRecord: (id: string | null) => void
 }) {
   const def = useEntity(entity)!
+  const [settingsOpen, setSettingsOpen] = useState(false)
   const fields = useFields(entity)
   const views = useViews(entity)
   const saveView = useSaveView(entity)
@@ -175,6 +177,15 @@ export function DataPage({
             <h1 className="title">{def.label}</h1>
           </div>
           <div className="form-actions">
+            <button
+              type="button"
+              className="btn"
+              onClick={() => setSettingsOpen(true)}
+              title={`Campos${entity === 'brief' ? ' y plantillas' : ''} de ${def.label}`}
+              data-testid="open-section-settings"
+            >
+              ⚙ Ajustes
+            </button>
             {entity === 'brief' && (
               <TemplatePicker
                 onPick={(t) =>
@@ -401,6 +412,7 @@ export function DataPage({
           }}
         />
       )}
+      {settingsOpen && <SectionSettings entity={def} onClose={() => setSettingsOpen(false)} />}
       {openRecordId && (
         <RecordPanel
           key={openRecordId}
@@ -443,7 +455,7 @@ function TemplatePicker({ onPick }: { onPick: (t: BriefTemplate) => void }) {
             </li>
           ))}
           {templates.data?.length === 0 && (
-            <li className="faint menu-empty">Crea plantillas en Ajustes → Plantillas de brief.</li>
+            <li className="faint menu-empty">Crea plantillas en «⚙ Ajustes» de esta sección.</li>
           )}
         </ul>
       )}

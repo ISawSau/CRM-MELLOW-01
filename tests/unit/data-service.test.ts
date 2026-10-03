@@ -459,6 +459,19 @@ describe('colecciones personalizadas (fase 12)', () => {
 })
 
 describe('archivos y versiones', () => {
+  it('el fondo de un tema propio no se borra como huérfano', () => {
+    const { svc, db, setNow } = setup()
+    const bg = svc.importBuffer('fondo.jpg', Buffer.from('imagen'))
+    const suelto = svc.importBuffer('suelto.jpg', Buffer.from('otra'))
+    db.prepare(
+      "INSERT INTO settings (key, value, updated_at) VALUES ('appearance.themes', ?, '')",
+    ).run(JSON.stringify([{ id: 'propio-1', background: { fileId: bg.id, kind: 'image' } }]))
+    setNow(new Date(NOW.getTime() + 2 * 86_400_000))
+    expect(svc.gcFiles()).toBe(1)
+    expect(svc.fileInfo(bg.id)).not.toBeNull()
+    expect(svc.fileInfo(suelto.id)).toBeNull()
+  })
+
   it('adjunta archivos cifrados y borra los huérfanos al cabo de un día', () => {
     const { svc, files, setNow } = setup()
     const adj = svc.createField('nota', { label: 'Adjuntos', type: 'files' })

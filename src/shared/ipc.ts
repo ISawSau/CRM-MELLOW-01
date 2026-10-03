@@ -208,6 +208,11 @@ export const ipcSchemas = {
   }),
   'settings:setAppearance': appearanceSchema,
   'settings:setThemes': z.object({ themes: customThemesSchema }),
+  'settings:exportTheme': z.object({
+    name: z.string().trim().min(1).max(60),
+    json: z.string().min(2).max(200_000),
+  }),
+  'clipboard:writeText': z.object({ text: z.string().min(1).max(50_000) }),
   'clipboard:writeSecret': z.object({ text: z.string().min(1).max(500) }),
 
   // --- Motor de datos (fase 1) ---
@@ -380,6 +385,7 @@ export const ipcSchemas = {
     headers: z.array(z.string().max(300)).max(300),
   }),
   'linkedin:status': z.void(),
+  'linkedin:setEnabled': z.object({ enabled: z.boolean() }),
   'linkedin:connect': linkedinConnectSchema,
   'linkedin:disconnect': z.void(),
   'linkedin:sync': z.void(),
@@ -412,6 +418,8 @@ export interface IpcOutputs {
   'settings:setAutoLock': VaultStatus
   'settings:setAppearance': VaultStatus
   'settings:setThemes': VaultStatus
+  'settings:exportTheme': boolean
+  'clipboard:writeText': void
   'clipboard:writeSecret': void
   'data:entities': EntityInfo[]
   'data:createCollection': EntityInfo[]
@@ -513,6 +521,7 @@ export interface IpcOutputs {
   'platforms:savedMapping': CsvMapping | null
   'platforms:importCsv': CsvImportResult
   'linkedin:status': LinkedInStatus
+  'linkedin:setEnabled': LinkedInStatus
   'linkedin:connect': LinkedInStatus
   'linkedin:disconnect': LinkedInStatus
   'linkedin:sync': LinkedInStatus

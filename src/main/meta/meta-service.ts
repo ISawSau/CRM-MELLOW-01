@@ -66,6 +66,31 @@ const CHUNK_DAYS = 10
 const REPORT_TTL_MS = 25 * 86_400_000
 const MAX_JOB_ATTEMPTS = 3
 const THUMB_MAX_BYTES = 5 * 1024 * 1024
+/** Con más creatividades nuevas que estas se usa el listado de la cuenta (por páginas). */
+const CREATIVES_ONE_BY_ONE = 15
+/** Páginas de 100 creatividades como mucho por sincronización. */
+const CREATIVE_PAGES = 30
+
+const LEVEL_NAMES: Record<InsightLevel, string> = {
+  account: 'cuenta',
+  campaign: 'campaña',
+  adset: 'conjunto',
+  ad: 'anuncio',
+}
+
+const esDate = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`
+const daysBetween = (a: string, b: string) =>
+  Math.round((Date.parse(`${b}T00:00:00Z`) - Date.parse(`${a}T00:00:00Z`)) / 86_400_000)
+
+interface AccountPlan {
+  today: string
+  since: string
+  first: boolean
+  breakdowns: BreakdownConfig
+  /** Trozos de días, del más reciente al más antiguo. */
+  ranges: [string, string][]
+  steps: number
+}
 
 const configSchema = z.object({
   token: z.string().min(1),
@@ -358,6 +383,7 @@ export class MetaService {
       ...(this.opts.http ? { http: this.opts.http } : {}),
       ...(this.opts.graphUrl ? { baseUrl: this.opts.graphUrl } : {}),
       ...(this.opts.sleep ? { sleep: this.opts.sleep } : {}),
+      onWait: (ms) => this.onGraphWait(ms),
     })
   }
 
@@ -726,16 +752,16 @@ export class MetaService {
           .prepare("SELECT * FROM ad_accounts WHERE enabled = 1 AND platform = 'meta'")
           .all() as AccountRow[]
       ).sort((a, b) => a.name.localeCompare(b.name))
+      const plans = accounts.map((a) => this.plan(a))
+      this.startTrack(plans.reduce((n, p) => n + p.steps, 0))
       for (const [i, a] of accounts.entries()) {
         if (!this.alive(epoch)) return
-        this.progress = { label: `Sincronizando ${a.name}`, done: i, total: accounts.length }
-        this.emit()
         try {
-          await this.syncAccount(graph, a, epoch)
+          const warnings = await this.syncAccount(graph, a, plans[i]!, epoch)
           if (!this.alive(epoch)) return
           this.db
-            .prepare('UPDATE ad_accounts SET last_sync_at = ?, last_error = NULL WHERE id = ?')
-            .run(this.now().toISOString(), a.id)
+            .prepare('UPDATE ad_accounts SET last_sync_at = ?, last_error = ? WHERE id = ?')
+            .run(this.now().toISOString(), warnings.length ? warnings.join(' ') : null, a.id)
         } catch (e) {
           if (!this.alive(epoch)) return
           this.db
@@ -758,6 +784,7 @@ export class MetaService {
     } finally {
       if (this.alive(epoch)) {
         this.progress = null
+        this.track = null
         this.emit()
         this.dataChanged(true)
         try {
@@ -766,6 +793,55 @@ export class MetaService {
           // Las alertas se comprueban de nuevo en la próxima sincronización.
         }
       }
+    }
+  }
+
+  // --- Progreso ------------------------------------------------------------------
+
+  /** Pasos previstos de la sincronización en curso, para la barra y el tiempo restante. */
+  private track: { total: number; done: number; started: number; label: string } | null = null
+  private waitingUntil: string | null = null
+
+  private startTrack(total: number): void {
+    this.track = { total: Math.max(1, total), done: 0, started: Date.now(), label: '' }
+  }
+
+  /** Muestra en qué paso está la sincronización. */
+  private step(label: string): void {
+    if (!this.track) return
+    this.track.label = label
+    this.showProgress()
+  }
+
+  private advance(n = 1): void {
+    if (!this.track) return
+    this.track.done = Math.min(this.track.total, this.track.done + n)
+    this.showProgress()
+  }
+
+  private showProgress(): void {
+    const t = this.track
+    if (!t) return
+    const elapsed = (Date.now() - t.started) / 1000
+    // Se estima con el ritmo real (incluidas las esperas por los límites de Meta).
+    const eta =
+      t.done >= 2 && elapsed >= 3 ? Math.round((elapsed / t.done) * (t.total - t.done)) : null
+    this.progress = {
+      label: t.label,
+      done: t.done,
+      total: t.total,
+      etaSeconds: eta,
+      waitingUntil: this.waitingUntil,
+    }
+    this.emit()
+  }
+
+  /** Meta ha pedido esperar (límites de uso): se muestra hasta cuándo. */
+  private onGraphWait(ms: number): void {
+    this.waitingUntil = ms > 0 ? new Date(Date.now() + ms).toISOString() : null
+    if (this.progress) {
+      this.progress = { ...this.progress, waitingUntil: this.waitingUntil }
+      this.emit()
     }
   }
 
@@ -790,9 +866,8 @@ export class MetaService {
 
   // --- Una cuenta ----------------------------------------------------------------
 
-  private async syncAccount(graph: GraphClient, a: AccountRow, epoch: number): Promise<void> {
-    await this.syncStructure(graph, a, epoch)
-    if (!this.alive(epoch)) return
+  /** Qué días y desgloses se piden de una cuenta, y cuántos pasos son. */
+  private plan(a: AccountRow): AccountPlan {
     const today = todayIn(a.timezone, this.now())
     const days = this.settings().attributionDays
     const first = !a.data_until
@@ -800,67 +875,242 @@ export class MetaService {
     const since = first
       ? shiftDate(today, -(FIRST_DAYS - 1))
       : shiftDate(a.data_until! < today ? a.data_until! : today, -(days - 1))
-    for (const [from, to] of chunks(since, today, CHUNK_DAYS)) {
-      for (const level of INSIGHT_LEVELS) {
-        if (!this.alive(epoch)) return
-        const rows = await this.insights(graph, a.id, level, from, to)
-        if (!this.alive(epoch)) return
-        replaceInsights(this.db, a.id, level, from, to, rows, this.now().toISOString())
-      }
-      for (const level of PERF_LEVELS)
-        for (const key of breakdowns[level]) {
-          if (!this.alive(epoch)) return
-          const rows = await this.insights(graph, a.id, level, from, to, key)
-          if (!this.alive(epoch)) return
-          replaceBreakdowns(
-            this.db,
-            a.id,
-            level,
-            key,
-            BREAKDOWNS[key].api,
-            from,
-            to,
-            rows,
-            this.now().toISOString(),
-          )
-        }
-      this.dataChanged()
+    const ranges = chunks(since, today, CHUNK_DAYS)
+    const keys = PERF_LEVELS.reduce((n, l) => n + breakdowns[l].length, 0)
+    return {
+      today,
+      since,
+      first,
+      breakdowns,
+      ranges,
+      // Estructura, métricas por nivel y trozo, desgloses, creatividades y actividad.
+      steps: 1 + ranges.length * (INSIGHT_LEVELS.length + keys) + 2,
     }
-    const fresh = getAccount(this.db, a.id)!
-    const dataFrom = fresh.data_from && fresh.data_from < since ? fresh.data_from : since
-    this.db
-      .prepare('UPDATE ad_accounts SET data_from = ?, data_until = ? WHERE id = ?')
-      .run(dataFrom, today, a.id)
-    if (first) this.planHistory(a, since, today)
   }
 
-  private async syncStructure(graph: GraphClient, a: AccountRow, epoch: number): Promise<void> {
+  /**
+   * Sincroniza una cuenta. Primero la estructura y las métricas (lo que se ve en la tabla),
+   * de lo general a lo particular: cuenta y campañas antes que conjuntos y anuncios, y de los
+   * días más recientes a los más antiguos. Las creatividades van al final y sin bloquear: con
+   * el acceso de desarrollo Meta solo deja unas 60 consultas cada 5 minutos.
+   *
+   * Si un nivel falla (por ejemplo, demasiados datos), se sigue con el resto y ese trozo se
+   * reintenta en segundo plano como informe asíncrono. Devuelve los avisos para la cuenta.
+   */
+  private async syncAccount(
+    graph: GraphClient,
+    a: AccountRow,
+    plan: AccountPlan,
+    epoch: number,
+  ): Promise<string[]> {
+    const warnings = new Map<string, string>()
+    this.step(`${a.name}: campañas, conjuntos y anuncios`)
+    const ads = await this.syncStructure(graph, a, epoch)
+    if (!this.alive(epoch) || !ads) return []
+    this.advance()
+    // El histórico se planifica antes, para que los trozos que fallen se sumen a él.
+    if (plan.first) this.planHistory(a, plan.since, plan.today)
+
+    const fail = (
+      e: unknown,
+      level: InsightLevel,
+      from: string,
+      to: string,
+      key?: BreakdownKey,
+    ) => {
+      if (e instanceof GraphError && (e.isAuth || e.isThrottle)) throw e
+      this.queueJob(a.id, level, from, to, key ?? null)
+      warnings.set(
+        `${level}:${key ?? ''}`,
+        `Faltan métricas por ${LEVEL_NAMES[level]}${key ? ` (desglose por ${BREAKDOWNS[key].label.toLowerCase()})` : ''} de algunos días (${graphErrorText(e)}); se reintentan en segundo plano.`,
+      )
+    }
+
+    for (const level of INSIGHT_LEVELS)
+      for (const [from, to] of plan.ranges) {
+        if (!this.alive(epoch)) return []
+        this.step(`${a.name}: métricas por ${LEVEL_NAMES[level]} (${esDate(from)} – ${esDate(to)})`)
+        try {
+          const rows = await this.insightsFlexible(graph, a.id, level, from, to, null, epoch)
+          if (rows === null) return []
+          replaceInsights(this.db, a.id, level, from, to, rows, this.now().toISOString())
+          this.dataChanged()
+        } catch (e) {
+          if (!this.alive(epoch)) return []
+          fail(e, level, from, to)
+        }
+        this.advance()
+      }
+
+    for (const level of PERF_LEVELS)
+      for (const key of plan.breakdowns[level])
+        for (const [from, to] of plan.ranges) {
+          if (!this.alive(epoch)) return []
+          this.step(
+            `${a.name}: desglose por ${BREAKDOWNS[key].label.toLowerCase()} (${LEVEL_NAMES[level]})`,
+          )
+          try {
+            const rows = await this.insightsFlexible(graph, a.id, level, from, to, key, epoch)
+            if (rows === null) return []
+            replaceBreakdowns(
+              this.db,
+              a.id,
+              level,
+              key,
+              BREAKDOWNS[key].api,
+              from,
+              to,
+              rows,
+              this.now().toISOString(),
+            )
+          } catch (e) {
+            if (!this.alive(epoch)) return []
+            fail(e, level, from, to, key)
+          }
+          this.advance()
+        }
+
+    const fresh = getAccount(this.db, a.id)!
+    const dataFrom = fresh.data_from && fresh.data_from < plan.since ? fresh.data_from : plan.since
+    this.db
+      .prepare('UPDATE ad_accounts SET data_from = ?, data_until = ? WHERE id = ?')
+      .run(dataFrom, plan.today, a.id)
+    this.dataChanged(true)
+
+    this.step(`${a.name}: creatividades`)
+    await this.syncCreatives(graph, a, ads, epoch)
+    if (!this.alive(epoch)) return []
+    this.advance()
+    this.step(`${a.name}: miniaturas y última edición`)
+    await this.downloadThumbs(a.id, epoch)
+    if (!this.alive(epoch)) return []
+    await this.syncActivities(graph, a).catch(() => {
+      // Sin historial de actividad se usa la fecha de última actualización.
+    })
+    if (!this.alive(epoch)) return []
+    try {
+      this.runAutoLink()
+    } catch {
+      // El vínculo automático se reintenta en la próxima sincronización.
+    }
+    this.advance()
+    return [...warnings.values()]
+  }
+
+  /** Un trozo que no se ha podido leer pasa a la cola del histórico (informe asíncrono). */
+  private queueJob(
+    accountId: string,
+    level: InsightLevel,
+    since: string,
+    until: string,
+    breakdown: BreakdownKey | null,
+  ): void {
+    const exists = this.db
+      .prepare(
+        "SELECT 1 FROM ad_jobs WHERE account_id = ? AND level = ? AND since = ? AND until = ? AND breakdown IS ? AND status IN ('pending', 'running')",
+      )
+      .get(accountId, level, since, until, breakdown)
+    if (!exists)
+      this.db
+        .prepare(
+          "INSERT INTO ad_jobs (account_id, level, since, until, breakdown, status) VALUES (?, ?, ?, ?, ?, 'pending')",
+        )
+        .run(accountId, level, since, until, breakdown)
+    this.db.prepare('UPDATE ad_accounts SET history_done = 0 WHERE id = ?').run(accountId)
+  }
+
+  /**
+   * Insights de un trozo. Si Meta dice que son demasiados datos, se parte en dos (hasta un
+   * día) y, si ni así, se pide como informe asíncrono. Null si se ha cancelado.
+   */
+  private async insightsFlexible(
+    graph: GraphClient,
+    accountId: string,
+    level: InsightLevel,
+    since: string,
+    until: string,
+    breakdown: BreakdownKey | null,
+    epoch: number,
+  ): Promise<InsightRow[] | null> {
+    try {
+      return await this.insights(graph, accountId, level, since, until, breakdown)
+    } catch (e) {
+      if (!(e instanceof GraphError) || !e.isTooMuchData) throw e
+      if (since < until) {
+        const half = Math.floor(daysBetween(since, until) / 2)
+        const mid = shiftDate(since, half)
+        const left = await this.insightsFlexible(
+          graph,
+          accountId,
+          level,
+          since,
+          mid,
+          breakdown,
+          epoch,
+        )
+        if (left === null) return null
+        const right = await this.insightsFlexible(
+          graph,
+          accountId,
+          level,
+          shiftDate(mid, 1),
+          until,
+          breakdown,
+          epoch,
+        )
+        return right === null ? null : [...left, ...right]
+      }
+      const reportId = await this.createReport(graph, accountId, level, since, until, breakdown)
+      return this.reportRows(graph, reportId, epoch)
+    }
+  }
+
+  /** Campañas, conjuntos y anuncios. Devuelve los anuncios (null si se ha cancelado). */
+  private async syncStructure(
+    graph: GraphClient,
+    a: AccountRow,
+    epoch: number,
+  ): Promise<Record<string, unknown>[] | null> {
     const now = () => this.now().toISOString()
     const campaigns = await graph.getAll<Record<string, unknown>>(`${a.id}/campaigns`, {
       fields: CAMPAIGN_FIELDS,
       limit: 500,
     })
-    if (!this.alive(epoch)) return
+    if (!this.alive(epoch)) return null
     upsertObjects(this.db, 'campaign', a.id, campaigns, now())
     const adsets = await graph.getAll<Record<string, unknown>>(`${a.id}/adsets`, {
       fields: ADSET_FIELDS,
       limit: 500,
     })
-    if (!this.alive(epoch)) return
+    if (!this.alive(epoch)) return null
     upsertObjects(this.db, 'adset', a.id, adsets, now())
     const ads = await graph.getAll<Record<string, unknown>>(`${a.id}/ads`, {
       fields: AD_FIELDS,
       limit: 500,
     })
-    if (!this.alive(epoch)) return
+    if (!this.alive(epoch)) return null
     upsertObjects(this.db, 'ad', a.id, ads, now())
+    this.dataChanged()
+    return ads
+  }
 
-    // Creatividades nuevas (las que ya están no cambian: Meta crea otra al editarlas).
+  /**
+   * Creatividades nuevas de los anuncios (las que ya están no cambian: Meta crea otra al
+   * editarlas). Con muchas se leen por páginas del listado de la cuenta y, las que falten,
+   * de una en una con un tope por sincronización. Nunca hace fallar la cuenta: si Meta
+   * limita o falla, se sigue en la próxima sincronización.
+   */
+  private async syncCreatives(
+    graph: GraphClient,
+    a: AccountRow,
+    ads: Record<string, unknown>[],
+    epoch: number,
+  ): Promise<void> {
     const ids = [
       ...new Set(
         ads
           .map((ad) => (ad['creative'] as { id?: string } | undefined)?.id)
-          .filter((id): id is string => !!id),
+          .filter((id): id is string => !!id && /^\w{1,40}$/.test(id)),
       ),
     ]
     const known = new Set(
@@ -870,37 +1120,45 @@ export class MetaService {
         }[]
       ).map((r) => r.id),
     )
-    // Cada creatividad por su ruta (GET /{id}): la v26.0 ya no admite «GET /?ids=…».
-    const missing = ids.filter((id) => !known.has(id) && /^\w{1,40}$/.test(id))
+    const want = new Set(ids.filter((id) => !known.has(id)))
+    if (want.size === 0) return
     const got: Record<string, unknown>[] = []
-    for (const id of missing) {
-      if (!this.alive(epoch)) return
-      try {
-        got.push(
-          await graph.get<Record<string, unknown>>(id, {
-            fields: CREATIVE_FIELDS,
-            thumbnail_width: 320,
-            thumbnail_height: 320,
-          }),
-        )
-      } catch (e) {
-        // Una creatividad borrada o sin acceso (código 100) no impide leer las demás ni
-        // las métricas; los límites, el token y los fallos de red sí se propagan.
-        if (e instanceof GraphError && e.code === 100) continue
-        throw e
-      }
-    }
-    if (got.length) upsertCreatives(this.db, a.id, got, now())
-    await this.downloadThumbs(a.id, epoch)
-    if (!this.alive(epoch)) return
-    await this.syncActivities(graph, a).catch(() => {
-      // Sin historial de actividad se usa la fecha de última actualización.
-    })
-    if (!this.alive(epoch)) return
+    const thumbs = { thumbnail_width: 320, thumbnail_height: 320 }
+    // Si Meta limita, como mucho una espera: las creatividades pueden esperar a la próxima.
+    graph = graph.withThrottleRetries(1)
     try {
-      this.runAutoLink()
-    } catch {
-      // El vínculo automático se reintenta en la próxima sincronización.
+      if (want.size > CREATIVES_ONE_BY_ONE) {
+        let pages = 0
+        await graph.eachPage<Record<string, unknown>>(
+          `${a.id}/adcreatives`,
+          { fields: CREATIVE_FIELDS, ...thumbs, limit: 100 },
+          (items) => {
+            for (const c of items)
+              if (typeof c['id'] === 'string' && want.delete(c['id'])) got.push(c)
+            pages++
+            return this.alive(epoch) && want.size > 0 && pages < CREATIVE_PAGES
+          },
+        )
+      }
+      // Cada creatividad por su ruta (GET /{id}): la v26.0 ya no admite «GET /?ids=…».
+      for (const id of [...want].slice(0, CREATIVES_ONE_BY_ONE)) {
+        if (!this.alive(epoch)) return
+        try {
+          got.push(
+            await graph.get<Record<string, unknown>>(id, { fields: CREATIVE_FIELDS, ...thumbs }),
+          )
+        } catch (e) {
+          // Una creatividad borrada o sin acceso (código 100) no impide leer las demás.
+          if (e instanceof GraphError && e.code === 100) continue
+          throw e
+        }
+      }
+    } catch (e) {
+      if (e instanceof GraphError && e.code === 190) throw e
+      // Límites, red o un cambio de Meta: lo leído se guarda y el resto, la próxima vez.
+    } finally {
+      if (got.length && this.alive(epoch))
+        upsertCreatives(this.db, a.id, got, this.now().toISOString())
     }
   }
 
@@ -1064,11 +1322,14 @@ export class MetaService {
   private async runHistory(graph: GraphClient, accountId: string, epoch: number): Promise<void> {
     const account = getAccount(this.db, accountId)
     if (!account || account.history_done) return
-    const total = (
-      this.db.prepare('SELECT COUNT(*) AS n FROM ad_jobs WHERE account_id = ?').get(accountId) as {
-        n: number
-      }
+    const pending = (
+      this.db
+        .prepare(
+          "SELECT COUNT(*) AS n FROM ad_jobs WHERE account_id = ? AND status IN ('pending', 'running')",
+        )
+        .get(accountId) as { n: number }
     ).n
+    this.startTrack(pending)
     for (;;) {
       if (!this.alive(epoch)) return
       const job = this.db
@@ -1077,15 +1338,9 @@ export class MetaService {
         )
         .get(accountId) as JobRow | undefined
       if (!job) break
-      const done = (
-        this.db
-          .prepare(
-            "SELECT COUNT(*) AS n FROM ad_jobs WHERE account_id = ? AND status IN ('done', 'failed')",
-          )
-          .get(accountId) as { n: number }
-      ).n
-      this.progress = { label: `Histórico de ${account.name}`, done, total }
-      this.emit()
+      this.step(
+        `Histórico de ${account.name}: ${job.breakdown ? `desglose por ${BREAKDOWNS[job.breakdown].label.toLowerCase()}, ` : ''}por ${LEVEL_NAMES[job.level]} (${esDate(job.since)}/${job.since.slice(0, 4)} – ${esDate(job.until)}/${job.until.slice(0, 4)})`,
+      )
       try {
         const rows = await this.runJob(graph, job, epoch)
         if (rows === null) return
@@ -1125,8 +1380,58 @@ export class MetaService {
             job.id,
           )
       }
+      this.advance()
     }
     this.db.prepare('UPDATE ad_accounts SET history_done = 1 WHERE id = ?').run(accountId)
+  }
+
+  /** Pide un informe asíncrono de Insights (quitando los campos que Meta rechace). */
+  private async createReport(
+    graph: GraphClient,
+    accountId: string,
+    level: InsightLevel,
+    since: string,
+    until: string,
+    breakdown: BreakdownKey | null,
+  ): Promise<string> {
+    for (;;) {
+      try {
+        return await graph.createInsightsReport(
+          accountId,
+          this.insightParams(level, since, until, breakdown),
+        )
+      } catch (e) {
+        if (!this.dropRejected(e)) throw e
+      }
+    }
+  }
+
+  /** Espera a que termine un informe asíncrono y lee sus filas. Null si se ha cancelado. */
+  private async reportRows(
+    graph: GraphClient,
+    reportId: string,
+    epoch: number,
+  ): Promise<InsightRow[] | null> {
+    const sleep = this.opts.sleep ?? ((ms: number) => new Promise((r) => setTimeout(r, ms)))
+    const poll = this.opts.pollMs ?? 5000
+    for (let i = 0; ; i++) {
+      if (!this.alive(epoch)) return null
+      const s = await graph.get<{ async_status?: string; async_percent_completion?: number }>(
+        reportId,
+        { fields: 'async_status,async_percent_completion' },
+      )
+      if (s.async_status === 'Job Completed') break
+      if (s.async_status === 'Job Failed' || s.async_status === 'Job Skipped')
+        throw new GraphError(
+          `El informe de Meta no se completó (${s.async_status})`,
+          null,
+          null,
+          200,
+        )
+      await sleep(Math.min(poll * (1 + Math.floor(i / 6)), 30_000))
+    }
+    if (!this.alive(epoch)) return null
+    return graph.getAll<InsightRow>(`${reportId}/insights`, { limit: 500 })
   }
 
   /** Ejecuta un trozo con un informe asíncrono. Null si se ha cancelado. */
@@ -1141,42 +1446,20 @@ export class MetaService {
       job.started_at &&
       this.now().getTime() - Date.parse(job.started_at) < REPORT_TTL_MS
     if (!fresh) {
-      for (;;) {
-        try {
-          reportId = await graph.createInsightsReport(
-            job.account_id,
-            this.insightParams(job.level, job.since, job.until, job.breakdown),
-          )
-          break
-        } catch (e) {
-          if (!this.dropRejected(e)) throw e
-        }
-      }
+      reportId = await this.createReport(
+        graph,
+        job.account_id,
+        job.level,
+        job.since,
+        job.until,
+        job.breakdown,
+      )
       this.db
         .prepare(
           "UPDATE ad_jobs SET status = 'running', report_run_id = ?, started_at = ? WHERE id = ?",
         )
         .run(reportId, this.now().toISOString(), job.id)
     }
-    const sleep = this.opts.sleep ?? ((ms: number) => new Promise((r) => setTimeout(r, ms)))
-    const poll = this.opts.pollMs ?? 5000
-    for (let i = 0; ; i++) {
-      if (!this.alive(epoch)) return null
-      const s = await graph.get<{ async_status?: string; async_percent_completion?: number }>(
-        reportId!,
-        { fields: 'async_status,async_percent_completion' },
-      )
-      if (s.async_status === 'Job Completed') break
-      if (s.async_status === 'Job Failed' || s.async_status === 'Job Skipped')
-        throw new GraphError(
-          `El informe de Meta no se completó (${s.async_status})`,
-          null,
-          null,
-          200,
-        )
-      await sleep(Math.min(poll * (1 + Math.floor(i / 6)), 30_000))
-    }
-    if (!this.alive(epoch)) return null
-    return graph.getAll<InsightRow>(`${reportId!}/insights`, { limit: 500 })
+    return this.reportRows(graph, reportId!, epoch)
   }
 }

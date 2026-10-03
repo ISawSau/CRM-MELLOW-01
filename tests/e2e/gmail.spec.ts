@@ -57,7 +57,8 @@ test('sin conectar, la ficha del cliente lo explica', async () => {
 })
 
 test('conectar Gmail con el id de cliente del proyecto de Google', async () => {
-  await page.getByTestId('nav-ajustes').click()
+  await page.getByTestId('nav-perfil').click()
+  await page.getByTestId('profile-tab-cuentas').click()
   const g = page.getByTestId('gmail-settings')
   await expect(g).toContainText('Sin conectar')
   await g.getByRole('button', { name: 'Conectar Gmail…' }).click()
@@ -89,7 +90,8 @@ test('la ficha del cliente muestra sus hilos y los de sus contactos', async () =
 
 test('desconectar revoca el permiso', async () => {
   await panel().getByRole('button', { name: 'Cerrar ficha' }).click()
-  await page.getByTestId('nav-ajustes').click()
+  await page.getByTestId('nav-perfil').click()
+  await page.getByTestId('profile-tab-cuentas').click()
   const g = page.getByTestId('gmail-settings')
   await g.getByRole('button', { name: 'Desconectar Gmail' }).click()
   await expect(g).toContainText('Sin conectar')

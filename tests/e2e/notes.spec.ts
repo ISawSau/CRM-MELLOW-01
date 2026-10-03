@@ -199,8 +199,10 @@ test('papelera: enviar, restaurar y borrar para siempre', async () => {
   await expect(page.getByText('No hay nada en la papelera.')).toBeVisible()
 })
 
-test('campos: añadir una moneda y una fórmula desde Ajustes', async () => {
-  await page.getByTestId('nav-ajustes').click()
+test('campos: añadir una moneda y una fórmula desde los ajustes de Notas', async () => {
+  await page.getByTestId('nav-notas').click()
+  await page.getByTestId('open-section-settings').click()
+  await expect(page.getByTestId('section-settings')).toContainText('cada nota')
   const settings = page.getByTestId('fields-settings')
   await settings.getByTestId('add-field').click()
   const dialog = page.getByTestId('field-dialog')
@@ -221,7 +223,8 @@ test('campos: añadir una moneda y una fórmula desde Ajustes', async () => {
   await expect(dialog).toBeHidden()
   await shot('08-campos')
 
-  await page.getByTestId('nav-notas').click()
+  await page.getByRole('button', { name: 'Cerrar ajustes' }).click()
+  await expect(page.getByTestId('section-settings')).toBeHidden()
   const row = rows().first()
   await row.locator('[data-field="presupuesto"]').dblclick()
   const input = row.locator('[data-field="presupuesto"] input')

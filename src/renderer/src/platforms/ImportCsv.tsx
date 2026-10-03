@@ -33,10 +33,10 @@ interface Loaded {
 }
 
 /** Importar un CSV de LinkedIn Campaign Manager o X Ads con un mapeo que se recuerda. */
-export function ImportCsv({ onDone }: { onDone: () => void }) {
+export function ImportCsv({ onDone, linkedin }: { onDone: () => void; linkedin: boolean }) {
   const qc = useQueryClient()
   const accounts = usePlatformAccounts().data ?? []
-  const [platform, setPlatform] = useState<OtherPlatform>('linkedin')
+  const [platform, setPlatform] = useState<OtherPlatform>(linkedin ? 'linkedin' : 'x')
   const [file, setFile] = useState<Loaded | null>(null)
   const [mapping, setMapping] = useState<CsvMapping | null>(null)
   const [remembered, setRemembered] = useState(false)
@@ -137,7 +137,7 @@ export function ImportCsv({ onDone }: { onDone: () => void }) {
             setFile(null)
           }}
         >
-          <option value="linkedin">LinkedIn (Campaign Manager)</option>
+          {linkedin && <option value="linkedin">LinkedIn (Campaign Manager)</option>}
           <option value="x">X (X Ads)</option>
         </select>
         <span className="hint">
