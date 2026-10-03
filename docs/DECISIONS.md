@@ -319,3 +319,35 @@ El usuario no quiere escribir comandos de desarrollo para usar la app. Los insta
 
 - Un registro creado en una vista con filtros sencillos (casilla marcada, «es hoy», una sola opción) nace cumpliéndolos. Por ejemplo, una creatividad creada en «Swipe file» ya es referencia y una tarea creada en «Hoy» vence hoy.
 
+## Fase 5 · Sincronización y copias
+
+### D-049 · Generaciones y contador de cambios, sin fusión
+
+- El destino guarda `sync.json` con una generación que crece en cada subida. Cada equipo guarda en su base de datos cifrada la generación que tiene y un contador de cambios (lo incrementa el motor en cada cambio).
+- Nube más nueva y sin cambios aquí: se descarga. Cambios aquí y nube igual: se sube. Las dos cosas a la vez: conflicto. El usuario elige con cuál quedarse y la otra versión se guarda como copia de seguridad (SPEC: sin fusión en la v1).
+- La base de datos que se sube ya lleva su nueva generación, así el otro equipo la conoce al descargarla. `sync.json` se escribe al final; si la subida falla, se deshace la generación local para reintentarlo.
+- Conectar un destino nuevo no cuenta lo que ya hay como pendiente: si el destino está vacío se sube igualmente, y si tiene datos de otro equipo se descargan (lo de aquí queda en `backups/`).
+- Un destino con otra bóveda (otro `vaultId`) se rechaza.
+
+### D-050 · Comprobar la nube después de desbloquear
+
+- La SPEC decía «antes de desbloquear». El token de Google solo puede vivir en la base de datos cifrada (CLAUDE.md), así que no se puede leer sin desbloquear. La comprobación se hace justo después, con un límite de 30 s para no dejar la pantalla esperando sin conexión. Si hay que descargar, la bóveda se cambia y se reabre sola con la misma clave.
+- Si la base de datos descargada no se abre con la clave actual (se cambió o rotó la contraseña en el otro equipo), la bóveda queda bloqueada para entrar con la contraseña actual.
+
+### D-051 · Google Drive con credenciales propias del usuario
+
+- OAuth 2.0 para apps de escritorio según la documentación oficial: redirección a un puerto local (`http://127.0.0.1:puerto`), PKCE con S256, `state`, `access_type=offline` y el permiso `drive.file` (la app solo ve lo que crea).
+- El id de cliente y el secreto los crea el usuario en su proyecto de Google Cloud (gratis) y se guardan en la base de datos cifrada. Así no hay credenciales en el repositorio (CLAUDE.md) ni un proyecto compartido con límites ajenos.
+- Verificado: en modo de pruebas el token de actualización caduca a los 7 días. Publicada (en producción) y con solo permisos no sensibles, no hace falta verificación de Google. Ajustes lo explica paso a paso.
+- Subidas: simples hasta 5 MB y reanudables por trozos de 8 MB (múltiplo de 256 KB) por encima, como indica la documentación de Drive. Todo vive en una carpeta propia «CRM Mellow · <id>».
+- Sin cuenta de Google en este entorno, el cliente se prueba contra un Drive simulado que reproduce las llamadas documentadas (búsqueda, carpetas, subida multipart, reanudable, PATCH, descarga y borrado), y el inicio de sesión se prueba de punta a punta con un navegador simulado (PKCE, state y canje del código).
+
+### D-052 · Carpeta como destino alternativo
+
+- Además de Drive, cualquier carpeta del equipo sirve de destino, con escrituras atómicas. Cubre el USB que menciona la SPEC, un disco de red y otros programas de sincronización. Lo prueban los tests con dos «equipos» que comparten una carpeta.
+- La carpeta no puede estar dentro de la bóveda ni contenerla.
+
+### D-053 · Cuándo se sincroniza
+
+- Al desbloquear, al bloquear (manual o por inactividad), al salir de la app (con un minuto de margen), cada 30 minutos si hay cambios y con el botón de la barra de estado. Al suspender el equipo no hay tiempo de subir: se sube la próxima vez. La barra de estado muestra si hay cambios sin subir, si se está sincronizando, los errores y los conflictos.
+
