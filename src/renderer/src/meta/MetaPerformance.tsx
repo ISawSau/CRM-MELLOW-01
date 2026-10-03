@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { todayIn } from '@shared/data/dates'
+import { t } from '@shared/i18n'
 import {
   BREAKDOWNS,
   type AdAccountInfo,
@@ -50,15 +51,15 @@ function Kpis({ r, o }: { r: TableResult; o: TableOptions }) {
         const d = delta(now[k], before[k], def)
         return (
           <div key={k} className="kpi">
-            <span className="kpi-label">{def?.label ?? k}</span>
+            <span className="kpi-label">{def ? t(def.label) : k}</span>
             <span className="kpi-value num">{formatMetric(now[k], def, r.currency)}</span>
             <span className="kpi-hint faint">
               {d ? (
                 <span className={d.good === null ? '' : d.good ? 'trend-good' : 'trend-bad'}>
-                  {d.text} vs. periodo anterior
+                  {t('{delta} vs. periodo anterior', { delta: d.text })}
                 </span>
               ) : (
-                'sin periodo anterior'
+                t('sin periodo anterior')
               )}
             </span>
           </div>
@@ -158,7 +159,7 @@ export function MetaPerformance({ onAccounts }: { onAccounts: () => void }) {
       .catch((e: unknown) =>
         setRangeState({
           key: rangeKey,
-          error: e instanceof IpcCallError ? e.message : 'No se pudo pedir el alcance a Meta.',
+          error: e instanceof IpcCallError ? e.message : t('No se pudo pedir el alcance a Meta.'),
         }),
       )
   }, [account, wantsRange, table.data?.rangeMissing, rangeKey, level, parentId, since, until, qc])
@@ -166,10 +167,10 @@ export function MetaPerformance({ onAccounts }: { onAccounts: () => void }) {
   if (accounts.data && enabled.length === 0)
     return (
       <div className="empty">
-        <h2>Ninguna cuenta activada</h2>
-        <p className="muted">Elige qué cuentas publicitarias sincronizar.</p>
+        <h2>{t('Ninguna cuenta activada')}</h2>
+        <p className="muted">{t('Elige qué cuentas publicitarias sincronizar.')}</p>
         <button type="button" className="btn btn-primary" onClick={onAccounts}>
-          Elegir cuentas
+          {t('Elegir cuentas')}
         </button>
       </div>
     )
@@ -188,7 +189,7 @@ export function MetaPerformance({ onAccounts }: { onAccounts: () => void }) {
     <div className="meta-perf">
       <div className="meta-toolbar">
         <div className="field">
-          <label htmlFor="meta-account">Cuenta</label>
+          <label htmlFor="meta-account">{t('Cuenta')}</label>
           <select
             id="meta-account"
             className="input"
@@ -206,7 +207,7 @@ export function MetaPerformance({ onAccounts }: { onAccounts: () => void }) {
           </select>
         </div>
         <div className="field">
-          <label htmlFor="meta-range">Periodo</label>
+          <label htmlFor="meta-range">{t('Periodo')}</label>
           <select
             id="meta-range"
             className="input"
@@ -219,16 +220,16 @@ export function MetaPerformance({ onAccounts }: { onAccounts: () => void }) {
           >
             {(Object.keys(RANGE_LABELS) as RangePreset[]).map((p) => (
               <option key={p} value={p}>
-                {RANGE_LABELS[p]}
+                {t(RANGE_LABELS[p])}
               </option>
             ))}
-            <option value="custom">Personalizado</option>
+            <option value="custom">{t('Personalizado')}</option>
           </select>
         </div>
         {preset === 'custom' ? (
           <>
             <div className="field">
-              <label htmlFor="meta-since">Desde</label>
+              <label htmlFor="meta-since">{t('Desde')}</label>
               <input
                 id="meta-since"
                 type="date"
@@ -239,7 +240,7 @@ export function MetaPerformance({ onAccounts }: { onAccounts: () => void }) {
               />
             </div>
             <div className="field">
-              <label htmlFor="meta-until">Hasta</label>
+              <label htmlFor="meta-until">{t('Hasta')}</label>
               <input
                 id="meta-until"
                 type="date"
@@ -259,7 +260,7 @@ export function MetaPerformance({ onAccounts }: { onAccounts: () => void }) {
 
       <div className="meta-toolbar">
         <div className="field">
-          <label htmlFor="meta-preset">Columnas</label>
+          <label htmlFor="meta-preset">{t('Columnas')}</label>
           <span className="inline-add">
             <select
               id="meta-preset"
@@ -269,7 +270,7 @@ export function MetaPerformance({ onAccounts }: { onAccounts: () => void }) {
             >
               {presets.map((p) => (
                 <option key={p.id} value={p.id}>
-                  {p.name}
+                  {t(p.name)}
                 </option>
               ))}
             </select>
@@ -280,12 +281,12 @@ export function MetaPerformance({ onAccounts }: { onAccounts: () => void }) {
               disabled={!settings.data}
               onClick={() => setEditing(true)}
             >
-              Personalizar…
+              {t('Personalizar…')}
             </button>
           </span>
         </div>
         <div className="field">
-          <label htmlFor="meta-breakdown">Desglose</label>
+          <label htmlFor="meta-breakdown">{t('Desglose')}</label>
           <select
             id="meta-breakdown"
             className="input"
@@ -293,28 +294,28 @@ export function MetaPerformance({ onAccounts }: { onAccounts: () => void }) {
             disabled={availableBreakdowns.length === 0}
             title={
               availableBreakdowns.length === 0
-                ? 'Actívalos en Campañas → Cuentas para este nivel'
+                ? t('Actívalos en Campañas → Cuentas para este nivel')
                 : undefined
             }
             onChange={(e) => setBreakdown((e.target.value || null) as BreakdownKey | null)}
           >
-            <option value="">Ninguno</option>
+            <option value="">{t('Ninguno')}</option>
             {availableBreakdowns.map((b) => (
               <option key={b} value={b}>
-                {BREAKDOWNS[b].label}
+                {t(BREAKDOWNS[b].label)}
               </option>
             ))}
           </select>
         </div>
         <label className="check meta-compare">
           <input type="checkbox" checked={compare} onChange={(e) => setCompare(e.target.checked)} />
-          <span>Comparar con el periodo anterior</span>
+          <span>{t('Comparar con el periodo anterior')}</span>
         </label>
       </div>
 
-      <nav className="crumbs" aria-label="Nivel">
+      <nav className="crumbs" aria-label={t('Nivel')}>
         <button type="button" className="btn-link" onClick={() => setPath([])}>
-          Campañas
+          {t('Campañas')}
         </button>
         {path.map((p, i) => (
           <span key={p.parentId}>
@@ -334,15 +335,17 @@ export function MetaPerformance({ onAccounts }: { onAccounts: () => void }) {
         <>
           {table.data.unconverted && (
             <Alert>
-              Faltan tipos de cambio para {table.data.accountCurrency}: los importes se muestran en
-              la moneda de la cuenta.
+              {t(
+                'Faltan tipos de cambio para {currency}: los importes se muestran en la moneda de la cuenta.',
+                { currency: table.data.accountCurrency },
+              )}
             </Alert>
           )}
           {rangeState?.key === rangeKey &&
             (rangeState.error ? (
               <p className="hint danger-text">{rangeState.error}</p>
             ) : (
-              <p className="hint">Pidiendo a Meta el alcance y la frecuencia del periodo…</p>
+              <p className="hint">{t('Pidiendo a Meta el alcance y la frecuencia del periodo…')}</p>
             ))}
           <Kpis r={table.data} o={options} />
           <AdsTable
@@ -360,11 +363,15 @@ export function MetaPerformance({ onAccounts }: { onAccounts: () => void }) {
             }
           />
           <p className="hint">
-            Fechas en la zona horaria de la cuenta ({account.timezone}). Importes en{' '}
-            {table.data.currency}
+            {t('Fechas en la zona horaria de la cuenta ({timezone}). Importes en {currency}', {
+              timezone: account.timezone,
+              currency: table.data.currency,
+            })}
             {table.data.currency !== table.data.accountCurrency &&
-              `, convertidos desde ${table.data.accountCurrency} con el tipo del BCE de cada día`}
-            . Atribución: la configurada en cada conjunto de anuncios, como en Ads Manager.
+              t(', convertidos desde {currency} con el tipo del BCE de cada día', {
+                currency: table.data.accountCurrency,
+              })}
+            {t('. Atribución: la configurada en cada conjunto de anuncios, como en Ads Manager.')}
           </p>
         </>
       )}
