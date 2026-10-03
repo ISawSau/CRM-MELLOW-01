@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { DEFAULT_APPEARANCE, type Density } from '@shared/appearance'
 import type { VaultStatus } from '@shared/ipc'
+import { MetaPage } from '../meta/MetaPage'
 import { DataPage } from '../data/DataPage'
 import { useDataEvents } from '../data/hooks'
 import { NavContext } from '../data/nav'
@@ -143,6 +144,8 @@ function ShellInner({ status }: { status: VaultStatus }) {
             />
           ) : current.id === 'inicio' ? (
             <Home onNavigate={navigate} />
+          ) : current.id === 'campanas' ? (
+            <MetaPage num="02" />
           ) : current.id === 'papelera' ? (
             <TrashPage />
           ) : current.id === 'ajustes' ? (
@@ -151,7 +154,12 @@ function ShellInner({ status }: { status: VaultStatus }) {
             <Upcoming section={current} onSettings={goSettings} />
           )}
         </main>
-        <StatusBar status={status} onOpenPalette={openPalette} onSettings={goSettings} />
+        <StatusBar
+          status={status}
+          onOpenPalette={openPalette}
+          onSettings={goSettings}
+          onMeta={() => navigate('campanas')}
+        />
         <ConflictDialog />
         {paletteOpen && <CommandPalette open onClose={closePalette} actions={actions} />}
       </div>

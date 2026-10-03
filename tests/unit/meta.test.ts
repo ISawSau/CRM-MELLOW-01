@@ -186,7 +186,7 @@ describe('sincronización con Meta', () => {
     ])
     const creative = db.prepare('SELECT * FROM ad_creatives').get() as { thumb_file_id: string }
     expect(creative.thumb_file_id).toMatch(/^[a-f0-9]{64}$/)
-    expect(vault.data.files.read(creative.thumb_file_id)[0]).toBe(0xff)
+    expect(vault.data.files.read(creative.thumb_file_id).subarray(1, 4).toString()).toBe('PNG')
 
     // Primero los últimos 30 días en la zona de la cuenta (Nueva York: 3 de octubre).
     const sync = fake.insightCalls().filter((c) => c.method === 'GET')

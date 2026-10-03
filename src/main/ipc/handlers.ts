@@ -6,7 +6,9 @@ import type { AutoLock } from '../auto-lock'
 import type { ConfigStore } from '../config'
 import type { VaultService } from '../vault/vault-service'
 import type { SyncService } from '../sync/sync-service'
+import type { MetaService } from '../meta/meta-service'
 import { createDataHandlers } from './data-handlers'
+import { createMetaHandlers } from './meta-handlers'
 import { createSyncHandlers } from './sync-handlers'
 import type { IpcHandlers } from './register'
 
@@ -17,6 +19,7 @@ export interface HandlerDeps {
   config: ConfigStore
   autoLock: AutoLock
   sync: SyncService
+  meta: MetaService
   /** Sube lo pendiente y bloquea (bloqueo manual y automático). */
   lockWithSync: () => Promise<void>
   getWindow: () => BrowserWindow | null
@@ -30,14 +33,18 @@ export function createHandlers({
   config,
   autoLock,
   sync,
+  meta,
   lockWithSync,
   getWindow,
 }: HandlerDeps): IpcHandlers {
+  // Tras traer la versión de la nube, Meta rellena el hueco desde la última vez.
   const syncAfterUnlock = () =>
     Promise.race([
       sync.afterUnlock(),
       new Promise<void>((r) => setTimeout(r, UNLOCK_SYNC_TIMEOUT_MS)),
-    ]).catch(() => {})
+    ])
+      .catch(() => {})
+      .finally(() => meta.start())
   /**
    * Rutas que el renderer puede usar: solo las elegidas en el selector nativo y la
    * última bóveda. Así una interfaz comprometida no puede crear ni abrir carpetas
@@ -94,6 +101,7 @@ export function createHandlers({
       allow(join(parentPath, name))
       remember()
       autoLock.start()
+      meta.start()
       return result
     },
 
@@ -125,6 +133,7 @@ export function createHandlers({
 
     'vault:close': async () => {
       autoLock.stop()
+      meta.dispose()
       await sync.beforeClose()
       config.setLastVaultPath(null)
       return vault.close()
@@ -152,5 +161,6 @@ export function createHandlers({
 
     ...createDataHandlers(vault, getWindow),
     ...createSyncHandlers(sync, getWindow),
+    ...createMetaHandlers(meta),
   }
 }

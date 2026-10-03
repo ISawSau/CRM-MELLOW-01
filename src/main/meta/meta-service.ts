@@ -435,6 +435,7 @@ export class MetaService {
 
   /** Al desbloquear: sincroniza (rellena el hueco) y programa las siguientes. */
   start(): void {
+    if (!this.unlocked) return
     this.schedule()
     if (this.config()) void this.syncNow().catch(() => {})
   }

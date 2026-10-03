@@ -1,6 +1,6 @@
 # Especificación del CRM personal
 
-Versión 0.2 · 2 de octubre de 2026
+Versión 0.3 · 3 de octubre de 2026
 
 Este documento recoge todas las decisiones de diseño tomadas antes de escribir código. Es la referencia para construir el proyecto fase a fase. Lo que aparece marcado como **verificar** depende de APIs o normativa externa que cambian con el tiempo y debe comprobarse en la documentación oficial antes de implementarlo.
 
@@ -56,11 +56,11 @@ Principios que guían cualquier decisión:
 | Imágenes | Miniaturas con Chromium (canvas) en la fase 4; sharp para comprimir en la fase 9 | Miniaturas sin dependencias nativas (D-046). |
 | Vídeo | Miniaturas y duración con Chromium (fase 4); ffmpeg empaquetado para comprimir (fase 9) | Sin binarios extra hasta que hagan falta. |
 | PDF | pdf-lib (unir, dividir), Ghostscript empaquetado (comprimir), printToPDF de Electron (informes) | Cubre generación y compresión de PDF gratis. |
-| Tipos de cambio | Tasas de referencia del BCE vía un servicio gratuito sin clave (p. ej. Frankfurter). **Verificar** disponibilidad. | Conversión de divisas sin coste. |
+| Tipos de cambio | Tasas de referencia del BCE descargadas de sus XML oficiales (diario, 90 días e histórico), gratis y sin clave (D-056). | Conversión de divisas sin coste y desde la fuente. |
 | Tests | Vitest (lógica) + Playwright para Electron (interfaz) | |
 | CI de builds | GitHub Actions (gratis en repos públicos o con minutos gratuitos en privados; **verificar** límites) | Compilar en Windows y Linux reales, necesario por los módulos nativos (SQLite, sharp). |
 
-Arquitectura de procesos: el proceso principal de Electron es el único que toca la base de datos, los archivos y las APIs externas. El renderer (la interfaz) se comunica con él mediante IPC tipado. Las sincronizaciones largas (histórico de Meta, subida a Drive) corren en un utility process o worker para no congelar la interfaz.
+Arquitectura de procesos: el proceso principal de Electron es el único que toca la base de datos, los archivos y las APIs externas. El renderer (la interfaz) se comunica con él mediante IPC tipado. Las sincronizaciones largas (histórico de Meta, subida a Drive) usan E/S asíncrona y escriben por trozos en transacciones cortas para no congelar la interfaz; si algún día no basta, se moverán a un utility process (D-057).
 
 ---
 
@@ -250,6 +250,15 @@ Tabla genérica de vínculos (campo de relación, id de origen, id de destino, p
 - Monedas: EUR, USD, GBP, CHF, CAD, AUD, MXN, SEK, NOK, DKK, PLN, JPY y BRL como mínimo (lista editable). Selector global y por cliente.
 - Tipos de cambio diarios del BCE guardados en local, de modo que una fecha antigua siempre usa su tipo histórico.
 - Meta entrega los datos en la zona horaria de cada cuenta; la app muestra por defecto Europe/Madrid, configurable globalmente y por cliente.
+
+**Implementación (fase 6).**
+- Graph API **v26.0**, token de usuario del sistema con **`ads_read`** (verificado). Se pega en Campañas; se guarda solo en la base de datos cifrada. Clave secreta de la app opcional para `appsecret_proof` (D-054).
+- Cuentas en Campañas → Cuentas: activar la sincronización y asignar un cliente. La ficha del cliente muestra sus cuentas.
+- Estructura: campañas, conjuntos y anuncios con estado configurado y efectivo, objetivo u objetivo de optimización, estrategia de puja, presupuestos, fechas y atribución (en el JSON del conjunto); creatividades con título, texto, tipo, llamada a la acción, enlace, vídeo y miniatura descargada y cifrada.
+- Métricas diarias en cuatro niveles (cuenta, campaña, conjunto, anuncio) con acciones crudas, acciones normalizadas y catálogo de tipos (D-055). «Última edición significativa» se aproxima con `updated_time` hasta investigar el historial de actividad (fase 7).
+- Sincronización: al abrir (tras desbloquear) y cada hora por defecto (30 min, 1, 2 o 4 h), con la ventana de atribución configurable (1–28 días). Histórico asíncrono por meses hasta 37 meses o la creación de la cuenta, reanudable, con progreso en Campañas y en la barra de estado (D-057).
+- Divisas: moneda de visualización y lista editable en Campañas → Ajustes; conversión diaria con el BCE (D-056). Fechas de las métricas en la zona de cada cuenta (D-058). La selección de moneda por cliente llega con la tabla de la fase 7.
+- Interfaz de la fase 6: KPIs del periodo con comparación con el periodo anterior y tabla campaña → conjunto → anuncio con totales. Columnas configurables, presets, métricas calculadas, desgloses y formato condicional: fase 7.
 
 ### 7.4 X y LinkedIn
 

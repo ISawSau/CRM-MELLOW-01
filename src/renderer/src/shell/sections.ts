@@ -50,8 +50,8 @@ export const SECTION_GROUPS: SectionGroup[] = [
         id: 'campanas',
         label: 'Campañas',
         letter: 'M',
-        phase: 6,
-        summary: 'cuentas de Meta, campañas, ad sets, anuncios y métricas diarias',
+        phase: null,
+        summary: '',
       },
       {
         id: 'creatividades',

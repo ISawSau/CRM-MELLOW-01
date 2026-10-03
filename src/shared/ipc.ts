@@ -12,6 +12,15 @@ import type {
   UndoState,
 } from './data/records'
 import { filterSchema, sortSchema, VIEW_KINDS, type View } from './data/views'
+import {
+  accountUpdateSchema,
+  metaConnectSchema,
+  metaSettingsSchema,
+  perfQuerySchema,
+  type AdAccountInfo,
+  type MetaStatus,
+  type PerfResult,
+} from './meta'
 
 /**
  * Contrato IPC entre la interfaz (renderer) y el proceso principal.
@@ -258,6 +267,17 @@ export const ipcSchemas = {
   'data:redo': z.void(),
   'data:undoState': z.void(),
   'data:exportCsv': z.object({ viewId: idSchema }),
+  'meta:status': z.void(),
+  'meta:connect': metaConnectSchema,
+  'meta:disconnect': z.void(),
+  'meta:accounts': z.void(),
+  'meta:refreshAccounts': z.void(),
+  'meta:updateAccount': accountUpdateSchema,
+  'meta:retryHistory': z.object({ id: z.string().regex(/^act_\d{1,30}$/) }),
+  'meta:syncNow': z.void(),
+  'meta:setSettings': metaSettingsSchema,
+  'meta:performance': perfQuerySchema,
+  'meta:clientAccounts': z.object({ clientId: idSchema }),
 } as const
 
 export interface IpcOutputs {
@@ -331,6 +351,17 @@ export interface IpcOutputs {
   'data:undoState': UndoState
   /** Ruta donde se guardó el CSV, o null si se canceló. */
   'data:exportCsv': string | null
+  'meta:status': MetaStatus
+  'meta:connect': MetaStatus
+  'meta:disconnect': MetaStatus
+  'meta:accounts': AdAccountInfo[]
+  'meta:refreshAccounts': AdAccountInfo[]
+  'meta:updateAccount': AdAccountInfo[]
+  'meta:retryHistory': void
+  'meta:syncNow': MetaStatus
+  'meta:setSettings': MetaStatus
+  'meta:performance': PerfResult
+  'meta:clientAccounts': AdAccountInfo[]
 }
 
 export type IpcChannel = keyof typeof ipcSchemas
@@ -343,5 +374,6 @@ export interface IpcEvents {
   'vault:changed': VaultStatus
   'data:changed': DataChange
   'sync:changed': SyncStatus
+  'meta:changed': MetaStatus
 }
 export type IpcEvent = keyof IpcEvents

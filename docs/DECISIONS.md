@@ -351,3 +351,40 @@ El usuario no quiere escribir comandos de desarrollo para usar la app. Los insta
 
 - Al desbloquear, al bloquear (manual o por inactividad), al salir de la app (con un minuto de margen), cada 30 minutos si hay cambios y con el botón de la barra de estado. Al suspender el equipo no hay tiempo de subir: se sube la próxima vez. La barra de estado muestra si hay cambios sin subir, si se está sincronizando, los errores y los conflictos.
 
+
+## Fase 6 · Meta I
+
+### D-054 · Graph API v26.0, token de usuario del sistema con `ads_read` y solo lectura
+
+- Comprobado en la documentación oficial (octubre de 2026): la versión vigente es la **v26.0** (publicada el 29/07/2026; la v25.0 sigue disponible hasta julio de 2028). Está fijada en `META_API_VERSION`.
+- Conexión con un **token de un usuario del sistema** del Business Manager con el permiso **`ads_read`** (lectura de campañas, conjuntos, anuncios e Insights). Se valida con `GET /me` y se listan las cuentas con `GET /me/adaccounts`. El token (y la clave secreta de la app, opcional, para `appsecret_proof` = HMAC-SHA256 del token con la clave, en hexadecimal) solo se guardan en la base de datos cifrada y nunca vuelven a la interfaz.
+- El token viaja en la cabecera `Authorization: Bearer`, nunca en la URL; a las URL de paginación que devuelve Meta se les quita el `access_token`.
+- **Solo lectura por construcción:** el cliente (`src/main/meta/graph.ts`) no tiene un método genérico de escritura. Solo hace GET y `POST /act_…/insights`, que crea un informe asíncrono de Insights y no modifica nada. Un test comprueba que no se hace ninguna otra petición que no sea GET.
+
+### D-055 · Campos de Insights: núcleo fijo y opcionales que se caen solos
+
+- Campos comprobados en la referencia de Ads Insights: `spend`, `impressions`, `reach`, `frequency`, `clicks`, `inline_link_clicks`, `inline_link_click_ctr`, `cpm`, `cpc`, `actions`, `action_values`, `purchase_roas`, `video_play_actions`, `video_p25…p100_watched_actions`, `video_30_sec_watched_actions`, `results`, `cost_per_result`, `attribution_setting`, y a nivel de anuncio las clasificaciones de calidad, interacción y conversión.
+- Como los campos cambian entre versiones, solo un núcleo es obligatorio. Los demás (únicos de enlace, ThruPlay, vídeo, resultados, clasificaciones…) se piden y, si Meta responde con un error 100 que nombra uno, se quita y se repite la petición sin él.
+- Se usa `use_unified_attribution_setting=true` para obtener los mismos resultados que Ads Manager (la atribución configurada en cada conjunto).
+- Se guarda la respuesta cruda de acciones y valores (JSON), una tabla normalizada `ad_actions` (entidad, día, tipo de acción, número y valor) y el catálogo `ad_action_types`, para usar cualquier acción en las métricas calculadas de la fase 7. Compras, añadidos al carrito y pagos iniciados toman el primer tipo presente de `omni_*`, el estándar y el del píxel, para no contar dos veces el mismo evento.
+
+### D-056 · Tipos de cambio directamente del BCE
+
+- En lugar de un servicio intermedio (Frankfurter), se descargan los XML oficiales del BCE (`eurofxref-hist.xml` la primera vez, `eurofxref-hist-90d.xml` después), gratis, sin clave y desde la fuente. Se guardan en `fx_rates` (5 años) y los días sin publicación (fines de semana y festivos TARGET) usan el último tipo anterior.
+- Los importes se guardan en la moneda de la cuenta y se convierten al mostrar, día a día con el tipo de cada fecha. Si una moneda no la publica el BCE, se muestra en la de la cuenta y la interfaz lo avisa.
+- Presupuestos: Meta los da en la unidad mínima de la moneda; se dividen entre 100 salvo en las monedas con «offset» 1 de la tabla oficial de Meta (CLP, COP, CRC, HUF, ISK, IDR, JPY, KRW, PYG, TWD, VND).
+
+### D-057 · Ventana de sincronización, histórico asíncrono y límites
+
+- Cada sincronización descarga la estructura y las métricas diarias (niveles cuenta, campaña, conjunto y anuncio) desde el último día descargado menos la ventana de atribución (7 días por defecto, de 1 a 28) hasta hoy, en la zona horaria de la cuenta y en trozos de 10 días. Así se rellena cualquier hueco y se recogen las conversiones atribuidas tarde. Las filas de cada trozo se sustituyen enteras.
+- Al activar una cuenta: primero los últimos 30 días y después el histórico hasta el límite documentado («la fecha de inicio no puede ser de hace más de 37 meses»), o desde la creación de la cuenta si es más reciente, con informes asíncronos (`POST /insights` → `report_run_id`, estado `async_status` hasta «Job Completed», resultados en `/{report_run_id}/insights`). Cada mes y nivel es un trozo guardado en `ad_jobs`: si se cierra la app, sigue donde lo dejó (los informes caducan a los 30 días; a partir de 25 se piden de nuevo). Un trozo que falla se reintenta tres veces y después queda marcado para reintentarlo a mano.
+- Límites: se leen `X-FB-Ads-Insights-Throttle`, `X-Ad-Account-Usage` y `X-Business-Use-Case-Usage`. Por encima del 75 % de uso se frena antes de cada llamada y por encima del 95 % se espera lo que indique Meta (mínimo un minuto). Los errores de límite (4, 17, 32, 613, 80000–80014) y los transitorios se reintentan con espera exponencial (2 s, 4 s, 8 s… hasta 5 min). Un token caducado o sin permisos (190, 10, 200) para la sincronización y se avisa.
+- La sincronización corre en el proceso principal con E/S asíncrona y escrituras por trozos en transacciones cortas, sin bloquear la interfaz. Un utility process necesitaría abrir otra conexión a la base de datos cifrada con la clave; no compensa con este volumen.
+- Las miniaturas de las creatividades (las URL de Meta caducan) se descargan y se guardan cifradas en la bóveda; la limpieza de archivos sin usar las respeta.
+
+### D-058 · Cuentas en tabla propia y qué cuenta como cambio para sincronizar equipos
+
+- Las cuentas publicitarias viven en `ad_accounts` (con el estado de sincronización) y no como entidad del motor de datos: sus datos vienen de Meta y no se editan. La asignación a un cliente es un campo `client_id`; la ficha del cliente muestra sus cuentas.
+- Los datos de Meta se pueden volver a descargar, así que no cuentan como cambios para la sincronización entre equipos (no provocan conflictos). Sí cuentan conectar o desconectar, activar cuentas, asignarlas a clientes y los ajustes.
+- Las fechas de las métricas son las de la zona horaria de cada cuenta (como en Ads Manager): unos datos diarios no se pueden repartir en otra zona. Las horas (sincronizaciones, inicio y fin de campañas) se muestran en la zona de la app.
+- Para los tests de interfaz, la app acepta una API de Meta y un BCE falsos con `CRM_TEST_GRAPH_URL`, `CRM_TEST_ECB_URL` y `CRM_TEST_META_POLL_MS`, solo sin empaquetar. Sin cuenta publicitaria en este entorno, el cliente se ha probado contra una API simulada que reproduce las respuestas documentadas.

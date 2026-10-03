@@ -110,13 +110,19 @@ export class FakeMeta {
       name: 'UGC 1',
       title: 'Oferta',
       body: 'Compra ya',
-      thumbnail_url: `${FAKE_GRAPH}/cdn/cr1.jpg`,
+      thumbnail_url: '',
       object_type: 'VIDEO',
       video_id: '777',
     },
   }
 
-  constructor(private readonly opts: FakeOptions = {}) {}
+  constructor(
+    private readonly opts: FakeOptions = {},
+    /** Dirección con la que se generan las URL de paginación y miniaturas. */
+    readonly base = FAKE_GRAPH,
+  ) {
+    this.creatives['cr1']!['thumbnail_url'] = `${base}/cdn/cr1.png`
+  }
 
   set(opts: FakeOptions): void {
     Object.assign(this.opts, opts)
@@ -188,7 +194,7 @@ export class FakeMeta {
       const next = new URLSearchParams(params)
       next.set('after', String(after + limit))
       next.set('access_token', 'token-en-la-url')
-      res['paging'] = { next: `${FAKE_GRAPH}/v26.0/${path}?${next}` }
+      res['paging'] = { next: `${this.base}/v26.0/${path}?${next}` }
     }
     return res
   }
@@ -217,11 +223,10 @@ export class FakeMeta {
     const params = new URLSearchParams(url.search)
     if (init.body instanceof URLSearchParams) for (const [k, v] of init.body) params.set(k, v)
 
-    if (url.origin === FAKE_ECB) return new Response(ECB_XML, { status: 200 })
+    if (url.origin === FAKE_ECB || url.pathname.startsWith('/ecb/'))
+      return new Response(ECB_XML, { status: 200 })
     if (url.pathname.startsWith('/cdn/'))
-      return new Response(new Uint8Array([0xff, 0xd8, 0xff, 1, 2, 3]), {
-        headers: { 'content-type': 'image/jpeg' },
-      })
+      return new Response(PNG_1PX, { headers: { 'content-type': 'image/png' } })
 
     const path = url.pathname.replace(/^\/v26\.0\/?/, '')
     this.requests.push({ method, path, params, auth: headers.get('authorization') })
@@ -297,6 +302,12 @@ export class FakeMeta {
     return this.error(404, 100, `Ruta desconocida ${path}`)
   }
 }
+
+/** PNG de 1×1 píxel (miniatura de la creatividad). */
+export const PNG_1PX = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+  'base64',
+)
 
 /** Tipos del BCE: USD a 1,10 entre semana; sin publicación los fines de semana. */
 export const ECB_XML = `<?xml version="1.0" encoding="UTF-8"?>
