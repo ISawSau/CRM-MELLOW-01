@@ -2,6 +2,7 @@ import type { VaultStatus } from '@shared/ipc'
 import { useAppInfo } from '../lib/hooks'
 import { MetaStatusItem } from '../meta/MetaStatusItem'
 import { SyncStatusItem } from './sync'
+import { t } from '@shared/i18n'
 
 export function StatusBar({
   status,
@@ -29,12 +30,12 @@ export function StatusBar({
       <SyncStatusItem onSettings={onSettings} />
       {status.autoLockMinutes !== null && (
         <span className="statusbar-item">
-          autobloqueo <span className="num">{status.autoLockMinutes}</span> min
+          {t('autobloqueo')} <span className="num">{status.autoLockMinutes}</span> min
         </span>
       )}
       {info.data && <span className="statusbar-item num">v{info.data.version}</span>}
       <button type="button" className="statusbar-item btn-link btn" onClick={onOpenPalette}>
-        <kbd>Ctrl K</kbd> comandos
+        <kbd>Ctrl K</kbd> {t('comandos')}
       </button>
     </footer>
   )

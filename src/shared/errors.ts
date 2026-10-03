@@ -1,6 +1,9 @@
+import { t } from './i18n'
+
 /**
  * Errores que el proceso principal devuelve a la interfaz. El código es estable
- * (la interfaz decide qué hacer según él); el mensaje ya está en español.
+ * (la interfaz decide qué hacer según él); el mensaje se escribe en español y se
+ * traduce al crear el error (`errorMessage`), en el idioma activo en ese momento.
  */
 export const ERROR_MESSAGES = {
   WRONG_PASSWORD:
@@ -31,12 +34,17 @@ export const ERROR_MESSAGES = {
 
 export type ErrorCode = keyof typeof ERROR_MESSAGES
 
+/** Mensaje por defecto de un código, en el idioma activo. */
+export function errorMessage(code: ErrorCode): string {
+  return t(ERROR_MESSAGES[code])
+}
+
 export class AppError extends Error {
   readonly code: ErrorCode
   readonly details: Record<string, unknown> | undefined
 
   constructor(code: ErrorCode, details?: Record<string, unknown>, message?: string) {
-    super(message ?? ERROR_MESSAGES[code])
+    super(message ?? errorMessage(code))
     this.name = 'AppError'
     this.code = code
     this.details = details

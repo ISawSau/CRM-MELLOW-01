@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { call } from '../lib/ipc'
 import { BrandEye } from '../ui/BrandEye'
 import { useUnseenAlerts } from '../analysis/AnalysisPage'
+import { t } from '@shared/i18n'
 
 function NavItem({
   section,
@@ -21,13 +22,13 @@ function NavItem({
       className="nav-item"
       aria-current={current === section.id ? 'page' : undefined}
       onClick={() => onSelect(section.id)}
-      title={section.label}
+      title={t(section.label)}
       data-testid={`nav-${section.id}`}
     >
       <span className="nav-letter" aria-hidden="true">
         {section.letter}
       </span>
-      <span className="nav-label">{section.label}</span>
+      <span className="nav-label">{t(section.label)}</span>
       {badge && badge.count > 0 && (
         <span
           className="nav-badge num"
@@ -64,17 +65,17 @@ export function Sidebar({
     refetchInterval: 5 * 60_000,
   })
   const unseen = useUnseenAlerts()
-  const alertBadge = { count: unseen, urgent: true, label: `${unseen} avisos de alertas sin ver` }
-  const t = tasks.data
-  const taskBadge = t
+  const alertBadge = { count: unseen, urgent: true, label: t('{n} avisos de alertas sin ver', { n: unseen }) }
+  const ts = tasks.data
+  const taskBadge = ts
     ? {
-        count: t.today + t.overdue,
-        urgent: t.overdue > 0,
-        label: `${t.today} para hoy, ${t.overdue} atrasadas`,
+        count: ts.today + ts.overdue,
+        urgent: ts.overdue > 0,
+        label: t('{today} para hoy, {overdue} atrasadas', { today: ts.today, overdue: ts.overdue }),
       }
     : undefined
   return (
-    <aside className="sidebar" aria-label="Navegación">
+    <aside className="sidebar" aria-label={t('Navegación')}>
       <div className="sidebar-head">
         <span className="brand">
           <BrandEye />
@@ -84,8 +85,8 @@ export function Sidebar({
           type="button"
           className="icon-btn"
           onClick={onToggle}
-          aria-label={collapsed ? 'Desplegar barra lateral' : 'Plegar barra lateral'}
-          title={collapsed ? 'Desplegar barra lateral' : 'Plegar barra lateral'}
+          aria-label={collapsed ? t('Desplegar barra lateral') : t('Plegar barra lateral')}
+          title={collapsed ? t('Desplegar barra lateral') : t('Plegar barra lateral')}
         >
           {collapsed ? '→' : '←'}
         </button>
@@ -95,7 +96,7 @@ export function Sidebar({
           <div className="nav-group" key={g.num}>
             <div className="nav-group-title">
               <span className="num">{g.num}</span>
-              {g.title}
+              {t(g.title)}
             </div>
             {g.sections.map((s) => (
               <NavItem
@@ -116,13 +117,13 @@ export function Sidebar({
           type="button"
           className="nav-item"
           onClick={onLock}
-          title="Bloquear bóveda"
+          title={t('Bloquear bóveda')}
           data-testid="sidebar-lock"
         >
           <span className="nav-letter" aria-hidden="true">
             ▪
           </span>
-          <span className="nav-label">Bloquear</span>
+          <span className="nav-label">{t('Bloquear')}</span>
         </button>
       </div>
     </aside>
