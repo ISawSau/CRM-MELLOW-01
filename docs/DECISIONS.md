@@ -291,3 +291,31 @@ El usuario no quiere escribir comandos de desarrollo para usar la app. Los insta
 - Las plantillas se guardan como ajuste de la bóveda (nombre y secciones con título, tipo e indicación), validadas con zod. Crear un brief desde una plantilla genera el documento de Tiptap con un título por sección, la indicación en cursiva y una lista vacía en las secciones de tipo lista.
 - Cambiar una plantilla no toca los briefs ya creados: el contenido es del brief.
 
+## Fase 4 · Archivos y creatividades
+
+### D-045 · Almacén de archivos cifrado y deduplicado
+
+- Cada archivo se guarda una vez en `files/<2 primeros>/<id>.bin`. El id es un HMAC-SHA256 del contenido con una clave de la bóveda: deduplica sin revelar el hash real, que permitiría comprobar si la bóveda contiene un archivo conocido.
+- AES-256-GCM por bloques de 1 MiB. Cada bloque usa un nonce propio (base aleatoria + número de bloque) y autentica la cabecera, su posición y si es el último: no se puede manipular, reordenar ni truncar sin que se note. Se puede leer cualquier trozo descifrando solo sus bloques.
+- La clave de archivos es aleatoria y se guarda dentro de la base de datos cifrada (`files.key`). Rotar la clave maestra recifra la base de datos y, con ella, esa clave; los archivos no hay que tocarlos.
+- Importar va por bloques (archivos grandes sin cargarlos en memoria) y escribe en un temporal que se renombra al final.
+- Limpieza: un archivo que ya no usa ningún registro (ni en la papelera ni en sus versiones) se borra pasado un día. Se ejecuta al abrir la bóveda y al vaciar la papelera.
+
+### D-046 · Protocolo vault:// y miniaturas con Chromium
+
+- La interfaz ve los archivos con `vault://file/<id>` y `vault://thumb/<id>`. El proceso principal los descifra al vuelo, admite rangos (avanzar en los vídeos) y nunca escribe nada en claro en el disco. Solo responde con la bóveda abierta y con ids que existen. La CSP solo añade `vault:` a `img-src` y `media-src`.
+- Solo se sirven tal cual imágenes que Chromium muestra, vídeo y audio. El resto (SVG incluido) sale como binario, con `nosniff` y `sandbox`.
+- Las miniaturas y medidas (ancho, alto, duración) las calcula la interfaz con canvas y `<video>` la primera vez que se ve el archivo, y se guardan cifradas en `thumbs/`. No hacen falta sharp ni ffmpeg hasta la fase 9 (comprimir). Para dibujar en canvas sin «contaminarlo», el protocolo responde con CORS solo para el origen de la app.
+- Añadir archivos: el diálogo del sistema (cualquier tamaño, leído por bloques) o arrastrar y soltar (hasta 512 MB por archivo, enviado por IPC). La interfaz nunca envía rutas del disco: así una interfaz comprometida no podría leer archivos arbitrarios del equipo.
+- «Guardar una copia» exporta el archivo descifrado donde el usuario elija (acción explícita, como el CSV; D-032).
+
+### D-047 · Versiones manuales
+
+- «Guardar versión» copia los valores actuales del registro (v1, v2…) con una nota. La pestaña Versiones compara cada versión con la actual (el texto, línea a línea) y permite restaurarla. Restaurar es una edición normal: se puede deshacer y queda en el historial.
+- Son manuales a propósito: el historial ya guarda cada cambio; una versión marca un momento con sentido (lo que se lanzó). Se usarán para el rendimiento por versión (fase 7).
+- Las versiones se borran con el registro y sus archivos siguen protegidos de la limpieza mientras exista alguna versión que los use.
+
+### D-048 · Crear desde una vista hereda sus filtros
+
+- Un registro creado en una vista con filtros sencillos (casilla marcada, «es hoy», una sola opción) nace cumpliéndolos. Por ejemplo, una creatividad creada en «Swipe file» ya es referencia y una tarea creada en «Hoy» vence hoy.
+
