@@ -1,15 +1,18 @@
 import type { VaultStatus } from '@shared/ipc'
 import { useAppInfo } from '../lib/hooks'
+import { MetaStatusItem } from '../meta/MetaStatusItem'
 import { SyncStatusItem } from './sync'
 
 export function StatusBar({
   status,
   onOpenPalette,
   onSettings,
+  onMeta,
 }: {
   status: VaultStatus
   onOpenPalette: () => void
   onSettings: () => void
+  onMeta: () => void
 }) {
   const info = useAppInfo()
   return (
@@ -22,6 +25,7 @@ export function StatusBar({
         {status.path}
       </span>
       <span className="statusbar-spacer" />
+      <MetaStatusItem onOpen={onMeta} />
       <SyncStatusItem onSettings={onSettings} />
       {status.autoLockMinutes !== null && (
         <span className="statusbar-item">

@@ -19,6 +19,7 @@ export interface Launched {
 export async function launchApp(
   extraArgs: string[] = [],
   existingUserData?: string,
+  extraEnv: Record<string, string> = {},
 ): Promise<Launched> {
   const userData = existingUserData ?? mkdtempSync(join(tmpdir(), 'crm-e2e-'))
   const env = Object.fromEntries(
@@ -28,7 +29,7 @@ export async function launchApp(
   )
   const app = await electron.launch({
     args: ['.', `--user-data-dir=${userData}`, ...extraArgs],
-    env,
+    env: { ...env, ...extraEnv },
   })
   const page = await app.firstWindow()
   await page.waitForLoadState('domcontentloaded')

@@ -19,6 +19,7 @@ import {
 } from './security'
 import { registerVaultProtocol } from './files/vault-protocol'
 import { SyncService } from './sync/sync-service'
+import { MetaService } from './meta/meta-service'
 import { isVaultFolder } from './vault/vault-file'
 import { VaultService } from './vault/vault-service'
 import { createMainWindow } from './window'
@@ -62,9 +63,22 @@ if (process.argv.includes('--autoprueba')) {
     openBrowser: openExternalSafely,
     onChange: (status) => mainWindow?.webContents.send('sync:changed', status),
   })
+  // Servidores falsos de Meta y del BCE: solo en desarrollo y tests, nunca empaquetada.
+  const testUrl = (name: string) => (!app.isPackaged && process.env[name]) || undefined
+  const graphUrl = testUrl('CRM_TEST_GRAPH_URL')
+  const ecbUrl = testUrl('CRM_TEST_ECB_URL')
+  const pollMs = testUrl('CRM_TEST_META_POLL_MS')
+  const meta = new MetaService(vault, {
+    onChange: (status) => mainWindow?.webContents.send('meta:changed', status),
+    onData: () => mainWindow?.webContents.send('meta:changed', meta.status()),
+    ...(graphUrl ? { graphUrl } : {}),
+    ...(ecbUrl ? { ecbUrl } : {}),
+    ...(pollMs ? { pollMs: Number(pollMs) } : {}),
+  })
   /** Bloqueo con subida previa de lo pendiente (manual o por inactividad). */
   const lockWithSync = async () => {
     autoLock.stop()
+    meta.dispose()
     try {
       await sync.beforeClose()
     } finally {
@@ -128,6 +142,7 @@ if (process.argv.includes('--autoprueba')) {
         config,
         autoLock,
         sync,
+        meta,
         lockWithSync,
         getWindow: () => mainWindow,
       }),
@@ -138,6 +153,7 @@ if (process.argv.includes('--autoprueba')) {
     // Al suspender no hay tiempo para subir: se sube en la próxima sincronización.
     const lockNow = () => {
       autoLock.stop()
+      meta.dispose()
       sync.dispose()
       vault.lock()
     }
@@ -155,6 +171,7 @@ if (process.argv.includes('--autoprueba')) {
   let quitting = false
   app.on('before-quit', (event) => {
     if (quitting) return
+    meta.dispose()
     if (vault.status().state === 'unlocked' && sync.status().pending && sync.status().kind) {
       event.preventDefault()
       quitting = true

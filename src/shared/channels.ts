@@ -73,6 +73,17 @@ export const IPC_CHANNELS = [
   'data:redo',
   'data:undoState',
   'data:exportCsv',
+  'meta:status',
+  'meta:connect',
+  'meta:disconnect',
+  'meta:accounts',
+  'meta:refreshAccounts',
+  'meta:updateAccount',
+  'meta:retryHistory',
+  'meta:syncNow',
+  'meta:setSettings',
+  'meta:performance',
+  'meta:clientAccounts',
 ] as const
 
-export const IPC_EVENTS = ['vault:changed', 'data:changed', 'sync:changed'] as const
+export const IPC_EVENTS = ['vault:changed', 'data:changed', 'sync:changed', 'meta:changed'] as const
