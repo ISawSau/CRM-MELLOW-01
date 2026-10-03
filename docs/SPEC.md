@@ -50,7 +50,7 @@ Principios que guían cualquier decisión:
 | Derivación de clave | Argon2id (hash-wasm; el Node de Electron no lo incluye) | Estándar actual para derivar claves a partir de contraseñas. |
 | Cifrado de archivos | AES-256-GCM por bloques (crypto de Node) | Cifra creatividades y documentos de la bóveda sin cargar archivos enteros en memoria. |
 | Fechas y zonas | date-fns + @date-fns/tz, locale es | Formato español y zonas horarias por cliente. |
-| Recurrencias | rrule | Tareas recurrentes con reglas estándar. |
+| Recurrencias | Cálculo propio sobre fechas de calendario (diaria, semanal en días concretos, mensual, anual, cada N) | Tareas recurrentes; sin dependencia (D-041). |
 | Fórmulas | Parser propio, sin dependencias, con funciones en español (SI, Y, O, REDONDEAR…) | Métricas calculadas sin riesgo de ejecutar código (D-027). |
 | Texto con formato | Tiptap (ProseMirror), sin estilos inyectados | Notas, briefs y descripciones con formato; enlaces solo https y mailto (D-030). |
 | Imágenes | sharp | Miniaturas y compresión. |
@@ -144,7 +144,8 @@ Más adelante (fase 12), colecciones personalizadas: el usuario crea sus propias
 ### Campos personalizados
 
 - Tabla de definiciones: entidad, clave, etiqueta, tipo, configuración, orden, visible, obligatorio.
-- Tipos: texto, texto largo con formato, número, moneda, porcentaje, fecha, fecha y hora, casilla, selección, selección múltiple (opciones con color, editables), URL, email, teléfono, archivos, relación con otra entidad, valoración, fórmula y resumen (agregado sobre una relación, p. ej. "gasto total de las campañas de este cliente").
+- Tipos: texto, texto largo con formato, número, moneda, porcentaje, fecha, fecha y hora, casilla, selección, selección múltiple (opciones con color, editables), URL, email, teléfono, archivos, relación con otra entidad, valoración, lista de comprobación, repetición, fórmula y resumen (agregado sobre una relación, p. ej. "gasto total de las campañas de este cliente").
+- Filtros de fecha relativos a hoy: es hoy, antes de hoy, próximos 7 días, últimos 7 días y este mes.
 - Los valores se guardan en una columna JSON por registro, con el id del campo como clave (así renombrar un campo no toca los datos). Cuando una vista filtra por un campo numérico, de fecha, de selección o casilla, se le crea un índice sobre la expresión JSON.
 - Fórmulas: usan la clave del campo (p. ej. `SI(gasto > 0; valor / gasto; 0)`), argumentos separados por «;» como en Excel en español y decimales con punto. Se detectan los errores de sintaxis, los campos inexistentes y las referencias circulares al guardar.
 - Eliminar un campo es reversible: los valores se conservan y el campo se puede restaurar.
@@ -258,12 +259,14 @@ El negocio actual es ecommerce y no usa formularios de leads. Si en el futuro se
 - Vistas intercambiables: kanban, lista, tabla y calendario.
 - Recurrentes: diaria, semanal en días concretos, mensual o regla personalizada. La siguiente se genera al completar la actual o según calendario (elegible por tarea).
 - Avisos solo dentro de la app: secciones "Hoy" y "Atrasadas" e indicadores en la barra lateral.
+- *Fase 3:* el estado es un pipeline (opciones con color y la marca «Fin» para las que cuentan como terminadas). Checklist y repetición son tipos de campo propios del motor. Los adjuntos llegan con los archivos (fase 4). Vistas iniciales: Tablero, Hoy, Atrasadas, Todas y Calendario. La barra lateral muestra cuántas tareas hay para hoy o atrasadas (en rojo si hay atrasadas) y el inicio las lista. Desde la ficha de un cliente o de un brief, «+ Tarea» crea una tarea ya enlazada.
 
 ### 7.7 Briefs
 
 - La estructura definitiva de los briefs está pendiente. En la v1: brief libre con texto con formato, archivos y vínculos.
 - Sistema de plantillas preparado para cuando el usuario defina la suya: secciones con tipo (texto, lista, archivos, enlaces a creatividades), editables desde la interfaz.
 - Un brief se vincula a un cliente y desde él se pueden crear tareas y creatividades ya vinculadas. Estados editables.
+- *Fase 3:* brief con título, contenido con formato, estado, cliente, fecha de entrega y tareas. «Desde plantilla» crea el contenido con un título por sección y su indicación; las plantillas (nombre y secciones con tipo: texto, lista, enlaces a creatividades, archivos) se editan en Ajustes. Archivos y enlaces a creatividades se completan en la fase 4.
 
 ### 7.8 Biblioteca de creatividades y copies
 

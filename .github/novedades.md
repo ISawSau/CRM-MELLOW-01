@@ -1,11 +1,9 @@
-## Novedades de la 0.3.0 · Clientes e inicio
+## Novedades de la 0.4.0 · Tareas y briefs
 
-- **Clientes**, con etapa, etiquetas, fee mensual, web, email, teléfono, sector, datos fiscales, moneda y zona horaria.
-- **Pipeline** en kanban con las etapas Prospecto, Propuesta enviada, Negociación, Onboarding, Activo, En pausa y Finalizado: arrastra para mover. «Editar etapas» cambia nombres, colores y orden, y «+ Vista → Pipeline nuevo…» crea otros pipelines.
-- **Contactos** enlazados a su cliente: desde la ficha del cliente escribe un nombre para crear el contacto al momento, y pulsa sobre él para ir a su ficha (y volver).
-- Las **notas** se pueden enlazar a un cliente y salen en su ficha.
-- **Perfil** en Ajustes: tu nombre, foto, datos fiscales, moneda y zona horaria.
-- **Inicio** con clientes activos, fees mensuales, clientes por etapa y notas recientes.
-
-Al abrir tu bóveda con esta versión se añaden Clientes y Contactos sin tocar tus notas, y antes se hace una copia de seguridad en `backups/` si hace falta actualizar la base de datos.
+- **Tareas** con estado (Pendiente, En curso, En revisión, Hecha: editables), fecha límite, prioridad, **checklist**, etiquetas, estimación de horas y enlace a cliente, brief y notas.
+- **Repetición**: cada día, cada semana en los días que elijas, cada mes o cada año (o cada N). La siguiente se crea al completar la tarea o según el calendario, como prefieras.
+- Vistas **Tablero**, **Hoy**, **Atrasadas**, **Todas** y **Calendario**. La barra lateral te avisa con un número de las tareas de hoy y las atrasadas (en rojo si hay atrasadas), y el inicio las lista.
+- **Briefs** con estado, cliente, fecha de entrega y tareas. «Desde plantilla» crea el brief con sus secciones; las plantillas se editan en **Ajustes → Plantillas de brief**.
+- En la ficha de un cliente o un brief, **«+ Tarea»** crea una tarea ya enlazada.
+- Cualquier opción de una selección puede marcarse como «Fin» (terminada) en Ajustes → Campos.
 
