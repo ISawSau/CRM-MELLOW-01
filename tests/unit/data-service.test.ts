@@ -52,7 +52,7 @@ describe('siembra', () => {
   it('crea los campos y vistas de Notas una sola vez', () => {
     const { db, svc } = setup()
     const keys = svc.listFields('nota').map((f) => f.key)
-    expect(keys).toEqual(['titulo', 'contenido', 'tipo', 'etiquetas', 'fecha', 'fijada'])
+    expect(keys).toEqual(['titulo', 'contenido', 'tipo', 'etiquetas', 'fecha', 'fijada', 'cliente'])
     expect(svc.listViews('nota').map((v) => [v.name, v.kind])).toEqual([
       ['Todas', 'table'],
       ['Por tipo', 'kanban'],
@@ -63,8 +63,133 @@ describe('siembra', () => {
     expect(kanban.config.groupBy).toBe(svc.listFields('nota')[2]!.id)
     // Abrir otra vez la bóveda no vuelve a sembrar.
     new DataService(db)
-    expect(svc.listFields('nota')).toHaveLength(6)
+    expect(svc.listFields('nota')).toHaveLength(7)
     expect(svc.listViews('nota')).toHaveLength(4)
+  })
+})
+
+describe('siembra incremental (fase 2)', () => {
+  it('una bóveda de la fase 1 recibe Clientes, Contactos y el campo Cliente en Notas', () => {
+    const { db } = setup()
+    // Simula la fase 1: solo Notas, sin el campo «cliente», con la marca antigua.
+    db.exec("DELETE FROM field_defs WHERE entity <> 'nota' OR key = 'cliente'")
+    db.exec("DELETE FROM views WHERE entity <> 'nota'")
+    db.exec("DELETE FROM settings WHERE key LIKE 'data.seeded.%'")
+    db.prepare(
+      "INSERT INTO settings (key, value, updated_at) VALUES ('data.seeded.nota', 'true', '')",
+    ).run()
+    // El usuario había renombrado un campo: no se toca.
+    db.exec("UPDATE field_defs SET label = 'Clase' WHERE entity = 'nota' AND key = 'tipo'")
+
+    const svc = new DataService(db, { timeZone: 'Europe/Madrid', now: () => NOW })
+    const nota = svc.listFields('nota')
+    expect(nota.map((f) => f.key)).toContain('cliente')
+    expect(nota.find((f) => f.key === 'tipo')!.label).toBe('Clase')
+    expect(svc.listViews('nota')).toHaveLength(4)
+    const cliente = svc.listFields('cliente')
+    const inverso = cliente.find((f) => f.key === 'notas')!
+    expect(inverso.config['inverseOf']).toBe(nota.find((f) => f.key === 'cliente')!.id)
+    expect(svc.listViews('cliente').map((v) => v.name)).toEqual(['Todos', 'Pipeline', 'Tarjetas'])
+    expect(svc.listViews('contacto')).toHaveLength(2)
+  })
+})
+
+describe('relaciones inversas', () => {
+  it('un contacto pertenece a un cliente y el cliente ve sus contactos', () => {
+    const { svc } = setup()
+    const cf = (k: string) => svc.listFields('cliente').find((f) => f.key === k)!
+    const kf = (k: string) => svc.listFields('contacto').find((f) => f.key === k)!
+    const acme = svc.create('cliente', { [cf('nombre').id]: 'Acme' })
+    const beta = svc.create('cliente', { [cf('nombre').id]: 'Beta' })
+    const ana = svc.create('contacto', { [kf('nombre').id]: 'Ana' })
+    const luis = svc.create('contacto', { [kf('nombre').id]: 'Luis' })
+
+    // Desde el contacto (campo directo, un solo cliente).
+    svc.setLinks(kf('cliente').id, ana.id, [acme.id])
+    expect(svc.get(acme.id).values[cf('contactos').id]).toEqual([{ id: ana.id, title: 'Ana' }])
+
+    // Desde el cliente (campo inverso, varios contactos).
+    svc.setLinks(cf('contactos').id, acme.id, [ana.id, luis.id])
+    expect(svc.get(luis.id).values[kf('cliente').id]).toEqual([{ id: acme.id, title: 'Acme' }])
+
+    // Luis pasa a Beta: deja de estar en Acme (el contacto solo admite un cliente).
+    svc.setLinks(cf('contactos').id, beta.id, [luis.id])
+    expect(svc.get(acme.id).values[cf('contactos').id]).toEqual([{ id: ana.id, title: 'Ana' }])
+    expect(svc.get(luis.id).values[kf('cliente').id]).toEqual([{ id: beta.id, title: 'Beta' }])
+
+    // Deshacer devuelve a Luis a Acme exactamente.
+    svc.undo()
+    expect(svc.get(luis.id).values[kf('cliente').id]).toEqual([{ id: acme.id, title: 'Acme' }])
+    expect(svc.get(beta.id).values[cf('contactos').id]).toEqual([])
+    svc.redo()
+    expect(svc.get(beta.id).values[cf('contactos').id]).toEqual([{ id: luis.id, title: 'Luis' }])
+
+    // Un contacto no puede tener dos clientes.
+    expect(() => svc.setLinks(kf('cliente').id, ana.id, [acme.id, beta.id])).toThrow(/un solo/)
+    // Los que están en la papelera no aparecen.
+    svc.trash([ana.id])
+    expect(svc.get(acme.id).values[cf('contactos').id]).toEqual([])
+  })
+
+  it('crea el campo inverso de una relación nueva y filtra por él', () => {
+    const { svc } = setup()
+    const rel = svc.createField('contacto', {
+      label: 'Referido por',
+      type: 'relation',
+      config: { target: 'cliente', multiple: false },
+    })
+    const inv = svc.createInverseField(rel.id, 'Referidos')
+    expect(inv.entity).toBe('cliente')
+    const nombre = svc.listFields('cliente').find((f) => f.key === 'nombre')!
+    const c = svc.create('cliente', { [nombre.id]: 'Acme' })
+    svc.create('cliente', { [nombre.id]: 'Beta' })
+    const k = svc.create('contacto')
+    svc.setLinks(rel.id, k.id, [c.id])
+    const hits = svc.query('cliente', {
+      filters: [{ fieldId: inv.id, op: 'not_empty', value: null }],
+    })
+    expect(hits.map((h) => h.id)).toEqual([c.id])
+    // Un inverso no se puede invertir ni cambiar de destino.
+    expect(() => svc.createInverseField(inv.id, 'x')).toThrow()
+    svc.updateField(inv.id, { config: { target: 'nota', multiple: true } })
+    expect(svc.getField(inv.id).config['target']).toBe('contacto')
+  })
+
+  it('un resumen cuenta los contactos de cada cliente', () => {
+    const { svc } = setup()
+    const cf = (k: string) => svc.listFields('cliente').find((f) => f.key === k)!
+    const n = svc.createField('cliente', {
+      label: 'Nº contactos',
+      type: 'rollup',
+      config: { relationField: cf('contactos').id, fn: 'count' },
+    })
+    const c = svc.create('cliente')
+    svc.setLinks(cf('contactos').id, c.id, [svc.create('contacto').id, svc.create('contacto').id])
+    expect(svc.get(c.id).values[n.id]).toEqual({ value: 2 })
+  })
+})
+
+describe('perfil', () => {
+  it('guarda el perfil y su zona horaria manda en los filtros de «hoy»', () => {
+    const { svc, byKey } = setup()
+    expect(svc.getProfile()).toMatchObject({ name: '', currency: 'EUR', timeZone: 'Europe/Madrid' })
+    // 15/06 a las 08:00 UTC: en Madrid ya es 15, en Honolulu aún es 14.
+    const f = byKey('fecha')
+    svc.create('nota', { [f.id]: '2026-06-14' })
+    const hoy = () => svc.query('nota', { filters: [{ fieldId: f.id, op: 'today', value: null }] })
+    expect(hoy()).toHaveLength(0)
+    svc.setProfile({ ...svc.getProfile(), name: 'Joan', timeZone: 'Pacific/Honolulu' })
+    expect(svc.getProfile().name).toBe('Joan')
+    expect(hoy()).toHaveLength(1)
+    expect(() => svc.setProfile({ ...svc.getProfile(), timeZone: 'Marte/Olympus' })).toThrow()
+    expect(() =>
+      svc.setProfile({ ...svc.getProfile(), photo: 'data:text/html;base64,PHNjcmlwdD4=' }),
+    ).toThrow()
+  })
+
+  it('crea un registro con título directamente', () => {
+    const { svc } = setup()
+    expect(svc.create('contacto', {}, { title: '  Ana  ' }).title).toBe('Ana')
   })
 })
 
@@ -515,8 +640,10 @@ describe('vistas y exportación', () => {
     expect(filename).toBe('Notas - Todas - 15-06-2026.csv')
     expect(csv.startsWith('﻿')).toBe(true)
     const [head, row] = csv.slice(1).split('\r\n')
-    expect(head).toBe('Título;Contenido;Tipo;Etiquetas;Fecha;Fijada;Precio (EUR);Margen (%)')
-    expect(row).toBe(`"'=HYPERLINK(""http://malo"")";;;;15/06/2026;Sí;1234,56;21,5`)
+    expect(head).toBe(
+      'Título;Contenido;Tipo;Etiquetas;Fecha;Fijada;Cliente;Precio (EUR);Margen (%)',
+    )
+    expect(row).toBe(`"'=HYPERLINK(""http://malo"")";;;;15/06/2026;Sí;;1234,56;21,5`)
   })
 })
 
