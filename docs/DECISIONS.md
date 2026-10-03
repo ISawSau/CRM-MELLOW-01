@@ -234,3 +234,34 @@ El usuario no quiere escribir comandos de desarrollo para usar la app. Los insta
 
 - La sección activa y el registro abierto son estado de React. La búsqueda de Ctrl+K abre un resultado yendo a su sección con la ficha abierta. Suficiente mientras no haya enlaces profundos entre secciones.
 
+## Fase 2 · Clientes e inicio
+
+### D-036 · Relaciones inversas con un solo vínculo guardado
+
+- Un campo de relación puede ser el inverso de otro (`inverseOf`): «Contactos» del cliente muestra los vínculos de «Cliente» del contacto. El vínculo se guarda una sola vez, en el campo directo; el inverso lo lee y escribe desde el otro lado. Así nunca se desincronizan.
+- Si un lado admite un solo registro (un contacto pertenece a un cliente), enlazarlo desde el otro lado lo desengancha del anterior.
+- Deshacer guarda una foto exacta de los vínculos afectados antes y después, así que restaura también los desenganches.
+- La entidad de destino y el campo del que es inverso no cambian tras crearse: se ignoran si llegan en una edición.
+- Al crear una relación en Ajustes → Campos se ofrece crear su inverso en la otra entidad.
+
+### D-037 · Siembra incremental por versiones
+
+- Cada entidad tiene una versión de siembra y cada campo o vista indica desde cuál existe. Al abrir una bóveda antigua se añade solo lo que falta. Un campo cuya clave ya existe (aunque esté eliminado) no se toca, así se respetan los cambios del usuario.
+- La marca antigua `data.seeded.nota = true` cuenta como versión 1. La fase 2 añade «Cliente» a Notas (versión 2) y las entidades Clientes y Contactos.
+- Los campos inversos se siembran al final, cuando ya existe su campo directo (aunque sea de otra entidad).
+
+### D-038 · Pipelines como campos de selección
+
+- Un pipeline es un campo de selección con `pipeline: true`: las opciones son las etapas (nombre, color y orden editables) y se ve en un kanban agrupado por él. «+ Vista → Pipeline nuevo…» crea el campo con cuatro etapas de partida, su vista kanban y abre la edición de etapas. «Editar etapas» está en la barra del kanban.
+- Reutiliza el motor (filtros, orden, historial, deshacer, CSV) sin tablas nuevas.
+
+### D-039 · Perfil dentro de la base de datos cifrada
+
+- El perfil (nombre, empresa, NIF, dirección, email, teléfono, web, IBAN, moneda y zona horaria) es un ajuste de la bóveda validado con zod.
+- La foto se recorta y reduce a 256 × 256 px en la interfaz y se guarda como JPEG en data URL (máx. 400 000 caracteres), dentro de la base de datos cifrada. Los archivos grandes llegan en la fase 4 con su almacén cifrado.
+- La zona horaria del perfil manda en los filtros relativos («hoy», «últimos 7 días», «este mes»), en el calendario y en los campos de fecha y hora.
+
+### D-040 · Idioma de Chromium en Linux
+
+- En Linux Chromium ignora `--lang` y toma el idioma de las variables de entorno. El proceso principal pone `LANGUAGE=es_ES:es` antes de arrancar Chromium. Chromium solo trae el idioma `es` (no `es-ES`), que basta para dd/mm/aaaa y la semana desde el lunes; los formatos propios de la app usan siempre `es-ES`.
+

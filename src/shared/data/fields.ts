@@ -111,14 +111,28 @@ export const fieldConfigSchemas = {
   date: z.object({}).strict(),
   datetime: z.object({}).strict(),
   checkbox: z.object({}).strict(),
-  select: z.object({ options: z.array(optionSchema).max(200).default([]) }).strict(),
+  select: z
+    .object({
+      options: z.array(optionSchema).max(200).default([]),
+      /** Es un pipeline: sus opciones son las etapas de un kanban. */
+      pipeline: z.boolean().optional(),
+    })
+    .strict(),
   multiselect: z.object({ options: z.array(optionSchema).max(200).default([]) }).strict(),
   url: z.object({}).strict(),
   email: z.object({}).strict(),
   phone: z.object({}).strict(),
   rating: z.object({ max: z.number().int().min(1).max(10).default(5) }).strict(),
   relation: z
-    .object({ target: z.string().min(1).max(40), multiple: z.boolean().default(true) })
+    .object({
+      target: z.string().min(1).max(40),
+      multiple: z.boolean().default(true),
+      /**
+       * Campo inverso: muestra desde el otro lado los vínculos de ese campo de relación
+       * (p. ej. «Contactos» de un cliente es el inverso de «Cliente» de un contacto).
+       */
+      inverseOf: id.optional(),
+    })
     .strict(),
   formula: z
     .object({

@@ -181,11 +181,13 @@ Tabla genérica de vínculos (campo de relación, id de origen, id de destino, p
 - Pantalla de contraseña.
 - Perfil: nombre, foto, datos fiscales y de empresa, moneda y zona horaria por defecto.
 - Inicio: visión general con gasto de hoy, 7 y 30 días, ROAS, alertas activas, tareas de hoy y atrasadas, estado de la última sincronización. En una fase posterior, widgets configurables.
+- *Fase 2:* perfil en Ajustes (foto reducida a 256 px dentro de la base de datos cifrada; su zona horaria decide qué es «hoy»). Inicio con clientes activos, fees mensuales, clientes por etapa y notas recientes y fijadas; cada bloque futuro indica en qué fase llega.
 
 ### 7.2 Clientes
 
 - Ficha completa: datos generales y campos personalizados, contactos, cuentas publicitarias asignadas, zona horaria y moneda propias, notas, archivos y documentos, tareas, briefs, creatividades, facturación, informes y correos de Gmail.
 - Pipeline por defecto "Clientes" con etapas editables: Prospecto, Propuesta enviada, Negociación, Onboarding, Activo, En pausa, Finalizado. Se pueden crear pipelines adicionales con sus propias etapas.
+- *Implementación (fase 2):* un pipeline es un campo de selección marcado como pipeline; sus opciones son las etapas y cada pipeline tiene su vista kanban. Los contactos se enlazan con un campo de relación cuyo otro lado («Contactos» del cliente) es un campo inverso: el vínculo se guarda una vez y se ve desde las dos fichas. Desde la ficha se puede crear un contacto nuevo y saltar a su ficha. Lo que llega en fases posteriores (cuentas publicitarias, archivos, tareas, briefs, creatividades, facturación, informes, correos) se irá añadiendo a la ficha.
 
 ### 7.3 Media buying en Meta
 

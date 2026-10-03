@@ -6,6 +6,7 @@ import { useAction } from '../lib/hooks'
 import { RecoveryKeyPanel } from '../screens/RecoveryKey'
 import { BUILT_IN_THEMES } from '../theme/themes'
 import { DataSettings, FieldsSettings } from '../data/FieldsSettings'
+import { ProfileSettings } from './ProfileSettings'
 import { Alert } from '../ui/Alert'
 import { PasswordField } from '../ui/PasswordField'
 
@@ -236,6 +237,7 @@ export function Settings({ status }: { status: VaultStatus }) {
         <h1 className="title">Ajustes</h1>
       </div>
       <div>
+        <ProfileSettings />
         <Appearance status={status} />
         <FieldsSettings />
         <DataSettings />

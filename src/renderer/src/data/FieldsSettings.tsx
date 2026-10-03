@@ -334,7 +334,7 @@ function RollupEditor({
 }
 
 /** Diálogo para crear o editar un campo. */
-function FieldDialog({
+export function FieldDialog({
   entity,
   field,
   fields,
@@ -353,6 +353,10 @@ function FieldDialog({
   const [config, setConfig] = useState<Record<string, unknown>>(field?.config ?? {})
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  const [inverse, setInverse] = useState(true)
+  const [inverseLabel, setInverseLabel] = useState(
+    () => entities.data?.find((e) => e.id === entity)?.label ?? '',
+  )
   const qc = useQueryClient()
 
   useEffect(() => {
@@ -391,7 +395,9 @@ function FieldDialog({
           ...(field.system ? {} : { key, required }),
         })
       } else {
-        await call('data:createField', { entity, label, type, config })
+        const created = await call('data:createField', { entity, label, type, config })
+        if (type === 'relation' && inverse && inverseLabel.trim())
+          await call('data:createInverseField', { fieldId: created.id, label: inverseLabel.trim() })
       }
       await qc.invalidateQueries({ queryKey: ['data'] })
       onClose()
@@ -549,6 +555,37 @@ function FieldDialog({
                 />
                 <span>Permitir varios registros</span>
               </label>
+              {!field && (
+                <>
+                  <label className="check">
+                    <input
+                      type="checkbox"
+                      checked={inverse}
+                      onChange={(e) => setInverse(e.target.checked)}
+                    />
+                    <span>
+                      Mostrarlo también en{' '}
+                      {entities.data?.find((e) => e.id === config['target'])?.label ??
+                        'el otro lado'}
+                    </span>
+                  </label>
+                  {inverse && (
+                    <div className="field">
+                      <label htmlFor="field-inverse">Nombre del campo en el otro lado</label>
+                      <input
+                        id="field-inverse"
+                        className="input"
+                        maxLength={120}
+                        value={inverseLabel}
+                        onChange={(e) => setInverseLabel(e.target.value)}
+                      />
+                    </div>
+                  )}
+                </>
+              )}
+              {!!config['inverseOf'] && (
+                <p className="hint">Muestra desde este lado los vínculos de otra relación.</p>
+              )}
             </>
           )}
           {type === 'formula' && (

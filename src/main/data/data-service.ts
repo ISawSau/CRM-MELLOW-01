@@ -43,6 +43,7 @@ import {
   type ViewKind,
 } from '@shared/data/views'
 import { DEFAULT_TIME_ZONE } from '@shared/format'
+import { DEFAULT_PROFILE, profileSchema, type Profile } from '@shared/profile'
 import { AppError } from '@shared/errors'
 import type { SqliteDb } from '../db/connection'
 import { toCsv } from './csv'
@@ -101,6 +102,7 @@ export interface DataServiceOptions {
 }
 
 const TRASH_DAYS_KEY = 'data.trashDays'
+const PROFILE_KEY = 'profile'
 export const DEFAULT_TRASH_DAYS = 30
 const CHUNK = 500
 
@@ -114,6 +116,12 @@ function chunks<T>(xs: T[], n = CHUNK): T[][] {
 
 function newId(): string {
   return randomUUID()
+}
+
+interface LinkRow {
+  field_id: string
+  from_id: string
+  to_id: string
 }
 
 const sameValue = (a: unknown, b: unknown) =>
@@ -145,8 +153,27 @@ export class DataService {
     return this.now().toISOString()
   }
 
+  /** Zona horaria del perfil (o la de las opciones, por defecto Europe/Madrid). */
+  private zone(): string {
+    const p = this.getSetting(PROFILE_KEY)
+    const tz = p && typeof p === 'object' ? (p as Partial<Profile>).timeZone : undefined
+    return tz ?? this.timeZone
+  }
+
   private ctx(): FilterContext {
-    return { today: todayIn(this.timeZone, this.now()), timeZone: this.timeZone }
+    const tz = this.zone()
+    return { today: todayIn(tz, this.now()), timeZone: tz }
+  }
+
+  getProfile(): Profile {
+    const r = profileSchema.safeParse(this.getSetting(PROFILE_KEY) ?? {})
+    return r.success ? r.data : DEFAULT_PROFILE
+  }
+
+  setProfile(p: Profile): Profile {
+    this.putSetting(PROFILE_KEY, profileSchema.parse(p))
+    this.emit(null)
+    return this.getProfile()
   }
 
   private emit(entity: string | null): void {
@@ -189,59 +216,88 @@ export class DataService {
       .run(key, JSON.stringify(value), this.nowIso())
   }
 
-  /** Crea los campos y vistas iniciales de cada entidad, una sola vez. */
+  /**
+   * Crea los campos y vistas iniciales de cada entidad. Es incremental: la versión
+   * sembrada se guarda por entidad y al abrir una bóveda antigua solo se añade lo que
+   * falta (un campo cuya clave ya exista, aunque esté eliminado, no se vuelve a crear).
+   * Los campos inversos van al final, cuando ya existen los campos de los que dependen.
+   */
   private seed(): void {
-    for (const e of ENTITIES) {
-      const flag = `data.seeded.${e.id}`
-      if (this.getSetting(flag)) continue
-      this.tx(() => {
-        const now = this.nowIso()
-        const idsByKey = new Map<string, string>()
-        e.fields.forEach((f, i) => {
-          const id = newId()
-          idsByKey.set(f.key, id)
-          const config = fieldConfigSchemas[f.type].parse(f.config ?? {})
+    const seededVersion = (id: string): number => {
+      const v = this.getSetting(`data.seeded.${id}`)
+      return v === true ? 1 : typeof v === 'number' ? v : 0
+    }
+    const pending = ENTITIES.filter((e) => seededVersion(e.id) < e.seedVersion)
+    if (pending.length === 0) return
+    this.tx(() => {
+      const now = this.nowIso()
+      const keyToId = (entity: string, key: string) =>
+        (
           this.db
-            .prepare(
-              `INSERT INTO field_defs (id, entity, key, label, type, config, position, visible, required, system, created_at, updated_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            )
-            .run(
-              id,
-              e.id,
-              f.key,
-              f.label,
-              f.type,
-              JSON.stringify(config),
-              i,
-              f.visible === false ? 0 : 1,
-              f.required ? 1 : 0,
-              f.system ? 1 : 0,
-              now,
-              now,
-            )
-        })
-        e.views.forEach((v, i) => {
+            .prepare('SELECT id FROM field_defs WHERE entity = ? AND key = ?')
+            .get(entity, key) as { id: string } | undefined
+        )?.id
+      const insertField = (entity: string, f: (typeof ENTITIES)[number]['fields'][number]) => {
+        if (keyToId(entity, f.key)) return
+        const raw: Record<string, unknown> = { ...(f.config ?? {}) }
+        if (f.inverse) {
+          const owner = keyToId(f.inverse.entity, f.inverse.key)
+          if (!owner) return
+          raw['inverseOf'] = owner
+        }
+        const config = fieldConfigSchemas[f.type].parse(raw)
+        const max = this.db
+          .prepare('SELECT MAX(position) AS m FROM field_defs WHERE entity = ?')
+          .get(entity) as { m: number | null }
+        this.db
+          .prepare(
+            `INSERT INTO field_defs (id, entity, key, label, type, config, position, visible, required, system, created_at, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          )
+          .run(
+            newId(),
+            entity,
+            f.key,
+            f.label,
+            f.type,
+            JSON.stringify(config),
+            (max.m ?? -1) + 1,
+            f.visible === false ? 0 : 1,
+            f.required ? 1 : 0,
+            f.system ? 1 : 0,
+            now,
+            now,
+          )
+      }
+      const fresh = (e: (typeof ENTITIES)[number], since: number | undefined) =>
+        (since ?? 1) > seededVersion(e.id)
+      for (const pass of ['direct', 'inverse'] as const)
+        for (const e of pending)
+          for (const f of e.fields)
+            if (fresh(e, f.since) && (pass === 'inverse') === !!f.inverse) insertField(e.id, f)
+      for (const e of pending) {
+        e.views.forEach((v) => {
+          if (!fresh(e, v.since)) return
           const raw = { ...v.config } as Record<string, unknown>
-          if (typeof raw['groupBy'] === 'string')
-            raw['groupBy'] = idsByKey.get(raw['groupBy']) ?? null
-          if (typeof raw['dateField'] === 'string')
-            raw['dateField'] = idsByKey.get(raw['dateField']) ?? null
+          const id = (k: unknown) => (typeof k === 'string' ? (keyToId(e.id, k) ?? null) : null)
+          if (typeof raw['groupBy'] === 'string') raw['groupBy'] = id(raw['groupBy'])
+          if (typeof raw['dateField'] === 'string') raw['dateField'] = id(raw['dateField'])
           if (Array.isArray(raw['cardFields']))
-            raw['cardFields'] = (raw['cardFields'] as string[])
-              .map((k) => idsByKey.get(k))
-              .filter(Boolean)
+            raw['cardFields'] = (raw['cardFields'] as string[]).map(id).filter(Boolean)
           const config = viewConfigSchema.parse(raw)
+          const max = this.db
+            .prepare('SELECT MAX(position) AS m FROM views WHERE entity = ?')
+            .get(e.id) as { m: number | null }
           this.db
             .prepare(
               `INSERT INTO views (id, entity, name, kind, config, position, created_at, updated_at)
                VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
             )
-            .run(newId(), e.id, v.name, v.kind, JSON.stringify(config), i, now, now)
+            .run(newId(), e.id, v.name, v.kind, JSON.stringify(config), (max.m ?? -1) + 1, now, now)
         })
-        this.putSetting(flag, true)
-      })
-    }
+        this.putSetting(`data.seeded.${e.id}`, e.seedVersion)
+      }
+    })
   }
 
   // --- Campos -----------------------------------------------------------------
@@ -310,6 +366,17 @@ export class DataService {
           undefined,
           'La relación apunta a una entidad que no existe.',
         )
+      const inv = parseFieldConfig('relation', config).inverseOf
+      if (inv) {
+        const owner = this.getField(inv)
+        const oc = owner.type === 'relation' ? parseFieldConfig('relation', owner.config) : null
+        if (!oc || owner.entity !== target || oc.target !== entity || oc.inverseOf)
+          throw new AppError(
+            'INVALID_INPUT',
+            undefined,
+            'El campo inverso no encaja con su relación.',
+          )
+      }
     }
     if (type === 'rollup') {
       const c = parseFieldConfig('rollup', config)
@@ -424,6 +491,19 @@ export class DataService {
     return this.getField(id)
   }
 
+  /** Crea en la entidad de destino el campo que muestra esta relación desde el otro lado. */
+  createInverseField(fieldId: string, label: string, multiple = true): FieldDef {
+    const f = this.getField(fieldId)
+    if (f.type !== 'relation' || f.deletedAt) throw new AppError('INVALID_INPUT')
+    const c = parseFieldConfig('relation', f.config)
+    if (c.inverseOf) throw new AppError('INVALID_INPUT')
+    return this.createField(c.target, {
+      label,
+      type: 'relation',
+      config: { target: f.entity, multiple, inverseOf: f.id },
+    })
+  }
+
   updateField(
     id: string,
     patch: {
@@ -449,9 +529,19 @@ export class DataService {
       if (this.uniqueKey(f.entity, key) !== key)
         throw new AppError('INVALID_INPUT', undefined, 'Ya hay un campo con esa clave.')
     }
+    // En una relación no cambian ni la entidad de destino ni de qué campo es inversa.
+    const fixed =
+      f.type === 'relation'
+        ? { target: f.config['target'], inverseOf: f.config['inverseOf'] }
+        : f.type === 'select'
+          ? { pipeline: f.config['pipeline'] }
+          : {}
     const config =
       patch.config !== undefined
-        ? (fieldConfigSchemas[f.type].parse(patch.config) as Record<string, unknown>)
+        ? (fieldConfigSchemas[f.type].parse({ ...patch.config, ...fixed }) as Record<
+            string,
+            unknown
+          >)
         : f.config
     if (patch.config !== undefined) this.validateComputed(f.entity, f.type, config, f.id, key)
     const required =
@@ -657,26 +747,39 @@ export class DataService {
   private hydrate(rows: StoredRow[], fields: FieldDef[]): RecordRow[] {
     const data = new Map(rows.map((r) => [r.id, JSON.parse(r.data) as Values]))
     const relFields = fields.filter((f) => f.type === 'relation')
-    const linksBy = new Map<string, Map<string, string[]>>() // fieldId → fromId → toIds
+    const direct = relFields.filter((f) => !parseFieldConfig('relation', f.config).inverseOf)
+    const inverse = relFields.filter((f) => parseFieldConfig('relation', f.config).inverseOf)
+    const linksBy = new Map<string, Map<string, string[]>>() // fieldId → recordId → ids
     const targetIds = new Set<string>()
     const rowIds = rows.map((r) => r.id)
-    if (relFields.length && rowIds.length) {
+    const add = (fieldId: string, recordId: string, other: string) => {
+      const byRecord = linksBy.get(fieldId) ?? new Map<string, string[]>()
+      linksBy.set(fieldId, byRecord)
+      byRecord.set(recordId, [...(byRecord.get(recordId) ?? []), other])
+      targetIds.add(other)
+    }
+    if (rowIds.length) {
       for (const part of chunks(rowIds)) {
-        const ls = this.db
-          .prepare(
-            `SELECT field_id, from_id, to_id FROM links WHERE field_id IN (${relFields.map(() => '?').join(',')})
-             AND from_id IN (${part.map(() => '?').join(',')}) ORDER BY position`,
-          )
-          .all(...relFields.map((f) => f.id), ...part) as {
-          field_id: string
-          from_id: string
-          to_id: string
-        }[]
-        for (const l of ls) {
-          const byFrom = linksBy.get(l.field_id) ?? new Map<string, string[]>()
-          linksBy.set(l.field_id, byFrom)
-          byFrom.set(l.from_id, [...(byFrom.get(l.from_id) ?? []), l.to_id])
-          targetIds.add(l.to_id)
+        const marks = part.map(() => '?').join(',')
+        if (direct.length) {
+          const ls = this.db
+            .prepare(
+              `SELECT field_id, from_id, to_id FROM links WHERE field_id IN (${direct.map(() => '?').join(',')})
+               AND from_id IN (${marks}) ORDER BY position`,
+            )
+            .all(...direct.map((f) => f.id), ...part) as LinkRow[]
+          for (const l of ls) add(l.field_id, l.from_id, l.to_id)
+        }
+        // Inversos: los vínculos del campo original vistos desde el otro lado.
+        for (const g of inverse) {
+          const owner = parseFieldConfig('relation', g.config).inverseOf!
+          const ls = this.db
+            .prepare(
+              `SELECT field_id, from_id, to_id FROM links WHERE field_id = ? AND to_id IN (${marks})
+               ORDER BY created_at, rowid`,
+            )
+            .all(owner, ...part) as LinkRow[]
+          for (const l of ls) add(g.id, l.to_id, l.from_id)
         }
       }
     }
@@ -1004,10 +1107,15 @@ export class DataService {
     this.db.prepare('DELETE FROM records WHERE id = ?').run(id)
   }
 
-  create(entity: string, values: Values = {}, opts: { label?: string } = {}): RecordRow {
+  create(
+    entity: string,
+    values: Values = {},
+    opts: { label?: string; title?: string } = {},
+  ): RecordRow {
     const def = this.requireEntity(entity)
     const titleId = this.titleFieldId(entity)
     const withTitle = { ...values }
+    if (titleId && opts.title?.trim()) withTitle[titleId] = opts.title.trim()
     if (
       titleId &&
       (withTitle[titleId] === undefined || withTitle[titleId] === '' || withTitle[titleId] === null)
@@ -1081,13 +1189,30 @@ export class DataService {
     return this.get(id)
   }
 
-  setLinks(fieldId: string, fromId: string, toIds: string[]): RecordRow {
+  /** Campos inversos de un campo de relación (los que lo muestran desde el otro lado). */
+  private inversesOf(fieldId: string): FieldDef[] {
+    return (
+      this.db
+        .prepare("SELECT * FROM field_defs WHERE type = 'relation' AND deleted_at IS NULL")
+        .all() as FieldRow[]
+    )
+      .map((r) => this.fieldFromRow(r))
+      .filter((g) => parseFieldConfig('relation', g.config).inverseOf === fieldId)
+  }
+
+  /**
+   * Cambia los registros enlazados de un campo de relación (directo o inverso).
+   * Los vínculos se guardan una sola vez, con el campo directo: un campo inverso
+   * escribe en los del campo original. Si el otro lado admite un solo registro (un
+   * contacto pertenece a un cliente), enlazarlo aquí lo desengancha del anterior.
+   */
+  setLinks(fieldId: string, recordId: string, toIds: string[]): RecordRow {
     const f = this.getField(fieldId)
     if (f.type !== 'relation' || f.deletedAt) throw new AppError('INVALID_INPUT')
-    const { row } = this.storedData(fromId)
+    const { row } = this.storedData(recordId)
     if (row.entity !== f.entity) throw new AppError('INVALID_INPUT')
     const c = parseFieldConfig('relation', f.config)
-    const unique = [...new Set(toIds)].filter((t) => t !== fromId)
+    const unique = [...new Set(toIds)].filter((t) => t !== recordId)
     if (!c.multiple && unique.length > 1)
       throw new AppError('INVALID_INPUT', undefined, 'Esta relación admite un solo registro.')
     const targets = this.loadRows(unique)
@@ -1096,32 +1221,101 @@ export class DataService {
       targets.some((t) => t.entity !== c.target || t.deleted_at)
     )
       throw new AppError('INVALID_INPUT', undefined, 'Algún registro enlazado no existe.')
-    const before = (
+
+    const isInverse = !!c.inverseOf
+    const owner = isInverse ? this.getField(c.inverseOf!) : f
+    // ¿El otro lado admite un solo registro?
+    const otherSingle = isInverse
+      ? !parseFieldConfig('relation', owner.config).multiple
+      : this.inversesOf(f.id).some((g) => !parseFieldConfig('relation', g.config).multiple)
+
+    const current = (): string[] =>
+      (isInverse
+        ? (this.db
+            .prepare(
+              'SELECT from_id AS id FROM links WHERE field_id = ? AND to_id = ? ORDER BY created_at, rowid',
+            )
+            .all(owner.id, recordId) as { id: string }[])
+        : (this.db
+            .prepare(
+              'SELECT to_id AS id FROM links WHERE field_id = ? AND from_id = ? ORDER BY position',
+            )
+            .all(owner.id, recordId) as { id: string }[])
+      ).map((r) => r.id)
+    const before = current()
+    if (sameValue(before, unique)) return this.get(recordId)
+
+    // Todos los vínculos que este cambio puede tocar, para deshacer con exactitud.
+    const touched = [recordId, ...new Set([...before, ...unique])]
+    const marks = touched.map(() => '?').join(',')
+    const snapshot = () =>
       this.db
-        .prepare('SELECT to_id FROM links WHERE field_id = ? AND from_id = ? ORDER BY position')
-        .all(fieldId, fromId) as {
-        to_id: string
-      }[]
-    ).map((r) => r.to_id)
-    if (sameValue(before, unique)) return this.get(fromId)
-    const write = (ids: string[], from: string[]) =>
+        .prepare(
+          `SELECT field_id, from_id, to_id, position, created_at FROM links
+           WHERE field_id = ? AND (from_id IN (${marks}) OR to_id IN (${marks}))`,
+        )
+        .all(owner.id, ...touched, ...touched) as (LinkRow & {
+        position: number
+        created_at: string
+      })[]
+    const restore = (rows: ReturnType<typeof snapshot>, from: string[], to: string[]) =>
       this.tx(() => {
-        this.db.prepare('DELETE FROM links WHERE field_id = ? AND from_id = ?').run(fieldId, fromId)
+        this.db
+          .prepare(
+            `DELETE FROM links WHERE field_id = ? AND (from_id IN (${marks}) OR to_id IN (${marks}))`,
+          )
+          .run(owner.id, ...touched, ...touched)
         const ins = this.db.prepare(
           'INSERT INTO links (field_id, from_id, to_id, position, created_at) VALUES (?, ?, ?, ?, ?)',
         )
-        ids.forEach((t, i) => ins.run(fieldId, fromId, t, i, this.nowIso()))
-        this.db.prepare('UPDATE records SET updated_at = ? WHERE id = ?').run(this.nowIso(), fromId)
-        this.addHistory(fromId, row.entity, 'update', { [fieldId]: { from, to: ids } })
+        for (const l of rows) ins.run(l.field_id, l.from_id, l.to_id, l.position, l.created_at)
+        this.db
+          .prepare('UPDATE records SET updated_at = ? WHERE id = ?')
+          .run(this.nowIso(), recordId)
+        this.addHistory(recordId, row.entity, 'update', { [f.id]: { from, to } })
       })
-    write(unique, before)
+
+    const prev = snapshot()
+    this.tx(() => {
+      const now = this.nowIso()
+      const ins = this.db.prepare(
+        'INSERT INTO links (field_id, from_id, to_id, position, created_at) VALUES (?, ?, ?, ?, ?)',
+      )
+      if (isInverse) {
+        this.db
+          .prepare('DELETE FROM links WHERE field_id = ? AND to_id = ?')
+          .run(owner.id, recordId)
+        for (const t of unique) {
+          if (otherSingle)
+            this.db.prepare('DELETE FROM links WHERE field_id = ? AND from_id = ?').run(owner.id, t)
+          const n = (
+            this.db
+              .prepare('SELECT COUNT(*) AS n FROM links WHERE field_id = ? AND from_id = ?')
+              .get(owner.id, t) as { n: number }
+          ).n
+          ins.run(owner.id, t, recordId, n, now)
+        }
+      } else {
+        this.db
+          .prepare('DELETE FROM links WHERE field_id = ? AND from_id = ?')
+          .run(owner.id, recordId)
+        unique.forEach((t, i) => {
+          if (otherSingle)
+            this.db.prepare('DELETE FROM links WHERE field_id = ? AND to_id = ?').run(owner.id, t)
+          ins.run(owner.id, recordId, t, i, now)
+        })
+      }
+      this.db.prepare('UPDATE records SET updated_at = ? WHERE id = ?').run(now, recordId)
+      this.addHistory(recordId, row.entity, 'update', { [f.id]: { from: before, to: unique } })
+    })
+    const next = snapshot()
     this.undoStack.push({
       label: `Editar «${f.label}»`,
-      undo: () => write(before, unique),
-      redo: () => write(unique, before),
+      undo: () => restore(prev, unique, before),
+      redo: () => restore(next, before, unique),
     })
-    this.emit(row.entity)
-    return this.get(fromId)
+    this.emit(null)
+    return this.get(recordId)
   }
 
   duplicate(id: string): RecordRow {
@@ -1134,13 +1328,17 @@ export class DataService {
       label: `Duplicar ${def.gender === 'f' ? 'una' : 'un'} ${def.singular}`,
     })
     // Los vínculos salientes también se copian.
-    const out = this.db
-      .prepare('SELECT field_id, to_id, position FROM links WHERE from_id = ?')
-      .all(id) as {
-      field_id: string
-      to_id: string
-      position: number
-    }[]
+    // (salvo los de relaciones cuyo otro lado admite un solo registro: no se pueden repetir).
+    const out = (
+      this.db.prepare('SELECT field_id, to_id, position FROM links WHERE from_id = ?').all(id) as {
+        field_id: string
+        to_id: string
+        position: number
+      }[]
+    ).filter(
+      (l) =>
+        !this.inversesOf(l.field_id).some((g) => !parseFieldConfig('relation', g.config).multiple),
+    )
     if (out.length) {
       const ins = this.db.prepare(
         'INSERT INTO links (field_id, from_id, to_id, position, created_at) VALUES (?, ?, ?, ?, ?)',

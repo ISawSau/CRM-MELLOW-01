@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import type { VaultService } from '../vault/vault-service'
 import type { IpcHandlers } from './register'
 
-type DataChannel = Extract<keyof IpcHandlers, `data:${string}`>
+type DataChannel = Extract<keyof IpcHandlers, `data:${string}` | `profile:${string}`>
 export type DataHandlers = Pick<IpcHandlers, DataChannel>
 
 /**
@@ -42,7 +42,12 @@ export function createDataHandlers(
 
     'data:query': ({ entity, ...opts }) => vault.data.query(entity, opts),
     'data:get': ({ id }) => vault.data.get(id),
-    'data:create': ({ entity, values }) => vault.data.create(entity, values),
+    'data:create': ({ entity, values, title }) =>
+      vault.data.create(entity, values, title ? { title } : {}),
+    'data:createInverseField': ({ fieldId, label, multiple }) =>
+      vault.data.createInverseField(fieldId, label, multiple),
+    'profile:get': () => vault.data.getProfile(),
+    'profile:set': (profile) => vault.data.setProfile(profile),
     'data:update': ({ id, patch }) => vault.data.update(id, patch),
     'data:setLinks': ({ fieldId, fromId, toIds }) => vault.data.setLinks(fieldId, fromId, toIds),
     'data:duplicate': ({ id }) => vault.data.duplicate(id),

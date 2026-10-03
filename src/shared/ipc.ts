@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { appearanceSchema, type Appearance } from './appearance'
 import { FIELD_TYPES, idSchema, type FieldDef } from './data/fields'
+import { profileSchema, type Profile } from './profile'
 import type {
   DataChange,
   HistoryEntry,
@@ -135,7 +136,18 @@ export const ipcSchemas = {
     sorts: z.array(sortSchema).max(5).default([]),
   }),
   'data:get': z.object({ id: idSchema }),
-  'data:create': z.object({ entity: idSchema, values: values.default({}) }),
+  'data:create': z.object({
+    entity: idSchema,
+    values: values.default({}),
+    title: z.string().max(10_000).optional(),
+  }),
+  'data:createInverseField': z.object({
+    fieldId: idSchema,
+    label,
+    multiple: z.boolean().default(true),
+  }),
+  'profile:get': z.void(),
+  'profile:set': profileSchema,
   'data:update': z.object({ id: idSchema, patch: values }),
   'data:setLinks': z.object({
     fieldId: idSchema,
@@ -190,6 +202,9 @@ export interface IpcOutputs {
   'data:query': RecordRow[]
   'data:get': RecordRow
   'data:create': RecordRow
+  'data:createInverseField': FieldDef
+  'profile:get': Profile
+  'profile:set': Profile
   'data:update': RecordRow
   'data:setLinks': RecordRow
   'data:duplicate': RecordRow
