@@ -1,12 +1,15 @@
 import type { VaultStatus } from '@shared/ipc'
 import { useAppInfo } from '../lib/hooks'
+import { SyncStatusItem } from './sync'
 
 export function StatusBar({
   status,
   onOpenPalette,
+  onSettings,
 }: {
   status: VaultStatus
   onOpenPalette: () => void
+  onSettings: () => void
 }) {
   const info = useAppInfo()
   return (
@@ -19,13 +22,7 @@ export function StatusBar({
         {status.path}
       </span>
       <span className="statusbar-spacer" />
-      <span
-        className="statusbar-item"
-        title="La sincronización con Google Drive llega en la fase 5"
-      >
-        <span className="marker marker-off" aria-hidden="true" />
-        sincronización no configurada
-      </span>
+      <SyncStatusItem onSettings={onSettings} />
       {status.autoLockMinutes !== null && (
         <span className="statusbar-item">
           autobloqueo <span className="num">{status.autoLockMinutes}</span> min

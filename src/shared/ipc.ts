@@ -88,6 +88,30 @@ export interface VersionEntry {
   data: Record<string, unknown>
 }
 
+export interface SyncStatus {
+  /** Destino configurado: null si no hay sincronización. */
+  kind: 'folder' | 'drive' | null
+  label: string | null
+  phase: 'idle' | 'syncing' | 'error' | 'conflict'
+  error: string | null
+  /** Conflicto pendiente: quién subió la versión de la nube y cuándo. */
+  conflict: { device: string; uploadedAt: string } | null
+  lastSyncAt: string | null
+  /** Hay cambios de este equipo sin subir. */
+  pending: boolean
+  lastBackupAt: string | null
+}
+
+export interface BackupEntry {
+  name: string
+  date: string
+  reason: string
+  /** Tamaño de la base de datos (si la copia está en este equipo). */
+  size: number | null
+  local: boolean
+  remote: boolean
+}
+
 export interface AppInfo {
   version: string
   platform: string
@@ -190,6 +214,24 @@ export const ipcSchemas = {
   'versions:list': z.object({ recordId: idSchema }),
   'versions:create': z.object({ recordId: idSchema, note: z.string().max(500).default('') }),
   'versions:restore': z.object({ versionId: z.number().int().min(1) }),
+  'sync:status': z.void(),
+  'sync:pickFolder': z.void(),
+  'sync:connectDrive': z.object({
+    clientId: z.string().trim().min(10).max(300),
+    clientSecret: z.string().trim().max(300),
+  }),
+  'sync:disconnect': z.void(),
+  'sync:now': z.void(),
+  'sync:resolve': z.object({ keep: z.enum(['local', 'remote']) }),
+  'backups:list': z.void(),
+  'backups:create': z.void(),
+  'backups:restore': z.object({ name: z.string().regex(/^\d{8}-\d{6}-[a-z0-9-]{1,60}$/i) }),
+  'backups:config': z.void(),
+  'backups:setConfig': z.object({
+    intervalDays: z.number().int().min(1).max(60),
+    keepLast: z.number().int().min(1).max(100),
+    keepMonthly: z.boolean(),
+  }),
   'tasks:summary': z.void(),
   'briefs:templates': z.void(),
   'briefs:setTemplates': z.object({ templates: briefTemplatesSchema }),
@@ -258,6 +300,17 @@ export interface IpcOutputs {
   'versions:list': VersionEntry[]
   'versions:create': VersionEntry
   'versions:restore': RecordRow
+  'sync:status': SyncStatus
+  'sync:pickFolder': SyncStatus | null
+  'sync:connectDrive': SyncStatus
+  'sync:disconnect': SyncStatus
+  'sync:now': SyncStatus
+  'sync:resolve': SyncStatus
+  'backups:list': BackupEntry[]
+  'backups:create': string
+  'backups:restore': 'reopened' | 'locked'
+  'backups:config': { intervalDays: number; keepLast: number; keepMonthly: boolean }
+  'backups:setConfig': SyncStatus
   'tasks:summary': { today: number; overdue: number }
   'briefs:templates': BriefTemplate[]
   'briefs:setTemplates': BriefTemplate[]
@@ -289,5 +342,6 @@ export type IpcOutput<C extends IpcChannel> = IpcOutputs[C]
 export interface IpcEvents {
   'vault:changed': VaultStatus
   'data:changed': DataChange
+  'sync:changed': SyncStatus
 }
 export type IpcEvent = keyof IpcEvents

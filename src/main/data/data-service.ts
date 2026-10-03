@@ -120,6 +120,8 @@ export interface DataServiceOptions {
 }
 
 const HOURLY_MS = 60 * 60 * 1000
+/** El mismo ajuste que lee la sincronización (sync/sync-service.ts). */
+const CHANGES_KEY = 'sync.changes'
 const TRASH_DAYS_KEY = 'data.trashDays'
 const PROFILE_KEY = 'profile'
 const BRIEF_TEMPLATES_KEY = 'briefs.templates'
@@ -274,6 +276,9 @@ export class DataService {
   }
 
   private emit(entity: string | null): void {
+    // Contador de cambios: la sincronización sabe así si hay algo que subir.
+    const n = this.getSetting(CHANGES_KEY)
+    this.putSetting(CHANGES_KEY, (typeof n === 'number' ? n : 0) + 1)
     this.onChange?.({ entity, undo: this.undoStack.state() })
   }
 

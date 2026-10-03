@@ -562,3 +562,11 @@ kbd {
   min-width: 14px;
   line-height: 12px;
 }
+
+.statusbar-item .marker-warn {
+  background: var(--warning);
+}
+
+.statusbar-item .marker-error {
+  background: var(--danger);
+}

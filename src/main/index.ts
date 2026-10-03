@@ -1,4 +1,5 @@
 import { app, BrowserWindow, Menu, powerMonitor, session, type IpcMainInvokeEvent } from 'electron'
+import { hostname } from 'node:os'
 import { join } from 'node:path'
 import { AutoLock } from './auto-lock'
 import { ConfigStore } from './config'
@@ -11,11 +12,13 @@ import {
   disableSpellcheckOnEverySession,
   hardenWebContents,
   isAppUrl,
+  openExternalSafely,
   refuseDebugSwitches,
   registerAppProtocol,
   registerPrivilegedScheme,
 } from './security'
 import { registerVaultProtocol } from './files/vault-protocol'
+import { SyncService } from './sync/sync-service'
 import { isVaultFolder } from './vault/vault-file'
 import { VaultService } from './vault/vault-service'
 import { createMainWindow } from './window'
@@ -54,7 +57,22 @@ if (process.argv.includes('--autoprueba')) {
     onChange: (status) => mainWindow?.webContents.send('vault:changed', status),
     data: { onChange: (change) => mainWindow?.webContents.send('data:changed', change) },
   })
-  const autoLock = new AutoLock(vault)
+  const sync = new SyncService(vault, {
+    hostname: hostname(),
+    openBrowser: openExternalSafely,
+    onChange: (status) => mainWindow?.webContents.send('sync:changed', status),
+  })
+  /** Bloqueo con subida previa de lo pendiente (manual o por inactividad). */
+  const lockWithSync = async () => {
+    autoLock.stop()
+    try {
+      await sync.beforeClose()
+    } finally {
+      sync.dispose()
+      vault.lock()
+    }
+  }
+  const autoLock = new AutoLock(vault, Date.now, () => void lockWithSync())
 
   app.on('second-instance', () => {
     if (mainWindow) {
@@ -105,13 +123,22 @@ if (process.argv.includes('--autoprueba')) {
       isAppUrl(event.senderFrame?.url ?? '', devServerUrl)
 
     registerIpc(
-      createHandlers({ vault, config, autoLock, getWindow: () => mainWindow }),
+      createHandlers({
+        vault,
+        config,
+        autoLock,
+        sync,
+        lockWithSync,
+        getWindow: () => mainWindow,
+      }),
       isTrustedSender,
     )
 
     // Bloqueo al suspender o bloquear la sesión del sistema.
+    // Al suspender no hay tiempo para subir: se sube en la próxima sincronización.
     const lockNow = () => {
       autoLock.stop()
+      sync.dispose()
       vault.lock()
     }
     powerMonitor.on('suspend', lockNow)
@@ -124,7 +151,23 @@ if (process.argv.includes('--autoprueba')) {
   })
 
   // Al salir: checkpoint del WAL, cierre de crm.db y borrado del .lock.
-  app.on('before-quit', () => vault.dispose())
+  // Al salir: se sube lo pendiente (como mucho un minuto) y se cierra la bóveda.
+  let quitting = false
+  app.on('before-quit', (event) => {
+    if (quitting) return
+    if (vault.status().state === 'unlocked' && sync.status().pending && sync.status().kind) {
+      event.preventDefault()
+      quitting = true
+      void sync.beforeClose().finally(() => {
+        sync.dispose()
+        vault.dispose()
+        app.quit()
+      })
+      return
+    }
+    sync.dispose()
+    vault.dispose()
+  })
   app.on('window-all-closed', () => app.quit())
   for (const signal of ['SIGINT', 'SIGTERM'] as const) {
     process.on(signal, () => {

@@ -8,6 +8,7 @@ import { BUILT_IN_THEMES } from '../theme/themes'
 import { BriefTemplatesSettings } from '../data/BriefTemplatesSettings'
 import { DataSettings, FieldsSettings } from '../data/FieldsSettings'
 import { ProfileSettings } from './ProfileSettings'
+import { SyncSettings } from './SyncSettings'
 import { Alert } from '../ui/Alert'
 import { PasswordField } from '../ui/PasswordField'
 
@@ -243,6 +244,7 @@ export function Settings({ status }: { status: VaultStatus }) {
         <FieldsSettings />
         <BriefTemplatesSettings />
         <DataSettings />
+        <SyncSettings />
         <AutoLock status={status} />
         <ChangePassword />
         <RotateKey />
