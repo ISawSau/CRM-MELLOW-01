@@ -1,5 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
+import { t } from '@shared/i18n'
 import { PLATFORMS, type PlatformAccount } from '@shared/platforms'
 import { call, IpcCallError } from '../lib/ipc'
 import { useToast } from '../ui/Toast'
@@ -21,16 +22,20 @@ export function PlatformsPage({ num }: { num: string }) {
     <div className="page page-wide" data-testid="page-plataformas">
       <div className="section-head">
         <span className="eyebrow">
-          <span className="num">{num}</span> media buying
+          <span className="num">{num}</span> {t('media buying')}
         </span>
-        <h1 className="title">{linkedin ? 'LinkedIn y X' : 'X Ads'}</h1>
+        <h1 className="title">{linkedin ? t('LinkedIn y X') : t('X Ads')}</h1>
         <p className="muted">
           {linkedin
-            ? 'Las cuentas de LinkedIn y X entran en Análisis, Facturación e Informes junto a las de Meta. LinkedIn se puede conectar por su API (gratis, con aprobación de LinkedIn) o con los CSV de Campaign Manager; X, con los CSV de X Ads (su API es de pago).'
-            : 'Las cuentas de X entran en Análisis, Facturación e Informes junto a las de Meta, importando los CSV de X Ads (su API es de pago). LinkedIn es opcional: actívalo en Ajustes → Integraciones.'}
+            ? t(
+                'Las cuentas de LinkedIn y X entran en Análisis, Facturación e Informes junto a las de Meta. LinkedIn se puede conectar por su API (gratis, con aprobación de LinkedIn) o con los CSV de Campaign Manager; X, con los CSV de X Ads (su API es de pago).',
+              )
+            : t(
+                'Las cuentas de X entran en Análisis, Facturación e Informes junto a las de Meta, importando los CSV de X Ads (su API es de pago). LinkedIn es opcional: actívalo en Ajustes → Integraciones.',
+              )}
         </p>
       </div>
-      <div className="tabs" role="tablist" aria-label="Otras plataformas">
+      <div className="tabs" role="tablist" aria-label={t('Otras plataformas')}>
         {(
           [
             ['cuentas', 'Cuentas'],
@@ -48,7 +53,7 @@ export function PlatformsPage({ num }: { num: string }) {
               onClick={() => setTab(id)}
               data-testid={`platforms-tab-${id}`}
             >
-              {label}
+              {t(label)}
             </button>
           ))}
       </div>
@@ -73,18 +78,20 @@ function Accounts({ onImport }: { onImport: () => void }) {
         void qc.invalidateQueries({ queryKey: ['data'] })
       })
       .catch((e: unknown) =>
-        toast.show(e instanceof IpcCallError ? e.message : 'No se pudo guardar.', 'error'),
+        toast.show(e instanceof IpcCallError ? e.message : t('No se pudo guardar.'), 'error'),
       )
   const accounts = q.data ?? []
   if (!accounts.length)
     return (
       <div className="empty">
-        <h2>Sin cuentas todavía</h2>
+        <h2>{t('Sin cuentas todavía')}</h2>
         <p className="muted">
-          Importa un CSV de LinkedIn Campaign Manager o de X Ads, o conecta la API de LinkedIn.
+          {t(
+            'Importa un CSV de LinkedIn Campaign Manager o de X Ads, o conecta la API de LinkedIn.',
+          )}
         </p>
         <button type="button" className="btn btn-primary" onClick={onImport}>
-          Importar un CSV
+          {t('Importar un CSV')}
         </button>
       </div>
     )
@@ -94,11 +101,11 @@ function Accounts({ onImport }: { onImport: () => void }) {
         <table className="meta-table" data-testid="platform-accounts">
           <thead>
             <tr>
-              <th>Plataforma</th>
-              <th>Cuenta</th>
-              <th>Datos</th>
-              <th>Cliente</th>
-              <th>En Análisis</th>
+              <th>{t('Plataforma')}</th>
+              <th>{t('Cuenta')}</th>
+              <th>{t('Datos')}</th>
+              <th>{t('Cliente')}</th>
+              <th>{t('En Análisis')}</th>
               <th />
             </tr>
           </thead>
@@ -120,7 +127,7 @@ function Accounts({ onImport }: { onImport: () => void }) {
                 <td>
                   <select
                     className="input"
-                    aria-label={`Cliente de ${a.name}`}
+                    aria-label={t('Cliente de {name}', { name: a.name })}
                     value={a.clientId ?? ''}
                     onChange={(e) =>
                       void run(
@@ -131,7 +138,7 @@ function Accounts({ onImport }: { onImport: () => void }) {
                       )
                     }
                   >
-                    <option value="">Sin cliente</option>
+                    <option value="">{t('Sin cliente')}</option>
                     {clients.map((c) => (
                       <option key={c.id} value={c.id}>
                         {c.title}
@@ -142,7 +149,7 @@ function Accounts({ onImport }: { onImport: () => void }) {
                 <td>
                   <input
                     type="checkbox"
-                    aria-label={`Usar ${a.name}`}
+                    aria-label={t('Usar {name}', { name: a.name })}
                     checked={a.enabled}
                     onChange={(e) =>
                       void run(
@@ -155,7 +162,7 @@ function Accounts({ onImport }: { onImport: () => void }) {
                   <button
                     type="button"
                     className="icon-btn"
-                    aria-label={`Borrar ${a.name}`}
+                    aria-label={t('Borrar {name}', { name: a.name })}
                     onClick={() => setConfirm(a)}
                   >
                     ×
@@ -167,17 +174,19 @@ function Accounts({ onImport }: { onImport: () => void }) {
         </table>
       </div>
       <p className="hint">
-        Las cuentas de la API de LinkedIn se descargan al activarlas y cada tres horas. Las de CSV
-        se actualizan importando el archivo de nuevo (sustituye los días que trae).
+        {t(
+          'Las cuentas de la API de LinkedIn se descargan al activarlas y cada tres horas. Las de CSV se actualizan importando el archivo de nuevo (sustituye los días que trae).',
+        )}
       </p>
       {confirm && (
         <>
           <div className="overlay" onClick={() => setConfirm(null)} />
-          <div className="dialog" role="dialog" aria-label="Borrar cuenta">
-            <h2>¿Borrar «{confirm.name}»?</h2>
+          <div className="dialog" role="dialog" aria-label={t('Borrar cuenta')}>
+            <h2>{t('¿Borrar «{name}»?', { name: confirm.name })}</h2>
             <p className="muted">
-              Se borran la cuenta y todas sus métricas de la bóveda. Si es de la API, volverá a
-              aparecer al reconectar LinkedIn, sin activar.
+              {t(
+                'Se borran la cuenta y todas sus métricas de la bóveda. Si es de la API, volverá a aparecer al reconectar LinkedIn, sin activar.',
+              )}
             </p>
             <div className="form-actions">
               <button
@@ -188,10 +197,10 @@ function Accounts({ onImport }: { onImport: () => void }) {
                   setConfirm(null)
                 }}
               >
-                Borrar cuenta y datos
+                {t('Borrar cuenta y datos')}
               </button>
               <button type="button" className="btn" onClick={() => setConfirm(null)}>
-                Cancelar
+                {t('Cancelar')}
               </button>
             </div>
           </div>

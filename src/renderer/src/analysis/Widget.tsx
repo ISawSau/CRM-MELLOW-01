@@ -13,6 +13,7 @@ import {
   type Widget,
   type WidgetType,
 } from '@shared/analysis'
+import { t } from '@shared/i18n'
 import { useFields } from '../data/hooks'
 import { delta, formatMetric } from '../meta/metrics'
 import { isoToEs } from '../meta/meta'
@@ -31,9 +32,10 @@ export function widgetTitle(w: Widget, label: (k: string) => string): string {
   if (w.title) return w.title
   const m = label(w.metric)
   if (w.type === 'kpi') return m
-  if (w.type === 'line') return `${m} por ${DIMENSION_LABELS[w.groupBy ?? 'dia'].toLowerCase()}`
-  if (w.type === 'table') return `Por ${DIMENSION_LABELS[w.groupBy ?? 'cuenta'].toLowerCase()}`
-  return `${m} por ${DIMENSION_LABELS[w.groupBy ?? 'cliente'].toLowerCase()}`
+  const dim = (d: Dimension) => t(DIMENSION_LABELS[d]).toLowerCase()
+  if (w.type === 'line') return t('{metric} por {dim}', { metric: m, dim: dim(w.groupBy ?? 'dia') })
+  if (w.type === 'table') return t('Por {dim}', { dim: dim(w.groupBy ?? 'cuenta') })
+  return t('{metric} por {dim}', { metric: m, dim: dim(w.groupBy ?? 'cliente') })
 }
 
 /** Un widget del dashboard: hace su consulta y se pinta según su tipo. */
@@ -89,10 +91,10 @@ export function WidgetView({
           <span className="kpi-hint faint">
             {d ? (
               <span className={d.good === null ? '' : d.good ? 'trend-good' : 'trend-bad'}>
-                {d.text} vs. periodo anterior
+                {t('{delta} vs. periodo anterior', { delta: d.text })}
               </span>
             ) : w.compare ? (
-              'sin periodo anterior'
+              t('sin periodo anterior')
             ) : null}
           </span>
         </div>
@@ -100,14 +102,14 @@ export function WidgetView({
     } else if ((w.type === 'line' || w.type === 'bar') && !asTable) {
       const series = [
         {
-          name: 'Periodo',
+          name: t('Periodo'),
           slot: 0,
           values: rows.map((x) => x.v[w.metric] ?? null),
         },
       ]
       if (prevRows && w.type === 'line')
         series.push({
-          name: 'Periodo anterior',
+          name: t('Periodo anterior'),
           slot: 1,
           dashed: true,
           values: rows.map((_, i) => prevRows[i]?.[w.metric] ?? null),
@@ -144,7 +146,7 @@ export function WidgetView({
               <span className="num">{format(x.v[w.metric] ?? 0)}</span>
             </li>
           ))}
-          {sorted.length === 0 && <li className="faint">Sin datos en este periodo.</li>}
+          {sorted.length === 0 && <li className="faint">{t('Sin datos en este periodo.')}</li>}
         </ol>
       )
     } else {
@@ -154,7 +156,7 @@ export function WidgetView({
           <table className="meta-table">
             <thead>
               <tr>
-                <th>{DIMENSION_LABELS[groupBy ?? 'cuenta']}</th>
+                <th>{t(DIMENSION_LABELS[groupBy ?? 'cuenta'])}</th>
                 {cols.map((c) => (
                   <th key={c} className="num">
                     {label(c)}
@@ -176,7 +178,7 @@ export function WidgetView({
               {rows.length === 0 && (
                 <tr>
                   <td colSpan={cols.length + 1} className="faint">
-                    Sin datos en este periodo.
+                    {t('Sin datos en este periodo.')}
                   </td>
                 </tr>
               )}
@@ -195,18 +197,18 @@ export function WidgetView({
           className="faint widget-range num"
           title={`${isoToEs(range.since)} – ${isoToEs(range.until)}`}
         >
-          {RANGE_LABELS[w.range]}
+          {t(RANGE_LABELS[w.range])}
         </span>
         {(w.type === 'line' || w.type === 'bar') && (
-          <button type="button" className="btn-link" onClick={() => setAsTable((t) => !t)}>
-            {asTable ? 'Ver gráfica' : 'Ver tabla'}
+          <button type="button" className="btn-link" onClick={() => setAsTable((v) => !v)}>
+            {asTable ? t('Ver gráfica') : t('Ver tabla')}
           </button>
         )}
         {onEdit && (
           <button
             type="button"
             className="icon-btn"
-            aria-label={`Editar ${title}`}
+            aria-label={t('Editar {title}', { title })}
             onClick={onEdit}
           >
             ✎
@@ -216,7 +218,7 @@ export function WidgetView({
           <button
             type="button"
             className="icon-btn"
-            aria-label={`Quitar ${title}`}
+            aria-label={t('Quitar {title}', { title })}
             onClick={onRemove}
           >
             ×
@@ -224,7 +226,7 @@ export function WidgetView({
         )}
       </div>
       {r?.partial && (
-        <p className="hint danger-text">Faltan tipos de cambio: hay importes fuera.</p>
+        <p className="hint danger-text">{t('Faltan tipos de cambio: hay importes fuera.')}</p>
       )}
       {body}
     </section>
@@ -276,10 +278,10 @@ export function WidgetDialog({
         aria-labelledby="widget-t"
         data-testid="widget-dialog"
       >
-        <h2 id="widget-t">{widget ? 'Editar widget' : 'Nuevo widget'}</h2>
+        <h2 id="widget-t">{widget ? t('Editar widget') : t('Nuevo widget')}</h2>
         <div className="field-row">
           <div className="field">
-            <label htmlFor="w-type">Tipo</label>
+            <label htmlFor="w-type">{t('Tipo')}</label>
             <select
               id="w-type"
               className="input"
@@ -292,15 +294,15 @@ export function WidgetDialog({
                 })
               }}
             >
-              {WIDGET_TYPES.map((t) => (
-                <option key={t} value={t}>
-                  {WIDGET_LABELS[t]}
+              {WIDGET_TYPES.map((wt) => (
+                <option key={wt} value={wt}>
+                  {t(WIDGET_LABELS[wt])}
                 </option>
               ))}
             </select>
           </div>
           <div className="field">
-            <label htmlFor="w-title">Título (opcional)</label>
+            <label htmlFor="w-title">{t('Título (opcional)')}</label>
             <input
               id="w-title"
               className="input"
@@ -319,7 +321,7 @@ export function WidgetDialog({
           />
           {w.type !== 'kpi' && (
             <div className="field">
-              <label htmlFor="w-group">Agrupar por</label>
+              <label htmlFor="w-group">{t('Agrupar por')}</label>
               <select
                 id="w-group"
                 className="input"
@@ -328,7 +330,7 @@ export function WidgetDialog({
               >
                 {dims.map((d) => (
                   <option key={d} value={d}>
-                    {DIMENSION_LABELS[d]}
+                    {t(DIMENSION_LABELS[d])}
                   </option>
                 ))}
               </select>
@@ -337,7 +339,7 @@ export function WidgetDialog({
         </div>
         {groupBy === 'etiqueta' && (
           <div className="field">
-            <label htmlFor="w-tag">Etiqueta</label>
+            <label htmlFor="w-tag">{t('Etiqueta')}</label>
             <select
               id="w-tag"
               className="input"
@@ -346,7 +348,7 @@ export function WidgetDialog({
             >
               {tagFields.map((f) => (
                 <option key={f.id} value={f.id}>
-                  {f.label}
+                  {t(f.label)}
                 </option>
               ))}
             </select>
@@ -354,7 +356,7 @@ export function WidgetDialog({
         )}
         {w.type === 'table' && (
           <fieldset className="field">
-            <legend>Columnas</legend>
+            <legend>{t('Columnas')}</legend>
             <div className="checks-grid">
               {metricKeys.slice(0, 40).map((d) => (
                 <label key={d.key} className="check">
@@ -377,7 +379,7 @@ export function WidgetDialog({
         )}
         <div className="field-row">
           <div className="field">
-            <label htmlFor="w-range">Periodo</label>
+            <label htmlFor="w-range">{t('Periodo')}</label>
             <select
               id="w-range"
               className="input"
@@ -386,22 +388,22 @@ export function WidgetDialog({
             >
               {RANGE_PRESETS.map((p) => (
                 <option key={p} value={p}>
-                  {RANGE_LABELS[p]}
+                  {t(RANGE_LABELS[p])}
                 </option>
               ))}
             </select>
           </div>
           <div className="field">
-            <label htmlFor="w-size">Ancho</label>
+            <label htmlFor="w-size">{t('Ancho')}</label>
             <select
               id="w-size"
               className="input"
               value={w.size}
               onChange={(e) => set({ size: e.target.value as Widget['size'] })}
             >
-              <option value="s">Estrecho</option>
-              <option value="m">Medio</option>
-              <option value="l">Ancho</option>
+              <option value="s">{t('Estrecho')}</option>
+              <option value="m">{t('Medio')}</option>
+              <option value="l">{t('Ancho')}</option>
             </select>
           </div>
         </div>
@@ -412,12 +414,12 @@ export function WidgetDialog({
               checked={w.compare}
               onChange={(e) => set({ compare: e.target.checked })}
             />
-            <span>Comparar con el periodo anterior</span>
+            <span>{t('Comparar con el periodo anterior')}</span>
           </label>
         )}
         <div className="form-actions">
           <button type="button" className="btn" onClick={onClose}>
-            Cancelar
+            {t('Cancelar')}
           </button>
           <button
             type="button"
@@ -432,7 +434,7 @@ export function WidgetDialog({
               })
             }
           >
-            Guardar
+            {t('Guardar')}
           </button>
         </div>
       </div>

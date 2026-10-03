@@ -1,3 +1,4 @@
+import { t } from '@shared/i18n'
 import { PDF_LEVELS, type PdfLevel } from '@shared/tools'
 
 /**
@@ -14,8 +15,8 @@ async function load(data: Uint8Array) {
     return await PDFDocument.load(data, { updateMetadata: false })
   } catch (e) {
     if (e instanceof Error && /encrypt/i.test(e.message))
-      throw new PdfError('El PDF está protegido con contraseña: quítasela antes.')
-    throw new PdfError('El archivo no es un PDF válido.')
+      throw new PdfError(t('El PDF está protegido con contraseña: quítasela antes.'))
+    throw new PdfError(t('El archivo no es un PDF válido.'))
   }
 }
 

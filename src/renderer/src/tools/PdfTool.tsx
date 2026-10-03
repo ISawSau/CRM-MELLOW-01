@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { formatBytes } from '@shared/files'
 import { formatNumber } from '@shared/format'
+import { t, tn } from '@shared/i18n'
 import { parseRanges, PDF_LEVELS, type PdfLevel } from '@shared/tools'
 import { compressPdf, mergePdfs, pdfPageCount, splitPdf } from './pdf'
 import {
@@ -24,7 +25,7 @@ interface Loaded {
 }
 
 const baseName = (n: string) => n.replace(/\.pdf$/i, '') || 'documento'
-const pagesLabel = (n: number) => `${formatNumber(n, 0)} ${n === 1 ? 'página' : 'páginas'}`
+const pagesLabel = (n: number) => tn(n, '{n} página', '{n} páginas', { n: formatNumber(n, 0) })
 
 /** Unir, dividir y comprimir PDF. */
 export function PdfTool() {
@@ -45,7 +46,7 @@ export function PdfTool() {
         try {
           return { name: f.name, data, pages: await pdfPageCount(data) }
         } catch (e) {
-          return { name: f.name, data, pages: null, error: errorMessage(e, 'PDF no válido.') }
+          return { name: f.name, data, pages: null, error: errorMessage(e, t('PDF no válido.')) }
         }
       }),
     )
@@ -87,7 +88,7 @@ export function PdfTool() {
             ...(await saveOutput(name, data, dest)),
           })
         } catch (e) {
-          update({ ...row, status: 'error', message: errorMessage(e, 'No se han podido unir.') })
+          update({ ...row, status: 'error', message: errorMessage(e, t('No se han podido unir.')) })
         }
       } else if (mode === 'dividir' && Array.isArray(groups)) {
         const src = valid[0]!
@@ -118,14 +119,14 @@ export function PdfTool() {
               ...row,
               detail: better
                 ? sizeChange(f.data.byteLength, data.byteLength, formatBytes)
-                : `${formatBytes(f.data.byteLength)} · ya estaba optimizado`,
+                : t('{size} · ya estaba optimizado', { size: formatBytes(f.data.byteLength) }),
               ...(await saveOutput(name, better ? data : f.data, dest)),
             })
           } catch (e) {
             update({
               ...row,
               status: 'error',
-              message: errorMessage(e, 'No se ha podido comprimir.'),
+              message: errorMessage(e, t('No se ha podido comprimir.')),
             })
           }
         }
@@ -136,7 +137,7 @@ export function PdfTool() {
         name: files[0]?.name ?? 'PDF',
         detail: '',
         status: 'error',
-        message: errorMessage(e, 'No se ha podido procesar el PDF.'),
+        message: errorMessage(e, t('No se ha podido procesar el PDF.')),
       })
     }
     setFiles([])
@@ -153,7 +154,7 @@ export function PdfTool() {
 
   return (
     <div className="tool" data-testid="tool-pdf">
-      <div className="segmented" role="group" aria-label="Qué hacer">
+      <div className="segmented" role="group" aria-label={t('Qué hacer')}>
         {(
           [
             ['unir', 'Unir'],
@@ -171,7 +172,7 @@ export function PdfTool() {
               if (id === 'dividir') setFiles((f) => f.slice(0, 1))
             }}
           >
-            {label}
+            {t(label)}
           </button>
         ))}
       </div>
@@ -180,10 +181,10 @@ export function PdfTool() {
         multiple={!single}
         hint={
           mode === 'unir'
-            ? 'Arrastra aquí los PDF que quieras unir, en orden.'
+            ? t('Arrastra aquí los PDF que quieras unir, en orden.')
             : mode === 'dividir'
-              ? 'Arrastra aquí el PDF que quieras dividir.'
-              : 'Arrastra aquí los PDF que quieras comprimir.'
+              ? t('Arrastra aquí el PDF que quieras dividir.')
+              : t('Arrastra aquí los PDF que quieras comprimir.')
         }
         onFiles={(f) => void add(f)}
         testId="pdf-drop"
@@ -202,7 +203,7 @@ export function PdfTool() {
                   <button
                     type="button"
                     className="icon-btn"
-                    aria-label={`Subir ${f.name}`}
+                    aria-label={t('Subir {name}', { name: f.name })}
                     disabled={i === 0}
                     onClick={() => move(i, -1)}
                   >
@@ -211,7 +212,7 @@ export function PdfTool() {
                   <button
                     type="button"
                     className="icon-btn"
-                    aria-label={`Bajar ${f.name}`}
+                    aria-label={t('Bajar {name}', { name: f.name })}
                     disabled={i === files.length - 1}
                     onClick={() => move(i, 1)}
                   >
@@ -222,7 +223,7 @@ export function PdfTool() {
               <button
                 type="button"
                 className="icon-btn"
-                aria-label={`Quitar ${f.name}`}
+                aria-label={t('Quitar {name}', { name: f.name })}
                 onClick={() => setFiles(files.filter((_, j) => j !== i))}
               >
                 ×
@@ -234,7 +235,7 @@ export function PdfTool() {
       <div className="tool-options">
         {mode === 'dividir' && (
           <div className="field">
-            <label htmlFor="pdf-ranges">Páginas de cada PDF</label>
+            <label htmlFor="pdf-ranges">{t('Páginas de cada PDF')}</label>
             <input
               id="pdf-ranges"
               className="input"
@@ -244,13 +245,13 @@ export function PdfTool() {
               aria-invalid={rangeError !== null}
             />
             <span className={rangeError ? 'hint danger-text' : 'hint'}>
-              {rangeError ?? 'Un PDF por cada rango. Vacío: uno por página.'}
+              {rangeError ?? t('Un PDF por cada rango. Vacío: uno por página.')}
             </span>
           </div>
         )}
         {mode === 'comprimir' && (
           <div className="field">
-            <label htmlFor="pdf-level">Compresión</label>
+            <label htmlFor="pdf-level">{t('Compresión')}</label>
             <select
               id="pdf-level"
               className="input"
@@ -259,14 +260,14 @@ export function PdfTool() {
             >
               {Object.entries(PDF_LEVELS).map(([k, v]) => (
                 <option key={k} value={k}>
-                  {v.label}
+                  {t(v.label)}
                 </option>
               ))}
             </select>
             <span className="hint">
               {level === 'ligera'
-                ? 'Reorganiza el archivo sin tocar el contenido.'
-                : 'Convierte cada página en imagen: el texto deja de poder seleccionarse.'}
+                ? t('Reorganiza el archivo sin tocar el contenido.')
+                : t('Convierte cada página en imagen: el texto deja de poder seleccionarse.')}
             </span>
           </div>
         )}
@@ -280,15 +281,17 @@ export function PdfTool() {
           onClick={() => void run()}
         >
           {busy
-            ? 'Procesando…'
+            ? t('Procesando…')
             : mode === 'unir'
-              ? `Unir ${valid.length >= 2 ? `${valid.length} PDF` : 'PDF'}`
+              ? valid.length >= 2
+                ? t('Unir {n} PDF', { n: valid.length })
+                : t('Unir PDF')
               : mode === 'dividir'
-                ? 'Dividir PDF'
-                : 'Comprimir PDF'}
+                ? t('Dividir PDF')
+                : t('Comprimir PDF')}
         </button>
         {mode === 'unir' && valid.length === 1 && (
-          <span className="faint">Añade al menos otro PDF.</span>
+          <span className="faint">{t('Añade al menos otro PDF.')}</span>
         )}
       </div>
       <ResultList rows={rows} />

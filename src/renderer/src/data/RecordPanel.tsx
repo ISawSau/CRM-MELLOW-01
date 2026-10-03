@@ -103,7 +103,11 @@ export function RecordPanel({
   const deleted = r.deletedAt !== null
 
   return (
-    <aside className="panel" aria-label={t('Ficha: {title}', { title: r.title })} data-testid="record-panel">
+    <aside
+      className="panel"
+      aria-label={t('Ficha: {title}', { title: r.title })}
+      data-testid="record-panel"
+    >
       <div className="panel-head">
         <span className="eyebrow">
           <span className="num">{entity?.singular ?? t('registro')}</span>
@@ -140,7 +144,12 @@ export function RecordPanel({
           >
             {t('Enviar a la papelera')}
           </button>
-          <button type="button" className="icon-btn" aria-label={t('Cerrar ficha')} onClick={onClose}>
+          <button
+            type="button"
+            className="icon-btn"
+            aria-label={t('Cerrar ficha')}
+            onClick={onClose}
+          >
             ×
           </button>
         </div>
@@ -434,7 +443,9 @@ function SaveAsTemplate({ record }: { record: RecordRow }) {
             void call('briefs:saveAsTemplate', { recordId: record.id, name })
               .then((list) => {
                 qc.setQueryData(['data', 'brief-templates'], list)
-                toast.show(t('Plantilla «{name}» guardada. Edítala en Ajustes.', { name: name.trim() }))
+                toast.show(
+                  t('Plantilla «{name}» guardada. Edítala en Ajustes.', { name: name.trim() }),
+                )
                 close()
               })
               .catch((err: unknown) =>

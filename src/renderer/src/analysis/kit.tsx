@@ -4,6 +4,7 @@ import type { AnalysisQuery } from '@shared/analysis'
 import { todayIn } from '@shared/data/dates'
 import type { BaseSums } from '@shared/meta'
 import { computeMetrics, DEFAULT_HOLD_RATE, RANGE_KEYS, type MetricDef } from '@shared/meta-metrics'
+import { t } from '@shared/i18n'
 import { call } from '../lib/ipc'
 import { useTimeZone } from '../data/nav'
 import { formatMetric, metricDefs, useActionTypes, useTableSettings } from '../meta/metrics'
@@ -48,7 +49,7 @@ export function MetricSelect({
   value,
   onChange,
   defs,
-  label = 'Métrica',
+  label,
 }: {
   id: string
   value: string
@@ -64,10 +65,10 @@ export function MetricSelect({
   }
   return (
     <div className="field">
-      <label htmlFor={id}>{label}</label>
+      <label htmlFor={id}>{label ?? t('Métrica')}</label>
       <select id={id} className="input" value={value} onChange={(e) => onChange(e.target.value)}>
         {[...groups.entries()].map(([g, list]) => (
-          <optgroup key={g} label={g}>
+          <optgroup key={g} label={t(g)}>
             {list.map((d) => (
               <option key={d.key} value={d.key}>
                 {d.label}

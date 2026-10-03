@@ -75,7 +75,10 @@ export function FieldValue({ field, value }: { field: FieldDef; value: unknown }
       const items = value as ChecklistItem[]
       const done = items.filter((i) => i.done).length
       return (
-        <span className="checklist-progress" aria-label={t('{done} de {total} hechos', { done, total: items.length })}>
+        <span
+          className="checklist-progress"
+          aria-label={t('{done} de {total} hechos', { done, total: items.length })}
+        >
           <span className="bar" aria-hidden="true">
             <span
               className="bar-fill"

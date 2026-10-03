@@ -77,7 +77,8 @@ export function DataPage({
     (config: Partial<View['config']>) => {
       if (!view) return
       saveView(view.id, { config }).catch((e: unknown) =>
-        toast.show(e instanceof IpcCallError ? e.message : t('No se pudo guardar la vista.'),
+        toast.show(
+          e instanceof IpcCallError ? e.message : t('No se pudo guardar la vista.'),
           'error',
         ),
       )
@@ -146,7 +147,10 @@ export function DataPage({
       setViewId(v.id)
       setEditingField(field)
     } catch (e) {
-      toast.show(e instanceof IpcCallError ? e.message : t('No se pudo crear el pipeline.'), 'error')
+      toast.show(
+        e instanceof IpcCallError ? e.message : t('No se pudo crear el pipeline.'),
+        'error',
+      )
     }
   }
 
@@ -186,9 +190,12 @@ export function DataPage({
               type="button"
               className="btn"
               onClick={() => setSettingsOpen(true)}
-              title={t(entity === 'brief' ? 'Campos y plantillas de {label}' : 'Campos de {label}', {
-                label: def.label,
-              })}
+              title={t(
+                entity === 'brief' ? 'Campos y plantillas de {label}' : 'Campos de {label}',
+                {
+                  label: def.label,
+                },
+              )}
               data-testid="open-section-settings"
             >
               ⚙ {t('Ajustes')}
@@ -323,9 +330,7 @@ export function DataPage({
 
         {selected.size > 0 && (
           <div className="bulk-bar" role="status">
-            <span>
-              {tn(selected.size, '{n} seleccionado', '{n} seleccionados')}
-            </span>
+            <span>{tn(selected.size, '{n} seleccionado', '{n} seleccionados')}</span>
             <button
               type="button"
               className="btn btn-danger"
@@ -521,7 +526,10 @@ function ViewMenu({ view, canDelete, entity }: { view: View; canDelete: boolean;
               void call('data:deleteView', { id: view.id })
                 .then(() => qc.invalidateQueries({ queryKey: ['data', 'views', entity] }))
                 .catch((e: unknown) =>
-                  toast.show(e instanceof IpcCallError ? e.message : t('No se pudo borrar.'), 'error'),
+                  toast.show(
+                    e instanceof IpcCallError ? e.message : t('No se pudo borrar.'),
+                    'error',
+                  ),
                 )
             }}
           >

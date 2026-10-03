@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import type { Dashboard, Widget } from '@shared/analysis'
+import { t } from '@shared/i18n'
 import { call, IpcCallError } from '../lib/ipc'
 import { useToast } from '../ui/Toast'
 import { NameDialog } from '../ui/NameDialog'
@@ -32,7 +33,7 @@ export function Dashboards() {
       .then((d) => qc.setQueryData(KEY, d))
       .catch((e: unknown) => {
         void qc.invalidateQueries({ queryKey: KEY })
-        toast.show(e instanceof IpcCallError ? e.message : 'No se pudo guardar.', 'error')
+        toast.show(e instanceof IpcCallError ? e.message : t('No se pudo guardar.'), 'error')
       })
   }
   const update = (d: Dashboard) => save(dashboards.map((x) => (x.id === d.id ? d : x)))
@@ -51,7 +52,7 @@ export function Dashboards() {
     <div className="dashboards" data-testid="dashboards">
       <div className="meta-toolbar">
         <div className="field">
-          <label htmlFor="dash">Dashboard</label>
+          <label htmlFor="dash">{t('Dashboard')}</label>
           <select
             id="dash"
             className="input"
@@ -60,13 +61,13 @@ export function Dashboards() {
           >
             {dashboards.map((d) => (
               <option key={d.id} value={d.id}>
-                {d.name}
+                {t(d.name)}
               </option>
             ))}
           </select>
         </div>
         <div className="field">
-          <label htmlFor="dash-client">Datos de</label>
+          <label htmlFor="dash-client">{t('Datos de')}</label>
           <select
             id="dash-client"
             className="input"
@@ -74,7 +75,7 @@ export function Dashboards() {
             disabled={!editing}
             onChange={(e) => update({ ...current, clientId: e.target.value || null })}
           >
-            <option value="">Todas las cuentas</option>
+            <option value="">{t('Todas las cuentas')}</option>
             {(clients.data ?? []).map((c) => (
               <option key={c.id} value={c.id}>
                 {c.title}
@@ -86,7 +87,7 @@ export function Dashboards() {
           {editing ? (
             <>
               <button type="button" className="btn" onClick={() => setWidget('new')}>
-                + Widget
+                {t('+ Widget')}
               </button>
               {dashboards.length > 1 && (
                 <button
@@ -98,20 +99,20 @@ export function Dashboards() {
                     setEditing(false)
                   }}
                 >
-                  Borrar dashboard
+                  {t('Borrar dashboard')}
                 </button>
               )}
               <button type="button" className="btn btn-primary" onClick={() => setEditing(false)}>
-                Listo
+                {t('Listo')}
               </button>
             </>
           ) : (
             <>
               <button type="button" className="btn" onClick={() => setNaming(true)}>
-                Nuevo dashboard
+                {t('Nuevo dashboard')}
               </button>
               <button type="button" className="btn" onClick={() => setEditing(true)}>
-                Editar
+                {t('Editar')}
               </button>
             </>
           )}
@@ -139,7 +140,7 @@ export function Dashboards() {
                   disabled={i === 0}
                   onClick={() => move(i, -1)}
                 >
-                  ← Antes
+                  {t('← Antes')}
                 </button>
                 <button
                   type="button"
@@ -147,14 +148,14 @@ export function Dashboards() {
                   disabled={i === current.widgets.length - 1}
                   onClick={() => move(i, 1)}
                 >
-                  Después →
+                  {t('Después →')}
                 </button>
               </div>
             )}
           </div>
         ))}
         {current.widgets.length === 0 && (
-          <p className="faint">Este dashboard está vacío. Pulsa Editar → + Widget.</p>
+          <p className="faint">{t('Este dashboard está vacío. Pulsa Editar → + Widget.')}</p>
         )}
       </div>
       {widget && (
@@ -175,8 +176,8 @@ export function Dashboards() {
       )}
       {naming && (
         <NameDialog
-          title="Nuevo dashboard"
-          label="Nombre del dashboard"
+          title={t('Nuevo dashboard')}
+          label={t('Nombre del dashboard')}
           onCancel={() => setNaming(false)}
           onSubmit={(name) => {
             const id = `d-${Date.now().toString(36)}`

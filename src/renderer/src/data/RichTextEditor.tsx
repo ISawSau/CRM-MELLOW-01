@@ -2,6 +2,7 @@ import { EditorContent, useEditor, useEditorState, type Editor } from '@tiptap/r
 import StarterKit from '@tiptap/starter-kit'
 import { useEffect, useRef, useState } from 'react'
 import type { RichText } from '@shared/data/fields'
+import { t } from '@shared/i18n'
 
 const SAVE_DELAY_MS = 700
 const SAFE_LINK = /^(https:\/\/|mailto:)/i
@@ -131,19 +132,19 @@ function Toolbar({ editor }: { editor: Editor }) {
     </button>
   )
   return (
-    <div className="rte-toolbar" role="toolbar" aria-label="Formato">
-      {btn('Negrita (Ctrl+B)', 'B', state.bold, () => chain().toggleBold().run())}
-      {btn('Cursiva (Ctrl+I)', 'I', state.italic, () => chain().toggleItalic().run())}
-      {btn('Tachado', 'S', state.strike, () => chain().toggleStrike().run())}
+    <div className="rte-toolbar" role="toolbar" aria-label={t('Formato')}>
+      {btn(t('Negrita (Ctrl+B)'), 'B', state.bold, () => chain().toggleBold().run())}
+      {btn(t('Cursiva (Ctrl+I)'), 'I', state.italic, () => chain().toggleItalic().run())}
+      {btn(t('Tachado'), 'S', state.strike, () => chain().toggleStrike().run())}
       <span className="rte-sep" />
-      {btn('Título', 'H2', state.h2, () => chain().toggleHeading({ level: 2 }).run())}
-      {btn('Subtítulo', 'H3', state.h3, () => chain().toggleHeading({ level: 3 }).run())}
-      {btn('Lista', '•', state.bullet, () => chain().toggleBulletList().run())}
-      {btn('Lista numerada', '1.', state.ordered, () => chain().toggleOrderedList().run())}
-      {btn('Cita', '❝', state.quote, () => chain().toggleBlockquote().run())}
-      {btn('Código', '</>', state.code, () => chain().toggleCode().run())}
+      {btn(t('Título'), 'H2', state.h2, () => chain().toggleHeading({ level: 2 }).run())}
+      {btn(t('Subtítulo'), 'H3', state.h3, () => chain().toggleHeading({ level: 3 }).run())}
+      {btn(t('Lista'), '•', state.bullet, () => chain().toggleBulletList().run())}
+      {btn(t('Lista numerada'), '1.', state.ordered, () => chain().toggleOrderedList().run())}
+      {btn(t('Cita'), '❝', state.quote, () => chain().toggleBlockquote().run())}
+      {btn(t('Código'), '</>', state.code, () => chain().toggleCode().run())}
       <span className="rte-sep" />
-      {btn('Enlace (https o mailto)', '🔗', state.link, () => {
+      {btn(t('Enlace (https o mailto)'), '🔗', state.link, () => {
         if (state.link) chain().unsetLink().run()
         else {
           setHref((editor.getAttributes('link')['href'] as string | undefined) ?? 'https://')
@@ -163,7 +164,7 @@ function Toolbar({ editor }: { editor: Editor }) {
             className="input"
             autoFocus
             value={href}
-            aria-label="Dirección del enlace"
+            aria-label={t('Dirección del enlace')}
             onChange={(e) => setHref(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === 'Escape') {
@@ -173,7 +174,7 @@ function Toolbar({ editor }: { editor: Editor }) {
             }}
           />
           <button type="submit" className="btn" disabled={!SAFE_LINK.test(href)}>
-            Enlazar
+            {t('Enlazar')}
           </button>
         </form>
       )}

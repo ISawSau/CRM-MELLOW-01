@@ -20,11 +20,16 @@ import {
 import type { FieldDef } from '@shared/data/fields'
 import type { RecordRow } from '@shared/data/records'
 import { currentLocale } from '@shared/format'
+import { t } from '@shared/i18n'
 import { useRecordActions } from '../actions'
 import { useTimeZone } from '../nav'
-import { DND_ACCESSIBILITY } from './dnd'
+import { dndAccessibility } from './dnd'
 
-const WEEKDAYS = ['lun', 'mar', 'mié', 'jue', 'vie', 'sáb', 'dom']
+/** Días de la semana abreviados en el idioma de la interfaz, de lunes (1/1/2024) a domingo. */
+const weekdays = () => {
+  const f = new Intl.DateTimeFormat(currentLocale(), { weekday: 'short', timeZone: 'UTC' })
+  return Array.from({ length: 7 }, (_, i) => f.format(new Date(Date.UTC(2024, 0, 1 + i))))
+}
 const MAX_PER_DAY = 4
 const monthName = () =>
   new Intl.DateTimeFormat(currentLocale(), { month: 'long', year: 'numeric', timeZone: 'UTC' })
@@ -100,7 +105,7 @@ function Day({
             setExpanded(true)
           }}
         >
-          +{rows.length - shown.length} más
+          {t('+{n} más', { n: rows.length - shown.length })}
         </button>
       )}
     </div>
@@ -130,7 +135,9 @@ export function CalendarView({
   if (!dateField || (dateField.type !== 'date' && dateField.type !== 'datetime')) {
     return (
       <div className="empty">
-        <p className="muted">Elige en «Campo de fecha» qué fecha se usa para el calendario.</p>
+        <p className="muted">
+          {t('Elige en «Campo de fecha» qué fecha se usa para el calendario.')}
+        </p>
       </div>
     )
   }
@@ -170,27 +177,27 @@ export function CalendarView({
             type="button"
             className="btn"
             onClick={() => setMonth(shiftMonth(month, -1))}
-            aria-label="Mes anterior"
+            aria-label={t('Mes anterior')}
           >
             ←
           </button>
           <button type="button" className="btn" onClick={() => setMonth(today.slice(0, 7))}>
-            Hoy
+            {t('Hoy')}
           </button>
           <button
             type="button"
             className="btn"
             onClick={() => setMonth(shiftMonth(month, 1))}
-            aria-label="Mes siguiente"
+            aria-label={t('Mes siguiente')}
           >
             →
           </button>
         </div>
-        {undated > 0 && <span className="faint">{undated} sin fecha</span>}
+        {undated > 0 && <span className="faint">{t('{n} sin fecha', { n: undated })}</span>}
       </div>
-      <DndContext sensors={sensors} onDragEnd={onDragEnd} accessibility={DND_ACCESSIBILITY}>
-        <div className="cal-grid" role="grid" aria-label="Calendario">
-          {WEEKDAYS.map((w) => (
+      <DndContext sensors={sensors} onDragEnd={onDragEnd} accessibility={dndAccessibility()}>
+        <div className="cal-grid" role="grid" aria-label={t('Calendario')}>
+          {weekdays().map((w) => (
             <div key={w} className="cal-weekday" role="columnheader">
               {w}
             </div>

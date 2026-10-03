@@ -1,5 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
+import { t } from '@shared/i18n'
 import { call, IpcCallError } from '../lib/ipc'
 import { Alert } from '../ui/Alert'
 import { useGmailStatus } from './gmail'
@@ -22,7 +23,7 @@ export function GmailSettings() {
         setOpen(false)
         void qc.invalidateQueries({ queryKey: ['data', 'gmail'] })
       })
-      .catch((e: unknown) => setError(e instanceof IpcCallError ? e.message : 'No se pudo.'))
+      .catch((e: unknown) => setError(e instanceof IpcCallError ? e.message : t('No se pudo.')))
       .finally(() => setBusy(false))
   }
   const ownClient = !s?.hasClient || clientId.trim() !== ''
@@ -32,8 +33,9 @@ export function GmailSettings() {
       <div>
         <h2>Gmail</h2>
         <p className="desc">
-          Muestra en la ficha de cada cliente y contacto los hilos de correo con sus direcciones.
-          Solo lectura: la app no envía, borra ni guarda correo.
+          {t(
+            'Muestra en la ficha de cada cliente y contacto los hilos de correo con sus direcciones. Solo lectura: la app no envía, borra ni guarda correo.',
+          )}
         </p>
       </div>
       <div className="settings-body settings-body-wide">
@@ -43,8 +45,8 @@ export function GmailSettings() {
             aria-hidden="true"
           />
           <span>
-            <strong>{s?.connected ? s.email || 'Gmail conectado' : 'Sin conectar'}</strong>
-            {s?.connected && <span className="muted"> · solo lectura</span>}
+            <strong>{s?.connected ? s.email || t('Gmail conectado') : t('Sin conectar')}</strong>
+            {s?.connected && <span className="muted"> · {t('solo lectura')}</span>}
           </span>
         </div>
         {s?.error && <Alert>{s.error}</Alert>}
@@ -57,11 +59,11 @@ export function GmailSettings() {
               disabled={busy}
               onClick={() => run(call('gmail:disconnect'))}
             >
-              Desconectar Gmail
+              {t('Desconectar Gmail')}
             </button>
           ) : (
             <button type="button" className="btn" onClick={() => setOpen((o) => !o)}>
-              Conectar Gmail…
+              {t('Conectar Gmail…')}
             </button>
           )}
         </div>
@@ -69,32 +71,43 @@ export function GmailSettings() {
           <div className="google-form">
             <ol className="steps">
               <li>
-                En tu proyecto de <strong>console.cloud.google.com</strong> (el mismo de Google
-                Drive, si lo usas), entra en <strong>APIs y servicios → Biblioteca</strong> y activa{' '}
+                {t('En tu proyecto de')} <strong>console.cloud.google.com</strong>{' '}
+                {t('(el mismo de Google Drive, si lo usas), entra en')}{' '}
+                <strong>{t('APIs y servicios → Biblioteca')}</strong> {t('y activa')}{' '}
                 <strong>Gmail API</strong>.
               </li>
               <li>
-                En <strong>Google Auth Platform → Data Access</strong> añade el permiso{' '}
-                <code>…/auth/gmail.readonly</code> (leer el correo).
+                {t('En')} <strong>Google Auth Platform → Data Access</strong>{' '}
+                {t('añade el permiso')} <code>…/auth/gmail.readonly</code> {t('(leer el correo).')}
               </li>
               <li>
-                En <strong>Audience</strong> la app debe estar publicada (en producción). Al
-                conectar, Google avisará de que la app no está verificada: es tu propia app, así que
-                pulsa <strong>Configuración avanzada → Ir a …</strong>. Para uso personal (menos de
-                100 usuarios) Google no exige verificarla, y publicada el acceso no caduca cada 7
-                días.
+                {t('En')} <strong>Audience</strong>{' '}
+                {t(
+                  'la app debe estar publicada (en producción). Al conectar, Google avisará de que la app no está verificada: es tu propia app, así que pulsa',
+                )}{' '}
+                <strong>{t('Configuración avanzada → Ir a …')}</strong>.{' '}
+                {t(
+                  'Para uso personal (menos de 100 usuarios) Google no exige verificarla, y publicada el acceso no caduca cada 7 días.',
+                )}
               </li>
               <li>
                 {s?.hasClient
-                  ? 'Se usará el mismo ID de cliente que Google Drive. Si prefieres otro, escríbelo abajo.'
-                  : 'Copia aquí el ID de cliente (tipo app de escritorio) y, si lo hay, el secreto.'}
+                  ? t(
+                      'Se usará el mismo ID de cliente que Google Drive. Si prefieres otro, escríbelo abajo.',
+                    )
+                  : t(
+                      'Copia aquí el ID de cliente (tipo app de escritorio) y, si lo hay, el secreto.',
+                    )}
               </li>
               <li>
-                Pulsa <strong>Conectar</strong>: se abrirá tu navegador para dar permiso.
+                {t('Pulsa')} <strong>{t('Conectar')}</strong>
+                {t(': se abrirá tu navegador para dar permiso.')}
               </li>
             </ol>
             <div className="field">
-              <label htmlFor="gm-id">ID de cliente{s?.hasClient ? ' (opcional)' : ''}</label>
+              <label htmlFor="gm-id">
+                {s?.hasClient ? t('ID de cliente (opcional)') : t('ID de cliente')}
+              </label>
               <input
                 id="gm-id"
                 className="input mono"
@@ -104,7 +117,7 @@ export function GmailSettings() {
               />
             </div>
             <div className="field">
-              <label htmlFor="gm-secret">Secreto de cliente</label>
+              <label htmlFor="gm-secret">{t('Secreto de cliente')}</label>
               <input
                 id="gm-secret"
                 className="input mono"
@@ -113,7 +126,7 @@ export function GmailSettings() {
                 value={clientSecret}
                 onChange={(e) => setClientSecret(e.target.value)}
               />
-              <p className="hint">Se guarda dentro de la base de datos cifrada de la bóveda.</p>
+              <p className="hint">{t('Se guarda dentro de la base de datos cifrada de la bóveda.')}</p>
             </div>
             <div className="form-actions">
               <button
@@ -122,7 +135,7 @@ export function GmailSettings() {
                 disabled={busy || (ownClient && clientId.trim().length < 10)}
                 onClick={() => run(call('gmail:connect', { clientId, clientSecret }))}
               >
-                {busy ? 'Esperando a Google…' : 'Conectar'}
+                {busy ? t('Esperando a Google…') : t('Conectar')}
               </button>
             </div>
           </div>

@@ -2,6 +2,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import type { Alert, AnalysisFilter } from '@shared/analysis'
 import { formatDateTime, formatNumber, parseNumberEs } from '@shared/format'
+import { t, tn } from '@shared/i18n'
 import { call, IpcCallError } from '../lib/ipc'
 import { useToast } from '../ui/Toast'
 import { isoToEs, useMetaStatus } from '../meta/meta'
@@ -56,20 +57,20 @@ function AlertDialog({
         aria-labelledby="alert-t"
         data-testid="alert-dialog"
       >
-        <h2 id="alert-t">{alert ? 'Editar alerta' : 'Nueva alerta'}</h2>
+        <h2 id="alert-t">{alert ? t('Editar alerta') : t('Nueva alerta')}</h2>
         <div className="field">
-          <label htmlFor="al-name">Nombre</label>
+          <label htmlFor="al-name">{t('Nombre')}</label>
           <input
             id="al-name"
             className="input"
             maxLength={80}
-            placeholder="CPA alto en Acme"
+            placeholder={t('CPA alto en Acme')}
             value={a.name}
             onChange={(e) => set({ name: e.target.value })}
           />
         </div>
         <div className="field">
-          <label htmlFor="al-scope">Datos de</label>
+          <label htmlFor="al-scope">{t('Datos de')}</label>
           <select
             id="al-scope"
             className="input"
@@ -86,15 +87,15 @@ function AlertDialog({
               })
             }}
           >
-            <option value="all">Todas las cuentas</option>
-            <optgroup label="Clientes">
+            <option value="all">{t('Todas las cuentas')}</option>
+            <optgroup label={t('Clientes')}>
               {(clients.data ?? []).map((c) => (
                 <option key={c.id} value={`client:${c.id}`}>
                   {c.title}
                 </option>
               ))}
             </optgroup>
-            <optgroup label="Cuentas">
+            <optgroup label={t('Cuentas')}>
               {accounts.map((x) => (
                 <option key={x.id} value={`account:${x.id}`}>
                   {x.name}
@@ -111,21 +112,21 @@ function AlertDialog({
             onChange={(metric) => set({ metric })}
           />
           <div className="field">
-            <label htmlFor="al-op">Avisar si es</label>
+            <label htmlFor="al-op">{t('Avisar si es')}</label>
             <select
               id="al-op"
               className="input"
               value={a.op}
               onChange={(e) => set({ op: e.target.value as Alert['op'] })}
             >
-              <option value="gt">mayor que</option>
-              <option value="lt">menor que</option>
+              <option value="gt">{t('mayor que')}</option>
+              <option value="lt">{t('menor que')}</option>
             </select>
           </div>
         </div>
         <div className="field-row">
           <div className="field">
-            <label htmlFor="al-threshold">Umbral</label>
+            <label htmlFor="al-threshold">{t('Umbral')}</label>
             <input
               id="al-threshold"
               className="input num"
@@ -133,11 +134,11 @@ function AlertDialog({
               onChange={(e) => setThreshold(e.target.value)}
             />
             {value === null && (
-              <p className="hint danger-text">Escribe un número, p. ej. 30 o 1,5.</p>
+              <p className="hint danger-text">{t('Escribe un número, p. ej. 30 o 1,5.')}</p>
             )}
           </div>
           <div className="field">
-            <label htmlFor="al-window">En los últimos</label>
+            <label htmlFor="al-window">{t('En los últimos')}</label>
             <select
               id="al-window"
               className="input"
@@ -146,16 +147,16 @@ function AlertDialog({
             >
               {[1, 2, 3, 5, 7, 14, 30].map((d) => (
                 <option key={d} value={d}>
-                  {d === 1 ? '1 día' : `${d} días`}
+                  {tn(d, '{n} día', '{n} días')}
                 </option>
               ))}
             </select>
-            <p className="hint">Días completos, sin contar hoy.</p>
+            <p className="hint">{t('Días completos, sin contar hoy.')}</p>
           </div>
         </div>
         <div className="form-actions">
           <button type="button" className="btn" onClick={onClose}>
-            Cancelar
+            {t('Cancelar')}
           </button>
           <button
             type="button"
@@ -163,7 +164,7 @@ function AlertDialog({
             disabled={!a.name.trim() || value === null}
             onClick={() => onSave({ ...a, name: a.name.trim(), threshold: value ?? 0 })}
           >
-            Guardar
+            {t('Guardar')}
           </button>
         </div>
       </div>
@@ -202,14 +203,15 @@ export function Alerts() {
         return qc.invalidateQueries({ queryKey: ['data', 'analysis'] })
       })
       .catch((e: unknown) =>
-        toast.show(e instanceof IpcCallError ? e.message : 'No se pudo guardar.', 'error'),
+        toast.show(e instanceof IpcCallError ? e.message : t('No se pudo guardar.'), 'error'),
       )
 
   return (
     <div className="meta-perf" data-testid="alerts">
       <p className="muted">
-        Las alertas se comprueban después de cada sincronización con Meta o LinkedIn y de cada
-        importación de CSV, y solo avisan dentro de la app: en la barra lateral, en Inicio y aquí.
+        {t(
+          'Las alertas se comprueban después de cada sincronización con Meta o LinkedIn y de cada importación de CSV, y solo avisan dentro de la app: en la barra lateral, en Inicio y aquí.',
+        )}
       </p>
       <ul className="alert-list" data-testid="alert-list">
         {list.map((a) => {
@@ -222,7 +224,7 @@ export function Alerts() {
                 <input
                   type="checkbox"
                   checked={a.enabled}
-                  aria-label={`Activar ${a.name}`}
+                  aria-label={t('Activar {name}', { name: a.name })}
                   onChange={(e) =>
                     save(list.map((x) => (x.id === a.id ? { ...x, enabled: e.target.checked } : x)))
                   }
@@ -231,22 +233,22 @@ export function Alerts() {
               </label>
               <span className="muted">
                 {d?.label ?? a.metric} {a.op === 'gt' ? '>' : '<'}{' '}
-                {formatMetric(a.threshold, d, currency)} · últimos {a.windowDays}{' '}
-                {a.windowDays === 1 ? 'día' : 'días'}
+                {formatMetric(a.threshold, d, currency)} ·{' '}
+                {tn(a.windowDays, 'últimos {n} día', 'últimos {n} días')}
               </span>
               <span className={hit ? 'danger-text num' : 'faint num'}>
-                ahora: {v === null ? '—' : formatMetric(v, d, currency)}
+                {t('ahora: {value}', { value: v === null ? '—' : formatMetric(v, d, currency) })}
               </span>
               <span className="form-actions">
                 <button type="button" className="btn" onClick={() => setEditing(a)}>
-                  Editar
+                  {t('Editar')}
                 </button>
                 <button
                   type="button"
                   className="btn btn-danger"
                   onClick={() => save(list.filter((x) => x.id !== a.id))}
                 >
-                  Borrar
+                  {t('Borrar')}
                 </button>
               </span>
             </li>
@@ -254,36 +256,43 @@ export function Alerts() {
         })}
         {list.length === 0 && (
           <li className="faint">
-            Aún no hay alertas. Ejemplo: «CPA mayor que 30 en los últimos 3 días».
+            {t('Aún no hay alertas. Ejemplo: «CPA mayor que 30 en los últimos 3 días».')}
           </li>
         )}
       </ul>
       <div className="form-actions">
         <button type="button" className="btn btn-primary" onClick={() => setEditing('new')}>
-          + Alerta
+          {t('+ Alerta')}
         </button>
       </div>
 
-      <h3 className="panel-subtitle">Avisos</h3>
+      <h3 className="panel-subtitle">{t('Avisos')}</h3>
       <ul className="event-list" data-testid="alert-events">
         {(events.data ?? []).map((e) => {
           const d = kit.defs.get(e.metric)
+          const vars = {
+            metric: d?.label ?? e.metric,
+            value: formatMetric(e.value, d, currency),
+            threshold: formatMetric(e.threshold, d, currency),
+          }
           return (
             <li key={e.id} data-seen={e.seen}>
               <span className="marker marker-error" aria-hidden="true" />
               <strong>{e.name}</strong>
               <span className="num">
-                {d?.label ?? e.metric}: {formatMetric(e.value, d, currency)} (
-                {e.op === 'gt' ? 'más de' : 'menos de'} {formatMetric(e.threshold, d, currency)})
+                {e.op === 'gt'
+                  ? t('{metric}: {value} (más de {threshold})', vars)
+                  : t('{metric}: {value} (menos de {threshold})', vars)}
               </span>
               <span className="faint num">
-                del {isoToEs(e.since)} al {isoToEs(e.until)} ·{' '}
+                {t('del {since} al {until}', { since: isoToEs(e.since), until: isoToEs(e.until) })}{' '}
+                ·{' '}
                 {formatDateTime(new Date(e.createdAt))}
               </span>
             </li>
           )
         })}
-        {events.data?.length === 0 && <li className="faint">Ningún aviso.</li>}
+        {events.data?.length === 0 && <li className="faint">{t('Ningún aviso.')}</li>}
       </ul>
 
       {editing && (

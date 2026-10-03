@@ -13,7 +13,8 @@ export function ClientAdAccounts({ clientId }: { clientId: string }) {
   })
   const other = (usePlatformAccounts().data ?? []).filter((a) => a.clientId === clientId)
   if (!q.data?.length && !other.length) return null
-  const since = (until: string | null) => (until ? t(' · datos hasta el {date}', { date: isoToEs(until) }) : '')
+  const since = (until: string | null) =>
+    until ? t(' · datos hasta el {date}', { date: isoToEs(until) }) : ''
   return (
     <section className="panel-rich" data-testid="client-ad-accounts">
       <h3 className="panel-subtitle">{t('Cuentas publicitarias')}</h3>

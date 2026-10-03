@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { rangeFor, RANGE_LABELS, type RangePreset } from '@shared/analysis'
 import type { ReportResult } from '@shared/reports'
+import { t } from '@shared/i18n'
 import { call, IpcCallError } from '../lib/ipc'
 import { useNav } from '../data/nav'
 import { useToday } from '../analysis/kit'
@@ -20,20 +21,20 @@ export function ReportsPage({ num }: { num: string }) {
     <div className="page page-wide" data-testid="page-informes">
       <div className="section-head">
         <span className="eyebrow">
-          <span className="num">{num}</span> negocio
+          <span className="num">{num}</span> {t('negocio')}
         </span>
-        <h1 className="title">Informes</h1>
+        <h1 className="title">{t('Informes')}</h1>
         <p className="muted">
-          Informes de resultados en PDF para tus clientes, a partir de las métricas de Meta,
-          LinkedIn y X. El PDF se guarda en los Documentos del cliente y puedes exportarlo para
-          enviarlo.
+          {t(
+            'Informes de resultados en PDF para tus clientes, a partir de las métricas de Meta, LinkedIn y X. El PDF se guarda en los Documentos del cliente y puedes exportarlo para enviarlo.',
+          )}
         </p>
       </div>
-      <div className="tabs" role="tablist" aria-label="Informes">
+      <div className="tabs" role="tablist" aria-label={t('Informes')}>
         {(
           [
-            ['generar', 'Generar'],
-            ['plantillas', 'Plantillas'],
+            ['generar', t('Generar')],
+            ['plantillas', t('Plantillas')],
           ] as const
         ).map(([id, label]) => (
           <button
@@ -71,7 +72,7 @@ function Generate() {
 
   const range = period === 'custom' ? custom : rangeFor(period, today)
   const rangeOk = range.since !== '' && range.until !== '' && range.since <= range.until
-  const template = templates.find((t) => t.id === templateId) ?? templates[0]
+  const template = templates.find((x) => x.id === templateId) ?? templates[0]
 
   const run = async () => {
     if (!template) return
@@ -91,7 +92,7 @@ function Generate() {
         }),
       )
     } catch (e) {
-      setError(e instanceof IpcCallError ? e.message : 'No se ha podido generar el informe.')
+      setError(e instanceof IpcCallError ? e.message : t('No se ha podido generar el informe.'))
     } finally {
       setBusy(false)
     }
@@ -107,29 +108,29 @@ function Generate() {
         }}
       >
         <div className="field">
-          <label htmlFor="rep-template">Plantilla</label>
+          <label htmlFor="rep-template">{t('Plantilla')}</label>
           <select
             id="rep-template"
             className="input"
             value={template?.id ?? ''}
             onChange={(e) => setTemplateId(e.target.value)}
           >
-            {templates.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.name}
+            {templates.map((x) => (
+              <option key={x.id} value={x.id}>
+                {t(x.name)}
               </option>
             ))}
           </select>
         </div>
         <div className="field">
-          <label htmlFor="rep-client">Cliente</label>
+          <label htmlFor="rep-client">{t('Cliente')}</label>
           <select
             id="rep-client"
             className="input"
             value={clientId}
             onChange={(e) => setClientId(e.target.value)}
           >
-            <option value="">Todas las cuentas</option>
+            <option value="">{t('Todas las cuentas')}</option>
             {clients.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.title}
@@ -138,7 +139,7 @@ function Generate() {
           </select>
         </div>
         <div className="field">
-          <label htmlFor="rep-period">Periodo</label>
+          <label htmlFor="rep-period">{t('Periodo')}</label>
           <select
             id="rep-period"
             className="input"
@@ -147,24 +148,24 @@ function Generate() {
           >
             {PERIODS.map((p) => (
               <option key={p} value={p}>
-                {RANGE_LABELS[p]}
+                {t(RANGE_LABELS[p])}
               </option>
             ))}
-            <option value="custom">Personalizado</option>
+            <option value="custom">{t('Personalizado')}</option>
           </select>
           {period === 'custom' ? (
             <span className="report-dates">
               <input
                 type="date"
                 className="input"
-                aria-label="Desde"
+                aria-label={t('Desde')}
                 value={custom.since}
                 onChange={(e) => setCustom({ ...custom, since: e.target.value })}
               />
               <input
                 type="date"
                 className="input"
-                aria-label="Hasta"
+                aria-label={t('Hasta')}
                 value={custom.until}
                 onChange={(e) => setCustom({ ...custom, until: e.target.value })}
               />
@@ -174,17 +175,17 @@ function Generate() {
               {isoToEs(range.since)} – {isoToEs(range.until)}
             </span>
           )}
-          {!rangeOk && <span className="hint danger-text">Revisa las fechas.</span>}
+          {!rangeOk && <span className="hint danger-text">{t('Revisa las fechas.')}</span>}
         </div>
         <div className="field">
-          <label htmlFor="rep-currency">Moneda</label>
+          <label htmlFor="rep-currency">{t('Moneda')}</label>
           <select
             id="rep-currency"
             className="input"
             value={currency}
             onChange={(e) => setCurrency(e.target.value)}
           >
-            <option value="">La del cliente</option>
+            <option value="">{t('La del cliente')}</option>
             {CURRENCIES.map((c) => (
               <option key={c} value={c}>
                 {c}
@@ -193,13 +194,13 @@ function Generate() {
           </select>
         </div>
         <div className="field">
-          <label htmlFor="rep-comments">Comentarios del periodo</label>
+          <label htmlFor="rep-comments">{t('Comentarios del periodo')}</label>
           <textarea
             id="rep-comments"
             className="input textarea"
             rows={6}
             maxLength={10_000}
-            placeholder="Qué ha pasado este mes, qué se ha probado y próximos pasos."
+            placeholder={t('Qué ha pasado este mes, qué se ha probado y próximos pasos.')}
             value={comments}
             onChange={(e) => setComments(e.target.value)}
           />
@@ -210,7 +211,7 @@ function Generate() {
             checked={exportToo}
             onChange={(e) => setExportToo(e.target.checked)}
           />
-          <span>Exportar también a una carpeta</span>
+          <span>{t('Exportar también a una carpeta')}</span>
         </label>
         <div className="form-actions">
           <button
@@ -218,7 +219,7 @@ function Generate() {
             className="btn btn-primary"
             disabled={busy || !template || !rangeOk}
           >
-            {busy ? 'Generando…' : 'Generar informe'}
+            {busy ? t('Generando…') : t('Generar informe')}
           </button>
         </div>
         {error && <p className="danger-text">{error}</p>}
@@ -229,8 +230,8 @@ function Generate() {
             <p className="report-saved">
               <span className="marker" aria-hidden="true" />
               <span>
-                <strong>{result.name}</strong> guardado en Documentos
-                {result.exportedTo ? ' y exportado' : ''}.
+                <strong>{result.name}</strong>{' '}
+                {result.exportedTo ? t('guardado en Documentos y exportado.') : t('guardado en Documentos.')}
               </span>
             </p>
             <div className="form-actions">
@@ -239,7 +240,7 @@ function Generate() {
                 className="btn"
                 onClick={() => nav.openRecord('documento', result.recordId)}
               >
-                Ver documento
+                {t('Ver documento')}
               </button>
               <button
                 type="button"
@@ -250,7 +251,7 @@ function Generate() {
                   )
                 }
               >
-                Exportar PDF…
+                {t('Exportar PDF…')}
               </button>
             </div>
             <PdfPreview key={result.recordId} data={result.data} />
@@ -258,8 +259,8 @@ function Generate() {
         ) : (
           <p className="muted report-empty">
             {busy
-              ? 'Preparando las cifras y las gráficas…'
-              : 'Elige cliente y periodo y genera el informe: aquí verás la vista previa.'}
+              ? t('Preparando las cifras y las gráficas…')
+              : t('Elige cliente y periodo y genera el informe: aquí verás la vista previa.')}
           </p>
         )}
       </div>

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { formatBytes } from '@shared/files'
 import { formatNumber } from '@shared/format'
+import { t, tn } from '@shared/i18n'
 import { convertImage, IMAGE_FORMATS, type ImageOptions } from './image'
 import {
   DestinationPicker,
@@ -49,7 +50,7 @@ export function ImageTool() {
         out[i] = {
           ...out[i]!,
           status: 'error',
-          message: errorMessage(e, 'No se ha podido leer la imagen.'),
+          message: errorMessage(e, t('No se ha podido leer la imagen.')),
         }
       }
       setRows([...out])
@@ -63,7 +64,7 @@ export function ImageTool() {
       <DropZone
         accept="image/jpeg,image/png,image/webp,image/gif,image/avif"
         multiple
-        hint="Arrastra aquí imágenes JPEG, PNG, WebP, GIF o AVIF."
+        hint={t('Arrastra aquí imágenes JPEG, PNG, WebP, GIF o AVIF.')}
         onFiles={(f) => {
           setFiles((prev) => [...prev, ...f])
           setRows([])
@@ -80,7 +81,7 @@ export function ImageTool() {
               <button
                 type="button"
                 className="icon-btn"
-                aria-label={`Quitar ${f.name}`}
+                aria-label={t('Quitar {name}', { name: f.name })}
                 onClick={() => setFiles(files.filter((_, j) => j !== i))}
               >
                 ×
@@ -91,14 +92,14 @@ export function ImageTool() {
       )}
       <div className="tool-options">
         <div className="field">
-          <label htmlFor="img-format">Formato</label>
+          <label htmlFor="img-format">{t('Formato')}</label>
           <select
             id="img-format"
             className="input"
             value={format}
             onChange={(e) => setFormat(e.target.value as ImageOptions['format'])}
           >
-            <option value="mismo">El mismo</option>
+            <option value="mismo">{t('El mismo')}</option>
             {Object.entries(IMAGE_FORMATS).map(([k, v]) => (
               <option key={k} value={k}>
                 {v.label}
@@ -107,7 +108,7 @@ export function ImageTool() {
           </select>
         </div>
         <div className="field">
-          <label htmlFor="img-quality">Calidad: {quality} %</label>
+          <label htmlFor="img-quality">{t('Calidad: {n} %', { n: quality })}</label>
           <input
             id="img-quality"
             type="range"
@@ -119,21 +120,21 @@ export function ImageTool() {
             onChange={(e) => setQuality(Number(e.target.value))}
           />
           <span className="hint">
-            {format === 'image/png' ? 'PNG no tiene pérdida.' : 'Solo JPEG y WebP.'}
+            {format === 'image/png' ? t('PNG no tiene pérdida.') : t('Solo JPEG y WebP.')}
           </span>
         </div>
         <div className="field">
-          <label htmlFor="img-width">Ancho máximo (px)</label>
+          <label htmlFor="img-width">{t('Ancho máximo (px)')}</label>
           <input
             id="img-width"
             className="input"
             inputMode="numeric"
-            placeholder="Sin cambiar"
+            placeholder={t('Sin cambiar')}
             value={maxWidth}
             onChange={(e) => setMaxWidth(e.target.value)}
             aria-invalid={!widthOk}
           />
-          {!widthOk && <span className="hint danger-text">Entre 16 y 20.000 píxeles.</span>}
+          {!widthOk && <span className="hint danger-text">{t('Entre 16 y 20.000 píxeles.')}</span>}
         </div>
       </div>
       <DestinationPicker value={dest} onChange={setDest} idPrefix="img" />
@@ -145,10 +146,10 @@ export function ImageTool() {
           onClick={() => void run()}
         >
           {busy
-            ? 'Procesando…'
+            ? t('Procesando…')
             : files.length > 1
-              ? `Procesar ${files.length} imágenes`
-              : 'Procesar imagen'}
+              ? tn(files.length, 'Procesar {n} imagen', 'Procesar {n} imágenes')
+              : t('Procesar imagen')}
         </button>
       </div>
       <ResultList rows={rows} />

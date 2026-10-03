@@ -110,7 +110,10 @@ function OptionsEditor({
                 </option>
               ))}
             </select>
-            <label className="check option-done" title={t('Cuenta como terminada (p. ej. «Hecha»)')}>
+            <label
+              className="check option-done"
+              title={t('Cuenta como terminada (p. ej. «Hecha»)')}
+            >
               <input
                 type="checkbox"
                 checked={o.done === true}
@@ -241,9 +244,7 @@ function FormulaEditor({
             </button>
           ))}
         </div>
-        <p className="hint">
-          {t('Funciones: {list}.', { list: FORMULA_FUNCTIONS.join(', ') })}
-        </p>
+        <p className="hint">{t('Funciones: {list}.', { list: FORMULA_FUNCTIONS.join(', ') })}</p>
       </div>
       <div className="field">
         <label htmlFor="formula-format">{t('Resultado')}</label>
@@ -438,7 +439,9 @@ export function FieldDialog({
         aria-labelledby="field-dialog-t"
         data-testid="field-dialog"
       >
-        <h2 id="field-dialog-t">{field ? t('Editar «{field}»', { field: field.label }) : t('Nuevo campo')}</h2>
+        <h2 id="field-dialog-t">
+          {field ? t('Editar «{field}»', { field: field.label }) : t('Nuevo campo')}
+        </h2>
         <form
           className="form"
           onSubmit={(e) => {
@@ -605,7 +608,9 @@ export function FieldDialog({
                 </>
               )}
               {!!config['inverseOf'] && (
-                <p className="hint">{t('Muestra desde este lado los vínculos de otra relación.')}</p>
+                <p className="hint">
+                  {t('Muestra desde este lado los vínculos de otra relación.')}
+                </p>
               )}
             </>
           )}

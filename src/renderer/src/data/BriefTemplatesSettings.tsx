@@ -183,7 +183,9 @@ function Editor({ initial }: { initial: BriefTemplate[] }) {
                   value={k.title}
                   onChange={(e) =>
                     update({
-                      tasks: tpl.tasks.map((x, j) => (j === i ? { ...x, title: e.target.value } : x)),
+                      tasks: tpl.tasks.map((x, j) =>
+                        j === i ? { ...x, title: e.target.value } : x,
+                      ),
                     })
                   }
                 />

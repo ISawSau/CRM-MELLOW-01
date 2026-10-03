@@ -1,6 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import type { EntityInfo } from '@shared/ipc'
+import { t } from '@shared/i18n'
 import { call, IpcCallError } from '../lib/ipc'
 import { Alert } from '../ui/Alert'
 import { useToast } from '../ui/Toast'
@@ -41,20 +42,29 @@ export function SectionSettings({ entity, onClose }: { entity: EntityInfo; onClo
       <div
         className="dialog dialog-wide section-settings"
         role="dialog"
-        aria-label={`Ajustes de ${entity.label}`}
+        aria-label={t('Ajustes de {label}', { label: entity.label })}
         data-testid="section-settings"
       >
         <div className="section-settings-head">
           <div>
-            <span className="eyebrow">ajustes de la sección</span>
+            <span className="eyebrow">{t('ajustes de la sección')}</span>
             <h2>{entity.label}</h2>
           </div>
-          <button type="button" className="icon-btn" aria-label="Cerrar ajustes" onClick={onClose}>
+          <button
+            type="button"
+            className="icon-btn"
+            aria-label={t('Cerrar ajustes')}
+            onClick={onClose}
+          >
             ×
           </button>
         </div>
         {tabs.length > 1 && (
-          <div className="tabs" role="tablist" aria-label={`Ajustes de ${entity.label}`}>
+          <div
+            className="tabs"
+            role="tablist"
+            aria-label={t('Ajustes de {label}', { label: entity.label })}
+          >
             {tabs.map(([id, label]) => (
               <button
                 key={id}
@@ -64,7 +74,7 @@ export function SectionSettings({ entity, onClose }: { entity: EntityInfo; onClo
                 onClick={() => setTab(id)}
                 data-testid={`section-tab-${id}`}
               >
-                {label}
+                {t(label)}
               </button>
             ))}
           </div>
@@ -73,9 +83,10 @@ export function SectionSettings({ entity, onClose }: { entity: EntityInfo; onClo
           {tab === 'campos' && (
             <>
               <p className="muted">
-                Los datos que se guardan de cada {singular}: añade los que necesites, cambia su
-                nombre o sus opciones, ordénalos u ocúltalos. Eliminar un campo no borra sus datos:
-                se puede restaurar.
+                {t(
+                  'Los datos que se guardan de cada {singular}: añade los que necesites, cambia su nombre o sus opciones, ordénalos u ocúltalos. Eliminar un campo no borra sus datos: se puede restaurar.',
+                  { singular },
+                )}
               </p>
               <FieldsEditor entity={entity.id} />
             </>
@@ -84,8 +95,9 @@ export function SectionSettings({ entity, onClose }: { entity: EntityInfo; onClo
           {tab === 'coleccion' && (
             <>
               <p className="muted">
-                Nombre de la colección en la barra lateral y en los botones. Para borrarla, ve a
-                Ajustes → Colecciones (tiene que estar vacía).
+                {t(
+                  'Nombre de la colección en la barra lateral y en los botones. Para borrarla, ve a Ajustes → Colecciones (tiene que estar vacía).',
+                )}
               </p>
               <CollectionForm
                 initial={{
@@ -94,7 +106,7 @@ export function SectionSettings({ entity, onClose }: { entity: EntityInfo; onClo
                   gender: entity.gender,
                   letter: entity.letter ?? '',
                 }}
-                submit="Guardar"
+                submit={t('Guardar')}
                 onSubmit={async (c) => {
                   setError(null)
                   try {
@@ -102,10 +114,10 @@ export function SectionSettings({ entity, onClose }: { entity: EntityInfo; onClo
                       ['data', 'entities'],
                       await call('data:updateCollection', { id: entity.id, ...c }),
                     )
-                    toast.show('Colección guardada.')
+                    toast.show(t('Colección guardada.'))
                     return true
                   } catch (e) {
-                    setError(e instanceof IpcCallError ? e.message : 'No se ha podido guardar.')
+                    setError(e instanceof IpcCallError ? e.message : t('No se ha podido guardar.'))
                     return false
                   }
                 }}

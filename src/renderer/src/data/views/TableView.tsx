@@ -1,6 +1,7 @@
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import type { RecordRow } from '@shared/data/records'
+import { t } from '@shared/i18n'
 import { useRecordActions } from '../actions'
 import type { Column } from '../columns'
 import { FieldEditor, isInlineEditable } from '../FieldEditor'
@@ -141,7 +142,7 @@ export function TableView({
             <input
               type="checkbox"
               className="checkbox"
-              aria-label="Seleccionar todo"
+              aria-label={t('Seleccionar todo')}
               checked={allSelected}
               onChange={() => onSelect(allSelected ? new Set() : new Set(rows.map((r) => r.id)))}
             />
@@ -157,7 +158,7 @@ export function TableView({
               <span
                 className="grid-resize"
                 role="separator"
-                aria-label={`Ancho de ${c.field.label}`}
+                aria-label={t('Ancho de {field}', { field: c.field.label })}
                 onPointerDown={(e) => startResize(c.field.id, widths[c.field.id] ?? c.width, e)}
               />
             </div>
@@ -180,7 +181,7 @@ export function TableView({
                   <input
                     type="checkbox"
                     className="checkbox"
-                    aria-label={`Seleccionar ${r.title}`}
+                    aria-label={t('Seleccionar {title}', { title: r.title })}
                     checked={selected.has(r.id)}
                     onChange={() => {
                       const next = new Set(selected)
@@ -242,7 +243,7 @@ export function TableView({
                               onOpen(r.id)
                             }}
                           >
-                            Abrir
+                            {t('Abrir')}
                           </button>
                         </span>
                       ) : (

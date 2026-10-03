@@ -1,5 +1,6 @@
 import { Fragment, useMemo, useState } from 'react'
 import { formatCurrency, formatDate, formatDateTime } from '@shared/format'
+import { t } from '@shared/i18n'
 import type { PerfLevel, TableResult, TableRow } from '@shared/meta'
 import {
   computeMetrics,
@@ -76,7 +77,9 @@ function ConfigCell({ k, row, currency }: { k: string; row: TableRow; currency: 
     case 'entrega':
       return row.effectiveStatus ? (
         <span className="chip" data-color={deliveryTone(row.effectiveStatus)}>
-          {DELIVERY_LABELS[row.effectiveStatus] ?? humanize(row.effectiveStatus)}
+          {DELIVERY_LABELS[row.effectiveStatus]
+            ? t(DELIVERY_LABELS[row.effectiveStatus]!)
+            : humanize(row.effectiveStatus)}
         </span>
       ) : (
         <span className="faint">—</span>
@@ -85,22 +88,30 @@ function ConfigCell({ k, row, currency }: { k: string; row: TableRow; currency: 
       return (
         <span className="faint num">
           {row.dailyBudget !== null
-            ? `${fmtMoney(row.dailyBudget)}/día`
+            ? t('{amount}/día', { amount: fmtMoney(row.dailyBudget) })
             : row.lifetimeBudget !== null
-              ? `${fmtMoney(row.lifetimeBudget)} total`
+              ? t('{amount} total', { amount: fmtMoney(row.lifetimeBudget) })
               : '—'}
         </span>
       )
     case 'puja':
       return (
         <span>
-          {row.bidStrategy ? (BID_LABELS[row.bidStrategy] ?? humanize(row.bidStrategy)) : '—'}
+          {row.bidStrategy
+            ? BID_LABELS[row.bidStrategy]
+              ? t(BID_LABELS[row.bidStrategy]!)
+              : humanize(row.bidStrategy)
+            : '—'}
         </span>
       )
     case 'objetivo':
       return (
         <span>
-          {row.objective ? (OBJECTIVE_LABELS[row.objective] ?? humanize(row.objective)) : '—'}
+          {row.objective
+            ? OBJECTIVE_LABELS[row.objective]
+              ? t(OBJECTIVE_LABELS[row.objective]!)
+              : humanize(row.objective)
+            : '—'}
         </span>
       )
     case 'atribucion':
@@ -111,7 +122,9 @@ function ConfigCell({ k, row, currency }: { k: string; row: TableRow; currency: 
       )
     case 'fin':
       return (
-        <span className="num">{row.endTime ? formatDate(new Date(row.endTime)) : 'Sin fecha'}</span>
+        <span className="num">
+          {row.endTime ? formatDate(new Date(row.endTime)) : t('Sin fecha')}
+        </span>
       )
     case 'ultima_edicion':
       return row.lastEdit ? (
@@ -119,12 +132,14 @@ function ConfigCell({ k, row, currency }: { k: string; row: TableRow; currency: 
           className="num"
           title={
             row.lastEditExact
-              ? 'Según el historial de actividad de la cuenta'
-              : 'Aproximada: última actualización del objeto (el historial de Meta solo guarda 7 días al conectar)'
+              ? t('Según el historial de actividad de la cuenta')
+              : t(
+                  'Aproximada: última actualización del objeto (el historial de Meta solo guarda 7 días al conectar)',
+                )
           }
         >
           {formatDateTime(new Date(row.lastEdit))}
-          {!row.lastEditExact && <span className="faint"> (aprox.)</span>}
+          {!row.lastEditExact && <span className="faint"> {t('(aprox.)')}</span>}
         </span>
       ) : (
         <span className="faint">—</span>
@@ -141,7 +156,7 @@ function ConfigCell({ k, row, currency }: { k: string; row: TableRow; currency: 
       const tone = rankingTone(r)
       return tone ? (
         <span className="chip" data-color={tone}>
-          {RANKING_LABELS[r!] ?? humanize(r!)}
+          {RANKING_LABELS[r!] ? t(RANKING_LABELS[r!]!) : humanize(r!)}
         </span>
       ) : (
         <span className="faint">—</span>
@@ -286,7 +301,7 @@ export function AdsTable({
       <table className="meta-table" data-testid="meta-table">
         <thead>
           <tr>
-            {header('nombre', LEVEL_NAMES[level], false)}
+            {header('nombre', t(LEVEL_NAMES[level]), false)}
             {cols.map((c) =>
               isConfigColumn(c) ? (
                 <th key={c}>{columnLabel(c, o.defs)}</th>
@@ -367,7 +382,7 @@ export function AdsTable({
           {rows.length === 0 && (
             <tr>
               <td colSpan={span} className="faint">
-                Sin datos en este periodo.
+                {t('Sin datos en este periodo.')}
               </td>
             </tr>
           )}
@@ -375,7 +390,7 @@ export function AdsTable({
         {rows.length > 0 && (
           <tfoot>
             <tr data-testid="meta-totals">
-              <td>Total ({rows.length})</td>
+              <td>{t('Total ({n})', { n: rows.length })}</td>
               {cols.map((c) =>
                 isConfigColumn(c) ? (
                   <td key={c} />

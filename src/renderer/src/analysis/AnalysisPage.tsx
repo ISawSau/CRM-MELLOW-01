@@ -1,5 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
+import { t } from '@shared/i18n'
 import { call, subscribe } from '../lib/ipc'
 import { useMetaStatus } from '../meta/meta'
 import { useHasAdData } from '../platforms/platforms'
@@ -36,34 +37,36 @@ export function AnalysisPage({ num, onMeta }: { num: string; onMeta: () => void 
     <div className="page page-wide" data-testid="page-analisis">
       <div className="section-head">
         <span className="eyebrow">
-          <span className="num">{num}</span> media buying
+          <span className="num">{num}</span> {t('media buying')}
         </span>
-        <h1 className="title">Análisis</h1>
+        <h1 className="title">{t('Análisis')}</h1>
         <p className="muted">
-          Dashboards, comparativas y alertas sobre las métricas de las cuentas activadas de Meta,
-          LinkedIn y X. Importes en {status?.settings.displayCurrency ?? 'EUR'}; fechas de cada
-          cuenta.
+          {t(
+            'Dashboards, comparativas y alertas sobre las métricas de las cuentas activadas de Meta, LinkedIn y X. Importes en {currency}; fechas de cada cuenta.',
+            { currency: status?.settings.displayCurrency ?? 'EUR' },
+          )}
         </p>
       </div>
       {hasData === false ? (
         <div className="empty">
-          <h2>Sin datos publicitarios</h2>
+          <h2>{t('Sin datos publicitarios')}</h2>
           <p className="muted">
-            Conecta Meta en Campañas o activa una cuenta de LinkedIn o X para ver dashboards y
-            alertas.
+            {t(
+              'Conecta Meta en Campañas o activa una cuenta de LinkedIn o X para ver dashboards y alertas.',
+            )}
           </p>
           <button type="button" className="btn btn-primary" onClick={onMeta}>
-            Ir a Campañas
+            {t('Ir a Campañas')}
           </button>
         </div>
       ) : (
         <>
-          <div className="tabs" role="tablist" aria-label="Análisis">
+          <div className="tabs" role="tablist" aria-label={t('Análisis')}>
             {(
               [
-                ['dashboards', 'Dashboards'],
-                ['comparar', 'Comparar'],
-                ['alertas', unseen > 0 ? `Alertas (${unseen})` : 'Alertas'],
+                ['dashboards', t('Dashboards')],
+                ['comparar', t('Comparar')],
+                ['alertas', unseen > 0 ? t('Alertas ({n})', { n: unseen }) : t('Alertas')],
               ] as const
             ).map(([id, label]) => (
               <button

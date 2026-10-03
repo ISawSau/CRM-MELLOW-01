@@ -11,7 +11,8 @@ import { MetaPerformance } from './MetaPerformance'
 import { MetaSettingsPanel } from './MetaSettings'
 import { useMetaStatus } from './meta'
 
-const errorText = (e: unknown) => (e instanceof IpcCallError ? e.message : t('No se pudo completar.'))
+const errorText = (e: unknown) =>
+  e instanceof IpcCallError ? e.message : t('No se pudo completar.')
 
 function ConnectForm() {
   const [token, setToken] = useState('')

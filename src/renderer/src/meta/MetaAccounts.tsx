@@ -14,7 +14,8 @@ import { call, IpcCallError } from '../lib/ipc'
 import { useToast } from '../ui/Toast'
 import { isoToEs, useMetaAccounts } from './meta'
 
-const errorText = (e: unknown) => (e instanceof IpcCallError ? e.message : t('No se pudo completar.'))
+const errorText = (e: unknown) =>
+  e instanceof IpcCallError ? e.message : t('No se pudo completar.')
 
 function useClients() {
   return useQuery({
@@ -136,9 +137,11 @@ function AccountRow({
           {[
             a.currency,
             a.timezone,
-            a.status !== null ? (ACCOUNT_STATUS_LABELS[a.status]
+            a.status !== null
+              ? ACCOUNT_STATUS_LABELS[a.status]
                 ? t(ACCOUNT_STATUS_LABELS[a.status]!)
-                : t('estado {status}', { status: a.status })) : null,
+                : t('estado {status}', { status: a.status })
+              : null,
             a.business,
           ]
             .filter(Boolean)
