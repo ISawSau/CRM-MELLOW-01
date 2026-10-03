@@ -1,3 +1,4 @@
+import { useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { SYNC_INTERVALS, type MetaSettings, type MetaStatus } from '@shared/meta'
 import { call, IpcCallError } from '../lib/ipc'
@@ -12,12 +13,22 @@ const INTERVAL_LABELS: Record<number, string> = {
 
 export function MetaSettingsPanel({ status }: { status: MetaStatus }) {
   const toast = useToast()
+  const qc = useQueryClient()
   const s = status.settings
   const [newCurrency, setNewCurrency] = useState('')
-  const save = (patch: Partial<MetaSettings>) =>
-    void call('meta:setSettings', { ...s, ...patch }).catch((e: unknown) =>
-      toast.show(e instanceof IpcCallError ? e.message : 'No se pudo guardar.', 'error'),
-    )
+  // Cada cambio parte de los ajustes más recientes (dos cambios seguidos no se pisan).
+  const save = (patch: Partial<MetaSettings>) => {
+    const key = ['data', 'meta', 'status']
+    const latest = qc.getQueryData<MetaStatus>(key) ?? status
+    const next = { ...latest.settings, ...patch }
+    qc.setQueryData<MetaStatus>(key, { ...latest, settings: next })
+    void call('meta:setSettings', next)
+      .then((st) => qc.setQueryData(key, st))
+      .catch((e: unknown) => {
+        void qc.invalidateQueries({ queryKey: key })
+        toast.show(e instanceof IpcCallError ? e.message : 'No se pudo guardar.', 'error')
+      })
+  }
   const code = newCurrency.trim().toUpperCase()
   return (
     <div className="meta-settings" data-testid="meta-settings">

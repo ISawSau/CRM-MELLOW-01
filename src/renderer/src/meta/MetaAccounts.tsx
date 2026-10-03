@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { ACCOUNT_STATUS_LABELS, type AdAccountInfo } from '@shared/meta'
 import { formatDateTime } from '@shared/format'
 import { call, IpcCallError } from '../lib/ipc'
@@ -113,6 +113,8 @@ export function MetaAccounts() {
   const accounts = useMetaAccounts()
   const clients = useClients()
   const [confirm, setConfirm] = useState(false)
+  // Solo se aplica la respuesta del último cambio (las anteriores llegarían viejas).
+  const seq = useRef(0)
   const set = (data: AdAccountInfo[]) => qc.setQueryData(['data', 'meta', 'accounts'], data)
   const list = accounts.data ?? []
   return (
@@ -128,11 +130,19 @@ export function MetaAccounts() {
             key={a.id}
             a={a}
             clients={(clients.data ?? []).map((c) => ({ id: c.id, title: c.title }))}
-            onUpdate={(patch) =>
+            onUpdate={(patch) => {
+              // Se ve al momento; si falla, se vuelve a leer la lista.
+              set(list.map((x) => (x.id === a.id ? { ...x, ...patch } : x)))
+              const n = ++seq.current
               void call('meta:updateAccount', { id: a.id, ...patch })
-                .then(set)
-                .catch((e: unknown) => toast.show(errorText(e), 'error'))
-            }
+                .then((data) => {
+                  if (n === seq.current) set(data)
+                })
+                .catch((e: unknown) => {
+                  void qc.invalidateQueries({ queryKey: ['data', 'meta', 'accounts'] })
+                  toast.show(errorText(e), 'error')
+                })
+            }}
           />
         ))}
         {list.length === 0 && (
