@@ -231,7 +231,9 @@ function Generate() {
               <span className="marker" aria-hidden="true" />
               <span>
                 <strong>{result.name}</strong>{' '}
-                {result.exportedTo ? t('guardado en Documentos y exportado.') : t('guardado en Documentos.')}
+                {result.exportedTo
+                  ? t('guardado en Documentos y exportado.')
+                  : t('guardado en Documentos.')}
               </span>
             </p>
             <div className="form-actions">

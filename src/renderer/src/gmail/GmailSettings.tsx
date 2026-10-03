@@ -126,7 +126,9 @@ export function GmailSettings() {
                 value={clientSecret}
                 onChange={(e) => setClientSecret(e.target.value)}
               />
-              <p className="hint">{t('Se guarda dentro de la base de datos cifrada de la bóveda.')}</p>
+              <p className="hint">
+                {t('Se guarda dentro de la base de datos cifrada de la bóveda.')}
+              </p>
             </div>
             <div className="form-actions">
               <button

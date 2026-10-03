@@ -113,7 +113,10 @@ export function TemplateEditor() {
             type="button"
             className="btn"
             onClick={() => {
-              setDraft([...list, { ...tpl, id: newId('p'), name: t('{name} (copia)', { name: tpl.name }) }])
+              setDraft([
+                ...list,
+                { ...tpl, id: newId('p'), name: t('{name} (copia)', { name: tpl.name }) },
+              ])
               setSelected(list.length)
             }}
           >
@@ -123,7 +126,10 @@ export function TemplateEditor() {
             type="button"
             className="btn"
             onClick={() => {
-              setDraft([...list, { ...DEFAULT_TEMPLATE, id: newId('p'), name: t('Nueva plantilla') }])
+              setDraft([
+                ...list,
+                { ...DEFAULT_TEMPLATE, id: newId('p'), name: t('Nueva plantilla') },
+              ])
               setSelected(list.length)
             }}
           >

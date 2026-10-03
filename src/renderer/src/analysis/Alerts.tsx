@@ -286,8 +286,7 @@ export function Alerts() {
               </span>
               <span className="faint num">
                 {t('del {since} al {until}', { since: isoToEs(e.since), until: isoToEs(e.until) })}{' '}
-                ·{' '}
-                {formatDateTime(new Date(e.createdAt))}
+                · {formatDateTime(new Date(e.createdAt))}
               </span>
             </li>
           )
