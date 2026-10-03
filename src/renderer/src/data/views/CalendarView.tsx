@@ -19,18 +19,15 @@ import {
 } from '@shared/data/dates'
 import type { FieldDef } from '@shared/data/fields'
 import type { RecordRow } from '@shared/data/records'
-import { LOCALE } from '@shared/format'
+import { currentLocale } from '@shared/format'
 import { useRecordActions } from '../actions'
 import { useTimeZone } from '../nav'
 import { DND_ACCESSIBILITY } from './dnd'
 
 const WEEKDAYS = ['lun', 'mar', 'mié', 'jue', 'vie', 'sáb', 'dom']
 const MAX_PER_DAY = 4
-const monthName = new Intl.DateTimeFormat(LOCALE, {
-  month: 'long',
-  year: 'numeric',
-  timeZone: 'UTC',
-})
+const monthName = () =>
+  new Intl.DateTimeFormat(currentLocale(), { month: 'long', year: 'numeric', timeZone: 'UTC' })
 
 function dayOf(field: FieldDef, v: unknown, tz: string): string | null {
   if (typeof v !== 'string') return null
@@ -167,7 +164,7 @@ export function CalendarView({
   return (
     <div className="calendar" data-testid="calendar">
       <div className="cal-head">
-        <h2 className="cal-title">{monthName.format(new Date(Date.UTC(y, m - 1, 1)))}</h2>
+        <h2 className="cal-title">{monthName().format(new Date(Date.UTC(y, m - 1, 1)))}</h2>
         <div className="form-actions">
           <button
             type="button"

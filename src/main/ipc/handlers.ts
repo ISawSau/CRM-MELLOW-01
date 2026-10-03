@@ -4,6 +4,7 @@ import { writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { AppError } from '@shared/errors'
 import { safeFileName } from '@shared/files'
+import { getLocale, setLocale } from '@shared/i18n'
 import type { AutoLock } from '../auto-lock'
 import type { ConfigStore } from '../config'
 import type { VaultService } from '../vault/vault-service'
@@ -176,6 +177,14 @@ export function createHandlers({
 
     'settings:setAppearance': (appearance) => vault.setAppearance(appearance),
     'settings:setThemes': ({ themes }) => vault.setThemes(themes),
+
+    // Idioma: se guarda en la configuración mínima (se elige antes de abrir la bóveda) y la
+    // interfaz se recarga; el proceso principal lo usa en sus mensajes al momento.
+    'app:locale': () => getLocale(),
+    'app:setLocale': ({ locale }) => {
+      config.setLocale(locale)
+      setLocale(locale)
+    },
 
     // Exportar un tema es una acción explícita: el archivo va donde elija el usuario.
     'settings:exportTheme': async ({ name, json }) => {

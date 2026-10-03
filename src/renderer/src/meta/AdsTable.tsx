@@ -1,5 +1,5 @@
 import { Fragment, useMemo, useState } from 'react'
-import { formatDate, formatDateTime } from '@shared/format'
+import { formatCurrency, formatDate, formatDateTime } from '@shared/format'
 import type { PerfLevel, TableResult, TableRow } from '@shared/meta'
 import {
   computeMetrics,
@@ -71,8 +71,7 @@ type Sort = { key: string; dir: 1 | -1 } | null
 
 function ConfigCell({ k, row, currency }: { k: string; row: TableRow; currency: string }) {
   const nav = useNav()
-  const fmtMoney = (v: number) =>
-    new Intl.NumberFormat('es-ES', { style: 'currency', currency }).format(v)
+  const fmtMoney = (v: number) => formatCurrency(v, currency)
   switch (k) {
     case 'entrega':
       return row.effectiveStatus ? (

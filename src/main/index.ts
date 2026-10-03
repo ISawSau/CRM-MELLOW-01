@@ -3,6 +3,7 @@ import { hostname } from 'node:os'
 import { join } from 'node:path'
 import { AutoLock } from './auto-lock'
 import { ConfigStore } from './config'
+import { getLocale, intlLocale, setLocale } from '@shared/i18n'
 import { createHandlers } from './ipc/handlers'
 import { registerDropHandler } from './ipc/tools-handlers'
 import { registerIpc } from './ipc/register'
@@ -41,10 +42,14 @@ if (refuseDebugSwitches()) {
   app.exit(1)
 }
 
-// Interfaz en español de España (formatos de Intl y controles nativos de fecha).
+// Idioma de la interfaz (español de España o inglés británico): formatos de Intl y
+// controles nativos de fecha. Se lee de la configuración mínima antes de arrancar Chromium.
 // En Linux Chromium ignora --lang y toma el idioma de las variables de entorno.
-if (process.platform === 'linux') process.env['LANGUAGE'] = 'es_ES:es'
-app.commandLine.appendSwitch('lang', 'es-ES')
+const config = new ConfigStore(app.getPath('userData'))
+setLocale(config.get().locale)
+if (process.platform === 'linux')
+  process.env['LANGUAGE'] = getLocale() === 'en' ? 'en_GB:en' : 'es_ES:es'
+app.commandLine.appendSwitch('lang', intlLocale())
 
 // Fuerza el sandbox de Chromium en todos los renderers.
 app.enableSandbox()
@@ -176,7 +181,6 @@ if (process.argv.includes('--autoprueba')) {
       devServerUrl ? new URL(devServerUrl).origin : APP_ORIGIN,
     )
 
-    const config = new ConfigStore(app.getPath('userData'))
     const last = config.get().lastVaultPath
     if (last && isVaultFolder(last)) {
       try {

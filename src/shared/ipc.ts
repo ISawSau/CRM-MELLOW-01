@@ -26,6 +26,7 @@ import {
 import { appearanceSchema, type Appearance } from './appearance'
 import { customThemesSchema, type Theme } from './themes'
 import { homeLayoutSchema, type HomeLayout } from './home'
+import { localeSchema, type Locale } from './i18n'
 import { collectionIdSchema, collectionInputSchema } from './data/collections'
 import { FIELD_TYPES, idSchema, type FieldDef, type FileRef } from './data/fields'
 import { profileSchema, type Profile } from './profile'
@@ -185,6 +186,8 @@ export interface AppInfo {
 export const ipcSchemas = {
   'app:info': z.void(),
   'app:activity': z.void(),
+  'app:locale': z.void(),
+  'app:setLocale': z.object({ locale: localeSchema }),
   'vault:status': z.void(),
   'vault:pickFolder': z.object({ purpose: z.enum(['create', 'open']) }),
   'vault:create': z.object({ parentPath: absolutePath, name: vaultNameSchema, password }),
@@ -405,6 +408,8 @@ export const ipcSchemas = {
 export interface IpcOutputs {
   'app:info': AppInfo
   'app:activity': void
+  'app:locale': Locale
+  'app:setLocale': void
   'vault:status': VaultStatus
   'vault:pickFolder': string | null
   'vault:create': { status: VaultStatus; recoveryKey: string }

@@ -1,6 +1,8 @@
 import type { ReactNode } from 'react'
 import { useAppInfo } from '../lib/hooks'
+import { t } from '@shared/i18n'
 import { BrandEye } from '../ui/BrandEye'
+import { LanguageSwitch } from '../ui/LanguageSwitch'
 
 /** Marco común de las pantallas previas al desbloqueo. */
 export function Gate({
@@ -20,13 +22,16 @@ export function Gate({
           <BrandEye />
           CRM Mellow
         </span>
-        <span>{step}</span>
+        <span className="gate-top-right">
+          <span>{step}</span>
+          <LanguageSwitch compact />
+        </span>
       </header>
       <main className="gate-body">
         <div className={`gate-inner${wide ? ' gate-inner-wide' : ''}`}>{children}</div>
       </main>
       <footer className="gate-foot">
-        Local y cifrado. Los datos solo viven en la carpeta de tu bóveda.
+        {t('Local y cifrado. Los datos solo viven en la carpeta de tu bóveda.')}
         {info.data && <span className="num"> · v{info.data.version}</span>}
       </footer>
     </div>

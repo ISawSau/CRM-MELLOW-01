@@ -12,6 +12,8 @@ import { Alert } from '../ui/Alert'
 import { PasswordField } from '../ui/PasswordField'
 import { newThemeFrom, ThemeEditor } from '../theme/ThemeEditor'
 import { ThemeShare } from '../theme/ThemeShare'
+import { LanguageSwitch } from '../ui/LanguageSwitch'
+import { t } from '@shared/i18n'
 
 const AUTO_LOCK_OPTIONS = [5, 10, 15, 30, 60, 120]
 
@@ -49,6 +51,13 @@ function Appearance({ status }: { status: VaultStatus }) {
       title="Apariencia"
       desc="Elige un tema o crea el tuyo: parte de uno existente y cambia colores, esquinas, fondo (imagen o vídeo) e iconos. Los temas se exportan e importan como archivo, y una IA te puede crear uno."
     >
+      <div className="field">
+        <label>{t('Idioma')}</label>
+        <LanguageSwitch />
+        <span className="hint">
+          {t('En inglés, los números y las fechas se escriben al estilo británico (1,234.56).')}
+        </span>
+      </div>
       <div className="field">
         <label>Tema</label>
         <div className="segmented segmented-wrap" role="group" aria-label="Tema">

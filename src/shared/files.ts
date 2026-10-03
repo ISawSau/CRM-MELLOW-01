@@ -1,3 +1,4 @@
+import { intlLocale } from './i18n'
 /** Utilidades de archivos compartidas por el proceso principal y la interfaz. */
 
 const MIME: Record<string, string> = {
@@ -53,7 +54,7 @@ export function formatBytes(n: number): string {
     v /= 1024
     i++
   }
-  return `${v.toLocaleString('es-ES', { maximumFractionDigits: v < 10 ? 1 : 0 })} ${units[i]}`
+  return `${v.toLocaleString(intlLocale(), { maximumFractionDigits: v < 10 ? 1 : 0 })} ${units[i]}`
 }
 
 /** Nombre de archivo seguro (sin rutas ni caracteres prohibidos en Windows). */
