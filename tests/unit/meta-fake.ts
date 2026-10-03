@@ -25,6 +25,15 @@ export interface FakeOptions {
   failReports?: boolean
   /** Cabecera de uso en cada respuesta (porcentaje). */
   usagePct?: number
+  /**
+   * Cuenta pesada: las peticiones síncronas de Insights de ese nivel con más días que los
+   * indicados responden «Please reduce the amount of data you're asking for».
+   */
+  maxSyncDays?: { level: string; days: number }
+  /** Las creatividades pedidas una a una devuelven siempre el error de límite (17). */
+  throttleCreatives?: boolean
+  /** Las peticiones síncronas de Insights de ese nivel fallan (los informes asíncronos no). */
+  failSyncLevel?: string
 }
 
 /** Métricas de un día para una entidad: dependen de la fecha y del id. */
@@ -333,8 +342,20 @@ export class FakeMeta {
     // Como la Graph API v26.0: «Root requests using GET /?ids=... return an error».
     if (path === '' || params.has('ids'))
       return this.error(400, 100, 'The ids query parameter is deprecated in v26.0+.')
+    // Listado de creatividades de la cuenta (por páginas, con el tamaño de miniatura).
+    if (path === `${this.account.id}/adcreatives`) {
+      if (params.get('thumbnail_width') !== '320') return this.error(400, 100, 'sin tamaño')
+      const fields = (params.get('fields') ?? 'id').split(',')
+      const all = Object.values(this.creatives).map((c) =>
+        Object.fromEntries(fields.filter((f) => f in c).map((f) => [f, c[f]])),
+      )
+      return json(this.page(path, all, params))
+    }
     // Una creatividad por su ruta (GET /{id}).
-    if (this.creatives[path]) {
+    if (this.creatives[path] || /^cr\d+$/.test(path)) {
+      if (this.opts.throttleCreatives)
+        return this.error(400, 17, 'User request limit reached', 2446079)
+      if (!this.creatives[path]) return this.error(400, 100, 'Unsupported get request.', 33)
       if (params.get('thumbnail_width') !== '320') return this.error(400, 100, 'sin tamaño')
       const fields = (params.get('fields') ?? 'id').split(',')
       const c = this.creatives[path]!
@@ -353,6 +374,16 @@ export class FakeMeta {
       const tr = JSON.parse(params.get('time_range')!) as { since: string; until: string }
       const level =
         params.get('level') ?? (node === 'c1' ? 'campaign' : node === 's1' ? 'adset' : 'account')
+      if (this.opts.failSyncLevel === level)
+        return this.error(500, 2, 'Service temporarily unavailable')
+      const max = this.opts.maxSyncDays
+      if (max && max.level === level && eachDay(tr.since, tr.until).length > max.days)
+        return this.error(
+          500,
+          1,
+          "Please reduce the amount of data you're asking for, then retry your request",
+          99,
+        )
       if (!params.get('time_increment'))
         return json(this.page(path, this.rangeRows(level, node, tr.since, tr.until), params))
       const bd = params.get('breakdowns')

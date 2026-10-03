@@ -44,8 +44,20 @@ export class GraphError extends Error {
     )
   }
 
+  /**
+   * Petición demasiado grande («Please reduce the amount of data you're asking for»):
+   * repetirla igual no sirve; hay que pedir menos días o un informe asíncrono.
+   */
+  get isTooMuchData(): boolean {
+    return (
+      (this.code === 1 && /reduce the amount of data/i.test(this.message)) ||
+      this.subcode === 1487534
+    )
+  }
+
   /** Error transitorio de Meta (tiempo agotado, intermitente, 5xx). */
   get isTransient(): boolean {
+    if (this.isTooMuchData) return false
     return (
       this.status >= 500 ||
       this.code === 1 ||
@@ -120,8 +132,15 @@ export interface GraphOptions {
   http?: FetchLike
   baseUrl?: string
   sleep?: (ms: number) => Promise<void>
-  /** Reintentos ante límites o errores transitorios. */
+  /** Reintentos ante errores transitorios. */
   retries?: number
+  /**
+   * Reintentos ante los límites de uso. Con el acceso de desarrollo Meta bloquea 5 minutos
+   * al llegar al tope (60 consultas cada 5 minutos), así que se espera en vez de rendirse.
+   */
+  throttleRetries?: number
+  /** Aviso de espera por los límites de Meta (ms; 0 al terminar la espera). */
+  onWait?: (ms: number) => void
   timeoutMs?: number
 }
 
@@ -181,10 +200,11 @@ export class GraphClient {
     body?: URLSearchParams,
   ): Promise<T> {
     const retries = this.opts.retries ?? 5
+    const throttleRetries = this.opts.throttleRetries ?? 12
+    let throttled = 0
     for (let attempt = 0; ; attempt++) {
       // Frenar antes de llegar al límite.
-      if (this.lastUsage.pct >= 95)
-        await this.sleep(Math.max(60, this.lastUsage.waitSeconds) * 1000)
+      if (this.lastUsage.pct >= 95) await this.wait(Math.max(60, this.lastUsage.waitSeconds) * 1000)
       else if (this.lastUsage.pct >= 75) await this.sleep(Math.round(this.lastUsage.pct * 100))
       let res: Response
       try {
@@ -213,14 +233,29 @@ export class GraphClient {
         err?.error_subcode ?? null,
         res.status,
       )
-      if ((e.isThrottle || e.isTransient) && attempt < retries) {
-        const wait = e.isThrottle
-          ? Math.max(backoff(attempt + 2), this.lastUsage.waitSeconds * 1000)
-          : backoff(attempt)
-        await this.sleep(wait)
+      if (e.isThrottle && throttled < throttleRetries) {
+        // Lo que pida Meta o, si no lo dice, espera exponencial (máximo 5 minutos).
+        await this.wait(
+          Math.max(backoff(Math.min(throttled + 2, 7)), this.lastUsage.waitSeconds * 1000),
+        )
+        throttled++
+        continue
+      }
+      if (e.isTransient && attempt < retries) {
+        await this.sleep(backoff(attempt))
         continue
       }
       throw e
+    }
+  }
+
+  /** Espera por los límites de Meta, avisando para que la interfaz lo muestre. */
+  private async wait(ms: number): Promise<void> {
+    this.opts.onWait?.(ms)
+    try {
+      await this.sleep(ms)
+    } finally {
+      this.opts.onWait?.(0)
     }
   }
 
@@ -237,6 +272,24 @@ export class GraphClient {
       onPage?.(out.length)
       const next = page.paging?.next
       if (!next || page.data.length === 0) return out
+      page = await this.request<Page<T>>('GET', this.checkNext(next))
+    }
+  }
+
+  /** El mismo cliente, con otro número de reintentos ante los límites de uso. */
+  withThrottleRetries(n: number): GraphClient {
+    const c = new GraphClient({ ...this.opts, throttleRetries: n })
+    c.lastUsage = this.lastUsage
+    return c
+  }
+
+  /** Recorre las páginas de un listado mientras `onPage` devuelva true. */
+  async eachPage<T>(path: string, params: Params, onPage: (items: T[]) => boolean): Promise<void> {
+    let page = await this.get<Page<T>>(path, params)
+    for (;;) {
+      if (!onPage(page.data)) return
+      const next = page.paging?.next
+      if (!next || page.data.length === 0) return
       page = await this.request<Page<T>>('GET', this.checkNext(next))
     }
   }

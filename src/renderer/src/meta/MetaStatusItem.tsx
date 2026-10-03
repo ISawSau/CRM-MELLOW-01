@@ -1,4 +1,5 @@
 import { useMetaStatus } from './meta'
+import { progressSummary } from './SyncProgress'
 
 /** Elemento de la barra de estado: progreso de la sincronización con Meta. */
 export function MetaStatusItem({ onOpen }: { onOpen: () => void }) {
@@ -9,9 +10,7 @@ export function MetaStatusItem({ onOpen }: { onOpen: () => void }) {
     s.phase === 'error'
       ? 'Meta: error'
       : s.progress
-        ? `Meta: ${s.progress.label.toLowerCase()}${
-            s.progress.total > 1 ? ` ${s.progress.done}/${s.progress.total}` : ''
-          }`
+        ? `Meta: sincronizando ${progressSummary(s.progress)}`
         : s.phase === 'syncing'
           ? 'Meta: sincronizando…'
           : 'Meta al día'
@@ -19,7 +18,7 @@ export function MetaStatusItem({ onOpen }: { onOpen: () => void }) {
     <button
       type="button"
       className="statusbar-item btn-link btn"
-      title={s.error ?? 'Abrir Campañas'}
+      title={s.error ?? s.progress?.label ?? 'Abrir Campañas'}
       onClick={onOpen}
       data-testid="meta-status"
     >

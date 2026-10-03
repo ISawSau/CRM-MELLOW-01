@@ -614,3 +614,25 @@ El usuario no quiere escribir comandos de desarrollo para usar la app. Los insta
   - Al borrarla desaparecen sus campos, sus vistas y lo que tenga en la papelera, con confirmación. También se vacía la pila de deshacer, cuyas acciones podrían referirse a ella.
   - Como no se pierde ningún registro activo, no hace falta copia de seguridad.
 - Como mucho hay 50 colecciones. La barra lateral las muestra en un grupo propio («04 colecciones»), y la búsqueda global y la paleta de comandos las incluyen.
+
+## Arreglos tras la v0.13.0
+
+### D-085 · Meta en cuentas grandes: primero las métricas, límites de desarrollo y progreso
+
+- **Fallo:** con una cuenta grande solo llegaban la estructura y los presupuestos, sin métricas. La app pedía las creatividades nuevas una a una **antes** de las métricas. La documentación oficial («Rate Limiting» de la Marketing API) da al acceso de desarrollo, que es el de una app sin App Review, una puntuación máxima de 60 cada 300 s, a 1 punto por lectura, con 300 s de bloqueo al llegar al tope. Con cientos de creatividades se llegaba al límite, se agotaban los reintentos y la cuenta fallaba antes de pedir Insights.
+- **Orden nuevo:**
+  1. Estructura: campañas, conjuntos y anuncios.
+  2. Métricas por cuenta, campaña, conjunto y anuncio, cada nivel de los días más recientes a los más antiguos.
+  3. Desgloses.
+  4. Creatividades, miniaturas y actividad.
+- **Creatividades:** con más de 15 nuevas se leen por páginas de 100 del listado `GET /act_{id}/adcreatives`, que la documentación da como forma de lectura, con `thumbnail_width` y `thumbnail_height`. Si quedan, se piden de una en una con un tope de 15 por sincronización. Si Meta limita, se espera como mucho una vez y el resto queda para la próxima sincronización: las creatividades nunca hacen fallar la cuenta.
+- **Límites:** ante un error de límite se espera lo que indica Meta en `estimated_time_to_regain_access`, o una espera exponencial de hasta 5 minutos, hasta 12 veces, en vez de rendirse a la quinta. La espera se ve en la interfaz.
+- **Demasiados datos:** el error «Please reduce the amount of data you're asking for» ya no se reintenta igual. El trozo se parte por la mitad hasta llegar a un día y, si ni así, se pide como informe asíncrono.
+- **Fallos parciales:** si un nivel o un desglose falla, se sigue con los demás y ese trozo pasa a la cola del histórico, que lo reintenta como informe asíncrono. La cuenta muestra un aviso («Faltan métricas por anuncio de algunos días…») hasta la siguiente sincronización.
+- **Progreso:** se calculan los pasos de la sincronización (estructura, cada nivel y trozo de días, cada desglose, creatividades y actividad) y los del histórico. La barra de Campañas muestra:
+  - el paso en curso;
+  - los pasos hechos y totales;
+  - el tiempo restante, estimado con el ritmo real, esperas incluidas;
+  - la cuenta atrás si Meta ha pedido esperar.
+  
+  La barra de estado muestra el porcentaje.
