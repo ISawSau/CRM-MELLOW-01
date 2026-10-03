@@ -11,6 +11,7 @@ type DataChannel = Extract<
   | `profile:${string}`
   | `tasks:${string}`
   | `briefs:${string}`
+  | `home:${string}`
   | `files:${string}`
   | `versions:${string}`
 >
@@ -96,6 +97,8 @@ export function createDataHandlers(
     'versions:create': ({ recordId, note }) => vault.data.createVersion(recordId, note),
     'versions:restore': ({ versionId }) => vault.data.restoreVersion(versionId),
     'tasks:summary': () => vault.data.taskSummary(),
+    'home:layout': () => vault.data.getHomeLayout(),
+    'home:setLayout': ({ layout }) => vault.data.setHomeLayout(layout),
     'briefs:templates': () => vault.data.getBriefTemplates(),
     'briefs:setTemplates': ({ templates }) => vault.data.setBriefTemplates(templates),
     'profile:get': () => vault.data.getProfile(),

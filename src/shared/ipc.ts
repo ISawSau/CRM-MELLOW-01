@@ -25,6 +25,7 @@ import {
 } from './reports'
 import { appearanceSchema, type Appearance } from './appearance'
 import { customThemesSchema, type Theme } from './themes'
+import { homeLayoutSchema, type HomeLayout } from './home'
 import { FIELD_TYPES, idSchema, type FieldDef, type FileRef } from './data/fields'
 import { profileSchema, type Profile } from './profile'
 import { briefTemplatesSchema, type BriefTemplate } from './data/brief-templates'
@@ -289,6 +290,8 @@ export const ipcSchemas = {
     keepMonthly: z.boolean(),
   }),
   'tasks:summary': z.void(),
+  'home:layout': z.void(),
+  'home:setLayout': z.object({ layout: homeLayoutSchema.nullable() }),
   'briefs:templates': z.void(),
   'briefs:setTemplates': z.object({ templates: briefTemplatesSchema }),
   'profile:get': z.void(),
@@ -434,6 +437,8 @@ export interface IpcOutputs {
   'backups:config': { intervalDays: number; keepLast: number; keepMonthly: boolean }
   'backups:setConfig': SyncStatus
   'tasks:summary': { today: number; overdue: number }
+  'home:layout': HomeLayout
+  'home:setLayout': HomeLayout
   'briefs:templates': BriefTemplate[]
   'briefs:setTemplates': BriefTemplate[]
   'profile:get': Profile

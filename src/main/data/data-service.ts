@@ -57,6 +57,7 @@ import {
 } from '@shared/data/views'
 import { DEFAULT_TIME_ZONE } from '@shared/format'
 import { mimeFromName, safeFileName } from '@shared/files'
+import { DEFAULT_HOME_LAYOUT, homeLayoutSchema, type HomeLayout } from '@shared/home'
 import { DEFAULT_PROFILE, profileSchema, type Profile } from '@shared/profile'
 import { AppError } from '@shared/errors'
 import type { FileInfo, VersionEntry } from '@shared/ipc'
@@ -125,6 +126,7 @@ const CHANGES_KEY = 'sync.changes'
 const TRASH_DAYS_KEY = 'data.trashDays'
 const PROFILE_KEY = 'profile'
 const BRIEF_TEMPLATES_KEY = 'briefs.templates'
+const HOME_LAYOUT_KEY = 'home.layout'
 export const DEFAULT_TRASH_DAYS = 30
 const CHUNK = 500
 
@@ -262,6 +264,19 @@ export class DataService {
     this.putSetting(BRIEF_TEMPLATES_KEY, briefTemplatesSchema.parse(templates))
     this.emit(null)
     return this.getBriefTemplates()
+  }
+
+  /** Tarjetas y widgets de Inicio (fase 12). */
+  getHomeLayout(): HomeLayout {
+    const r = homeLayoutSchema.safeParse(this.getSetting(HOME_LAYOUT_KEY))
+    return r.success ? r.data : DEFAULT_HOME_LAYOUT
+  }
+
+  setHomeLayout(layout: HomeLayout | null): HomeLayout {
+    if (layout === null) this.db.prepare('DELETE FROM settings WHERE key = ?').run(HOME_LAYOUT_KEY)
+    else this.putSetting(HOME_LAYOUT_KEY, homeLayoutSchema.parse(layout))
+    this.emit(null)
+    return this.getHomeLayout()
   }
 
   getProfile(): Profile {

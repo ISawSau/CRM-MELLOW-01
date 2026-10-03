@@ -81,6 +81,42 @@ test('borrar el tema en uso vuelve al oscuro', async () => {
   await expect.poll(() => cssVar('--accent')).toBe('#e0a47c')
 })
 
+test('Inicio configurable: quitar, reordenar, añadir un widget y restablecer', async () => {
+  await page.getByTestId('nav-inicio').click()
+  const home = page.getByTestId('page-inicio')
+  const cells = home.locator('.home-item-cell')
+  await expect(cells).toHaveCount(6)
+  await page.getByTestId('home-customize').click()
+  await home.getByRole('button', { name: 'Quitar Notas recientes y fijadas' }).click()
+  await expect(home.getByTestId('home-notes')).toHaveCount(0)
+  await expect(cells).toHaveCount(5)
+  // Alertas sube por encima de Tareas.
+  await expect(cells.last()).toContainText('Alertas')
+  await home.getByRole('button', { name: 'Subir Alertas' }).click()
+  await expect(cells.last()).toContainText('Tareas')
+  await home.getByRole('button', { name: '+ Widget de análisis' }).click()
+  const dlg = page.getByTestId('widget-dialog')
+  await dlg.getByLabel('Tipo').selectOption('line')
+  await dlg.getByLabel('Título (opcional)').fill('Gasto diario')
+  await dlg.getByRole('button', { name: 'Guardar' }).click()
+  await expect(cells).toHaveCount(6)
+  await expect(cells.last().getByTestId('widget')).toContainText('Gasto diario')
+  await page.getByTestId('home-customize').click()
+  await expect(page.getByTestId('home-editor')).toBeHidden()
+  if (shots) await page.screenshot({ path: join(shots, '81-inicio-personalizado.png') })
+
+  // Se guarda en la bóveda: sobrevive a cambiar de sección.
+  await page.getByTestId('nav-notas').click()
+  await page.getByTestId('nav-inicio').click()
+  await expect(cells).toHaveCount(6)
+  await expect(home.getByTestId('home-notes')).toHaveCount(0)
+  await page.getByTestId('home-customize').click()
+  await home.getByRole('button', { name: 'Restablecer Inicio' }).click()
+  await expect(home.getByTestId('home-notes')).toHaveCount(1)
+  await expect(home.getByTestId('widget')).toHaveCount(0)
+  await page.getByTestId('home-customize').click()
+})
+
 test('sin errores de consola ni de la CSP', () => {
   expect(errors).toEqual([])
 })

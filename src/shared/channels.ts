@@ -56,6 +56,8 @@ export const IPC_CHANNELS = [
   'backups:config',
   'backups:setConfig',
   'tasks:summary',
+  'home:layout',
+  'home:setLayout',
   'briefs:templates',
   'briefs:setTemplates',
   'profile:get',
