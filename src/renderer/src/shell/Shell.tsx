@@ -17,6 +17,7 @@ import { useActivityPing } from '../lib/hooks'
 import { ToastProvider, useToast } from '../ui/Toast'
 import { CommandPalette, type PaletteActions } from './CommandPalette'
 import { Home } from './Home'
+import { ProfilePage } from './ProfilePage'
 import { Upcoming } from './Pages'
 import { Settings } from './Settings'
 import { Sidebar } from './Sidebar'
@@ -156,6 +157,8 @@ function ShellInner({ status }: { status: VaultStatus }) {
             />
           ) : current.id === 'inicio' ? (
             <Home onNavigate={navigate} />
+          ) : current.id === 'perfil' ? (
+            <ProfilePage onNavigate={navigate} />
           ) : current.id === 'facturacion' ? (
             <BillingPage num="03" onNavigate={navigate} />
           ) : current.id === 'plataformas' ? (

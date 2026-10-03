@@ -196,6 +196,7 @@ Tabla genérica de vínculos (campo de relación, id de origen, id de destino, p
 
 - Pantalla de contraseña.
 - Perfil: nombre, foto, datos fiscales y de empresa, moneda y zona horaria por defecto.
+- *Arreglos tras la 0.13:* Perfil es una sección propia antes de Inicio, con Datos y Cuentas conectadas (Meta, sincronización, X, LinkedIn y Gmail) (D-087).
 - Inicio: visión general con gasto de hoy, 7 y 30 días, ROAS, alertas activas, tareas de hoy y atrasadas, estado de la última sincronización. En una fase posterior, widgets configurables.
 - *Fase 12:* Inicio configurable con «Personalizar»:
   - quitar, ordenar y volver a añadir las tarjetas (cifras clave, clientes por etapa, notas, gasto y ROAS, tareas y alertas);

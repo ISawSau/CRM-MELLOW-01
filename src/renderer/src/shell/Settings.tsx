@@ -8,10 +8,7 @@ import { BUILT_IN_THEMES, findTheme, type Theme } from '@shared/themes'
 import { BriefTemplatesSettings } from '../data/BriefTemplatesSettings'
 import { CollectionsSettings } from '../data/CollectionsSettings'
 import { DataSettings, FieldsSettings } from '../data/FieldsSettings'
-import { ProfileSettings } from './ProfileSettings'
 import { SyncSettings } from './SyncSettings'
-import { GmailSettings } from '../gmail/GmailSettings'
-import { LinkedInToggle } from '../platforms/LinkedInToggle'
 import { Alert } from '../ui/Alert'
 import { PasswordField } from '../ui/PasswordField'
 import { newThemeFrom, ThemeEditor } from '../theme/ThemeEditor'
@@ -280,15 +277,12 @@ export function Settings({ status }: { status: VaultStatus }) {
         <h1 className="title">Ajustes</h1>
       </div>
       <div>
-        <ProfileSettings />
         <Appearance status={status} />
         <CollectionsSettings />
         <FieldsSettings />
         <BriefTemplatesSettings />
         <DataSettings />
         <SyncSettings />
-        <GmailSettings />
-        <LinkedInToggle />
         <AutoLock status={status} />
         <ChangePassword />
         <RotateKey />

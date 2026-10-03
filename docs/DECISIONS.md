@@ -641,3 +641,10 @@ El usuario no quiere escribir comandos de desarrollo para usar la app. Los insta
 
 - Petición del usuario: LinkedIn sobra en el día a día. Pasa a ser una integración opcional en Ajustes → Integraciones opcionales, **desactivada de serie** (`linkedin.enabled`).
 - Desactivada, la sección se llama «X Ads»: solo importa CSV de X y no tiene pestaña de API. LinkedIn no se sincroniza ni se puede conectar. Los datos y la conexión que ya hubiera se conservan, y al reactivarla vuelve todo.
+
+### D-087 · Sección Perfil antes de Inicio
+
+- Petición del usuario: lo propio va en una sección **Perfil**, la primera de la barra lateral, y no en Ajustes. Tiene dos pestañas:
+  - **Datos:** los datos personales, fiscales y de empresa, la moneda y la zona horaria.
+  - **Cuentas conectadas:** el estado de Meta, la sincronización y copias, X y LinkedIn, con un botón a donde se gestiona cada uno. También la conexión de Gmail y las integraciones opcionales.
+- Ajustes se queda con lo que es de la app y de la bóveda: apariencia, colecciones, campos, papelera, sincronización, seguridad y bóveda.

@@ -32,13 +32,16 @@ test.describe.configure({ mode: 'serial' })
 const panel = () => page.getByTestId('record-panel')
 
 test('perfil: nombre y zona horaria', async () => {
-  await page.getByTestId('nav-ajustes').click()
+  await page.getByTestId('nav-perfil').click()
   const form = page.getByTestId('profile-form')
   await form.getByLabel('Tu nombre').fill('Joan Mellow')
   await form.getByLabel('NIF / CIF').fill('B12345678')
   await expect(form.getByLabel('Zona horaria')).toHaveValue('Europe/Madrid')
   await form.getByRole('button', { name: 'Guardar perfil' }).click()
   await expect(page.getByTestId('toast')).toContainText('Perfil guardado')
+  await expect(page.getByTestId('page-perfil').getByRole('heading', { level: 1 })).toHaveText(
+    'Joan Mellow',
+  )
   await shot('10-perfil')
 })
 

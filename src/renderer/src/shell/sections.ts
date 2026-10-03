@@ -20,6 +20,7 @@ export const SECTION_GROUPS: SectionGroup[] = [
     num: '01',
     title: 'trabajo',
     sections: [
+      { id: 'perfil', label: 'Perfil', letter: 'Y', phase: null, summary: '' },
       { id: 'inicio', label: 'Inicio', letter: 'I', phase: null, summary: '' },
       { id: 'notas', label: 'Notas', letter: 'O', phase: null, summary: '', entity: 'nota' },
       {
