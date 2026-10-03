@@ -104,6 +104,7 @@ export interface AdAccountInfo {
   history: { done: number; total: number; failed: number } | null
   lastSyncAt: string | null
   lastError: string | null
+  breakdowns: BreakdownConfig
 }
 
 export const accountUpdateSchema = z.object({
@@ -116,83 +117,6 @@ export const PERF_LEVELS = ['campaign', 'adset', 'ad'] as const
 export type PerfLevel = (typeof PERF_LEVELS)[number]
 
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
-
-export const perfQuerySchema = z.object({
-  accountId: z.string().regex(/^act_\d{1,30}$/),
-  level: z.enum(PERF_LEVELS),
-  /** Solo los hijos de esta campaña o conjunto. */
-  parentId: z.string().max(40).nullable().default(null),
-  since: isoDate,
-  until: isoDate,
-})
-export type PerfQuery = z.input<typeof perfQuerySchema>
-
-/** Métricas sumables de un periodo, ya convertidas a la moneda de visualización. */
-export interface PerfMetrics {
-  spend: number
-  impressions: number
-  clicks: number
-  linkClicks: number
-  purchases: number
-  purchaseValue: number
-  addToCart: number
-  initiateCheckout: number
-  video3s: number
-  thruplays: number
-}
-
-export interface PerfRow extends PerfMetrics {
-  id: string
-  name: string
-  status: string | null
-  effectiveStatus: string | null
-  /** Campaña (objetivo) o conjunto (objetivo de optimización). */
-  objective: string | null
-  dailyBudget: number | null
-  lifetimeBudget: number | null
-  thumbFileId: string | null
-}
-
-export interface PerfResult {
-  currency: string
-  /** Moneda de la cuenta (la de origen de los importes). */
-  accountCurrency: string
-  /** No hay tipo de cambio para convertir: se muestra en la moneda de la cuenta. */
-  unconverted: boolean
-  rows: PerfRow[]
-  totals: PerfMetrics
-  /** Totales del periodo anterior de la misma duración (para comparar). */
-  previous: PerfMetrics
-}
-
-export function emptyMetrics(): PerfMetrics {
-  return {
-    spend: 0,
-    impressions: 0,
-    clicks: 0,
-    linkClicks: 0,
-    purchases: 0,
-    purchaseValue: 0,
-    addToCart: 0,
-    initiateCheckout: 0,
-    video3s: 0,
-    thruplays: 0,
-  }
-}
-
-/** Métricas derivadas (null si el denominador es 0). */
-export function derived(m: PerfMetrics) {
-  const div = (a: number, b: number) => (b > 0 ? a / b : null)
-  return {
-    cpm: div(m.spend * 1000, m.impressions),
-    cpc: div(m.spend, m.linkClicks),
-    linkCtr: div(m.linkClicks * 100, m.impressions),
-    roas: div(m.purchaseValue, m.spend),
-    aov: div(m.purchaseValue, m.purchases),
-    cpa: div(m.spend, m.purchases),
-    hookRate: div(m.video3s * 100, m.impressions),
-  }
-}
 
 /**
  * Tipos de acción de Meta para cada métrica, por orden de preferencia: si la fila trae
@@ -225,4 +149,148 @@ const ZERO_DECIMAL = new Set([
 ])
 export function currencyOffset(currency: string): number {
   return ZERO_DECIMAL.has(currency) ? 1 : 100
+}
+
+// --- Tabla tipo Ads Manager (fase 7) -------------------------------------------------
+
+/** Desgloses que se pueden activar (combinaciones admitidas por la documentación). */
+export const BREAKDOWNS = {
+  edad: { api: ['age'], label: 'Edad' },
+  sexo: { api: ['gender'], label: 'Sexo' },
+  pais: { api: ['country'], label: 'País' },
+  plataforma: { api: ['publisher_platform'], label: 'Plataforma' },
+  ubicacion: { api: ['publisher_platform', 'platform_position'], label: 'Ubicación' },
+  dispositivo: { api: ['impression_device'], label: 'Dispositivo' },
+} as const
+export type BreakdownKey = keyof typeof BREAKDOWNS
+export const BREAKDOWN_KEYS = Object.keys(BREAKDOWNS) as BreakdownKey[]
+export const breakdownKeySchema = z.enum(BREAKDOWN_KEYS as [BreakdownKey, ...BreakdownKey[]])
+
+export const breakdownConfigSchema = z
+  .object({
+    campaign: z.array(breakdownKeySchema).max(6).default([]),
+    adset: z.array(breakdownKeySchema).max(6).default([]),
+    ad: z.array(breakdownKeySchema).max(6).default([]),
+  })
+  .default({ campaign: [], adset: [], ad: [] })
+export type BreakdownConfig = z.infer<typeof breakdownConfigSchema>
+
+export const tableQuerySchema = z.object({
+  accountId: z.string().regex(/^act_\d{1,30}$/),
+  level: z.enum(PERF_LEVELS),
+  parentId: z.string().max(40).nullable().default(null),
+  since: isoDate,
+  until: isoDate,
+  /** Métricas del periodo anterior por fila (para comparar). */
+  compare: z.boolean().default(false),
+  breakdown: breakdownKeySchema.nullable().default(null),
+})
+export type TableQuery = z.input<typeof tableQuerySchema>
+
+/** Sumas por clave de métrica (`gasto`, `compras`, `acc_…`, `val_…`). */
+export type BaseSums = Record<string, number>
+
+export interface RangeStats {
+  alcance: number | null
+  frecuencia: number | null
+  clics_enlace_unicos: number | null
+  ctr_enlace_unico: number | null
+}
+
+export interface TableRow {
+  id: string
+  name: string
+  status: string | null
+  effectiveStatus: string | null
+  objective: string | null
+  bidStrategy: string | null
+  dailyBudget: number | null
+  lifetimeBudget: number | null
+  startTime: string | null
+  endTime: string | null
+  /** Última edición significativa (historial de actividad) o última actualización. */
+  lastEdit: string | null
+  lastEditExact: boolean
+  attribution: string | null
+  rankings: { quality: string | null; engagement: string | null; conversion: string | null }
+  thumbFileId: string | null
+  creatives: { id: string; title: string }[]
+  base: BaseSums
+  range: RangeStats | null
+  previous: BaseSums | null
+  breakdown: { value: string; base: BaseSums }[] | null
+}
+
+export interface TableResult {
+  currency: string
+  accountCurrency: string
+  unconverted: boolean
+  rows: TableRow[]
+  totals: BaseSums
+  totalsRange: RangeStats | null
+  previous: BaseSums
+  /** Faltan alcance y frecuencia de este periodo (se pueden pedir a Meta). */
+  rangeMissing: boolean
+  /** Desgloses activados para esta cuenta y nivel. */
+  breakdowns: BreakdownKey[]
+}
+
+export const rangeFetchSchema = z.object({
+  accountId: z.string().regex(/^act_\d{1,30}$/),
+  level: z.enum(PERF_LEVELS),
+  parentId: z.string().max(40).nullable().default(null),
+  since: isoDate,
+  until: isoDate,
+})
+
+export interface AdSearchHit {
+  id: string
+  name: string
+  accountId: string
+  accountName: string
+  campaignName: string | null
+  thumbFileId: string | null
+  effectiveStatus: string | null
+}
+
+export interface CreativeLinkInfo extends AdSearchHit {
+  source: 'manual' | 'auto'
+}
+
+export const creativePerfSchema = z.object({
+  recordId: z.string().min(1).max(64),
+  since: isoDate,
+  until: isoDate,
+})
+
+export const tagPerfSchema = z.object({
+  fieldId: z.string().min(1).max(64),
+  since: isoDate,
+  until: isoDate,
+  clientId: z.string().min(1).max(64).nullable().default(null),
+})
+
+export interface GroupPerf {
+  id: string
+  label: string
+  color: string | null
+  /** Creatividades del grupo con algún anuncio vinculado. */
+  creatives: number
+  ads: number
+  base: BaseSums
+}
+
+export interface CreativePerfResult {
+  currency: string
+  /** Hay importes que no se han podido convertir y se han dejado fuera. */
+  partial: boolean
+  base: BaseSums
+  ads: number
+}
+
+export interface TagPerfResult {
+  currency: string
+  partial: boolean
+  groups: GroupPerf[]
+  creatives: GroupPerf[]
 }
