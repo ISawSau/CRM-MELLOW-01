@@ -1,6 +1,13 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useRef, useState } from 'react'
-import { ACCOUNT_STATUS_LABELS, type AdAccountInfo } from '@shared/meta'
+import {
+  ACCOUNT_STATUS_LABELS,
+  BREAKDOWN_KEYS,
+  BREAKDOWNS,
+  PERF_LEVELS,
+  type AdAccountInfo,
+  type BreakdownConfig,
+} from '@shared/meta'
 import { formatDateTime } from '@shared/format'
 import { call, IpcCallError } from '../lib/ipc'
 import { useToast } from '../ui/Toast'
@@ -13,6 +20,83 @@ function useClients() {
     queryKey: ['data', 'meta', 'clients'],
     queryFn: () => call('data:query', { entity: 'cliente' }),
   })
+}
+
+const LEVEL_LABELS = { campaign: 'Campañas', adset: 'Conjuntos', ad: 'Anuncios' } as const
+
+/** Desgloses por nivel: cada uno multiplica el volumen y el tiempo de sincronización. */
+function Breakdowns({ a }: { a: AdAccountInfo }) {
+  const qc = useQueryClient()
+  const toast = useToast()
+  const [cfg, setCfg] = useState<BreakdownConfig>(a.breakdowns)
+  const [open, setOpen] = useState(false)
+  const active = PERF_LEVELS.reduce((n, l) => n + a.breakdowns[l].length, 0)
+  const changed = JSON.stringify(cfg) !== JSON.stringify(a.breakdowns)
+  return (
+    <details
+      className="breakdowns"
+      open={open}
+      onToggle={(e) => setOpen((e.target as HTMLDetailsElement).open)}
+    >
+      <summary>Desgloses{active ? ` (${active})` : ''}</summary>
+      <p className="hint">
+        Edad, sexo, país, plataforma, ubicación o dispositivo. Cada desglose multiplica el volumen
+        de datos y el tiempo de sincronización: actívalos solo donde los vayas a mirar. Al
+        activarlos se descargan también para todo el histórico.
+      </p>
+      <table className="breakdown-grid">
+        <thead>
+          <tr>
+            <th />
+            {BREAKDOWN_KEYS.map((b) => (
+              <th key={b}>{BREAKDOWNS[b].label}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {PERF_LEVELS.map((level) => (
+            <tr key={level}>
+              <th scope="row">{LEVEL_LABELS[level]}</th>
+              {BREAKDOWN_KEYS.map((b) => (
+                <td key={b}>
+                  <input
+                    type="checkbox"
+                    aria-label={`${BREAKDOWNS[b].label} en ${LEVEL_LABELS[level].toLowerCase()}`}
+                    checked={cfg[level].includes(b)}
+                    onChange={(e) =>
+                      setCfg({
+                        ...cfg,
+                        [level]: e.target.checked
+                          ? [...cfg[level], b]
+                          : cfg[level].filter((x) => x !== b),
+                      })
+                    }
+                  />
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <div className="form-actions">
+        <button
+          type="button"
+          className="btn"
+          disabled={!changed}
+          onClick={() =>
+            void call('meta:setBreakdowns', { id: a.id, config: cfg })
+              .then((list) => {
+                qc.setQueryData(['data', 'meta', 'accounts'], list)
+                toast.show('Desgloses guardados.')
+              })
+              .catch((e: unknown) => toast.show(errorText(e), 'error'))
+          }
+        >
+          Guardar desgloses
+        </button>
+      </div>
+    </details>
+  )
 }
 
 function AccountRow({
@@ -101,6 +185,7 @@ function AccountRow({
             </button>
           )}
           {a.lastError && <span className="danger-text">{a.lastError}</span>}
+          <Breakdowns a={a} />
         </div>
       )}
     </li>
@@ -132,6 +217,8 @@ export function MetaAccounts() {
             clients={(clients.data ?? []).map((c) => ({ id: c.id, title: c.title }))}
             onUpdate={(patch) => {
               // Se ve al momento; si falla, se vuelve a leer la lista.
+              // Una recarga en curso traería la lista de antes de este cambio.
+              void qc.cancelQueries({ queryKey: ['data', 'meta', 'accounts'] })
               set(list.map((x) => (x.id === a.id ? { ...x, ...patch } : x)))
               const n = ++seq.current
               void call('meta:updateAccount', { id: a.id, ...patch })

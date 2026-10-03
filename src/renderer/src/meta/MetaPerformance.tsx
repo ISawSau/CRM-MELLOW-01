@@ -1,27 +1,34 @@
-import { useQuery } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { todayIn } from '@shared/data/dates'
-import { formatCurrency, formatNumber, formatPercent } from '@shared/format'
 import {
-  derived,
+  BREAKDOWNS,
   type AdAccountInfo,
+  type BreakdownKey,
   type PerfLevel,
-  type PerfMetrics,
-  type PerfResult,
-  type PerfRow,
+  type TableResult,
 } from '@shared/meta'
-import { call } from '../lib/ipc'
-import { Alert } from '../ui/Alert'
-import { fileUrl } from '../data/files'
 import {
-  DELIVERY_LABELS,
-  deliveryTone,
-  isoToEs,
-  RANGE_LABELS,
-  rangeFor,
-  useMetaAccounts,
-  type RangePreset,
-} from './meta'
+  BUILT_IN_PRESETS,
+  computeMetrics,
+  DEFAULT_HOLD_RATE,
+  RANGE_KEYS,
+  type ColumnPreset,
+  type MetricValues,
+} from '@shared/meta-metrics'
+import { call, IpcCallError } from '../lib/ipc'
+import { Alert } from '../ui/Alert'
+import { AdsTable, type TableOptions } from './AdsTable'
+import { ColumnsDialog } from './ColumnsDialog'
+import { isoToEs, RANGE_LABELS, rangeFor, useMetaAccounts, type RangePreset } from './meta'
+import {
+  delta,
+  formatMetric,
+  metricDefs,
+  useActionTypes,
+  useSaveTableSettings,
+  useTableSettings,
+} from './metrics'
 
 interface Crumb {
   level: PerfLevel
@@ -29,205 +36,34 @@ interface Crumb {
   label: string
 }
 
-const LEVEL_NAMES: Record<PerfLevel, string> = {
-  campaign: 'Campaña',
-  adset: 'Conjunto de anuncios',
-  ad: 'Anuncio',
-}
 const NEXT: Partial<Record<PerfLevel, PerfLevel>> = { campaign: 'adset', adset: 'ad' }
+const KPI_KEYS = ['gasto', 'compras', 'valor_compras', 'roas', 'cpa', 'ctr_enlace', 'cpm']
 
-const money = (v: number | null, c: string) => (v === null ? '—' : formatCurrency(v, c))
-const int = (v: number) => formatNumber(v, 0)
-const pct = (v: number | null) => (v === null ? '—' : formatPercent(v / 100, 2))
-const ratio = (v: number | null) => (v === null ? '—' : formatNumber(v, 2))
-
-function change(now: number | null, before: number | null): { text: string; up: boolean } | null {
-  if (now === null || before === null || before === 0) return null
-  const d = (now - before) / Math.abs(before)
-  return { text: `${d >= 0 ? '+' : ''}${formatPercent(d, 1)}`, up: d >= 0 }
-}
-
-function Kpi({
-  label,
-  value,
-  now,
-  before,
-  goodWhenUp = true,
-}: {
-  label: string
-  value: string
-  now: number | null
-  before: number | null
-  goodWhenUp?: boolean
-}) {
-  const c = change(now, before)
-  return (
-    <div className="kpi">
-      <span className="kpi-label">{label}</span>
-      <span className="kpi-value num">{value}</span>
-      <span className="kpi-hint faint">
-        {c ? (
-          <span className={c.up === goodWhenUp ? 'trend-good' : 'trend-bad'}>
-            {c.text} vs. periodo anterior
-          </span>
-        ) : (
-          'sin periodo anterior'
-        )}
-      </span>
-    </div>
-  )
-}
-
-function Kpis({ r }: { r: PerfResult }) {
-  const d = derived(r.totals)
-  const p = derived(r.previous)
-  const c = r.currency
+function Kpis({ r, o }: { r: TableResult; o: TableOptions }) {
+  const opts = { custom: o.custom, holdRate: o.holdRate, actionTypes: o.actionTypes }
+  const now: MetricValues = computeMetrics(r.totals, r.totalsRange, opts)
+  const before: MetricValues = computeMetrics(r.previous, null, opts)
   return (
     <div className="kpis" data-testid="meta-kpis">
-      <Kpi
-        label="Importe gastado"
-        value={money(r.totals.spend, c)}
-        now={r.totals.spend}
-        before={r.previous.spend}
-        goodWhenUp={false}
-      />
-      <Kpi
-        label="Compras"
-        value={int(r.totals.purchases)}
-        now={r.totals.purchases}
-        before={r.previous.purchases}
-      />
-      <Kpi
-        label="Valor de compras"
-        value={money(r.totals.purchaseValue, c)}
-        now={r.totals.purchaseValue}
-        before={r.previous.purchaseValue}
-      />
-      <Kpi label="ROAS de compra" value={ratio(d.roas)} now={d.roas} before={p.roas} />
-      <Kpi
-        label="Coste por compra"
-        value={money(d.cpa, c)}
-        now={d.cpa}
-        before={p.cpa}
-        goodWhenUp={false}
-      />
-      <Kpi label="CTR de enlace" value={pct(d.linkCtr)} now={d.linkCtr} before={p.linkCtr} />
-      <Kpi label="CPM" value={money(d.cpm, c)} now={d.cpm} before={p.cpm} goodWhenUp={false} />
-    </div>
-  )
-}
-
-function Cells({ m, c }: { m: PerfMetrics; c: string }) {
-  const d = derived(m)
-  return (
-    <>
-      <td className="num">{money(m.spend, c)}</td>
-      <td className="num">{int(m.impressions)}</td>
-      <td className="num">{int(m.linkClicks)}</td>
-      <td className="num">{pct(d.linkCtr)}</td>
-      <td className="num">{money(d.cpc, c)}</td>
-      <td className="num">{money(d.cpm, c)}</td>
-      <td className="num">{int(m.purchases)}</td>
-      <td className="num">{money(m.purchaseValue, c)}</td>
-      <td className="num">{ratio(d.roas)}</td>
-      <td className="num">{money(d.cpa, c)}</td>
-      <td className="num">{pct(d.hookRate)}</td>
-    </>
-  )
-}
-
-function budget(r: PerfRow, c: string): string {
-  if (r.dailyBudget !== null) return `${formatCurrency(r.dailyBudget, c)}/día`
-  if (r.lifetimeBudget !== null) return `${formatCurrency(r.lifetimeBudget, c)} total`
-  return '—'
-}
-
-function Table({
-  r,
-  level,
-  onOpen,
-}: {
-  r: PerfResult
-  level: PerfLevel
-  onOpen: (row: PerfRow) => void
-}) {
-  const c = r.currency
-  const canOpen = NEXT[level] !== undefined
-  return (
-    <div className="meta-table-scroll">
-      <table className="meta-table" data-testid="meta-table">
-        <thead>
-          <tr>
-            <th>{LEVEL_NAMES[level]}</th>
-            <th>Entrega</th>
-            <th>Presupuesto</th>
-            <th className="num">Importe gastado</th>
-            <th className="num">Impresiones</th>
-            <th className="num">Clics en el enlace</th>
-            <th className="num">CTR de enlace</th>
-            <th className="num">CPC</th>
-            <th className="num">CPM</th>
-            <th className="num">Compras</th>
-            <th className="num">Valor de compras</th>
-            <th className="num">ROAS</th>
-            <th className="num">Coste por compra</th>
-            <th className="num" title="Reproducciones de 3 segundos / impresiones">
-              Hook rate
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {r.rows.map((row) => (
-            <tr key={row.id} data-testid="meta-row">
-              <td>
-                <div className="meta-name">
-                  {level === 'ad' &&
-                    (row.thumbFileId ? (
-                      <img className="meta-thumb" src={fileUrl(row.thumbFileId)} alt="" />
-                    ) : (
-                      <span className="meta-thumb" aria-hidden="true" />
-                    ))}
-                  {canOpen ? (
-                    <button type="button" className="btn-link" onClick={() => onOpen(row)}>
-                      {row.name}
-                    </button>
-                  ) : (
-                    <span>{row.name}</span>
-                  )}
-                </div>
-              </td>
-              <td>
-                {row.effectiveStatus ? (
-                  <span className="chip" data-color={deliveryTone(row.effectiveStatus)}>
-                    {DELIVERY_LABELS[row.effectiveStatus] ?? row.effectiveStatus}
-                  </span>
-                ) : (
-                  <span className="faint">—</span>
-                )}
-              </td>
-              <td className="num faint">{budget(row, c)}</td>
-              <Cells m={row} c={c} />
-            </tr>
-          ))}
-          {r.rows.length === 0 && (
-            <tr>
-              <td colSpan={14} className="faint">
-                Sin datos en este periodo.
-              </td>
-            </tr>
-          )}
-        </tbody>
-        {r.rows.length > 0 && (
-          <tfoot>
-            <tr data-testid="meta-totals">
-              <td>Total ({r.rows.length})</td>
-              <td />
-              <td />
-              <Cells m={r.totals} c={c} />
-            </tr>
-          </tfoot>
-        )}
-      </table>
+      {KPI_KEYS.map((k) => {
+        const def = o.defs.get(k)
+        const d = delta(now[k], before[k], def)
+        return (
+          <div key={k} className="kpi">
+            <span className="kpi-label">{def?.label ?? k}</span>
+            <span className="kpi-value num">{formatMetric(now[k], def, r.currency)}</span>
+            <span className="kpi-hint faint">
+              {d ? (
+                <span className={d.good === null ? '' : d.good ? 'trend-good' : 'trend-bad'}>
+                  {d.text} vs. periodo anterior
+                </span>
+              ) : (
+                'sin periodo anterior'
+              )}
+            </span>
+          </div>
+        )
+      })}
     </div>
   )
 }
@@ -237,40 +73,95 @@ function useRange(account: AdAccountInfo | undefined) {
   const today = todayIn(account?.timezone ?? 'Europe/Madrid')
   const [custom, setCustom] = useState(() => rangeFor('7d', today))
   const range = preset === 'custom' ? custom : rangeFor(preset, today)
-  return { preset, setPreset, range, setCustom: (r: typeof custom) => setCustom(r) }
+  return { preset, setPreset, range, setCustom }
 }
 
 export function MetaPerformance({ onAccounts }: { onAccounts: () => void }) {
+  const qc = useQueryClient()
   const accounts = useMetaAccounts()
+  const settings = useTableSettings()
+  const saveSettings = useSaveTableSettings()
+  const actionTypes = useActionTypes()
   const enabled = (accounts.data ?? []).filter((a) => a.enabled)
   const [accountId, setAccountId] = useState<string | null>(null)
   const account = enabled.find((a) => a.id === accountId) ?? enabled[0]
   const [path, setPath] = useState<Crumb[]>([])
   const { preset, setPreset, range, setCustom } = useRange(account)
+  const [presetId, setPresetId] = useState('rendimiento')
+  const [compare, setCompare] = useState(false)
+  const [breakdown, setBreakdown] = useState<BreakdownKey | null>(null)
+  const [editing, setEditing] = useState(false)
+  const [rangeState, setRangeState] = useState<{ key: string; error: string | null } | null>(null)
   const crumb: Crumb = path.at(-1) ?? { level: 'campaign', parentId: null, label: 'Campañas' }
 
-  const perf = useQuery({
-    queryKey: [
-      'data',
-      'meta',
-      'perf',
-      account?.id,
-      crumb.level,
-      crumb.parentId,
-      range.since,
-      range.until,
-    ],
+  const custom = useMemo(() => settings.data?.presets ?? [], [settings.data?.presets])
+  const presets: ColumnPreset[] = [...BUILT_IN_PRESETS, ...custom]
+  const current = presets.find((p) => p.id === presetId) ?? BUILT_IN_PRESETS[0]!
+  const isBuiltIn = BUILT_IN_PRESETS.some((p) => p.id === current.id)
+  const defs = useMemo(
+    () => metricDefs(settings.data?.metrics ?? [], actionTypes.data ?? []),
+    [settings.data?.metrics, actionTypes.data],
+  )
+  const options: TableOptions = {
+    columns: current.columns,
+    rules: current.rules,
+    custom: settings.data?.metrics ?? [],
+    holdRate: settings.data?.holdRate ?? DEFAULT_HOLD_RATE,
+    actionTypes: actionTypes.data ?? [],
+    defs,
+    compare,
+  }
+  const availableBreakdowns = account?.breakdowns[crumb.level] ?? []
+  const activeBreakdown = breakdown && availableBreakdowns.includes(breakdown) ? breakdown : null
+
+  const tableKey = [account?.id, crumb.level, crumb.parentId, range.since, range.until]
+  const table = useQuery({
+    queryKey: ['data', 'meta', 'table', ...tableKey, compare, activeBreakdown],
     queryFn: () =>
-      call('meta:performance', {
+      call('meta:table', {
         accountId: account!.id,
         level: crumb.level,
         parentId: crumb.parentId,
         since: range.since,
         until: range.until,
+        compare,
+        breakdown: activeBreakdown,
       }),
     enabled: !!account,
     placeholderData: (prev) => prev,
   })
+
+  // Alcance y frecuencia del periodo: se piden a Meta si alguna columna los usa.
+  const wantsRange = current.columns.some((c) => RANGE_KEYS.has(c))
+  const asked = useRef(new Set<string>())
+  const rangeKey = tableKey.join('|')
+  const { level, parentId } = crumb
+  const { since, until } = range
+  useEffect(() => {
+    if (!account || !wantsRange || !table.data?.rangeMissing || asked.current.has(rangeKey)) return
+    asked.current.add(rangeKey)
+    void Promise.resolve()
+      .then(() => setRangeState({ key: rangeKey, error: null }))
+      .then(() =>
+        call('meta:fetchRange', {
+          accountId: account.id,
+          level,
+          parentId,
+          since,
+          until,
+        }),
+      )
+      .then(() => {
+        setRangeState(null)
+        return qc.invalidateQueries({ queryKey: ['data', 'meta', 'table'] })
+      })
+      .catch((e: unknown) =>
+        setRangeState({
+          key: rangeKey,
+          error: e instanceof IpcCallError ? e.message : 'No se pudo pedir el alcance a Meta.',
+        }),
+      )
+  }, [account, wantsRange, table.data?.rangeMissing, rangeKey, level, parentId, since, until, qc])
 
   if (accounts.data && enabled.length === 0)
     return (
@@ -283,6 +174,15 @@ export function MetaPerformance({ onAccounts }: { onAccounts: () => void }) {
       </div>
     )
   if (!account) return null
+
+  const savePreset = (p: ColumnPreset, asNew: boolean) => {
+    const list = asNew
+      ? [...custom, { ...p, id: `p-${Date.now().toString(36)}` }]
+      : custom.map((x) => (x.id === p.id ? p : x))
+    void saveSettings({ presets: list })
+    setPresetId(asNew ? list.at(-1)!.id : p.id)
+    setEditing(false)
+  }
 
   return (
     <div className="meta-perf">
@@ -357,6 +257,61 @@ export function MetaPerformance({ onAccounts }: { onAccounts: () => void }) {
         )}
       </div>
 
+      <div className="meta-toolbar">
+        <div className="field">
+          <label htmlFor="meta-preset">Columnas</label>
+          <span className="inline-add">
+            <select
+              id="meta-preset"
+              className="input"
+              value={current.id}
+              onChange={(e) => setPresetId(e.target.value)}
+            >
+              {presets.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              className="btn"
+              data-testid="edit-columns"
+              disabled={!settings.data}
+              onClick={() => setEditing(true)}
+            >
+              Personalizar…
+            </button>
+          </span>
+        </div>
+        <div className="field">
+          <label htmlFor="meta-breakdown">Desglose</label>
+          <select
+            id="meta-breakdown"
+            className="input"
+            value={activeBreakdown ?? ''}
+            disabled={availableBreakdowns.length === 0}
+            title={
+              availableBreakdowns.length === 0
+                ? 'Actívalos en Campañas → Cuentas para este nivel'
+                : undefined
+            }
+            onChange={(e) => setBreakdown((e.target.value || null) as BreakdownKey | null)}
+          >
+            <option value="">Ninguno</option>
+            {availableBreakdowns.map((b) => (
+              <option key={b} value={b}>
+                {BREAKDOWNS[b].label}
+              </option>
+            ))}
+          </select>
+        </div>
+        <label className="check meta-compare">
+          <input type="checkbox" checked={compare} onChange={(e) => setCompare(e.target.checked)} />
+          <span>Comparar con el periodo anterior</span>
+        </label>
+      </div>
+
       <nav className="crumbs" aria-label="Nivel">
         <button type="button" className="btn-link" onClick={() => setPath([])}>
           Campañas
@@ -375,31 +330,61 @@ export function MetaPerformance({ onAccounts }: { onAccounts: () => void }) {
         ))}
       </nav>
 
-      {perf.data && (
+      {table.data && (
         <>
-          {perf.data.unconverted && (
+          {table.data.unconverted && (
             <Alert>
-              Faltan tipos de cambio para {perf.data.accountCurrency}: los importes se muestran en
+              Faltan tipos de cambio para {table.data.accountCurrency}: los importes se muestran en
               la moneda de la cuenta.
             </Alert>
           )}
-          <Kpis r={perf.data} />
-          <Table
-            r={perf.data}
+          {rangeState?.key === rangeKey &&
+            (rangeState.error ? (
+              <p className="hint danger-text">{rangeState.error}</p>
+            ) : (
+              <p className="hint">Pidiendo a Meta el alcance y la frecuencia del periodo…</p>
+            ))}
+          <Kpis r={table.data} o={options} />
+          <AdsTable
+            r={table.data}
             level={crumb.level}
-            onOpen={(row) => {
-              const next = NEXT[crumb.level]
-              if (next) setPath([...path, { level: next, parentId: row.id, label: row.name }])
-            }}
+            o={options}
+            onOpen={
+              NEXT[crumb.level]
+                ? (row) =>
+                    setPath([
+                      ...path,
+                      { level: NEXT[crumb.level]!, parentId: row.id, label: row.name },
+                    ])
+                : null
+            }
           />
           <p className="hint">
             Fechas en la zona horaria de la cuenta ({account.timezone}). Importes en{' '}
-            {perf.data.currency}
-            {perf.data.currency !== perf.data.accountCurrency &&
-              `, convertidos desde ${perf.data.accountCurrency} con el tipo del BCE de cada día`}
+            {table.data.currency}
+            {table.data.currency !== table.data.accountCurrency &&
+              `, convertidos desde ${table.data.accountCurrency} con el tipo del BCE de cada día`}
             . Atribución: la configurada en cada conjunto de anuncios, como en Ads Manager.
           </p>
         </>
+      )}
+      {editing && (
+        <ColumnsDialog
+          preset={current}
+          builtIn={isBuiltIn}
+          defs={defs}
+          onClose={() => setEditing(false)}
+          onSave={savePreset}
+          onDelete={
+            isBuiltIn
+              ? null
+              : () => {
+                  void saveSettings({ presets: custom.filter((p) => p.id !== current.id) })
+                  setPresetId('rendimiento')
+                  setEditing(false)
+                }
+          }
+        />
       )}
     </div>
   )

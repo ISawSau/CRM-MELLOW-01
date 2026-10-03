@@ -14,6 +14,7 @@ import { FieldValue } from './FieldValue'
 import { useHistory, useRecord } from './hooks'
 import { RichTextEditor } from './RichTextEditor'
 import { ClientAdAccounts } from '../meta/ClientAdAccounts'
+import { CreativeAds } from '../meta/CreativeAds'
 
 const ACTION_LABELS: Record<HistoryEntry['action'], string> = {
   create: 'Creado',
@@ -221,6 +222,7 @@ export function RecordPanel({
               </section>
             ))}
             {r.entity === 'cliente' && <ClientAdAccounts clientId={r.id} />}
+            {r.entity === 'creatividad' && <CreativeAds recordId={r.id} />}
             <p className="faint panel-meta">
               Creado el {formatDateTime(new Date(r.createdAt))} · modificado el{' '}
               {formatDateTime(new Date(r.updatedAt))}

@@ -438,7 +438,8 @@ const div = (a: number | null | undefined, b: number | null | undefined, k = 1) 
  */
 export function computeMetrics(
   base: Readonly<Record<string, number>>,
-  range: Readonly<Partial<Record<string, number | null>>> | null,
+  /** Datos del periodo completo (alcance, frecuencia…), si los hay. */
+  range: object | null,
   opts: {
     custom?: readonly CustomMetric[]
     holdRate?: string
@@ -453,7 +454,8 @@ export function computeMetrics(
     v[`val_${k}`] = 0
   }
   for (const [k, n] of Object.entries(base)) v[k] = n
-  for (const m of RANGE_METRICS) v[m.key] = range?.[m.key] ?? null
+  const r = range as Record<string, number | null | undefined> | null
+  for (const m of RANGE_METRICS) v[m.key] = r?.[m.key] ?? null
   v['cpm'] = div(v['gasto'], v['impresiones'], 1000)
   v['cpc'] = div(v['gasto'], v['clics_enlace'])
   v['ctr'] = div(v['clics'], v['impresiones'], 100)

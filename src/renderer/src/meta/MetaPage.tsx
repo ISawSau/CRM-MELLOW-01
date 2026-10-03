@@ -4,6 +4,7 @@ import { call, IpcCallError } from '../lib/ipc'
 import { Alert } from '../ui/Alert'
 import { useToast } from '../ui/Toast'
 import { MetaAccounts } from './MetaAccounts'
+import { MetaCreatives } from './MetaCreatives'
 import { MetaPerformance } from './MetaPerformance'
 import { MetaSettingsPanel } from './MetaSettings'
 import { useMetaStatus } from './meta'
@@ -88,7 +89,7 @@ function ConnectForm() {
   )
 }
 
-type Tab = 'rendimiento' | 'cuentas' | 'ajustes'
+type Tab = 'rendimiento' | 'creatividades' | 'cuentas' | 'ajustes'
 
 /** Campañas: Meta en solo lectura (SPEC §7.3, fase 6). */
 export function MetaPage({ num }: { num: string }) {
@@ -119,6 +120,7 @@ export function MetaPage({ num }: { num: string }) {
               {(
                 [
                   ['rendimiento', 'Rendimiento'],
+                  ['creatividades', 'Creatividades'],
                   ['cuentas', 'Cuentas'],
                   ['ajustes', 'Ajustes'],
                 ] as const
@@ -163,6 +165,7 @@ export function MetaPage({ num }: { num: string }) {
           </div>
           {status.error && <Alert>{status.error}</Alert>}
           {tab === 'rendimiento' && <MetaPerformance onAccounts={() => setTab('cuentas')} />}
+          {tab === 'creatividades' && <MetaCreatives />}
           {tab === 'cuentas' && <MetaAccounts />}
           {tab === 'ajustes' && <MetaSettingsPanel status={status} />}
         </>

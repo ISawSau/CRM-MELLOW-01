@@ -1,9 +1,9 @@
-## Novedades de la 0.7.0 · Meta (solo lectura)
+## Novedades de la 0.8.0 · Tabla tipo Ads Manager
 
-- **Nueva sección Campañas.** Conecta tus cuentas publicitarias de Meta pegando el token de un usuario del sistema del Business Manager con el permiso `ads_read`. La pantalla explica cómo crearlo paso a paso. La app **solo lee**: nunca pausa anuncios ni cambia presupuestos.
-- **Elige qué cuentas sincronizar y asígnalas a un cliente.** La ficha del cliente muestra sus cuentas publicitarias.
-- Al activar una cuenta se descargan los **últimos 30 días** y después, en segundo plano, **todo el histórico que permite Meta (37 meses)**. Si cierras la app, sigue donde lo dejó. El progreso se ve en Campañas y en la barra de abajo.
-- Se sincroniza al abrir la app y **cada hora** (configurable). En cada sincronización se vuelven a descargar los últimos 7 días (configurable hasta 28), porque Meta sigue atribuyendo conversiones a días pasados.
-- **Rendimiento:** importe gastado, compras, valor, ROAS, coste por compra, CTR de enlace y CPM del periodo elegido, comparados con el periodo anterior, y una tabla campaña → conjunto → anuncio (con miniatura) con totales.
-- **Divisas:** cada cuenta guarda sus importes en su moneda y la app los convierte a la que elijas (EUR por defecto) con el tipo oficial del Banco Central Europeo de cada día.
-- La tabla completa tipo Ads Manager (columnas configurables, métricas propias, desgloses) llega en la próxima versión.
+- **Columnas a tu medida.** En Campañas → Rendimiento elige un preset (Rendimiento, Ecom, Creatividades, Entrega) o pulsa **Personalizar…** para elegir y ordenar columnas, guardar tus propios presets y añadir **formato condicional** (por ejemplo, ROAS mayor que 3 en verde).
+- **Métricas propias.** En Campañas → Ajustes crea métricas con fórmulas sobre cualquier métrica o acción de Meta (por ejemplo, beneficio = valor de compras − gasto − fee) en moneda, porcentaje o número. También puedes definir tu **hold rate**.
+- **Ordena** por cualquier columna, **compara** cada fila con el periodo anterior y mira **alcance y frecuencia** del periodo.
+- **Desgloses** por edad, sexo, país, plataforma, ubicación o dispositivo: actívalos por cuenta y nivel en Campañas → Cuentas.
+- **Última edición significativa** de cada campaña, conjunto y anuncio, sacada del historial de actividad de Meta.
+- **Creatividades y anuncios vinculados.** Desde la ficha de una creatividad vincula sus anuncios (o deja que se vinculen solos por código o por tu convención de nombres) y mira su rendimiento. En Campañas → **Creatividades** tienes el ranking por ángulo, hook, formato y cualquier otra etiqueta.
+- Si un cliente tiene su propia moneda en la ficha, sus cuentas se ven en esa moneda.

@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { SYNC_INTERVALS, type MetaSettings, type MetaStatus } from '@shared/meta'
 import { call, IpcCallError } from '../lib/ipc'
 import { useToast } from '../ui/Toast'
+import { MetricsSettings } from './MetricsSettings'
 
 const INTERVAL_LABELS: Record<number, string> = {
   30: 'Cada 30 minutos',
@@ -21,6 +22,7 @@ export function MetaSettingsPanel({ status }: { status: MetaStatus }) {
     const key = ['data', 'meta', 'status']
     const latest = qc.getQueryData<MetaStatus>(key) ?? status
     const next = { ...latest.settings, ...patch }
+    void qc.cancelQueries({ queryKey: key })
     qc.setQueryData<MetaStatus>(key, { ...latest, settings: next })
     void call('meta:setSettings', next)
       .then((st) => qc.setQueryData(key, st))
@@ -128,6 +130,7 @@ export function MetaSettingsPanel({ status }: { status: MetaStatus }) {
           </button>
         </div>
       </div>
+      <MetricsSettings />
     </div>
   )
 }
