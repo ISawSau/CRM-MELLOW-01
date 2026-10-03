@@ -47,6 +47,15 @@ export function t(es: string, vars?: Record<string, string | number>): string {
   return s.replace(/\{(\w+)\}/g, (m, k: string) => (k in vars ? String(vars[k]) : m))
 }
 
+/**
+ * Traducción con contexto, para palabras con dos sentidos («Beneficio»: ángulo creativo o
+ * margen en Facturación). Busca primero «contexto|texto» y si no, el texto solo.
+ */
+export function tc(ctx: string, es: string, vars?: Record<string, string | number>): string {
+  const key = `${ctx}|${es}`
+  return current === 'en' && key in EN ? t(key, vars) : t(es, vars)
+}
+
 /** Plural sencillo: `tn(n, '{n} cuenta', '{n} cuentas')`. */
 export function tn(
   n: number,

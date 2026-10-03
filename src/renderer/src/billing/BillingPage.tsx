@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { shiftDate } from '@shared/data/dates'
 import { formatCurrency, formatNumber } from '@shared/format'
-import { t, tn } from '@shared/i18n'
+import { t, tc, tn } from '@shared/i18n'
 import { call } from '../lib/ipc'
 import { useNav } from '../data/nav'
 import { useToday } from '../analysis/kit'
@@ -87,7 +87,7 @@ export function BillingPage({ num, onNavigate }: { num: string; onNavigate: (s: 
           >
             {Object.entries(PERIOD_LABELS).map(([k, l]) => (
               <option key={k} value={k}>
-                {t(l)}
+                {tc('facturacion', l)}
               </option>
             ))}
           </select>
@@ -137,7 +137,7 @@ export function BillingPage({ num, onNavigate }: { num: string; onNavigate: (s: 
                   <th>{t('Cliente')}</th>
                   {COLUMNS.map(([k, l]) => (
                     <th key={k} className="num">
-                      {t(l)}
+                      {tc('facturacion', l)}
                     </th>
                   ))}
                 </tr>

@@ -14,7 +14,7 @@ import {
   type SelectOption,
 } from '@shared/data/fields'
 import { FORMULA_FUNCTIONS } from '@shared/data/formula'
-import { t } from '@shared/i18n'
+import { t, tc } from '@shared/i18n'
 import { call, IpcCallError } from '../lib/ipc'
 import { Alert } from '../ui/Alert'
 import { useToast } from '../ui/Toast'
@@ -324,7 +324,7 @@ function RollupEditor({
         >
           {ROLLUP_FUNCTIONS.map((f) => (
             <option key={f} value={f}>
-              {t(ROLLUP_LABELS[f])}
+              {tc('resumen', ROLLUP_LABELS[f])}
             </option>
           ))}
         </select>

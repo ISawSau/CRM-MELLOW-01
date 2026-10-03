@@ -1,6 +1,7 @@
 import { analysis } from './analysis'
 import { common } from './common'
 import { data } from './data'
+import { fixes } from './fixes'
 import { main } from './main'
 import { meta } from './meta'
 import { platforms } from './platforms'
@@ -25,4 +26,5 @@ export const EN: Record<string, string> = {
   ...platforms,
   ...reports,
   ...theme,
+  ...fixes,
 }

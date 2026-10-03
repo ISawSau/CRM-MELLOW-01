@@ -44,8 +44,24 @@ function isTextTarget(el: EventTarget | null): boolean {
   )
 }
 
+const SECTION_KEY = 'crm.section'
+
 function ShellInner({ status }: { status: VaultStatus }) {
-  const [section, setSection] = useState('inicio')
+  // La sección se recuerda en esta ventana: al cambiar de idioma se recarga y vuelve aquí.
+  const [section, setSection] = useState(() => {
+    try {
+      return sessionStorage.getItem(SECTION_KEY) ?? 'inicio'
+    } catch {
+      return 'inicio'
+    }
+  })
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(SECTION_KEY, section)
+    } catch {
+      // Sin almacenamiento de sesión: se empieza en Inicio.
+    }
+  }, [section])
   const [openRecord, setOpenRecord] = useState<string | null>(null)
   const toast = useToast()
   useDataEvents()

@@ -1,6 +1,6 @@
 import { Fragment, useMemo, useState } from 'react'
 import { formatCurrency, formatDate, formatDateTime } from '@shared/format'
-import { t } from '@shared/i18n'
+import { t, tc } from '@shared/i18n'
 import type { PerfLevel, TableResult, TableRow } from '@shared/meta'
 import {
   computeMetrics,
@@ -123,7 +123,7 @@ function ConfigCell({ k, row, currency }: { k: string; row: TableRow; currency: 
     case 'fin':
       return (
         <span className="num">
-          {row.endTime ? formatDate(new Date(row.endTime)) : t('Sin fecha')}
+          {row.endTime ? formatDate(new Date(row.endTime)) : tc('meta', 'Sin fecha')}
         </span>
       )
     case 'ultima_edicion':

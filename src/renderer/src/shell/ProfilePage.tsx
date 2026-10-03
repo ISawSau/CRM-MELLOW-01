@@ -7,7 +7,7 @@ import { LinkedInToggle } from '../platforms/LinkedInToggle'
 import { useLinkedInStatus, usePlatformAccounts } from '../platforms/platforms'
 import { ProfileSettings } from './ProfileSettings'
 import { useSyncStatus } from './sync'
-import { t, tn } from '@shared/i18n'
+import { t, tc, tn } from '@shared/i18n'
 
 type Tab = 'datos' | 'cuentas'
 
@@ -171,7 +171,7 @@ export function ProfilePage({ onNavigate }: { onNavigate: (section: string) => v
             onClick={() => setTab(id)}
             data-testid={`profile-tab-${id}`}
           >
-            {t(label)}
+            {tc('perfil', label)}
           </button>
         ))}
       </div>

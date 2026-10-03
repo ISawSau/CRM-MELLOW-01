@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { formatBytes } from '@shared/files'
-import { formatNumber } from '@shared/format'
+import { formatNumber, parseNumberEs } from '@shared/format'
 import { t, tn } from '@shared/i18n'
 import { convertImage, IMAGE_FORMATS, type ImageOptions } from './image'
 import {
@@ -24,7 +24,7 @@ export function ImageTool() {
   const [rows, setRows] = useState<ResultRow[]>([])
   const [busy, setBusy] = useState(false)
 
-  const width = maxWidth.trim() === '' ? null : Number(maxWidth.replace(/\./g, ''))
+  const width = maxWidth.trim() === '' ? null : (parseNumberEs(maxWidth) ?? Number.NaN)
   const widthOk = width === null || (Number.isInteger(width) && width >= 16 && width <= 20_000)
 
   const run = async () => {

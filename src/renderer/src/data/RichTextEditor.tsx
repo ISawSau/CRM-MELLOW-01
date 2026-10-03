@@ -2,7 +2,7 @@ import { EditorContent, useEditor, useEditorState, type Editor } from '@tiptap/r
 import StarterKit from '@tiptap/starter-kit'
 import { useEffect, useRef, useState } from 'react'
 import type { RichText } from '@shared/data/fields'
-import { t } from '@shared/i18n'
+import { t, tc } from '@shared/i18n'
 
 const SAVE_DELAY_MS = 700
 const SAFE_LINK = /^(https:\/\/|mailto:)/i
@@ -132,12 +132,12 @@ function Toolbar({ editor }: { editor: Editor }) {
     </button>
   )
   return (
-    <div className="rte-toolbar" role="toolbar" aria-label={t('Formato')}>
+    <div className="rte-toolbar" role="toolbar" aria-label={tc('texto', 'Formato')}>
       {btn(t('Negrita (Ctrl+B)'), 'B', state.bold, () => chain().toggleBold().run())}
       {btn(t('Cursiva (Ctrl+I)'), 'I', state.italic, () => chain().toggleItalic().run())}
       {btn(t('Tachado'), 'S', state.strike, () => chain().toggleStrike().run())}
       <span className="rte-sep" />
-      {btn(t('Título'), 'H2', state.h2, () => chain().toggleHeading({ level: 2 }).run())}
+      {btn(tc('texto', 'Título'), 'H2', state.h2, () => chain().toggleHeading({ level: 2 }).run())}
       {btn(t('Subtítulo'), 'H3', state.h3, () => chain().toggleHeading({ level: 3 }).run())}
       {btn(t('Lista'), '•', state.bullet, () => chain().toggleBulletList().run())}
       {btn(t('Lista numerada'), '1.', state.ordered, () => chain().toggleOrderedList().run())}
