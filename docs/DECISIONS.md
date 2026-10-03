@@ -525,3 +525,21 @@ El usuario no quiere escribir comandos de desarrollo para usar la app. Los insta
 ### D-077 · La autoprueba de la instalación cubre la fase 9
 
 - `crm-mellow --autoprueba` comprueba también que FFmpeg arranca y tiene x264, que ECharts genera SVG y que la impresión a PDF funciona. Así el CI lo prueba en cada instalador de Windows y Linux y en Arch.
+
+## Fase 10 · Gmail
+
+### D-078 · Gmail en solo lectura, sin guardar correo
+
+- **Permiso:** `gmail.readonly`, comprobado en la documentación oficial de la API v1. El permiso mínimo `gmail.metadata` no admite el parámetro de búsqueda `q`, y sin él no se pueden encontrar los hilos de unas direcciones concretas. No se pide ningún permiso que envíe, modifique o borre correo. Enviar desde el CRM queda para más adelante (SPEC §7.12).
+- **Cuenta de Google:**
+  - Se usa el mismo proyecto de Google Cloud que Drive (D-051): si Drive está conectado se reutiliza su id de cliente; si no, se escribe uno.
+  - `gmail.readonly` es un permiso restringido. La guía de Google exime de verificación las apps de uso personal (menos de 100 usuarios): se publica en producción y se acepta el aviso de «app no verificada». En producción el token de actualización no caduca a los 7 días, como sí pasa en modo de pruebas.
+  - El token se guarda en la base de datos cifrada. Al desconectar se revoca en Google.
+- **Qué se busca:**
+  - Las direcciones de los campos de email del registro y, en un cliente, también las de sus contactos (hasta 20).
+  - La búsqueda es `{from:x to:x cc:x …}`: las llaves son el operador «O» de la búsqueda oficial de Gmail.
+  - Se piden 15 hilos por página con `threads.list` y cada hilo con `threads.get` en formato `metadata` (solo las cabeceras From y Subject y los extractos), 5 a la vez.
+  - El cuerpo del correo no se descarga: «Abrir en Gmail» lleva al hilo en el navegador.
+- **Límites:** según la documentación, 6.000 unidades por minuto y usuario; `threads.list` cuesta 10 unidades y `threads.get` 40, así que una página son 610. Ante un 429 o `rateLimitExceeded` se pide esperar un minuto. Si la API no está activada en el proyecto, se explica cómo activarla. Con un 401 se renueva el token una vez.
+- **Sin copia local:** el correo no se guarda en la bóveda ni en disco. Los hilos se piden al abrir la ficha y se guardan 5 minutos en memoria («Actualizar» los vuelve a pedir). La caché se borra al bloquear.
+- **Pruebas:** sin cuenta de Google en este entorno, se prueba contra un Google simulado (token, revoke, perfil, `threads.list` con la búsqueda y `threads.get`), en tests unitarios y de interfaz, con el consentimiento del navegador simulado.

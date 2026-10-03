@@ -338,6 +338,7 @@ El negocio actual es ecommerce y no usa formularios de leads. Si en el futuro se
 - Conexión mediante el mismo proyecto de Google que Drive.
 - Muestra en la ficha de cada cliente y contacto los hilos asociados a sus direcciones de email.
 - Envío de correos desde el CRM como función opcional posterior.
+- *Implementación (fase 10):* Ajustes → Gmail conecta en solo lectura (`gmail.readonly`) con el mismo proyecto de Google que Drive. La ficha de cada cliente (con las direcciones de sus contactos) y de cada contacto muestra sus hilos: asunto, participantes, fecha, extractos y enlace para abrirlos en Gmail. El correo no se guarda en la bóveda (D-078). El envío sigue pendiente.
 
 ### 7.13 Dashboards, comparativas y alertas
 
