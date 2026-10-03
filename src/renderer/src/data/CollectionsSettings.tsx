@@ -17,7 +17,7 @@ const firstLetter = (s: string) =>
     .replace(/[^A-Z0-9]/, '')
 
 /** Nombre, singular, género y letra de una colección. */
-function CollectionForm({
+export function CollectionForm({
   initial,
   submit,
   onSubmit,
@@ -120,7 +120,12 @@ function CollectionForm({
   )
 }
 
-const EMPTY: CollectionInput = { label: '', singular: '', gender: 'm', letter: '' }
+export const EMPTY_COLLECTION: CollectionInput = {
+  label: '',
+  singular: '',
+  gender: 'm',
+  letter: '',
+}
 
 /** Ajustes → Colecciones (SPEC §6, fase 12). */
 export function CollectionsSettings() {
@@ -149,7 +154,8 @@ export function CollectionsSettings() {
         <p className="desc">
           Tablas propias para lo que necesites (proveedores, ideas, equipos…). Cada colección
           aparece en la barra lateral y funciona como las demás: campos, vistas, relaciones,
-          fórmulas, búsqueda y papelera. Sus campos se añaden más abajo, en Campos.
+          fórmulas, búsqueda y papelera. Sus campos se añaden desde la propia colección, con «⚙
+          Ajustes».
         </p>
       </div>
       <div className="settings-body settings-body-wide">
@@ -180,7 +186,7 @@ export function CollectionsSettings() {
         )}
         <h3 className="panel-subtitle">Nueva colección</h3>
         <CollectionForm
-          initial={EMPTY}
+          initial={EMPTY_COLLECTION}
           submit="Crear colección"
           onSubmit={(c) =>
             run(

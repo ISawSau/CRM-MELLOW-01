@@ -1284,7 +1284,7 @@ img.ProseMirror-separator {
 
 .fields-row {
   display: grid;
-  grid-template-columns: minmax(120px, 1fr) 140px 110px auto;
+  grid-template-columns: minmax(120px, 1fr) 160px 80px 210px;
   gap: var(--space-3);
   align-items: center;
   min-height: calc(var(--row-height) + 6px);
@@ -2080,4 +2080,30 @@ img.ProseMirror-separator {
 
 .collection-form .form-actions {
   grid-column: 1 / -1;
+}
+
+/* --- Ajustes de una sección ----------------------------------------------- */
+
+.section-settings {
+  top: 6vh;
+  width: min(920px, calc(100vw - 32px));
+  max-height: 88vh;
+  align-content: start;
+}
+
+.section-settings-head {
+  display: flex;
+  gap: var(--space-4);
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.section-settings-body {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.fields-editor {
+  display: grid;
+  gap: var(--space-4);
 }

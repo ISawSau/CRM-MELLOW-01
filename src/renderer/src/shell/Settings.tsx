@@ -5,9 +5,8 @@ import { call } from '../lib/ipc'
 import { useAction } from '../lib/hooks'
 import { RecoveryKeyPanel } from '../screens/RecoveryKey'
 import { BUILT_IN_THEMES, findTheme, type Theme } from '@shared/themes'
-import { BriefTemplatesSettings } from '../data/BriefTemplatesSettings'
 import { CollectionsSettings } from '../data/CollectionsSettings'
-import { DataSettings, FieldsSettings } from '../data/FieldsSettings'
+import { DataSettings } from '../data/FieldsSettings'
 import { SyncSettings } from './SyncSettings'
 import { Alert } from '../ui/Alert'
 import { PasswordField } from '../ui/PasswordField'
@@ -279,8 +278,6 @@ export function Settings({ status }: { status: VaultStatus }) {
       <div>
         <Appearance status={status} />
         <CollectionsSettings />
-        <FieldsSettings />
-        <BriefTemplatesSettings />
         <DataSettings />
         <SyncSettings />
         <AutoLock status={status} />

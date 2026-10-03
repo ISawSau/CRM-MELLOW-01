@@ -158,6 +158,8 @@ Más adelante (fase 12), colecciones personalizadas: el usuario crea sus propias
 
 ### Campos personalizados
 
+*Arreglos tras la 0.13:* los campos de cada sección se editan desde la propia sección (botón «⚙ Ajustes»), no desde Ajustes generales (D-088).
+
 - Tabla de definiciones: entidad, clave, etiqueta, tipo, configuración, orden, visible, obligatorio.
 - Tipos: texto, texto largo con formato, número, moneda, porcentaje, fecha, fecha y hora, casilla, selección, selección múltiple (opciones con color, editables), URL, email, teléfono, archivos, relación con otra entidad, valoración, lista de comprobación, repetición, fórmula y resumen (agregado sobre una relación, p. ej. "gasto total de las campañas de este cliente").
 - Filtros de fecha relativos a hoy: es hoy, antes de hoy, próximos 7 días, últimos 7 días y este mes.

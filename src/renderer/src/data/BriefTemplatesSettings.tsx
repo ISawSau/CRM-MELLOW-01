@@ -287,24 +287,19 @@ function Editor({ initial }: { initial: BriefTemplate[] }) {
   )
 }
 
-/** Ajustes → Plantillas de brief (SPEC §7.7). */
-export function BriefTemplatesSettings() {
+/** Plantillas de brief (SPEC §7.7), en los ajustes de la sección Briefs. */
+export function BriefTemplatesPanel() {
   const templates = useQuery({
     queryKey: ['data', 'brief-templates'],
     queryFn: () => call('briefs:templates'),
   })
   return (
-    <section className="settings-block" data-testid="brief-templates">
-      <div>
-        <h2>Plantillas de brief</h2>
-        <p className="desc">
-          Un brief creado «desde plantilla» empieza con estas secciones, su fecha de entrega y sus
-          tareas ya enlazadas.
-        </p>
-      </div>
-      <div className="settings-body settings-body-wide">
-        {templates.data && <Editor key={JSON.stringify(templates.data)} initial={templates.data} />}
-      </div>
-    </section>
+    <div data-testid="brief-templates">
+      <p className="muted">
+        Un brief creado «desde plantilla» empieza con estas secciones, su fecha de entrega y sus
+        tareas ya enlazadas.
+      </p>
+      {templates.data && <Editor key={JSON.stringify(templates.data)} initial={templates.data} />}
+    </div>
   )
 }

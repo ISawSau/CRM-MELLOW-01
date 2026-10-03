@@ -136,8 +136,9 @@ test('brief desde plantilla con entrega y tareas; guardar un brief como plantill
   await expect(page.getByText('Plantilla «Otoño» guardada')).toBeVisible()
   await panel.getByRole('button', { name: 'Cerrar ficha' }).click()
 
-  // En Ajustes: la plantilla nueva, con una tarea propia.
-  await page.getByTestId('nav-ajustes').click()
+  // En los ajustes de Briefs: la plantilla nueva, con una tarea propia.
+  await page.getByTestId('open-section-settings').click()
+  await page.getByTestId('section-tab-plantillas').click()
   const box = page.getByTestId('brief-templates')
   await box.getByRole('tab', { name: 'Otoño' }).click()
   await expect(box.getByRole('textbox', { name: 'Título de la sección' })).toHaveCount(7)
@@ -148,8 +149,8 @@ test('brief desde plantilla con entrega y tareas; guardar un brief como plantill
   if (shots) await page.screenshot({ path: join(shots, '82-plantillas-brief.png') })
   await box.getByRole('button', { name: 'Guardar plantillas' }).click()
   await expect(page.getByText('Plantillas guardadas.')).toBeVisible()
+  await page.getByRole('button', { name: 'Cerrar ajustes' }).click()
 
-  await page.getByTestId('nav-briefs').click()
   await page.getByTestId('from-template').click()
   await page.getByRole('button', { name: 'Otoño' }).click()
   await expect(panel.locator('#panel-title')).toHaveValue('Otoño')
@@ -167,9 +168,10 @@ test('crear una colección: aparece en la barra lateral y se le añaden campos',
   await expect(page.getByText('«Proveedores» ya está en la barra lateral.')).toBeVisible()
   await expect(page.getByTestId('nav-col-proveedores')).toContainText('Proveedores')
 
-  // Un campo de moneda en la colección.
+  // Un campo de moneda, desde los ajustes de la propia colección.
+  await page.getByTestId('nav-col-proveedores').click()
+  await page.getByTestId('open-section-settings').click()
   const fields = page.getByTestId('fields-settings')
-  await fields.getByLabel('Entidad de los campos').selectOption('col-proveedores')
   await expect(fields.getByTestId('field-row')).toHaveCount(2)
   await fields.getByTestId('add-field').click()
   const dialog = page.getByTestId('field-dialog')
@@ -177,7 +179,13 @@ test('crear una colección: aparece en la barra lateral y se le añaden campos',
   await dialog.getByLabel('Tipo').selectOption({ label: 'Moneda' })
   await dialog.getByRole('button', { name: 'Crear campo' }).click()
   await expect(fields.getByTestId('field-row').filter({ hasText: 'Tarifa' })).toHaveCount(1)
+  // La pestaña «Colección» renombra sin salir de la sección.
+  await page.getByTestId('section-tab-coleccion').click()
+  await expect(
+    page.getByTestId('section-settings').getByLabel('Proveedores: Nombre (en plural)'),
+  ).toHaveValue('Proveedores')
   if (shots) await page.screenshot({ path: join(shots, '83-colecciones-ajustes.png') })
+  await page.getByRole('button', { name: 'Cerrar ajustes' }).click()
 })
 
 test('usar la colección: registros, búsqueda y borrado protegido', async () => {

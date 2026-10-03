@@ -648,3 +648,12 @@ El usuario no quiere escribir comandos de desarrollo para usar la app. Los insta
   - **Datos:** los datos personales, fiscales y de empresa, la moneda y la zona horaria.
   - **Cuentas conectadas:** el estado de Meta, la sincronización y copias, X y LinkedIn, con un botón a donde se gestiona cada uno. También la conexión de Gmail y las integraciones opcionales.
 - Ajustes se queda con lo que es de la app y de la bóveda: apariencia, colecciones, campos, papelera, sincronización, seguridad y bóveda.
+
+### D-088 · Los ajustes de cada sección, dentro de la sección
+
+- Petición del usuario: los campos no deben estar todos en Ajustes, sino en cada sección. Cada sección del motor de datos (Notas, Clientes, Tareas, Briefs, las colecciones…) tiene un botón **⚙ Ajustes** junto a «+ Nuevo…» que abre sus ajustes:
+  - **Campos:** qué datos se guardan de cada registro, con su tipo, si son de serie y si están ocultos. Se añaden, editan, ordenan, eliminan y restauran.
+  - **Plantillas:** solo en Briefs (D-083).
+  - **Colección:** solo en las colecciones; nombre, singular, género y letra.
+- Ajustes conserva lo general. Las colecciones se siguen creando y borrando en Ajustes → Colecciones.
+- La clave interna de cada campo deja de mostrarse: no le dice nada al usuario.

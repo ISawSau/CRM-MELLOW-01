@@ -111,13 +111,17 @@ test('brief desde plantilla y tarea enlazada', async () => {
   await expect(panel().getByRole('button', { name: 'Abrir Brief de campaña' })).toBeVisible()
 })
 
-test('editar las plantillas de brief en Ajustes', async () => {
-  await page.getByTestId('nav-ajustes').click()
+test('editar las plantillas de brief en los ajustes de Briefs', async () => {
+  await page.getByTestId('nav-briefs').click()
+  await page.getByTestId('open-section-settings').click()
+  await page.getByTestId('section-tab-plantillas').click()
   const box = page.getByTestId('brief-templates')
   await box.getByRole('button', { name: '+ Sección' }).click()
   await box.getByRole('textbox', { name: 'Título de la sección' }).last().fill('Presupuesto')
   await box.getByRole('button', { name: 'Guardar plantillas' }).click()
   await expect(page.getByTestId('toast')).toContainText('Plantillas guardadas')
+  await page.keyboard.press('Escape')
+  await expect(page.getByTestId('section-settings')).toBeHidden()
 })
 
 test('sin errores de consola ni de la CSP', () => {
