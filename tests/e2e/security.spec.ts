@@ -15,6 +15,8 @@ test('arranca y muestra la interfaz desde app://crm', async () => {
   await expect(ctx.page.getByTestId('welcome-create')).toBeVisible()
   expect(ctx.page.url()).toBe('app://crm/index.html')
   expect(await ctx.page.title()).toBe('CRM Mellow')
+  // La interfaz arranca en español de España (también en Linux).
+  expect(await ctx.page.evaluate(() => navigator.language)).toMatch(/^es(-ES)?$/)
 })
 
 test('el proceso de la interfaz corre dentro del sandbox de Chromium', async () => {

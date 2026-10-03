@@ -8,7 +8,10 @@ import { useToast } from '../ui/Toast'
 import { useRecordActions } from './actions'
 import { viewColumns } from './columns'
 import { useFields, useRecords, useSaveView, useViews } from './hooks'
+import { FieldDialog } from './FieldsSettings'
 import { RecordPanel } from './RecordPanel'
+import { NameDialog } from '../ui/NameDialog'
+import type { FieldDef } from '@shared/data/fields'
 import { CardFieldsMenu, ColumnsMenu, FieldPicker, FilterMenu, SortMenu } from './ViewToolbar'
 import { CalendarView } from './views/CalendarView'
 import { GalleryView, ListView } from './views/Cards'
@@ -40,6 +43,8 @@ export function DataPage({
   const toast = useToast()
   const { create, trash } = useRecordActions()
   const [viewId, setViewId] = useState<string | null>(null)
+  const [editingField, setEditingField] = useState<FieldDef | null>(null)
+  const [naming, setNaming] = useState(false)
   // La selección es de una vista: al cambiar de vista se vacía.
   const [selection, setSelection] = useState<{ viewId: string | null; ids: Set<string> }>({
     viewId: null,
@@ -91,6 +96,32 @@ export function DataPage({
     }
   }
 
+  const addPipeline = async (name: string) => {
+    try {
+      const field = await call('data:createField', {
+        entity,
+        label: name,
+        type: 'select',
+        config: {
+          pipeline: true,
+          options: [
+            { id: 'nuevo', label: 'Nuevo', color: 'gris' },
+            { id: 'en-curso', label: 'En curso', color: 'azul' },
+            { id: 'ganado', label: 'Ganado', color: 'verde' },
+            { id: 'perdido', label: 'Perdido', color: 'vino' },
+          ],
+        },
+      })
+      const v = await call('data:createView', { entity, name, kind: 'kanban' })
+      await call('data:updateView', { id: v.id, config: { groupBy: field.id } })
+      await qc.invalidateQueries({ queryKey: ['data'] })
+      setViewId(v.id)
+      setEditingField(field)
+    } catch (e) {
+      toast.show(e instanceof IpcCallError ? e.message : 'No se pudo crear el pipeline.', 'error')
+    }
+  }
+
   const exportCsv = async () => {
     if (!view) return
     try {
@@ -106,6 +137,7 @@ export function DataPage({
   const columns = viewColumns(allFields, view, titleId)
   const cardFields = view.config.cardFields.map((id) => byId.get(id)).filter((f) => !!f)
   const selectFields = allFields.filter((f) => f.type === 'select')
+  const hasPipelines = selectFields.some((f) => f.config['pipeline'] === true)
   const dateFields = allFields.filter((f) => f.type === 'date' || f.type === 'datetime')
   const article = def.gender === 'f' ? 'Nueva' : 'Nuevo'
 
@@ -160,6 +192,20 @@ export function DataPage({
                     </button>
                   </li>
                 ))}
+                {hasPipelines && (
+                  <li>
+                    <button
+                      type="button"
+                      className="menu-item menu-create"
+                      onClick={() => {
+                        close()
+                        setNaming(true)
+                      }}
+                    >
+                      + Pipeline nuevo…
+                    </button>
+                  </li>
+                )}
               </ul>
             )}
           </Popover>
@@ -178,6 +224,16 @@ export function DataPage({
               fields={selectFields}
               onChange={(groupBy) => save({ groupBy })}
             />
+          )}
+          {view.kind === 'kanban' && view.config.groupBy && byId.get(view.config.groupBy) && (
+            <button
+              type="button"
+              className="btn"
+              data-testid="edit-stages"
+              onClick={() => setEditingField(byId.get(view.config.groupBy!)!)}
+            >
+              Editar etapas
+            </button>
           )}
           {view.kind === 'calendar' && (
             <FieldPicker
@@ -283,6 +339,26 @@ export function DataPage({
         </div>
       </div>
 
+      {editingField && (
+        <FieldDialog
+          entity={entity}
+          field={editingField}
+          fields={allFields}
+          onClose={() => setEditingField(null)}
+        />
+      )}
+      {naming && (
+        <NameDialog
+          title="Pipeline nuevo"
+          label="Nombre del pipeline"
+          placeholder="Ventas, Reclutamiento…"
+          onCancel={() => setNaming(false)}
+          onSubmit={(name) => {
+            setNaming(false)
+            void addPipeline(name)
+          }}
+        />
+      )}
       {openRecordId && (
         <RecordPanel
           key={openRecordId}

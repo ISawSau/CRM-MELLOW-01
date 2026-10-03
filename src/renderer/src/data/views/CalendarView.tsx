@@ -19,8 +19,9 @@ import {
 } from '@shared/data/dates'
 import type { FieldDef } from '@shared/data/fields'
 import type { RecordRow } from '@shared/data/records'
-import { DEFAULT_TIME_ZONE, LOCALE } from '@shared/format'
+import { LOCALE } from '@shared/format'
 import { useRecordActions } from '../actions'
+import { useTimeZone } from '../nav'
 import { DND_ACCESSIBILITY } from './dnd'
 
 const WEEKDAYS = ['lun', 'mar', 'mié', 'jue', 'vie', 'sáb', 'dom']
@@ -31,9 +32,9 @@ const monthName = new Intl.DateTimeFormat(LOCALE, {
   timeZone: 'UTC',
 })
 
-function dayOf(field: FieldDef, v: unknown): string | null {
+function dayOf(field: FieldDef, v: unknown, tz: string): string | null {
   if (typeof v !== 'string') return null
-  return field.type === 'datetime' ? localDateOf(v, DEFAULT_TIME_ZONE) : v
+  return field.type === 'datetime' ? localDateOf(v, tz) : v
 }
 
 function Event({ row, onOpen }: { row: RecordRow; onOpen: (id: string) => void }) {
@@ -121,7 +122,8 @@ export function CalendarView({
   onOpen: (id: string) => void
   onCreate: (values: Record<string, unknown>) => void
 }) {
-  const today = todayIn(DEFAULT_TIME_ZONE)
+  const tz = useTimeZone()
+  const today = todayIn(tz)
   const [month, setMonth] = useState(today.slice(0, 7))
   const { setValue } = useRecordActions()
   const sensors = useSensors(
@@ -139,7 +141,7 @@ export function CalendarView({
   const byDay = new Map<string, RecordRow[]>()
   let undated = 0
   for (const r of rows) {
-    const day = dayOf(dateField, r.values[dateField.id])
+    const day = dayOf(dateField, r.values[dateField.id], tz)
     if (!day) {
       undated++
       continue
@@ -149,16 +151,15 @@ export function CalendarView({
 
   const valueFor = (day: string, previous: unknown): string | null => {
     if (dateField.type === 'date') return day
-    const time =
-      typeof previous === 'string' ? toLocalInput(previous, DEFAULT_TIME_ZONE).slice(11) : '09:00'
-    return fromLocalInput(`${day}T${time}`, DEFAULT_TIME_ZONE)
+    const time = typeof previous === 'string' ? toLocalInput(previous, tz).slice(11) : '09:00'
+    return fromLocalInput(`${day}T${time}`, tz)
   }
 
   const onDragEnd = (e: DragEndEvent) => {
     if (!e.over) return
     const row = rows.find((r) => r.id === e.active.id)
     const day = String(e.over.id)
-    if (!row || dayOf(dateField, row.values[dateField.id]) === day) return
+    if (!row || dayOf(dateField, row.values[dateField.id], tz) === day) return
     void setValue(row.id, dateField, valueFor(day, row.values[dateField.id]))
   }
 

@@ -28,6 +28,8 @@ if (refuseDebugSwitches()) {
 }
 
 // Interfaz en español de España (formatos de Intl y controles nativos de fecha).
+// En Linux Chromium ignora --lang y toma el idioma de las variables de entorno.
+if (process.platform === 'linux') process.env['LANGUAGE'] = 'es_ES:es'
 app.commandLine.appendSwitch('lang', 'es-ES')
 
 // Fuerza el sandbox de Chromium en todos los renderers.

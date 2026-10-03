@@ -3,9 +3,11 @@ import { fromLocalInput, toLocalInput } from '@shared/data/dates'
 import { parseFieldConfig, type FieldDef } from '@shared/data/fields'
 import type { LinkRef } from '@shared/data/records'
 import { norm } from '@shared/data/text'
-import { DEFAULT_TIME_ZONE, parseNumberEs } from '@shared/format'
+import { parseNumberEs } from '@shared/format'
 import { call } from '../lib/ipc'
 import { FieldValue, OptionChip } from './FieldValue'
+import { useNav, useTimeZone } from './nav'
+import { useToast } from '../ui/Toast'
 
 /**
  * Editor de un campo guardado. `onCommit` recibe el valor ya en su forma guardada
@@ -159,6 +161,8 @@ function RatingEditor({ field, value, onCommit }: EditorProps) {
 
 function RelationEditor({ field, value, onCommit }: EditorProps) {
   const cfg = parseFieldConfig('relation', field.config)
+  const nav = useNav()
+  const toast = useToast()
   const linked = (value as LinkRef[] | undefined) ?? []
   const [q, setQ] = useState('')
   const [options, setOptions] = useState<LinkRef[]>([])
@@ -175,53 +179,91 @@ function RelationEditor({ field, value, onCommit }: EditorProps) {
   const matches = options
     .filter((o) => !ids.has(o.id) && norm(o.title).includes(norm(q)))
     .slice(0, 8)
+  const exact = options.some((o) => norm(o.title) === norm(q.trim()))
+  // En una relación de un solo registro, elegir otro lo sustituye.
   const set = (next: LinkRef[]) => onCommit(next.map((l) => l.id))
+  const pick = (m: LinkRef) => {
+    set(cfg.multiple ? [...linked, m] : [m])
+    setQ('')
+  }
+  const createAndLink = async () => {
+    const title = q.trim()
+    if (!title) return
+    try {
+      const r = await call('data:create', { entity: cfg.target, title })
+      pick({ id: r.id, title: r.title })
+    } catch {
+      toast.show('No se pudo crear el registro.', 'error')
+    }
+  }
   return (
     <div className="relation-edit">
-      <span className="chips">
-        {linked.map((l) => (
-          <span key={l.id} className="chip chip-link">
-            {l.title}
-            <button
-              type="button"
-              className="chip-x"
-              aria-label={`Quitar ${l.title}`}
-              onClick={() => set(linked.filter((x) => x.id !== l.id))}
-            >
-              ×
-            </button>
-          </span>
-        ))}
-      </span>
-      {(cfg.multiple || linked.length === 0) && (
-        <>
-          <input
-            className="input"
-            placeholder="Buscar para enlazar…"
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            aria-label={`Enlazar en ${field.label}`}
-          />
-          {q && (
-            <ul className="menu-list">
-              {matches.length === 0 && <li className="faint menu-empty">Sin resultados</li>}
-              {matches.map((m) => (
-                <li key={m.id}>
-                  <button
-                    type="button"
-                    className="menu-item"
-                    onClick={() => {
-                      set([...linked, m])
-                      setQ('')
-                    }}
-                  >
-                    {m.title}
-                  </button>
-                </li>
-              ))}
-            </ul>
+      {linked.length > 0 && (
+        <span className="chips">
+          {linked.map((l) => (
+            <span key={l.id} className="chip chip-link">
+              <button
+                type="button"
+                className="chip-open"
+                aria-label={`Abrir ${l.title}`}
+                title={`Abrir ${l.title}`}
+                onClick={() => nav.openRecord(cfg.target, l.id)}
+              >
+                {l.title}
+              </button>
+              <button
+                type="button"
+                className="chip-x"
+                aria-label={`Quitar ${l.title}`}
+                onClick={() => set(linked.filter((x) => x.id !== l.id))}
+              >
+                ×
+              </button>
+            </span>
+          ))}
+        </span>
+      )}
+      <input
+        className="input"
+        placeholder={
+          cfg.multiple || linked.length === 0 ? 'Buscar o crear para enlazar…' : 'Cambiar…'
+        }
+        value={q}
+        onChange={(e) => setQ(e.target.value)}
+        aria-label={`Enlazar en ${field.label}`}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault()
+            if (matches[0]) pick(matches[0])
+            else void createAndLink()
+          }
+          if (e.key === 'Escape' && q) {
+            e.stopPropagation()
+            setQ('')
+          }
+        }}
+      />
+      {q && (
+        <ul className="menu-list">
+          {matches.map((m) => (
+            <li key={m.id}>
+              <button type="button" className="menu-item" onClick={() => pick(m)}>
+                {m.title}
+              </button>
+            </li>
+          ))}
+          {!exact && q.trim() && (
+            <li>
+              <button
+                type="button"
+                className="menu-item menu-create"
+                onClick={() => void createAndLink()}
+              >
+                + Crear «{q.trim()}»
+              </button>
+            </li>
           )}
-        </>
+        </ul>
       )}
     </div>
   )
@@ -229,6 +271,7 @@ function RelationEditor({ field, value, onCommit }: EditorProps) {
 
 export function FieldEditor(props: EditorProps) {
   const { field, value, onCommit, autoFocus, onDone, id } = props
+  const tz = useTimeZone()
   switch (field.type) {
     case 'text':
     case 'url':
@@ -265,9 +308,9 @@ export function FieldEditor(props: EditorProps) {
           id={id}
           className="input"
           type="datetime-local"
-          value={typeof value === 'string' ? toLocalInput(value, DEFAULT_TIME_ZONE) : ''}
+          value={typeof value === 'string' ? toLocalInput(value, tz) : ''}
           autoFocus={autoFocus}
-          onChange={(e) => onCommit(fromLocalInput(e.target.value, DEFAULT_TIME_ZONE))}
+          onChange={(e) => onCommit(fromLocalInput(e.target.value, tz))}
           onBlur={() => onDone?.()}
           onKeyDown={(e) => {
             if (e.key === 'Escape' || e.key === 'Enter') {

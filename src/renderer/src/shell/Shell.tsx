@@ -3,13 +3,15 @@ import { DEFAULT_APPEARANCE, type Density } from '@shared/appearance'
 import type { VaultStatus } from '@shared/ipc'
 import { DataPage } from '../data/DataPage'
 import { useDataEvents } from '../data/hooks'
+import { NavContext } from '../data/nav'
 import { TrashPage } from '../data/TrashPage'
 import { call, IpcCallError } from '../lib/ipc'
 import { useActivityPing } from '../lib/hooks'
 import { ToastProvider, useToast } from '../ui/Toast'
 import { CommandPalette, type PaletteActions } from './CommandPalette'
-import { Home, Upcoming } from './Pages'
-import { ALL_SECTIONS } from './sections'
+import { Home } from './Home'
+import { Upcoming } from './Pages'
+import { ALL_SECTIONS, SECTION_GROUPS } from './sections'
 import { Settings } from './Settings'
 import { Sidebar } from './Sidebar'
 import { StatusBar } from './StatusBar'
@@ -85,6 +87,18 @@ function ShellInner({ status }: { status: VaultStatus }) {
     setOpenRecord(null)
   }, [])
 
+  const nav = useMemo(
+    () => ({
+      openRecord: (entity: string, id: string) => {
+        const target = ALL_SECTIONS.find((s) => s.entity === entity)
+        if (!target) return
+        setSection(target.id)
+        setOpenRecord(id)
+      },
+    }),
+    [],
+  )
+
   const actions: PaletteActions = useMemo(
     () => ({
       navigate,
@@ -108,35 +122,37 @@ function ShellInner({ status }: { status: VaultStatus }) {
   const goSettings = () => navigate('ajustes')
 
   return (
-    <div className="shell" data-collapsed={collapsed} data-testid="shell">
-      <Sidebar
-        current={section}
-        onSelect={navigate}
-        collapsed={collapsed}
-        onToggle={() => setCollapsed((c) => !c)}
-        onLock={lock}
-      />
-      <main className="main">
-        {current.entity ? (
-          <DataPage
-            key={current.entity}
-            entity={current.entity}
-            num="01"
-            openRecordId={openRecord}
-            onOpenRecord={setOpenRecord}
-          />
-        ) : current.id === 'inicio' ? (
-          <Home onOpenPalette={openPalette} onNotes={() => navigate('notas')} />
-        ) : current.id === 'papelera' ? (
-          <TrashPage />
-        ) : current.id === 'ajustes' ? (
-          <Settings status={status} />
-        ) : (
-          <Upcoming section={current} onSettings={goSettings} />
-        )}
-      </main>
-      <StatusBar status={status} onOpenPalette={openPalette} />
-      {paletteOpen && <CommandPalette open onClose={closePalette} actions={actions} />}
-    </div>
+    <NavContext.Provider value={nav}>
+      <div className="shell" data-collapsed={collapsed} data-testid="shell">
+        <Sidebar
+          current={section}
+          onSelect={navigate}
+          collapsed={collapsed}
+          onToggle={() => setCollapsed((c) => !c)}
+          onLock={lock}
+        />
+        <main className="main">
+          {current.entity ? (
+            <DataPage
+              key={current.entity}
+              entity={current.entity}
+              num={SECTION_GROUPS.find((g) => g.sections.includes(current))?.num ?? '01'}
+              openRecordId={openRecord}
+              onOpenRecord={setOpenRecord}
+            />
+          ) : current.id === 'inicio' ? (
+            <Home onNavigate={navigate} />
+          ) : current.id === 'papelera' ? (
+            <TrashPage />
+          ) : current.id === 'ajustes' ? (
+            <Settings status={status} />
+          ) : (
+            <Upcoming section={current} onSettings={goSettings} />
+          )}
+        </main>
+        <StatusBar status={status} onOpenPalette={openPalette} />
+        {paletteOpen && <CommandPalette open onClose={closePalette} actions={actions} />}
+      </div>
+    </NavContext.Provider>
   )
 }
