@@ -88,6 +88,9 @@ npm ci
 paso "Descargando Electron (se verifica con las sumas SHA-256 del propio paquete)"
 node node_modules/electron/install.js
 
+paso "Descargando FFmpeg para el vídeo (se verifica con su huella SHA-256)"
+node scripts/descargar-ffmpeg.mjs
+
 paso "Comprobando que todo funciona (tests unitarios)"
 npm test
 

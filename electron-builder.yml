@@ -22,6 +22,15 @@ files:
   - '!node_modules/better-sqlite3/prebuilds/*-arm64.node'
   - '!node_modules/hash-wasm/dist/*.umd.min.js.map'
 
+# FFmpeg (vídeo, fase 9) va fuera del asar, junto con su licencia (GPL-3.0). Lo
+# descarga y verifica scripts/descargar-ffmpeg.mjs.
+extraResources:
+  - from: vendor/ffmpeg
+    to: ffmpeg
+    filter: ['ffmpeg', 'ffmpeg.exe']
+  - from: build/licencias
+    to: licencias
+
 # Sin autoactualización: los instaladores se descargan a mano desde Actions.
 publish: null
 
