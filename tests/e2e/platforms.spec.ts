@@ -115,6 +115,16 @@ test('la cuenta importada se asigna a un cliente y suma en Inicio', async () => 
 })
 
 test('LinkedIn por API: pegar un token, activar una cuenta y descargar sus métricas', async () => {
+  // LinkedIn es opcional y viene desactivado: la sección es solo de X.
+  await expect(page.getByTestId('nav-plataformas')).toContainText('X Ads')
+  await page.getByTestId('nav-plataformas').click()
+  await expect(plat().getByTestId('platforms-tab-importar')).toBeVisible()
+  await expect(plat().getByTestId('platforms-tab-linkedin')).toHaveCount(0)
+  await page.getByTestId('nav-ajustes').click()
+  const toggle = page.getByTestId('integrations-settings').getByRole('checkbox')
+  await toggle.click()
+  await expect(toggle).toBeChecked()
+  await expect(page.getByTestId('nav-plataformas')).toContainText('LinkedIn y X')
   await page.getByTestId('nav-plataformas').click()
   await plat().getByTestId('platforms-tab-linkedin').click()
   const li = plat().getByTestId('linkedin-connection')

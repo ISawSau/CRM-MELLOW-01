@@ -7,25 +7,27 @@ import { isoToEs } from '../meta/meta'
 import { useClients } from '../tools/kit'
 import { ImportCsv } from './ImportCsv'
 import { LinkedInConnection } from './LinkedInConnection'
-import { usePlatformAccounts } from './platforms'
+import { useLinkedInStatus, usePlatformAccounts } from './platforms'
 
 type Tab = 'cuentas' | 'importar' | 'linkedin'
 
 /** LinkedIn y X (SPEC §7.4, fase 11). */
 export function PlatformsPage({ num }: { num: string }) {
   const accounts = usePlatformAccounts().data ?? []
-  const [tab, setTab] = useState<Tab>(accounts.length ? 'cuentas' : 'importar')
+  const linkedin = useLinkedInStatus().data?.enabled ?? false
+  const [chosen, setTab] = useState<Tab>(accounts.length ? 'cuentas' : 'importar')
+  const tab = !linkedin && chosen === 'linkedin' ? 'cuentas' : chosen
   return (
     <div className="page page-wide" data-testid="page-plataformas">
       <div className="section-head">
         <span className="eyebrow">
           <span className="num">{num}</span> media buying
         </span>
-        <h1 className="title">LinkedIn y X</h1>
+        <h1 className="title">{linkedin ? 'LinkedIn y X' : 'X Ads'}</h1>
         <p className="muted">
-          Las cuentas de LinkedIn y X entran en Análisis, Facturación e Informes junto a las de
-          Meta. LinkedIn se puede conectar por su API (gratis, con aprobación de LinkedIn) o con los
-          CSV de Campaign Manager; X, con los CSV de X Ads (su API es de pago).
+          {linkedin
+            ? 'Las cuentas de LinkedIn y X entran en Análisis, Facturación e Informes junto a las de Meta. LinkedIn se puede conectar por su API (gratis, con aprobación de LinkedIn) o con los CSV de Campaign Manager; X, con los CSV de X Ads (su API es de pago).'
+            : 'Las cuentas de X entran en Análisis, Facturación e Informes junto a las de Meta, importando los CSV de X Ads (su API es de pago). LinkedIn es opcional: actívalo en Ajustes → Integraciones.'}
         </p>
       </div>
       <div className="tabs" role="tablist" aria-label="Otras plataformas">
@@ -35,21 +37,23 @@ export function PlatformsPage({ num }: { num: string }) {
             ['importar', 'Importar CSV'],
             ['linkedin', 'API de LinkedIn'],
           ] as const
-        ).map(([id, label]) => (
-          <button
-            key={id}
-            type="button"
-            role="tab"
-            aria-selected={tab === id}
-            onClick={() => setTab(id)}
-            data-testid={`platforms-tab-${id}`}
-          >
-            {label}
-          </button>
-        ))}
+        )
+          .filter(([id]) => linkedin || id !== 'linkedin')
+          .map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              role="tab"
+              aria-selected={tab === id}
+              onClick={() => setTab(id)}
+              data-testid={`platforms-tab-${id}`}
+            >
+              {label}
+            </button>
+          ))}
       </div>
       {tab === 'cuentas' && <Accounts onImport={() => setTab('importar')} />}
-      {tab === 'importar' && <ImportCsv onDone={() => setTab('cuentas')} />}
+      {tab === 'importar' && <ImportCsv linkedin={linkedin} onDone={() => setTab('cuentas')} />}
       {tab === 'linkedin' && <LinkedInConnection />}
     </div>
   )

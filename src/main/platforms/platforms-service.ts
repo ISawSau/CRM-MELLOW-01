@@ -32,6 +32,7 @@ import {
  */
 
 const LI_KEY = 'linkedin.config'
+const LI_ENABLED_KEY = 'linkedin.enabled'
 const MAPPINGS_KEY = 'platforms.mappings'
 const HISTORY_DAYS = 365
 const CHUNK_DAYS = 90
@@ -229,10 +230,33 @@ export class PlatformsService {
     return r.success ? r.data : null
   }
 
+  /** LinkedIn es opcional: desactivado hasta que el usuario lo active en Ajustes. */
+  linkedinEnabled(): boolean {
+    try {
+      return readSetting(this.db(), LI_ENABLED_KEY) === true
+    } catch {
+      return false
+    }
+  }
+
+  setLinkedinEnabled(enabled: boolean): LinkedInStatus {
+    writeSetting(this.db(), LI_ENABLED_KEY, enabled)
+    if (enabled) this.start()
+    else {
+      this.stop()
+      this.phase = 'idle'
+      this.error = null
+    }
+    this.touched()
+    return this.linkedinStatus()
+  }
+
   linkedinStatus(): LinkedInStatus {
     let cfg: LiConfig | null = null
     let last: string | null = null
+    let enabled = false
     try {
+      enabled = this.linkedinEnabled()
       cfg = this.liConfig()
       last =
         (
@@ -247,6 +271,7 @@ export class PlatformsService {
     }
     const daysLeft = cfg ? Math.floor((cfg.expiresAt - this.now().getTime()) / 86_400_000) : null
     return {
+      enabled,
       connected: cfg !== null,
       expiresAt: cfg ? new Date(cfg.expiresAt).toISOString() : null,
       daysLeft,
@@ -266,6 +291,12 @@ export class PlatformsService {
     clientSecret: string
     token: string
   }): Promise<LinkedInStatus> {
+    if (!this.linkedinEnabled())
+      throw new AppError(
+        'INVALID_INPUT',
+        undefined,
+        'Activa LinkedIn en Ajustes antes de conectarlo.',
+      )
     let cfg: LiConfig
     if (input.token) {
       // Token del generador del portal de desarrolladores: dura 60 días.
@@ -342,7 +373,7 @@ export class PlatformsService {
 
   private async doSync(): Promise<void> {
     const cfg = this.liConfig()
-    if (!cfg) return
+    if (!cfg || !this.linkedinEnabled()) return
     if (cfg.expiresAt < this.now().getTime()) {
       this.error = 'El acceso a LinkedIn ha caducado: vuelve a conectar.'
       this.phase = 'error'
@@ -485,7 +516,7 @@ export class PlatformsService {
   start(): void {
     this.stop()
     try {
-      if (!this.liConfig()) return
+      if (!this.liConfig() || !this.linkedinEnabled()) return
     } catch {
       return
     }

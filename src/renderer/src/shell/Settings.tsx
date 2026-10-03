@@ -11,6 +11,7 @@ import { DataSettings, FieldsSettings } from '../data/FieldsSettings'
 import { ProfileSettings } from './ProfileSettings'
 import { SyncSettings } from './SyncSettings'
 import { GmailSettings } from '../gmail/GmailSettings'
+import { LinkedInToggle } from '../platforms/LinkedInToggle'
 import { Alert } from '../ui/Alert'
 import { PasswordField } from '../ui/PasswordField'
 import { newThemeFrom, ThemeEditor } from '../theme/ThemeEditor'
@@ -287,6 +288,7 @@ export function Settings({ status }: { status: VaultStatus }) {
         <DataSettings />
         <SyncSettings />
         <GmailSettings />
+        <LinkedInToggle />
         <AutoLock status={status} />
         <ChangePassword />
         <RotateKey />

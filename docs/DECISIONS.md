@@ -636,3 +636,8 @@ El usuario no quiere escribir comandos de desarrollo para usar la app. Los insta
   - la cuenta atrás si Meta ha pedido esperar.
   
   La barra de estado muestra el porcentaje.
+
+### D-086 · LinkedIn, integración opcional desactivada de serie
+
+- Petición del usuario: LinkedIn sobra en el día a día. Pasa a ser una integración opcional en Ajustes → Integraciones opcionales, **desactivada de serie** (`linkedin.enabled`).
+- Desactivada, la sección se llama «X Ads»: solo importa CSV de X y no tiene pestaña de API. LinkedIn no se sincroniza ni se puede conectar. Los datos y la conexión que ya hubiera se conservan, y al reactivarla vuelve todo.

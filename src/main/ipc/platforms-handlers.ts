@@ -13,6 +13,7 @@ export function createPlatformsHandlers(platforms: PlatformsService): PlatformsH
     'platforms:savedMapping': ({ platform, headers }) => platforms.savedMapping(platform, headers),
     'platforms:importCsv': ({ input, headers }) => platforms.importCsv(input, headers),
     'linkedin:status': () => platforms.linkedinStatus(),
+    'linkedin:setEnabled': ({ enabled }) => platforms.setLinkedinEnabled(enabled),
     'linkedin:connect': (input) => platforms.linkedinConnect(input),
     'linkedin:disconnect': () => platforms.linkedinDisconnect(),
     'linkedin:sync': async () => {

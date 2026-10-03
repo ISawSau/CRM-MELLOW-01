@@ -287,6 +287,7 @@ Tabla genérica de vínculos (campo de relación, id de origen, id de destino, p
   - Sección **LinkedIn y X** con tres pestañas: Cuentas (cliente, uso en Análisis y borrado), Importar CSV y API de LinkedIn.
   - LinkedIn se conecta por su API de publicidad en solo lectura (D-079). X, solo por CSV porque su API es de pago (D-080). LinkedIn también admite CSV.
   - Las métricas comparten tablas con Meta (gasto, impresiones, clics, clics en el enlace, conversiones y valor, por campaña y día). Así entran en Análisis, Inicio, Facturación, Informes y alertas, y en la ficha del cliente.
+  - LinkedIn es una integración opcional, desactivada de serie (Ajustes → Integraciones opcionales). Sin ella, la sección es «X Ads» (D-086).
   - No hay conjuntos, anuncios ni desgloses de estas plataformas; la tabla tipo Ads Manager sigue siendo solo de Meta. Tampoco se guardan todavía las métricas propias de cada plataforma (solo las normalizadas).
 
 ### 7.5 Leads de Meta (opcional, baja prioridad)

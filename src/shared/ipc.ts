@@ -380,6 +380,7 @@ export const ipcSchemas = {
     headers: z.array(z.string().max(300)).max(300),
   }),
   'linkedin:status': z.void(),
+  'linkedin:setEnabled': z.object({ enabled: z.boolean() }),
   'linkedin:connect': linkedinConnectSchema,
   'linkedin:disconnect': z.void(),
   'linkedin:sync': z.void(),
@@ -513,6 +514,7 @@ export interface IpcOutputs {
   'platforms:savedMapping': CsvMapping | null
   'platforms:importCsv': CsvImportResult
   'linkedin:status': LinkedInStatus
+  'linkedin:setEnabled': LinkedInStatus
   'linkedin:connect': LinkedInStatus
   'linkedin:disconnect': LinkedInStatus
   'linkedin:sync': LinkedInStatus

@@ -119,6 +119,7 @@ export const IPC_CHANNELS = [
   'platforms:savedMapping',
   'platforms:importCsv',
   'linkedin:status',
+  'linkedin:setEnabled',
   'linkedin:connect',
   'linkedin:disconnect',
   'linkedin:sync',

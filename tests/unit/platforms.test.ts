@@ -220,6 +220,12 @@ describe('otras plataformas en la bóveda', () => {
 
   it('LinkedIn por API: conecta con token, descubre cuentas y sincroniza métricas diarias', async () => {
     const { vault, platforms, li, meta } = await ready()
+    // LinkedIn viene desactivado: hay que activarlo antes de conectar.
+    expect(platforms.linkedinStatus().enabled).toBe(false)
+    await expect(
+      platforms.linkedinConnect({ clientId: '', clientSecret: '', token: LI_TOKEN_OK }),
+    ).rejects.toThrow(/Activa LinkedIn/)
+    expect(platforms.setLinkedinEnabled(true).enabled).toBe(true)
     await expect(
       platforms.linkedinConnect({ clientId: '', clientSecret: '', token: 'malo' }),
     ).rejects.toThrow(/rechazado el token/)

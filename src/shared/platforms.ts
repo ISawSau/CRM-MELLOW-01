@@ -91,6 +91,8 @@ export const csvImportSchema = z.object({
 export type CsvImport = z.infer<typeof csvImportSchema>
 
 export interface LinkedInStatus {
+  /** LinkedIn es opcional y viene desactivado (se activa en Ajustes). */
+  enabled: boolean
   connected: boolean
   /** Fecha ISO de caducidad del token. */
   expiresAt: string | null
