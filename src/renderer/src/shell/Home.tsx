@@ -19,6 +19,7 @@ import { AlertsCard, SpendCard } from '../analysis/HomeCards'
 import { WidgetDialog, WidgetView } from '../analysis/Widget'
 import { call, IpcCallError } from '../lib/ipc'
 import { useToast } from '../ui/Toast'
+import { t } from '@shared/i18n'
 
 const ALL = { filters: [], match: 'all' as const, sorts: [] }
 const RECENT = {
@@ -78,21 +79,25 @@ function TasksCard({ onNavigate }: { onNavigate: (section: string) => void }) {
   return (
     <section className="home-card" data-testid="home-tasks">
       <div className="home-card-head">
-        <h2 className="home-card-title">Tareas</h2>
+        <h2 className="home-card-title">{t('Tareas')}</h2>
         <button type="button" className="btn-link" onClick={() => onNavigate('tareas')}>
-          Ver tareas →
+          {t('Ver tareas →')}
         </button>
       </div>
-      <h3 className="panel-subtitle">Atrasadas · {ready ? (overdue.data?.length ?? 0) : 0}</h3>
+      <h3 className="panel-subtitle">
+        {t('Atrasadas')} · {ready ? (overdue.data?.length ?? 0) : 0}
+      </h3>
       <RecordList
         rows={ready ? (overdue.data ?? []).slice(0, 6) : []}
-        empty="Nada atrasado."
+        empty={t('Nada atrasado.')}
         entity="tarea"
       />
-      <h3 className="panel-subtitle">Hoy · {ready ? (today.data?.length ?? 0) : 0}</h3>
+      <h3 className="panel-subtitle">
+        {t('Hoy')} · {ready ? (today.data?.length ?? 0) : 0}
+      </h3>
       <RecordList
         rows={ready ? (today.data ?? []).slice(0, 6) : []}
-        empty="Nada para hoy."
+        empty={t('Nada para hoy.')}
         entity="tarea"
       />
     </section>
@@ -126,17 +131,17 @@ function KpisCard() {
   return (
     <div className="kpis" data-testid="home-kpis">
       <Kpi
-        label="Clientes activos"
+        label={t('Clientes activos')}
         value={formatNumber(active.length, 0)}
-        hint={`de ${formatNumber(cl.length, 0)} en total`}
+        hint={t('de {n} en total', { n: formatNumber(cl.length, 0) })}
       />
       <Kpi
-        label="Fees mensuales"
+        label={t('Fees mensuales')}
         value={formatCurrency(monthly, currency)}
-        hint="clientes activos"
+        hint={t('clientes activos')}
       />
-      <Kpi label="Contactos" value={formatNumber(contacts.data?.length ?? 0, 0)} />
-      <Kpi label="Notas" value={formatNumber(notes.data?.length ?? 0, 0)} />
+      <Kpi label={t('Contactos')} value={formatNumber(contacts.data?.length ?? 0, 0)} />
+      <Kpi label={t('Notas')} value={formatNumber(notes.data?.length ?? 0, 0)} />
     </div>
   )
 }
@@ -147,13 +152,13 @@ function StagesCard({ onNavigate }: { onNavigate: (section: string) => void }) {
   return (
     <section className="home-card" data-testid="home-stages">
       <div className="home-card-head">
-        <h2 className="home-card-title">Clientes por etapa</h2>
+        <h2 className="home-card-title">{t('Clientes por etapa')}</h2>
         <button type="button" className="btn-link" onClick={() => onNavigate('clientes')}>
-          Ver pipeline →
+          {t('Ver pipeline →')}
         </button>
       </div>
       {stages.length === 0 ? (
-        <p className="faint">Sin etapas.</p>
+        <p className="faint">{t('Sin etapas.')}</p>
       ) : (
         <ul className="stage-bars">
           {stages.map((s) => {
@@ -187,15 +192,15 @@ function NotesCard({ onNavigate }: { onNavigate: (section: string) => void }) {
   return (
     <section className="home-card" data-testid="home-notes">
       <div className="home-card-head">
-        <h2 className="home-card-title">Notas recientes</h2>
+        <h2 className="home-card-title">{t('Notas recientes')}</h2>
         <button type="button" className="btn-link" onClick={() => onNavigate('notas')}>
-          Ver notas →
+          {t('Ver notas →')}
         </button>
       </div>
-      <RecordList rows={nt.slice(0, 6)} empty="Aún no hay notas." entity="nota" />
+      <RecordList rows={nt.slice(0, 6)} empty={t('Aún no hay notas.')} entity="nota" />
       {pinned.length > 0 && (
         <>
-          <h3 className="panel-subtitle">Fijadas</h3>
+          <h3 className="panel-subtitle">{t('Fijadas')}</h3>
           <RecordList rows={pinned} empty="" entity="nota" />
         </>
       )}
@@ -241,7 +246,7 @@ export function Home({ onNavigate }: { onNavigate: (section: string) => void }) 
     call('home:setLayout', { layout: next === null ? null : { items: next } })
       .then((l) => qc.setQueryData(['data', 'home', 'layout'], l))
       .catch((e: unknown) =>
-        toast.show(e instanceof IpcCallError ? e.message : 'No se ha podido guardar.', 'error'),
+        toast.show(e instanceof IpcCallError ? e.message : t('No se ha podido guardar.'), 'error'),
       )
   const move = (i: number, d: -1 | 1) => {
     const next = [...items]
@@ -250,16 +255,20 @@ export function Home({ onNavigate }: { onNavigate: (section: string) => void }) 
     void save(next)
   }
   const label = (it: HomeItem) =>
-    it.kind === 'card' ? HOME_CARD_LABELS[it.id] : `Widget: ${it.widget.title || 'de análisis'}`
+    it.kind === 'card'
+      ? t(HOME_CARD_LABELS[it.id])
+      : t('Widget: {title}', { title: it.widget.title || t('de análisis') })
 
   return (
     <div className="page page-wide" data-testid="page-inicio">
       <div className="section-head section-head-actions">
         <div>
           <span className="eyebrow">
-            <span className="num">00</span> inicio
+            <span className="num">00</span> {t('inicio')}
           </span>
-          <h1 className="title">{name ? `Hola, ${name.split(' ')[0]}` : 'Inicio'}</h1>
+          <h1 className="title">
+            {name ? t('Hola, {name}', { name: name.split(' ')[0] ?? '' }) : t('Inicio')}
+          </h1>
         </div>
         <button
           type="button"
@@ -267,15 +276,16 @@ export function Home({ onNavigate }: { onNavigate: (section: string) => void }) 
           onClick={() => setEditing(!editing)}
           data-testid="home-customize"
         >
-          {editing ? 'Listo' : 'Personalizar'}
+          {editing ? t('Listo') : t('Personalizar')}
         </button>
       </div>
 
       {editing && (
         <div className="home-editor" data-testid="home-editor">
           <p className="muted">
-            Ordena o quita tarjetas con los botones de cada una, y añade las que faltan o widgets de
-            Análisis (de todas las cuentas).
+            {t(
+              'Ordena o quita tarjetas con los botones de cada una, y añade las que faltan o widgets de Análisis (de todas las cuentas).',
+            )}
           </p>
           <div className="form-actions">
             {hidden.map((c) => (
@@ -285,14 +295,14 @@ export function Home({ onNavigate }: { onNavigate: (section: string) => void }) 
                 className="btn"
                 onClick={() => void save([...items, { kind: 'card', id: c }])}
               >
-                + {HOME_CARD_LABELS[c]}
+                + {t(HOME_CARD_LABELS[c])}
               </button>
             ))}
             <button type="button" className="btn" onClick={() => setWidget('new')}>
-              + Widget de análisis
+              + {t('Widget de análisis')}
             </button>
             <button type="button" className="btn-link" onClick={() => void save(null)}>
-              Restablecer Inicio
+              {t('Restablecer Inicio')}
             </button>
           </div>
         </div>
@@ -300,8 +310,8 @@ export function Home({ onNavigate }: { onNavigate: (section: string) => void }) 
 
       {items.length === 0 && (
         <div className="empty">
-          <h2>Inicio vacío</h2>
-          <p className="muted">Pulsa «Personalizar» para añadir tarjetas o widgets.</p>
+          <h2>{t('Inicio vacío')}</h2>
+          <p className="muted">{t('Pulsa «Personalizar» para añadir tarjetas o widgets.')}</p>
         </div>
       )}
       <div className="home-grid">
@@ -319,7 +329,7 @@ export function Home({ onNavigate }: { onNavigate: (section: string) => void }) 
                 <button
                   type="button"
                   className="icon-btn"
-                  aria-label={`Subir ${label(it)}`}
+                  aria-label={t('Subir {label}', { label: label(it) })}
                   disabled={i === 0}
                   onClick={() => move(i, -1)}
                 >
@@ -328,7 +338,7 @@ export function Home({ onNavigate }: { onNavigate: (section: string) => void }) 
                 <button
                   type="button"
                   className="icon-btn"
-                  aria-label={`Bajar ${label(it)}`}
+                  aria-label={t('Bajar {label}', { label: label(it) })}
                   disabled={i === items.length - 1}
                   onClick={() => move(i, 1)}
                 >
@@ -337,7 +347,7 @@ export function Home({ onNavigate }: { onNavigate: (section: string) => void }) 
                 <button
                   type="button"
                   className="icon-btn"
-                  aria-label={`Quitar ${label(it)}`}
+                  aria-label={t('Quitar {label}', { label: label(it) })}
                   onClick={() => void save(items.filter((_, j) => j !== i))}
                 >
                   ×

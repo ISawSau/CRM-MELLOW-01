@@ -15,6 +15,7 @@ import {
 import { dirname, join, normalize, relative, isAbsolute } from 'node:path'
 import { Readable } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
+import { t } from '@shared/i18n'
 
 /**
  * Almacén remoto de la sincronización (SPEC §4). Todo lo que se sube ya va cifrado
@@ -139,7 +140,7 @@ export class DriveRemote implements Remote {
     })
     if (!res.ok && res.status !== 308 && res.status !== 404) {
       const text = await res.text().catch(() => '')
-      throw new Error(`Google Drive respondió ${res.status}: ${text.slice(0, 200)}`)
+      throw new Error(t('Google Drive respondió {status}: {text}', { status: res.status, text: text.slice(0, 200) }))
     }
     return res
   }
@@ -260,7 +261,7 @@ export class DriveRemote implements Remote {
       },
     )
     const session = start.headers.get('location')
-    if (!session) throw new Error('Google Drive no devolvió la sesión de subida')
+    if (!session) throw new Error(t('Google Drive no devolvió la sesión de subida'))
     let offset = 0
     for await (const chunk of createReadStream(src, { highWaterMark: RESUMABLE_CHUNK })) {
       const buf = chunk as Buffer
@@ -271,7 +272,7 @@ export class DriveRemote implements Remote {
         body: new Uint8Array(buf),
       })
       if (res.status !== 308 && !res.ok)
-        throw new Error(`La subida a Google Drive falló (${res.status})`)
+        throw new Error(t('La subida a Google Drive falló ({status})', { status: res.status }))
       offset = end + 1
     }
   }

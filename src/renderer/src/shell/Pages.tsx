@@ -6,7 +6,8 @@ export function Upcoming({ section, onSettings }: { section: Section; onSettings
     <div className="page" data-testid={`page-${section.id}`}>
       <div className="section-head">
         <span className="eyebrow">
-          <span className="num">{String(section.phase).padStart(2, '0')}</span> {t('fase {n}', { n: String(section.phase) })}
+          <span className="num">{String(section.phase).padStart(2, '0')}</span>{' '}
+          {t('fase {n}', { n: String(section.phase) })}
         </span>
         <h1 className="title">{t(section.label)}</h1>
       </div>

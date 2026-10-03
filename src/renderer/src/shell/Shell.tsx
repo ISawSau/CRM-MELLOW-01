@@ -23,6 +23,7 @@ import { Settings } from './Settings'
 import { Sidebar } from './Sidebar'
 import { StatusBar } from './StatusBar'
 import { ConflictDialog } from './sync'
+import { t } from '@shared/i18n'
 
 export function Shell({ status }: { status: VaultStatus }) {
   return (
@@ -33,13 +34,13 @@ export function Shell({ status }: { status: VaultStatus }) {
 }
 
 /** ¿El foco está en un sitio donde Ctrl+Z debe deshacer el texto y no los datos? */
-function isTextTarget(t: EventTarget | null): boolean {
-  if (!(t instanceof HTMLElement)) return false
+function isTextTarget(el: EventTarget | null): boolean {
+  if (!(el instanceof HTMLElement)) return false
   return (
-    t.isContentEditable ||
-    t instanceof HTMLTextAreaElement ||
-    t instanceof HTMLSelectElement ||
-    (t instanceof HTMLInputElement && !['checkbox', 'radio', 'button'].includes(t.type))
+    el.isContentEditable ||
+    el instanceof HTMLTextAreaElement ||
+    el instanceof HTMLSelectElement ||
+    (el instanceof HTMLInputElement && !['checkbox', 'radio', 'button'].includes(el.type))
   )
 }
 
@@ -77,10 +78,11 @@ function ShellInner({ status }: { status: VaultStatus }) {
     async (redo: boolean) => {
       try {
         const label = await call(redo ? 'data:redo' : 'data:undo')
-        if (label) toast.show(`${redo ? 'Rehecho' : 'Deshecho'}: ${label}`)
-        else toast.show(redo ? 'No hay nada que rehacer.' : 'No hay nada que deshacer.')
+        if (label)
+          toast.show(redo ? t('Rehecho: {label}', { label }) : t('Deshecho: {label}', { label }))
+        else toast.show(redo ? t('No hay nada que rehacer.') : t('No hay nada que deshacer.'))
       } catch (e) {
-        toast.show(e instanceof IpcCallError ? e.message : 'No se pudo deshacer.', 'error')
+        toast.show(e instanceof IpcCallError ? e.message : t('No se pudo deshacer.'), 'error')
       }
     },
     [toast],

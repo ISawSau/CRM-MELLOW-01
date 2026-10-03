@@ -1,4 +1,5 @@
 import { formatCurrency, formatDate, formatDateTime, formatNumber, formatPercent } from '../format'
+import { t } from '../i18n'
 import { parseFieldConfig, type ChecklistItem, type FieldDef, type RichText } from './fields'
 import { describeRecurrence, type Recurrence } from './recurrence'
 import type { ComputedValue, LinkRef } from './records'
@@ -29,16 +30,17 @@ export function formatValue(field: Pick<FieldDef, 'type' | 'config'>, value: unk
     case 'datetime':
       return formatDateTime(new Date(String(value)))
     case 'checkbox':
-      return value ? 'Sí' : 'No'
+      return value ? t('Sí') : t('No')
     case 'select': {
       const o = parseFieldConfig('select', field.config).options.find((x) => x.id === value)
-      return o?.label ?? ''
+      return o ? t(o.label) : ''
     }
     case 'multiselect': {
       const opts = parseFieldConfig('multiselect', field.config).options
       return (value as string[])
         .map((id) => opts.find((o) => o.id === id)?.label)
-        .filter(Boolean)
+        .filter((l): l is string => Boolean(l))
+        .map((l) => t(l))
         .join(', ')
     }
     case 'rating':
@@ -78,12 +80,12 @@ export function formatComputed(field: Pick<FieldDef, 'type' | 'config'>, v: Comp
     case 'percent':
       return typeof value === 'number' ? formatPercent(value, c.decimals) : String(value)
     case 'checkbox':
-      return value === true || value === 1 ? 'Sí' : 'No'
+      return value === true || value === 1 ? t('Sí') : t('No')
     case 'date':
       return typeof value === 'string' && /^\d{4}-\d{2}-\d{2}/.test(value)
         ? formatDate(new Date(`${value.slice(0, 10)}T12:00:00Z`))
         : String(value)
     case 'text':
-      return typeof value === 'boolean' ? (value ? 'VERDADERO' : 'FALSO') : String(value)
+      return typeof value === 'boolean' ? (value ? t('VERDADERO') : t('FALSO')) : String(value)
   }
 }

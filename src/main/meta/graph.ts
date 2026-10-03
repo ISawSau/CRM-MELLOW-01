@@ -1,6 +1,7 @@
 import { createHmac } from 'node:crypto'
 import { META_API_VERSION } from '@shared/meta'
 import type { FetchLike } from '../sync/remote'
+import { t } from '@shared/i18n'
 
 /**
  * Cliente de la Graph API de Meta, **solo lectura** (SPEC §7.3, D-054).
@@ -67,16 +68,16 @@ export class GraphError extends Error {
   }
 }
 
-/** Mensaje en español para la interfaz. */
+/** Mensaje para la interfaz, en el idioma activo. */
 export function graphErrorText(e: unknown): string {
   if (e instanceof GraphError) {
-    if (e.code === 190) return 'El token de Meta ha caducado o se ha revocado: pega uno nuevo.'
-    if (e.isAuth) return 'El token no tiene permiso para leer esta cuenta (hace falta ads_read).'
-    if (e.isThrottle) return 'Meta ha limitado las consultas por exceso de uso: se reintentará.'
-    return `Meta respondió: ${e.message}`
+    if (e.code === 190) return t('El token de Meta ha caducado o se ha revocado: pega uno nuevo.')
+    if (e.isAuth) return t('El token no tiene permiso para leer esta cuenta (hace falta ads_read).')
+    if (e.isThrottle) return t('Meta ha limitado las consultas por exceso de uso: se reintentará.')
+    return t('Meta respondió: {message}', { message: e.message })
   }
-  if (e instanceof Error && e.name === 'AbortError') return 'Meta no respondió a tiempo.'
-  return 'No se pudo conectar con Meta. Comprueba la conexión a internet.'
+  if (e instanceof Error && e.name === 'AbortError') return t('Meta no respondió a tiempo.')
+  return t('No se pudo conectar con Meta. Comprueba la conexión a internet.')
 }
 
 export interface Usage {

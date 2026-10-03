@@ -16,6 +16,7 @@ import {
   type VideoJob,
 } from '@shared/tools'
 import type { VaultService } from '../vault/vault-service'
+import { t } from '@shared/i18n'
 
 /**
  * Herramientas de archivos (SPEC §7.11). Guarda en la bóveda (como Documento) o exporta
@@ -107,7 +108,7 @@ export class ToolsService {
     set('tipo', tipo)
     set('fecha', todayIn(this.timeZone(), this.now()))
     set('archivos', [file])
-    const rec = data.create('documento', values as never, { label: 'Guardar documento' })
+    const rec = data.create('documento', values as never, { label: t('Guardar documento') })
     const cliente = id('cliente')
     if (cliente && clientId && data.get(clientId)) data.setLinks(cliente, rec.id, [clientId])
     return rec.id
@@ -131,7 +132,7 @@ export class ToolsService {
     const stderr = await this.run(['-hide_banner', '-nostdin', '-i', path], null, true)
     const probe = parseProbe(stderr)
     if (probe.width === null)
-      throw new AppError('TOOL_FAILED', undefined, 'El archivo no tiene vídeo o está dañado.')
+      throw new AppError('TOOL_FAILED', undefined, t('El archivo no tiene vídeo o está dañado.'))
     const token = randomBytes(8).toString('hex')
     const name = path.split(/[\\/]/).pop() ?? 'video'
     const v: OpenVideo = { path, name, size, ...probe }
@@ -243,7 +244,7 @@ export class ToolsService {
         if (signal) return reject(new AppError('TOOL_CANCELLED'))
         if (code !== 0)
           return reject(
-            new AppError('TOOL_FAILED', undefined, 'FFmpeg no ha podido convertir el vídeo.'),
+            new AppError('TOOL_FAILED', undefined, t('FFmpeg no ha podido convertir el vídeo.')),
           )
         if (progress) this.deps.onProgress?.({ token: progress.token, ratio: 1 })
         resolve(stderr)

@@ -1,6 +1,7 @@
 import type { FieldDef } from '@shared/data/fields'
 import { formatValue } from '@shared/data/format-value'
 import type { ComputedValue, RecordRow } from '@shared/data/records'
+import { t } from '@shared/i18n'
 
 /**
  * Exportación a CSV pensada para abrirla con Excel en español:
@@ -38,10 +39,10 @@ function escapeCell(text: string, numeric: boolean): string {
 function header(field: FieldDef): string {
   if (field.type === 'currency') {
     const cur = (field.config['currency'] as string | undefined) ?? 'EUR'
-    return `${field.label} (${cur})`
+    return `${t(field.label)} (${cur})`
   }
-  if (field.type === 'percent') return `${field.label} (%)`
-  return field.label
+  if (field.type === 'percent') return `${t(field.label)} (%)`
+  return t(field.label)
 }
 
 export function toCsv(fields: FieldDef[], rows: RecordRow[]): string {

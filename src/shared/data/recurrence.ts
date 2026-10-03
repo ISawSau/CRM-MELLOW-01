@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { getLocale, t } from '../i18n'
 
 /**
  * Repeticiones de tareas (SPEC §7.6): diaria, semanal en días concretos, mensual,
@@ -28,6 +29,12 @@ export type Recurrence = z.infer<typeof recurrenceSchema>
 
 const WEEKDAY_NAMES = ['lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado', 'domingo']
 export const WEEKDAY_SHORT = ['L', 'M', 'X', 'J', 'V', 'S', 'D']
+const WEEKDAY_SHORT_EN = ['M', 'T', 'W', 'T', 'F', 'S', 'S']
+
+/** Iniciales de los días (lunes primero) en el idioma de la interfaz. */
+export function weekdayShort(): readonly string[] {
+  return getLocale() === 'en' ? WEEKDAY_SHORT_EN : WEEKDAY_SHORT
+}
 
 function parse(iso: string): Date {
   const [y, m, d] = iso.split('-').map(Number) as [number, number, number]
@@ -109,31 +116,35 @@ export function nextOccurrence(r: Recurrence, from: string, notBefore?: string):
 function list(names: string[]): string {
   return names.length <= 1
     ? (names[0] ?? '')
-    : `${names.slice(0, -1).join(', ')} y ${names[names.length - 1]}`
+    : t('{items} y {last}', {
+        items: names.slice(0, -1).join(', '),
+        last: names[names.length - 1]!,
+      })
 }
 
 /** «Cada semana: lunes y miércoles» */
 export function describeRecurrence(r: Recurrence): string {
   const n = r.interval
-  const every = (one: string, many: string) => (n === 1 ? `Cada ${one}` : `Cada ${n} ${many}`)
   let base: string
   switch (r.freq) {
     case 'daily':
-      base = n === 1 ? 'Cada día' : `Cada ${n} días`
+      base = n === 1 ? t('Cada día') : t('Cada {n} días', { n })
       break
     case 'weekly': {
-      base = every('semana', 'semanas')
+      base = n === 1 ? t('Cada semana') : t('Cada {n} semanas', { n })
       const days = [...new Set(r.weekdays)].sort()
-      if (days.length) base += `: ${list(days.map((d) => WEEKDAY_NAMES[d]!))}`
+      if (days.length) base += `: ${list(days.map((d) => t(WEEKDAY_NAMES[d]!)))}`
       break
     }
     case 'monthly':
-      base = every('mes', 'meses')
-      if (r.monthDay) base += `, el día ${r.monthDay}`
+      base = n === 1 ? t('Cada mes') : t('Cada {n} meses', { n })
+      if (r.monthDay) base = t('{base}, el día {day}', { base, day: r.monthDay })
       break
     case 'yearly':
-      base = every('año', 'años')
+      base = n === 1 ? t('Cada año') : t('Cada {n} años', { n })
       break
   }
-  return r.mode === 'schedule' ? `${base} (según calendario)` : `${base} (al completar)`
+  return r.mode === 'schedule'
+    ? t('{base} (según calendario)', { base })
+    : t('{base} (al completar)', { base })
 }

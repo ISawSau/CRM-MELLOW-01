@@ -11,10 +11,11 @@ import {
 import { call, IpcCallError } from '../lib/ipc'
 import { Alert } from '../ui/Alert'
 import { useToast } from '../ui/Toast'
+import { t } from '@shared/i18n'
 
 /** Nombre que no choque con los temas que ya hay. */
 function uniqueName(name: string, all: Theme[]): string {
-  const taken = new Set(all.map((t) => t.name))
+  const taken = new Set(all.map((th) => th.name))
   if (!taken.has(name)) return name
   for (let n = 2; ; n++) {
     const candidate = `${name} (${n})`.slice(0, 60)
@@ -48,27 +49,27 @@ export function ThemeShare({
         name: current.name,
         json: exportTheme(current),
       })
-      if (saved) toast.show(`Tema «${current.name}» exportado.`)
+      if (saved) toast.show(t('Tema «{name}» exportado.', { name: t(current.name) }))
     } catch (e) {
-      toast.show(e instanceof IpcCallError ? e.message : 'No se ha podido exportar.', 'error')
+      toast.show(e instanceof IpcCallError ? e.message : t('No se ha podido exportar.'), 'error')
     }
   }
 
   const doImport = async () => {
     setError(null)
     if (custom.length >= MAX_CUSTOM_THEMES)
-      return setError(`Como mucho puede haber ${MAX_CUSTOM_THEMES} temas propios.`)
+      return setError(t('Como mucho puede haber {n} temas propios.', { n: MAX_CUSTOM_THEMES }))
     const r = importTheme(text, `propio-${Date.now().toString(36)}`)
-    if (!r.ok) return setError(r.error)
+    if (!r.ok) return setError(t(r.error))
     const theme = { ...r.theme, name: uniqueName(r.theme.name, [...BUILT_IN_THEMES, ...custom]) }
     try {
       await call('settings:setThemes', { themes: [...custom, theme] })
       await call('settings:setAppearance', { theme: theme.id, density })
-      toast.show(`Tema «${theme.name}» importado y aplicado.`)
+      toast.show(t('Tema «{name}» importado y aplicado.', { name: theme.name }))
       setOpen(false)
       setText('')
     } catch (e) {
-      setError(e instanceof IpcCallError ? e.message : 'No se ha podido importar.')
+      setError(e instanceof IpcCallError ? e.message : t('No se ha podido importar.'))
     }
   }
 
@@ -76,7 +77,7 @@ export function ThemeShare({
     <>
       <div className="form-actions">
         <button type="button" className="btn" onClick={() => void exportCurrent()}>
-          Exportar «{current.name}»
+          {t('Exportar «{name}»', { name: t(current.name) })}
         </button>
         <button
           type="button"
@@ -84,7 +85,7 @@ export function ThemeShare({
           onClick={() => setOpen(true)}
           data-testid="theme-import-open"
         >
-          Importar o crear con IA…
+          {t('Importar o crear con IA…')}
         </button>
       </div>
       {open && (
@@ -93,12 +94,12 @@ export function ThemeShare({
           <div
             className="dialog dialog-wide"
             role="dialog"
-            aria-label="Importar un tema"
+            aria-label={t('Importar un tema')}
             data-testid="theme-import"
           >
-            <h2>Importar un tema</h2>
+            <h2>{t('Importar un tema')}</h2>
             <div className="field">
-              <label htmlFor="theme-file">Desde un archivo exportado</label>
+              <label htmlFor="theme-file">{t('Desde un archivo exportado')}</label>
               <input
                 id="theme-file"
                 type="file"
@@ -106,20 +107,22 @@ export function ThemeShare({
                 onChange={(e) => {
                   const f = e.target.files?.[0]
                   if (f && f.size < 200_000) void f.text().then(setText)
-                  else if (f) setError('El archivo es demasiado grande para ser un tema.')
+                  else if (f) setError(t('El archivo es demasiado grande para ser un tema.'))
                 }}
               />
             </div>
             <details className="theme-ai">
-              <summary>Crear con IA (ChatGPT, Claude, Gemini…)</summary>
+              <summary>{t('Crear con IA (ChatGPT, Claude, Gemini…)')}</summary>
               <ol className="steps">
                 <li>
-                  <label htmlFor="theme-wish">Describe el tema que quieres</label>
+                  <label htmlFor="theme-wish">{t('Describe el tema que quieres')}</label>
                   <input
                     id="theme-wish"
                     className="input"
                     maxLength={300}
-                    placeholder="Colores de mi marca: amarillo y negro, con esquinas redondeadas"
+                    placeholder={t(
+                      'Colores de mi marca: amarillo y negro, con esquinas redondeadas',
+                    )}
                     value={wish}
                     onChange={(e) => setWish(e.target.value)}
                   />
@@ -130,19 +133,19 @@ export function ThemeShare({
                     className="btn"
                     onClick={() =>
                       void call('clipboard:writeText', { text: aiThemePrompt(current, wish) })
-                        .then(() => toast.show('Instrucciones copiadas.'))
-                        .catch(() => toast.show('No se han podido copiar.', 'error'))
+                        .then(() => toast.show(t('Instrucciones copiadas.')))
+                        .catch(() => toast.show(t('No se han podido copiar.'), 'error'))
                     }
                   >
-                    Copiar instrucciones para la IA
+                    {t('Copiar instrucciones para la IA')}
                   </button>{' '}
-                  y pégalas en el chat de IA que uses.
+                  {t('y pégalas en el chat de IA que uses.')}
                 </li>
-                <li>Copia su respuesta y pégala abajo.</li>
+                <li>{t('Copia su respuesta y pégala abajo.')}</li>
               </ol>
             </details>
             <div className="field">
-              <label htmlFor="theme-json">JSON del tema</label>
+              <label htmlFor="theme-json">{t('JSON del tema')}</label>
               <textarea
                 id="theme-json"
                 className="input mono theme-json"
@@ -153,8 +156,9 @@ export function ThemeShare({
                 onChange={(e) => setText(e.target.value)}
               />
               <p className="hint">
-                Se comprueba antes de guardarlo: solo colores válidos, y la app avisa si algún texto
-                queda con poco contraste.
+                {t(
+                  'Se comprueba antes de guardarlo: solo colores válidos, y la app avisa si algún texto queda con poco contraste.',
+                )}
               </p>
             </div>
             {error && <Alert>{error}</Alert>}
@@ -165,10 +169,10 @@ export function ThemeShare({
                 disabled={!text.trim()}
                 onClick={() => void doImport()}
               >
-                Importar y aplicar
+                {t('Importar y aplicar')}
               </button>
               <button type="button" className="btn" onClick={() => setOpen(false)}>
-                Cancelar
+                {t('Cancelar')}
               </button>
             </div>
           </div>

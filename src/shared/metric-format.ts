@@ -1,4 +1,5 @@
 import { formatCurrency, formatNumber } from './format'
+import { t } from './i18n'
 import {
   allMetrics,
   CONFIG_COLUMNS,
@@ -11,8 +12,8 @@ import {
 
 /** «offsite_conversion.fb_pixel_purchase» → «Offsite conversion fb pixel purchase» */
 export function actionLabel(type: string): string {
-  const t = type.replace(/^offsite_conversion\.fb_pixel_/, 'píxel ').replace(/[._]/g, ' ')
-  return t.charAt(0).toUpperCase() + t.slice(1)
+  const s = type.replace(/^offsite_conversion\.fb_pixel_/, `${t('píxel')} `).replace(/[._]/g, ' ')
+  return s.charAt(0).toUpperCase() + s.slice(1)
 }
 
 /** Definición de cualquier columna numérica: métricas, propias y acciones. */
@@ -21,11 +22,11 @@ export function metricDefs(
   actionTypes: readonly string[],
 ): Map<string, MetricDef> {
   const map = new Map(allMetrics(custom).map((m) => [m.key, m]))
-  for (const t of actionTypes) {
-    const k = t.toLowerCase().replace(/[^a-z0-9_]/g, '_')
+  for (const type of actionTypes) {
+    const k = type.toLowerCase().replace(/[^a-z0-9_]/g, '_')
     map.set(`acc_${k}`, {
       key: `acc_${k}`,
-      label: `${actionLabel(t)} (acciones)`,
+      label: t('{label} (acciones)', { label: actionLabel(type) }),
       format: 'number',
       group: 'Acciones',
       higherIsBetter: true,
@@ -33,7 +34,7 @@ export function metricDefs(
     })
     map.set(`val_${k}`, {
       key: `val_${k}`,
-      label: `${actionLabel(t)} (valor)`,
+      label: t('{label} (valor)', { label: actionLabel(type) }),
       format: 'currency',
       group: 'Acciones',
       higherIsBetter: true,
@@ -43,11 +44,16 @@ export function metricDefs(
 }
 
 export function columnLabel(key: string, defs: Map<string, MetricDef>): string {
-  return (
-    CONFIG_COLUMNS.find((c) => c.key === key)?.label ??
-    defs.get(key)?.label ??
-    key.replace(/_/g, ' ')
-  )
+  const label = CONFIG_COLUMNS.find((c) => c.key === key)?.label ?? defs.get(key)?.label
+  if (label === undefined) return key.replace(/_/g, ' ')
+  // «Inicio» de la columna es la fecha de inicio, no la sección Inicio (Home): se traduce
+  // con su propia clave y, si no la hay, se deja el texto en español.
+  if (key === 'inicio') {
+    const k = 'Inicio (fecha de inicio)'
+    const en = t(k)
+    return en === k ? label : en
+  }
+  return t(label)
 }
 
 export const isConfigColumn = (key: string) => CONFIG_KEYS.has(key)
@@ -62,7 +68,7 @@ export function formatMetric(
     case 'currency':
       return formatCurrency(value, currency)
     case 'percent':
-      return `${formatNumber(value, def.decimals ?? 2)} %`
+      return t('{n} %', { n: formatNumber(value, def.decimals ?? 2) })
     case 'integer':
       return formatNumber(value, 0)
     default:
@@ -81,5 +87,5 @@ export function delta(
   const d = (now - before) / Math.abs(before)
   const up = d >= 0
   const good = def?.higherIsBetter === undefined ? null : up === def.higherIsBetter
-  return { text: `${up ? '+' : ''}${formatNumber(d * 100, 1)} %`, good }
+  return { text: t('{n} %', { n: `${up ? '+' : ''}${formatNumber(d * 100, 1)}` }), good }
 }

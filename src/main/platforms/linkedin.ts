@@ -2,6 +2,7 @@ import { randomBytes } from 'node:crypto'
 import { createServer, type Server } from 'node:http'
 import type { InsightRow } from '../meta/store'
 import type { FetchLike } from '../sync/remote'
+import { t } from '@shared/i18n'
 
 /**
  * API de publicidad de LinkedIn en solo lectura (SPEC §7.4, D-079). Comprobado en la
@@ -95,18 +96,21 @@ export class LinkedInClient {
         },
       })
     } catch {
-      throw new LinkedInError('Sin conexión con LinkedIn.', 0)
+      throw new LinkedInError(t('Sin conexión con LinkedIn.'), 0)
     }
     if (res.ok) return (await res.json()) as Record<string, unknown>
     const body = (await res.json().catch(() => ({}))) as { message?: string }
     const msg =
       res.status === 401
-        ? 'LinkedIn ha rechazado el token (caducado o retirado): vuelve a conectar.'
+        ? t('LinkedIn ha rechazado el token (caducado o retirado): vuelve a conectar.')
         : res.status === 403
-          ? 'LinkedIn no da acceso: la app necesita la API de publicidad aprobada y tu usuario un rol en la cuenta.'
+          ? t('LinkedIn no da acceso: la app necesita la API de publicidad aprobada y tu usuario un rol en la cuenta.')
           : res.status === 429
-            ? 'LinkedIn pide esperar (límite de datos en 5 minutos). Se reintentará más tarde.'
-            : `LinkedIn ha respondido con un error (${res.status})${body.message ? `: ${body.message}` : ''}.`
+            ? t('LinkedIn pide esperar (límite de datos en 5 minutos). Se reintentará más tarde.')
+            : t('LinkedIn ha respondido con un error ({status}){detail}.', {
+                status: res.status,
+                detail: body.message ? `: ${body.message}` : '',
+              })
     throw new LinkedInError(msg, res.status)
   }
 
@@ -237,7 +241,7 @@ export async function connectLinkedIn(
   const code = await new Promise<string>((resolve, reject) => {
     const timer = setTimeout(() => {
       close()
-      reject(new Error('Se agotó el tiempo para conectar con LinkedIn.'))
+      reject(new Error(t('Se agotó el tiempo para conectar con LinkedIn.')))
     }, LOGIN_TIMEOUT_MS)
     const handler = (
       req: import('node:http').IncomingMessage,
@@ -252,7 +256,7 @@ export async function connectLinkedIn(
       const ok = got && url.searchParams.get('state') === state
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' })
       res.end(
-        `<!doctype html><meta charset="utf-8"><title>CRM Mellow</title><body style="font-family:sans-serif;background:#0d0908;color:#fdf6ee;display:grid;place-items:center;height:100vh;margin:0"><p>${ok ? 'Conectado con LinkedIn. Ya puedes volver a CRM Mellow.' : 'No se ha conectado. Vuelve a CRM Mellow e inténtalo de nuevo.'}</p></body>`,
+        `<!doctype html><meta charset="utf-8"><title>CRM Mellow</title><body style="font-family:sans-serif;background:#0d0908;color:#fdf6ee;display:grid;place-items:center;height:100vh;margin:0"><p>${ok ? t('Conectado con LinkedIn. Ya puedes volver a CRM Mellow.') : t('No se ha conectado. Vuelve a CRM Mellow e inténtalo de nuevo.')}</p></body>`,
       )
       clearTimeout(timer)
       close()
@@ -261,8 +265,8 @@ export async function connectLinkedIn(
         reject(
           new Error(
             url.searchParams.get('error') === 'user_cancelled_authorize'
-              ? 'Has cancelado la conexión.'
-              : 'Respuesta de LinkedIn no válida.',
+              ? t('Has cancelado la conexión.')
+              : t('Respuesta de LinkedIn no válida.'),
           ),
         )
     }
@@ -277,7 +281,7 @@ export async function connectLinkedIn(
         if (failed === 2) {
           clearTimeout(timer)
           reject(
-            new Error(`El puerto ${port} está ocupado: cierra lo que lo use e inténtalo otra vez.`),
+            new Error(t('El puerto {port} está ocupado: cierra lo que lo use e inténtalo otra vez.', { port })),
           )
         }
       })
@@ -312,7 +316,7 @@ export async function connectLinkedIn(
     error_description?: string
   }
   if (!res.ok || !json.access_token)
-    throw new Error(json.error_description ?? 'LinkedIn no ha dado acceso.')
+    throw new Error(json.error_description ?? t('LinkedIn no ha dado acceso.'))
   return {
     accessToken: json.access_token,
     expiresAt: Date.now() + (json.expires_in ?? 60 * 86_400) * 1000,

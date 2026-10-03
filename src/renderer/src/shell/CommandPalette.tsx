@@ -6,6 +6,7 @@ import { call } from '../lib/ipc'
 import { useEntityLookup } from '../data/hooks'
 import type { Theme } from '@shared/themes'
 import type { Section } from './sections'
+import { t } from '@shared/i18n'
 
 export interface PaletteActions {
   navigate: (sectionId: string) => void
@@ -43,8 +44,8 @@ export function CommandPalette({
   const [search, setSearch] = useState('')
   const [debounced, setDebounced] = useState('')
   useEffect(() => {
-    const t = setTimeout(() => setDebounced(search.trim()), 150)
-    return () => clearTimeout(t)
+    const timer = setTimeout(() => setDebounced(search.trim()), 150)
+    return () => clearTimeout(timer)
   }, [search])
   const hits = useQuery({
     queryKey: ['data', 'search', debounced],
@@ -95,11 +96,11 @@ export function CommandPalette({
         className="palette"
         role="dialog"
         aria-modal="true"
-        aria-label="Paleta de comandos"
+        aria-label={t('Paleta de comandos')}
         data-testid="palette"
       >
         <Command
-          label="Paleta de comandos"
+          label={t('Paleta de comandos')}
           loop
           filter={filter}
           value={selected}
@@ -107,14 +108,14 @@ export function CommandPalette({
         >
           <Command.Input
             autoFocus
-            placeholder="Busca notas, secciones o comandos…"
+            placeholder={t('Busca notas, secciones o comandos…')}
             value={search}
             onValueChange={setSearch}
           />
           <Command.List>
-            <Command.Empty>No hay nada con ese nombre.</Command.Empty>
+            <Command.Empty>{t('No hay nada con ese nombre.')}</Command.Empty>
             {debounced.length >= 2 && (hits.data?.length ?? 0) > 0 && (
-              <Command.Group heading="Registros">
+              <Command.Group heading={t('Registros')}>
                 {hits.data!.map((h) => {
                   const section = sections.find((s) => s.entity === h.entity)
                   return (
@@ -128,64 +129,79 @@ export function CommandPalette({
                         <span>{h.title}</span>
                         {h.snippet && <span className="faint hit-snippet">{h.snippet}</span>}
                       </span>
-                      <span className="faint">{entityOf(h.entity)?.singular}</span>
+                      <span className="faint">{t(entityOf(h.entity)?.singular ?? '')}</span>
                     </Command.Item>
                   )
                 })}
               </Command.Group>
             )}
-            <Command.Group heading="Ir a">
+            <Command.Group heading={t('Ir a')}>
               {sections.map((s) => (
                 <Command.Item
                   key={s.id}
                   value={`ir a ${s.label}`}
+                  keywords={[t('ir a'), t(s.label)]}
                   onSelect={run(() => actions.navigate(s.id))}
                 >
-                  <span>{s.label}</span>
-                  {s.phase !== null && <span className="faint">fase {s.phase}</span>}
+                  <span>{t(s.label)}</span>
+                  {s.phase !== null && (
+                    <span className="faint">{t('fase {n}', { n: String(s.phase) })}</span>
+                  )}
                 </Command.Item>
               ))}
             </Command.Group>
-            <Command.Group heading="Acciones">
-              <Command.Item value="deshacer" onSelect={run(actions.undo)}>
-                <span>Deshacer</span>
+            <Command.Group heading={t('Acciones')}>
+              <Command.Item
+                value="deshacer"
+                keywords={[t('Deshacer')]}
+                onSelect={run(actions.undo)}
+              >
+                <span>{t('Deshacer')}</span>
                 <kbd>Ctrl Z</kbd>
               </Command.Item>
-              <Command.Item value="rehacer" onSelect={run(actions.redo)}>
-                <span>Rehacer</span>
-                <kbd>Ctrl Mayús Z</kbd>
+              <Command.Item value="rehacer" keywords={[t('Rehacer')]} onSelect={run(actions.redo)}>
+                <span>{t('Rehacer')}</span>
+                <kbd>{t('Ctrl Mayús Z')}</kbd>
               </Command.Item>
-              <Command.Item value="bloquear bóveda" onSelect={run(actions.lock)}>
-                <span>Bloquear bóveda</span>
+              <Command.Item
+                value="bloquear bóveda"
+                keywords={[t('Bloquear bóveda')]}
+                onSelect={run(actions.lock)}
+              >
+                <span>{t('Bloquear bóveda')}</span>
               </Command.Item>
               <Command.Item
                 value="plegar desplegar barra lateral"
+                keywords={[t('Plegar o desplegar la barra lateral')]}
                 onSelect={run(actions.toggleSidebar)}
               >
-                <span>Plegar o desplegar la barra lateral</span>
+                <span>{t('Plegar o desplegar la barra lateral')}</span>
               </Command.Item>
             </Command.Group>
-            <Command.Group heading="Apariencia">
-              {themes.map((t) => (
+            <Command.Group heading={t('Apariencia')}>
+              {themes.map((th) => (
                 <Command.Item
-                  key={t.id}
-                  value={`tema ${t.name}`}
-                  onSelect={run(() => actions.setTheme(t.id))}
+                  key={th.id}
+                  value={`tema ${th.name}`}
+                  keywords={[t('Tema {name}', { name: t(th.name) })]}
+                  onSelect={run(() => actions.setTheme(th.id))}
                 >
-                  <span>Tema {t.name}</span>
+                  <span>{t('Tema {name}', { name: t(th.name) })}</span>
                 </Command.Item>
               ))}
               <Command.Item
                 value="densidad compacta"
+                keywords={[t('Densidad compacta')]}
                 onSelect={run(() => actions.setDensity('compacta'))}
               >
-                <span>Densidad compacta</span>
+                <span>{t('Densidad compacta')}</span>
               </Command.Item>
               <Command.Item
                 value="densidad cómoda"
+                keywords={[t('Densidad cómoda')]}
                 onSelect={run(() => actions.setDensity('comoda'))}
               >
-                <span>Densidad cómoda</span>
+                <span>{t('Densidad cómoda')}</span>
               </Command.Item>
             </Command.Group>
           </Command.List>

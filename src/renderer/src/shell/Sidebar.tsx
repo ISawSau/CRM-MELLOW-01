@@ -65,7 +65,11 @@ export function Sidebar({
     refetchInterval: 5 * 60_000,
   })
   const unseen = useUnseenAlerts()
-  const alertBadge = { count: unseen, urgent: true, label: t('{n} avisos de alertas sin ver', { n: unseen }) }
+  const alertBadge = {
+    count: unseen,
+    urgent: true,
+    label: t('{n} avisos de alertas sin ver', { n: unseen }),
+  }
   const ts = tasks.data
   const taskBadge = ts
     ? {

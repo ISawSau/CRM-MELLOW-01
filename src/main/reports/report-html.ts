@@ -5,6 +5,7 @@ import type { MetricDef, MetricValues } from '@shared/meta-metrics'
 import { delta, formatMetric } from '@shared/metric-format'
 import { BLOCK_LABELS, type ReportBlock, type ReportTemplate } from '@shared/reports'
 import { barChartSvg, lineChartSvg } from './charts'
+import { getLocale, t } from '@shared/i18n'
 
 /**
  * HTML de un informe para clientes (SPEC §7.10). Se imprime a PDF en una ventana oculta
@@ -67,16 +68,16 @@ function hasData(r: AnalysisResult): boolean {
   return (r.totals['impresiones'] ?? 0) > 0 || (r.totals['gasto'] ?? 0) > 0
 }
 
-const EMPTY = '<p class="empty">Sin datos publicitarios en este periodo.</p>'
+const empty = () => `<p class="empty">${escapeHtml(t('Sin datos publicitarios en este periodo.'))}</p>`
 
 function section(b: ReportBlock, inner: string): string {
-  const title = 'title' in b && b.title ? b.title : BLOCK_LABELS[b.kind]
+  const title = t('title' in b && b.title ? b.title : BLOCK_LABELS[b.kind])
   return `<section class="block block-${b.kind}"><h2>${escapeHtml(title)}</h2>${inner}</section>`
 }
 
 export function buildReportHtml(ctx: ReportContext): string {
   const { since, until, currency, filter, defs, compute } = ctx
-  const label = (k: string) => defs.get(k)?.label ?? k
+  const label = (k: string) => t(defs.get(k)?.label ?? k)
   const fmt = (k: string) => (v: number | null | undefined) =>
     formatMetric(v, defs.get(k), currency)
   const q = (extra: Partial<AnalysisQuery>) => ctx.query({ since, until, filter, ...extra })
@@ -87,18 +88,18 @@ export function buildReportHtml(ctx: ReportContext): string {
       case 'portada':
         return `<section class="cover">
           ${ctx.logo ? `<img class="logo" src="${escapeHtml(ctx.logo)}" alt="">` : ''}
-          <p class="eyebrow">Informe de resultados</p>
-          <h1>${escapeHtml(ctx.clientName ?? 'Todas las cuentas')}</h1>
+          <p class="eyebrow">${escapeHtml(t('Informe de resultados'))}</p>
+          <h1>${escapeHtml(ctx.clientName ?? t('Todas las cuentas'))}</h1>
           <div class="rule"></div>
           <p class="period">${period}</p>
-          <p class="meta">Importes en ${escapeHtml(currency)}${ctx.platforms.map((p) => ` · ${escapeHtml(p)}`).join('')}</p>
-          ${ctx.author ? `<p class="author">Preparado por ${escapeHtml(ctx.author)}</p>` : ''}
+          <p class="meta">${escapeHtml(t('Importes en {currency}', { currency }))}${ctx.platforms.map((p) => ` · ${escapeHtml(p)}`).join('')}</p>
+          ${ctx.author ? `<p class="author">${escapeHtml(t('Preparado por {author}', { author: ctx.author }))}</p>` : ''}
           <p class="date">${es(ctx.today)}</p>
         </section>`
 
       case 'kpis': {
         const r = q({ compare: b.compare ? 'previous' : 'none' })
-        if (!hasData(r)) return section(b, EMPTY)
+        if (!hasData(r)) return section(b, empty())
         const now = compute(r.totals)
         const before = r.compareTotals ? compute(r.compareTotals) : null
         const cards = b.metrics
@@ -109,7 +110,7 @@ export function buildReportHtml(ctx: ReportContext): string {
             return `<div class="kpi">
               <span class="kpi-label">${escapeHtml(label(k))}</span>
               <span class="kpi-value">${fmt(k)(now[k])}</span>
-              ${d ? `<span class="kpi-delta ${cls}">${arrow} ${d.text} vs. periodo anterior</span>` : ''}
+              ${d ? `<span class="kpi-delta ${cls}">${arrow} ${escapeHtml(t('{delta} vs. periodo anterior', { delta: d.text }))}</span>` : ''}
             </div>`
           })
           .join('')
@@ -118,16 +119,19 @@ export function buildReportHtml(ctx: ReportContext): string {
 
       case 'linea': {
         const r = q({ groupBy: 'dia', compare: b.compare ? 'previous' : 'none', limit: 50 })
-        if (!hasData(r)) return section(b, EMPTY)
+        if (!hasData(r)) return section(b, empty())
         const values = r.groups.map((g) => compute(g.base)[b.metric] ?? null)
         const previous = r.compareGroups?.map((g) => compute(g.base)[b.metric] ?? null) ?? null
         const svg = lineChartSvg({
           labels: r.groups.map((g) => short(g.key)),
           values,
           previous,
-          name: 'Este periodo',
+          name: t('Este periodo'),
           previousName: r.compareSince
-            ? `Periodo anterior (${short(r.compareSince)} – ${short(r.compareUntil!)})`
+            ? t('Periodo anterior ({since} – {until})', {
+                since: short(r.compareSince),
+                until: short(r.compareUntil!),
+              })
             : '',
           format: (v) => fmt(b.metric)(v),
           font: FONT_BODY,
@@ -135,13 +139,13 @@ export function buildReportHtml(ctx: ReportContext): string {
         const total = compute(r.totals)[b.metric]
         return section(
           b,
-          `<p class="caption">${escapeHtml(label(b.metric))} en el periodo: <strong>${fmt(b.metric)(total)}</strong></p><div class="chart">${svg}</div>`,
+          `<p class="caption">${escapeHtml(t('{metric} en el periodo:', { metric: label(b.metric) }))} <strong>${fmt(b.metric)(total)}</strong></p><div class="chart">${svg}</div>`,
         )
       }
 
       case 'barras': {
         const r = q({ groupBy: b.groupBy, limit: b.limit })
-        if (!hasData(r)) return section(b, EMPTY)
+        if (!hasData(r)) return section(b, empty())
         const rows = r.groups.map((g) => ({
           label: g.label,
           value: compute(g.base)[b.metric] ?? 0,
@@ -161,7 +165,7 @@ export function buildReportHtml(ctx: ReportContext): string {
 
       case 'tabla': {
         const r = q({ groupBy: b.groupBy, limit: b.limit })
-        if (!hasData(r)) return section(b, EMPTY)
+        if (!hasData(r)) return section(b, empty())
         const head = b.metrics.map((k) => `<th class="num">${escapeHtml(label(k))}</th>`).join('')
         const row = (name: string, base: BaseSums, cls = '') => {
           const v = compute(base)
@@ -173,13 +177,13 @@ export function buildReportHtml(ctx: ReportContext): string {
           b,
           `<table><thead><tr><th></th>${head}</tr></thead><tbody>${r.groups
             .map((g) => row(g.label, g.base))
-            .join('')}</tbody><tfoot>${row('Total', r.totals, 'total')}</tfoot></table>`,
+            .join('')}</tbody><tfoot>${row(t('Total'), r.totals, 'total')}</tfoot></table>`,
         )
       }
 
       case 'comparativa': {
         const r = q({ compare: b.compare })
-        if (!hasData(r) || !r.compareTotals) return section(b, EMPTY)
+        if (!hasData(r) || !r.compareTotals) return section(b, empty())
         const now = compute(r.totals)
         const before = compute(r.compareTotals)
         const rows = b.metrics
@@ -191,7 +195,7 @@ export function buildReportHtml(ctx: ReportContext): string {
           .join('')
         return section(
           b,
-          `<table><thead><tr><th>Métrica</th><th class="num">${period}</th><th class="num">${es(r.compareSince!)} – ${es(r.compareUntil!)}</th><th class="num">Variación</th></tr></thead><tbody>${rows}</tbody></table>`,
+          `<table><thead><tr><th>${escapeHtml(t('Métrica'))}</th><th class="num">${period}</th><th class="num">${es(r.compareSince!)} – ${es(r.compareUntil!)}</th><th class="num">${escapeHtml(t('Variación'))}</th></tr></thead><tbody>${rows}</tbody></table>`,
         )
       }
 
@@ -209,11 +213,11 @@ export function buildReportHtml(ctx: ReportContext): string {
       : ''
 
   return `<!doctype html>
-<html lang="es">
+<html lang="${getLocale()}">
 <head>
 <meta charset="utf-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data:; font-src data:">
-<title>${escapeHtml(ctx.template.name)} · ${escapeHtml(ctx.clientName ?? 'Todas las cuentas')}</title>
+<title>${escapeHtml(t(ctx.template.name))} · ${escapeHtml(ctx.clientName ?? t('Todas las cuentas'))}</title>
 <style>
 ${fontFace('Archivo', ctx.fonts.display)}
 ${fontFace('DM Sans', ctx.fonts.body)}

@@ -6,6 +6,7 @@ import type { SqliteDb } from '../db/connection'
 import type { DataService } from '../data/data-service'
 import { analyze } from '../analysis/query'
 import { moneyConverter } from '../meta/sums'
+import { t } from '@shared/i18n'
 
 /**
  * Resumen de facturación y beneficio por cliente (SPEC §7.9). Las facturas se registran
@@ -64,7 +65,7 @@ export function billingSummary(
         id,
         (r = {
           clientId: id === NONE ? null : id,
-          client: id === NONE ? 'Sin cliente' : (clientTitle.get(id) ?? 'Cliente borrado'),
+          client: id === NONE ? t('Sin cliente') : (clientTitle.get(id) ?? t('Cliente borrado')),
           facturado: 0,
           cobrado: 0,
           pendiente: 0,

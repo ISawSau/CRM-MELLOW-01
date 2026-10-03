@@ -20,6 +20,7 @@ import { clientCurrency } from '../meta/sums'
 import { CHANGES_KEY } from '../sync/sync-service'
 import type { VaultService } from '../vault/vault-service'
 import { buildReportHtml, type ReportFonts } from './report-html'
+import { t } from '@shared/i18n'
 
 /**
  * Informes para clientes (SPEC §7.10): plantillas editables guardadas en los ajustes
@@ -64,7 +65,7 @@ export class ReportService {
   setTemplates(list: ReportTemplate[]): ReportTemplate[] {
     const parsed = reportTemplatesSchema.parse(list)
     if (new Set(parsed.map((t) => t.id)).size !== parsed.length)
-      throw new AppError('INVALID_INPUT', undefined, 'Hay dos plantillas con el mismo id.')
+      throw new AppError('INVALID_INPUT', undefined, t('Hay dos plantillas con el mismo id.'))
     const at = this.now().toISOString()
     const put = this.db.prepare(
       `INSERT INTO settings (key, value, updated_at) VALUES (?, ?, ?)
@@ -83,13 +84,13 @@ export class ReportService {
 
   async generate(input: z.output<typeof reportGenerateSchema>): Promise<ReportResult> {
     const template = this.templates().find((t) => t.id === input.templateId)
-    if (!template) throw new AppError('INVALID_INPUT', undefined, 'Esa plantilla no existe.')
+    if (!template) throw new AppError('INVALID_INPUT', undefined, t('Esa plantilla no existe.'))
     if (input.since > input.until)
-      throw new AppError('INVALID_INPUT', undefined, 'La fecha de inicio va después del final.')
+      throw new AppError('INVALID_INPUT', undefined, t('La fecha de inicio va después del final.'))
     const data = this.vault.data
     const client = input.clientId ? data.get(input.clientId) : null
     if (input.clientId && (!client || client.entity !== 'cliente'))
-      throw new AppError('INVALID_INPUT', undefined, 'Ese cliente no existe.')
+      throw new AppError('INVALID_INPUT', undefined, t('Ese cliente no existe.'))
     const currency =
       input.currency ?? clientCurrency(this.db, input.clientId) ?? this.deps.displayCurrency()
 
@@ -140,7 +141,11 @@ export class ReportService {
 
     const es = (iso: string) => `${iso.slice(8, 10)}-${iso.slice(5, 7)}-${iso.slice(0, 4)}`
     const name = safeFileName(
-      `Informe ${client?.title ?? 'general'} ${es(input.since)} a ${es(input.until)}.pdf`,
+      t('Informe {client} {since} a {until}.pdf', {
+        client: client?.title ?? t('general'),
+        since: es(input.since),
+        until: es(input.until),
+      }),
     )
     const file = data.importBuffer(name, pdf)
     const recordId = this.deps.addDocument(name, file, 'informe', client?.id ?? null)

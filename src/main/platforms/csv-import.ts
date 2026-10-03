@@ -10,6 +10,7 @@ import {
 } from '@shared/platforms'
 import type { SqliteDb } from '../db/connection'
 import { replaceInsights, type InsightRow } from '../meta/store'
+import { t } from '@shared/i18n'
 
 /**
  * Importación de los CSV de X Ads y LinkedIn Campaign Manager (SPEC §7.4, D-080). Las
@@ -35,11 +36,11 @@ function ensureAccount(db: SqliteDb, input: CsvImport, now: string): string {
     const a = db.prepare('SELECT platform FROM ad_accounts WHERE id = ?').get(input.accountId) as
       { platform: string } | undefined
     if (!a || a.platform !== input.platform)
-      throw new AppError('INVALID_INPUT', undefined, 'Esa cuenta no existe en esta plataforma.')
+      throw new AppError('INVALID_INPUT', undefined, t('Esa cuenta no existe en esta plataforma.'))
     return input.accountId
   }
   const n = input.newAccount
-  if (!n) throw new AppError('INVALID_INPUT', undefined, 'Elige una cuenta o crea una nueva.')
+  if (!n) throw new AppError('INVALID_INPUT', undefined, t('Elige una cuenta o crea una nueva.'))
   const base = `${PREFIX[input.platform]}_${slugify(n.name)}`.slice(0, 60)
   let id = base
   for (let i = 2; db.prepare('SELECT 1 FROM ad_accounts WHERE id = ?').get(id); i++)
@@ -57,7 +58,7 @@ export function importCsv(db: SqliteDb, input: CsvImport, now: string): CsvImpor
   const col = input.mapping.columns
   for (const f of ['date', 'campaign', 'spend', 'impressions'] as const)
     if (col[f] === null || col[f] === undefined)
-      throw new AppError('INVALID_INPUT', undefined, 'Faltan columnas obligatorias por asignar.')
+      throw new AppError('INVALID_INPUT', undefined, t('Faltan columnas obligatorias por asignar.'))
   const cell = (r: string[], f: keyof typeof col) => {
     const i = col[f]
     return i === null || i === undefined ? '' : (r[i] ?? '').trim()
@@ -100,7 +101,7 @@ export function importCsv(db: SqliteDb, input: CsvImport, now: string): CsvImpor
     throw new AppError(
       'INVALID_INPUT',
       undefined,
-      'No hay filas con fecha y campaña: revisa las columnas y el formato de fecha.',
+      t('No hay filas con fecha y campaña: revisa las columnas y el formato de fecha.'),
     )
 
   let accountId = ''

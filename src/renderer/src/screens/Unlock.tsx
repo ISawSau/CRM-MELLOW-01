@@ -6,12 +6,13 @@ import { useAction } from '../lib/hooks'
 import { Alert } from '../ui/Alert'
 import { PasswordField } from '../ui/PasswordField'
 import { Gate } from './Gate'
+import { t } from '@shared/i18n'
 
 /** Datos del lock de otro equipo que devuelve el error VAULT_LOCKED_ELSEWHERE. */
 function lockInfo(error: IpcCallError | null): { hostname: string; since: string } | null {
   if (error?.code !== 'VAULT_LOCKED_ELSEWHERE') return null
   const d = error.details ?? {}
-  const hostname = typeof d['hostname'] === 'string' ? d['hostname'] : 'otro equipo'
+  const hostname = typeof d['hostname'] === 'string' ? d['hostname'] : t('otro equipo')
   const at = typeof d['heartbeatAt'] === 'string' ? Date.parse(d['heartbeatAt']) : NaN
   return { hostname, since: Number.isNaN(at) ? '' : formatDateTime(at) }
 }
@@ -32,18 +33,20 @@ function LockedElsewhere({
     <>
       <div className="overlay" />
       <div className="dialog" role="alertdialog" aria-labelledby="locked-title">
-        <h2 id="locked-title">La bóveda parece abierta en otro equipo</h2>
+        <h2 id="locked-title">{t('La bóveda parece abierta en otro equipo')}</h2>
         <p className="muted">
-          <span className="mono">{info.hostname}</span> la tenía abierta
-          {info.since && <> (última señal: {info.since})</>}. Si la abres aquí a la vez, los cambios
-          de un equipo pueden perderse al sincronizar.
+          <span className="mono">{info.hostname}</span> {t('la tenía abierta')}
+          {info.since && <> {t('(última señal: {since})', { since: info.since })}</>}
+          {t(
+            '. Si la abres aquí a la vez, los cambios de un equipo pueden perderse al sincronizar.',
+          )}
         </p>
         <div className="form-actions">
           <button type="button" className="btn btn-primary" onClick={onForce} disabled={pending}>
-            Abrir igualmente
+            {t('Abrir igualmente')}
           </button>
           <button type="button" className="btn" onClick={onCancel}>
-            Cancelar
+            {t('Cancelar')}
           </button>
         </div>
       </div>
@@ -66,7 +69,7 @@ function UnlockForm({ status, onForgot }: { status: VaultStatus; onForgot: () =>
     <>
       <div className="section-head">
         <span className="eyebrow">
-          <span className="marker" aria-hidden="true" /> bóveda bloqueada
+          <span className="marker" aria-hidden="true" /> {t('bóveda bloqueada')}
         </span>
         <h1 className="title" data-testid="unlock-name">
           {status.name}
@@ -75,7 +78,7 @@ function UnlockForm({ status, onForgot }: { status: VaultStatus; onForgot: () =>
       </div>
       <form className="form" onSubmit={submit}>
         <PasswordField
-          label="Contraseña"
+          label={t('Contraseña')}
           value={password}
           onChange={setPassword}
           autoFocus
@@ -90,10 +93,10 @@ function UnlockForm({ status, onForgot }: { status: VaultStatus; onForgot: () =>
             disabled={unlock.pending || !password}
             data-testid="unlock-submit"
           >
-            {unlock.pending ? 'Desbloqueando…' : 'Desbloquear'}
+            {unlock.pending ? t('Desbloqueando…') : t('Desbloquear')}
           </button>
           <button type="button" className="btn btn-link" onClick={onForgot}>
-            He olvidado la contraseña
+            {t('He olvidado la contraseña')}
           </button>
           <button
             type="button"
@@ -101,7 +104,7 @@ function UnlockForm({ status, onForgot }: { status: VaultStatus; onForgot: () =>
             onClick={() => void close.run()}
             data-testid="unlock-other"
           >
-            Abrir otra bóveda
+            {t('Abrir otra bóveda')}
           </button>
         </div>
       </form>
@@ -139,17 +142,18 @@ function RecoverForm({ onBack }: { onBack: () => void }) {
     <>
       <div className="section-head">
         <span className="eyebrow">
-          <span className="num">!</span> recuperar acceso
+          <span className="num">!</span> {t('recuperar acceso')}
         </span>
-        <h1 className="title">Nueva contraseña</h1>
+        <h1 className="title">{t('Nueva contraseña')}</h1>
         <p className="muted">
-          Escribe la clave de recuperación que guardaste al crear la bóveda y elige una contraseña
-          nueva.
+          {t(
+            'Escribe la clave de recuperación que guardaste al crear la bóveda y elige una contraseña nueva.',
+          )}
         </p>
       </div>
       <form className="form" onSubmit={submit} noValidate>
         <div className="field">
-          <label htmlFor="recovery-input">Clave de recuperación</label>
+          <label htmlFor="recovery-input">{t('Clave de recuperación')}</label>
           <input
             id="recovery-input"
             className="input input-large mono"
@@ -163,24 +167,26 @@ function RecoverForm({ onBack }: { onBack: () => void }) {
           />
         </div>
         <PasswordField
-          label="Contraseña nueva"
+          label={t('Contraseña nueva')}
           value={password}
           onChange={setPassword}
           autoComplete="new-password"
-          hint={`Como mínimo ${MIN_PASSWORD_LENGTH} caracteres.`}
+          hint={t('Como mínimo {n} caracteres.', { n: MIN_PASSWORD_LENGTH })}
           testId="recover-password"
         />
         <PasswordField
-          label="Repite la contraseña nueva"
+          label={t('Repite la contraseña nueva')}
           value={confirm}
           onChange={setConfirm}
           autoComplete="new-password"
           testId="recover-confirm"
         />
         {tried && tooShort && (
-          <Alert>La contraseña debe tener al menos {MIN_PASSWORD_LENGTH} caracteres.</Alert>
+          <Alert>
+            {t('La contraseña debe tener al menos {n} caracteres.', { n: MIN_PASSWORD_LENGTH })}
+          </Alert>
         )}
-        {tried && !tooShort && mismatch && <Alert>Las contraseñas no coinciden.</Alert>}
+        {tried && !tooShort && mismatch && <Alert>{t('Las contraseñas no coinciden.')}</Alert>}
         {recover.error && !elsewhere && <Alert>{recover.error.message}</Alert>}
         <div className="form-actions">
           <button
@@ -189,10 +195,10 @@ function RecoverForm({ onBack }: { onBack: () => void }) {
             disabled={recover.pending}
             data-testid="recover-submit"
           >
-            {recover.pending ? 'Comprobando…' : 'Guardar contraseña y desbloquear'}
+            {recover.pending ? t('Comprobando…') : t('Guardar contraseña y desbloquear')}
           </button>
           <button type="button" className="btn btn-link" onClick={onBack}>
-            Volver
+            {t('Volver')}
           </button>
         </div>
       </form>
@@ -211,7 +217,7 @@ function RecoverForm({ onBack }: { onBack: () => void }) {
 export function Unlock({ status }: { status: VaultStatus }) {
   const [mode, setMode] = useState<'unlock' | 'recover'>('unlock')
   return (
-    <Gate step={mode === 'unlock' ? 'desbloquear' : 'recuperar acceso'}>
+    <Gate step={mode === 'unlock' ? t('desbloquear') : t('recuperar acceso')}>
       {mode === 'unlock' ? (
         <UnlockForm status={status} onForgot={() => setMode('recover')} />
       ) : (

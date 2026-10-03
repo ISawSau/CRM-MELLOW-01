@@ -13,6 +13,7 @@ import type {
 import type { SqliteDb } from '../db/connection'
 import type { DataService } from '../data/data-service'
 import { addDaily, moneyConverter, type DailyRow } from './sums'
+import { t } from '@shared/i18n'
 
 /**
  * Vínculo entre creatividades (biblioteca, SPEC §7.8) y anuncios de Meta: manual
@@ -63,10 +64,10 @@ export function setLink(
     .prepare('SELECT entity FROM records WHERE id = ? AND deleted_at IS NULL')
     .get(recordId) as { entity: string } | undefined
   if (rec?.entity !== ENTITY)
-    throw new AppError('INVALID_INPUT', undefined, 'No es una creatividad.')
+    throw new AppError('INVALID_INPUT', undefined, t('No es una creatividad.'))
   if (linked) {
     const ad = db.prepare("SELECT 1 FROM ad_objects WHERE id = ? AND level = 'ad'").get(adId)
-    if (!ad) throw new AppError('INVALID_INPUT', undefined, 'No existe ese anuncio.')
+    if (!ad) throw new AppError('INVALID_INPUT', undefined, t('No existe ese anuncio.'))
     db.prepare(
       `INSERT INTO creative_links (record_id, ad_id, source, created_at) VALUES (?, ?, 'manual', ?)
        ON CONFLICT(record_id, ad_id) DO UPDATE SET source = 'manual'`,
@@ -280,7 +281,7 @@ export function tagPerf(
   const fields = data.listFields(ENTITY)
   const field = fields.find((f) => f.id === fieldId)
   if (!field || (field.type !== 'select' && field.type !== 'multiselect'))
-    throw new AppError('INVALID_INPUT', undefined, 'Elige un campo de selección.')
+    throw new AppError('INVALID_INPUT', undefined, t('Elige un campo de selección.'))
   const clientField = fields.find((f) => f.key === 'cliente')
   const options = (field.config['options'] as { id: string; label: string; color: string }[]) ?? []
   let records = data.query(ENTITY) as RecordRow[]
@@ -315,7 +316,7 @@ export function tagPerf(
           key,
           (g = {
             id: key,
-            label: o?.label ?? 'Sin valor',
+            label: o ? t(o.label) : t('Sin valor'),
             color: o?.color ?? null,
             creatives: 0,
             ads: 0,

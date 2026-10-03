@@ -13,7 +13,7 @@ import { PasswordField } from '../ui/PasswordField'
 import { newThemeFrom, ThemeEditor } from '../theme/ThemeEditor'
 import { ThemeShare } from '../theme/ThemeShare'
 import { LanguageSwitch } from '../ui/LanguageSwitch'
-import { t } from '@shared/i18n'
+import { t, tn } from '@shared/i18n'
 
 const AUTO_LOCK_OPTIONS = [5, 10, 15, 30, 60, 120]
 
@@ -48,8 +48,10 @@ function Appearance({ status }: { status: VaultStatus }) {
   )
   return (
     <Block
-      title="Apariencia"
-      desc="Elige un tema o crea el tuyo: parte de uno existente y cambia colores, esquinas, fondo (imagen o vídeo) e iconos. Los temas se exportan e importan como archivo, y una IA te puede crear uno."
+      title={t('Apariencia')}
+      desc={t(
+        'Elige un tema o crea el tuyo: parte de uno existente y cambia colores, esquinas, fondo (imagen o vídeo) e iconos. Los temas se exportan e importan como archivo, y una IA te puede crear uno.',
+      )}
     >
       <div className="field">
         <label>{t('Idioma')}</label>
@@ -59,18 +61,18 @@ function Appearance({ status }: { status: VaultStatus }) {
         </span>
       </div>
       <div className="field">
-        <label>Tema</label>
-        <div className="segmented segmented-wrap" role="group" aria-label="Tema">
-          {all.map((t) => (
+        <label>{t('Tema')}</label>
+        <div className="segmented segmented-wrap" role="group" aria-label={t('Tema')}>
+          {all.map((th) => (
             <button
-              key={t.id}
+              key={th.id}
               type="button"
-              aria-pressed={appearance.theme === t.id}
+              aria-pressed={appearance.theme === th.id}
               disabled={editing !== null}
-              onClick={() => void save.run(t.id, appearance.density)}
-              data-testid={`theme-${t.id}`}
+              onClick={() => void save.run(th.id, appearance.density)}
+              data-testid={`theme-${th.id}`}
             >
-              {t.name}
+              {t(th.name)}
             </button>
           ))}
         </div>
@@ -81,15 +83,15 @@ function Appearance({ status }: { status: VaultStatus }) {
               className="btn"
               onClick={() => setEditing({ theme: newThemeFrom(current, custom), isNew: true })}
             >
-              Nuevo tema a partir de «{current.name}»
+              {t('Nuevo tema a partir de «{name}»', { name: t(current.name) })}
             </button>
-            {custom.some((t) => t.id === current.id) && (
+            {custom.some((th) => th.id === current.id) && (
               <button
                 type="button"
                 className="btn"
                 onClick={() => setEditing({ theme: current, isNew: false })}
               >
-                Editar «{current.name}»
+                {t('Editar «{name}»', { name: t(current.name) })}
               </button>
             )}
           </div>
@@ -108,8 +110,8 @@ function Appearance({ status }: { status: VaultStatus }) {
         />
       )}
       <div className="field">
-        <label>Densidad</label>
-        <div className="segmented" role="group" aria-label="Densidad">
+        <label>{t('Densidad')}</label>
+        <div className="segmented" role="group" aria-label={t('Densidad')}>
           {(
             [
               ['compacta', 'Compacta'],
@@ -124,7 +126,7 @@ function Appearance({ status }: { status: VaultStatus }) {
               onClick={() => void save.run(appearance.theme, id)}
               data-testid={`density-${id}`}
             >
-              {label}
+              {t(label)}
             </button>
           ))}
         </div>
@@ -139,11 +141,11 @@ function AutoLock({ status }: { status: VaultStatus }) {
   const lock = useAction(() => call('vault:lock'))
   return (
     <Block
-      title="Bloqueo automático"
-      desc="La bóveda también se bloquea al suspender el equipo o bloquear la sesión."
+      title={t('Bloqueo automático')}
+      desc={t('La bóveda también se bloquea al suspender el equipo o bloquear la sesión.')}
     >
       <div className="field">
-        <label htmlFor="autolock">Bloquear tras este tiempo sin usar la app</label>
+        <label htmlFor="autolock">{t('Bloquear tras este tiempo sin usar la app')}</label>
         <select
           id="autolock"
           className="input"
@@ -152,14 +154,14 @@ function AutoLock({ status }: { status: VaultStatus }) {
         >
           {AUTO_LOCK_OPTIONS.map((m) => (
             <option key={m} value={m}>
-              {m < 60 ? `${m} minutos` : `${m / 60} ${m === 60 ? 'hora' : 'horas'}`}
+              {m < 60 ? t('{n} minutos', { n: m }) : tn(m / 60, '{n} hora', '{n} horas')}
             </option>
           ))}
         </select>
       </div>
       <div className="form-actions">
         <button type="button" className="btn" onClick={() => void lock.run()}>
-          Bloquear ahora
+          {t('Bloquear ahora')}
         </button>
       </div>
     </Block>
@@ -190,33 +192,37 @@ function ChangePassword() {
   }
   return (
     <Block
-      title="Contraseña"
-      desc="Cambiarla es instantáneo: los datos no se vuelven a cifrar. La clave de recuperación sigue sirviendo."
+      title={t('Contraseña')}
+      desc={t(
+        'Cambiarla es instantáneo: los datos no se vuelven a cifrar. La clave de recuperación sigue sirviendo.',
+      )}
     >
       <form className="form" onSubmit={submit} noValidate>
-        <PasswordField label="Contraseña actual" value={current} onChange={setCurrent} />
+        <PasswordField label={t('Contraseña actual')} value={current} onChange={setCurrent} />
         <PasswordField
-          label="Contraseña nueva"
+          label={t('Contraseña nueva')}
           value={next}
           onChange={setNext}
           autoComplete="new-password"
-          hint={`Como mínimo ${MIN_PASSWORD_LENGTH} caracteres.`}
+          hint={t('Como mínimo {n} caracteres.', { n: MIN_PASSWORD_LENGTH })}
         />
         <PasswordField
-          label="Repite la contraseña nueva"
+          label={t('Repite la contraseña nueva')}
           value={confirm}
           onChange={setConfirm}
           autoComplete="new-password"
         />
         {tried && tooShort && (
-          <Alert>La contraseña debe tener al menos {MIN_PASSWORD_LENGTH} caracteres.</Alert>
+          <Alert>
+            {t('La contraseña debe tener al menos {n} caracteres.', { n: MIN_PASSWORD_LENGTH })}
+          </Alert>
         )}
-        {tried && !tooShort && mismatch && <Alert>Las contraseñas no coinciden.</Alert>}
+        {tried && !tooShort && mismatch && <Alert>{t('Las contraseñas no coinciden.')}</Alert>}
         {change.error && <Alert>{change.error.message}</Alert>}
-        {done && <p className="muted">Contraseña cambiada.</p>}
+        {done && <p className="muted">{t('Contraseña cambiada.')}</p>}
         <div className="form-actions">
           <button type="submit" className="btn btn-primary" disabled={change.pending}>
-            {change.pending ? 'Guardando…' : 'Cambiar contraseña'}
+            {change.pending ? t('Guardando…') : t('Cambiar contraseña')}
           </button>
         </div>
       </form>
@@ -238,18 +244,24 @@ function RotateKey() {
   }
   return (
     <Block
-      title="Rotar la clave de cifrado"
-      desc="Genera una clave nueva y vuelve a cifrar la base de datos. La clave de recuperación anterior deja de servir. Antes se hace una copia en backups/."
+      title={t('Rotar la clave de cifrado')}
+      desc={t(
+        'Genera una clave nueva y vuelve a cifrar la base de datos. La clave de recuperación anterior deja de servir. Antes se hace una copia en backups/.',
+      )}
     >
       {newKey ? (
-        <RecoveryKeyPanel recoveryKey={newKey} doneLabel="Hecho" onDone={() => setNewKey(null)} />
+        <RecoveryKeyPanel
+          recoveryKey={newKey}
+          doneLabel={t('Hecho')}
+          onDone={() => setNewKey(null)}
+        />
       ) : (
         <form className="form" onSubmit={submit}>
-          <PasswordField label="Contraseña actual" value={password} onChange={setPassword} />
+          <PasswordField label={t('Contraseña actual')} value={password} onChange={setPassword} />
           {rotate.error && <Alert>{rotate.error.message}</Alert>}
           <div className="form-actions">
             <button type="submit" className="btn btn-danger" disabled={rotate.pending || !password}>
-              {rotate.pending ? 'Rotando…' : 'Rotar clave'}
+              {rotate.pending ? t('Rotando…') : t('Rotar clave')}
             </button>
           </div>
         </form>
@@ -262,15 +274,15 @@ function VaultBlock({ status }: { status: VaultStatus }) {
   const close = useAction(() => call('vault:close'))
   return (
     <Block
-      title="Bóveda"
-      desc="Para llevarla a otro equipo, cierra la app y copia la carpeta entera."
+      title={t('Bóveda')}
+      desc={t('Para llevarla a otro equipo, cierra la app y copia la carpeta entera.')}
     >
       <div className="path-box">
         <span>{status.path}</span>
       </div>
       <div className="form-actions">
         <button type="button" className="btn" onClick={() => void close.run()}>
-          Cerrar esta bóveda y abrir otra
+          {t('Cerrar esta bóveda y abrir otra')}
         </button>
       </div>
     </Block>
@@ -282,9 +294,9 @@ export function Settings({ status }: { status: VaultStatus }) {
     <div className="page" data-testid="page-ajustes">
       <div className="section-head">
         <span className="eyebrow">
-          <span className="num">⚙</span> ajustes
+          <span className="num">⚙</span> {t('ajustes')}
         </span>
-        <h1 className="title">Ajustes</h1>
+        <h1 className="title">{t('Ajustes')}</h1>
       </div>
       <div>
         <Appearance status={status} />
