@@ -39,9 +39,9 @@ test.describe.configure({ mode: 'serial' })
 
 test('sin Meta, Análisis e Inicio invitan a conectar', async () => {
   await page.getByTestId('nav-analisis').click()
-  await expect(page.getByTestId('page-analisis')).toContainText('Sin datos de Meta')
+  await expect(page.getByTestId('page-analisis')).toContainText('Sin datos publicitarios')
   await page.getByTestId('nav-inicio').click()
-  await expect(page.getByTestId('home-spend')).toContainText('Conecta tus cuentas')
+  await expect(page.getByTestId('home-spend')).toContainText('Conecta Meta en Campañas')
 })
 
 test('dashboard general con KPIs, gráficas, ranking y tabla', async () => {
@@ -127,7 +127,7 @@ test('una alerta que se cumple avisa en Análisis, la barra lateral e Inicio', a
   await page.getByTestId('nav-inicio').click()
   await expect(page.getByTestId('home-alerts')).toContainText('CPA alto')
   await expect(page.getByTestId('home-spend')).toContainText('ROAS 30 días')
-  await expect(page.getByTestId('home-spend')).not.toContainText('Conecta tus cuentas')
+  await expect(page.getByTestId('home-spend')).not.toContainText('Conecta Meta en Campañas')
   await shot('43-inicio-meta')
 })
 

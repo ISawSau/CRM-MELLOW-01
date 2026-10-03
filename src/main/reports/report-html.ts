@@ -30,6 +30,8 @@ export interface ReportContext {
   /** Foto o logo del perfil (data:image/…;base64). */
   logo: string | null
   today: string
+  /** Plataformas con datos en el periodo («Meta Ads», «LinkedIn Ads»…). */
+  platforms: string[]
   comments: string
   defs: Map<string, MetricDef>
   compute: (base: BaseSums) => MetricValues
@@ -65,7 +67,7 @@ function hasData(r: AnalysisResult): boolean {
   return (r.totals['impresiones'] ?? 0) > 0 || (r.totals['gasto'] ?? 0) > 0
 }
 
-const EMPTY = '<p class="empty">Sin datos de Meta en este periodo.</p>'
+const EMPTY = '<p class="empty">Sin datos publicitarios en este periodo.</p>'
 
 function section(b: ReportBlock, inner: string): string {
   const title = 'title' in b && b.title ? b.title : BLOCK_LABELS[b.kind]
@@ -89,7 +91,7 @@ export function buildReportHtml(ctx: ReportContext): string {
           <h1>${escapeHtml(ctx.clientName ?? 'Todas las cuentas')}</h1>
           <div class="rule"></div>
           <p class="period">${period}</p>
-          <p class="meta">Importes en ${escapeHtml(currency)} · Meta Ads</p>
+          <p class="meta">Importes en ${escapeHtml(currency)}${ctx.platforms.map((p) => ` · ${escapeHtml(p)}`).join('')}</p>
           ${ctx.author ? `<p class="author">Preparado por ${escapeHtml(ctx.author)}</p>` : ''}
           <p class="date">${es(ctx.today)}</p>
         </section>`

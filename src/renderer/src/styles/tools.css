@@ -353,5 +353,10 @@
 }
 
 .mapping-grid {
+  flex: 1 1 100%;
   grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+}
+
+.mapping-grid .field {
+  min-width: 0;
 }

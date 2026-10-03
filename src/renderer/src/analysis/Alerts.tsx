@@ -208,8 +208,8 @@ export function Alerts() {
   return (
     <div className="meta-perf" data-testid="alerts">
       <p className="muted">
-        Las alertas se comprueban después de cada sincronización con Meta y solo avisan dentro de la
-        app: en la barra lateral, en Inicio y aquí.
+        Las alertas se comprueban después de cada sincronización con Meta o LinkedIn y de cada
+        importación de CSV, y solo avisan dentro de la app: en la barra lateral, en Inicio y aquí.
       </p>
       <ul className="alert-list" data-testid="alert-list">
         {list.map((a) => {

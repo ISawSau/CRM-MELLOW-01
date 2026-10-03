@@ -24,8 +24,9 @@ export function ReportsPage({ num }: { num: string }) {
         </span>
         <h1 className="title">Informes</h1>
         <p className="muted">
-          Informes de resultados en PDF para tus clientes, a partir de las métricas de Meta. El PDF
-          se guarda en los Documentos del cliente y puedes exportarlo para enviarlo.
+          Informes de resultados en PDF para tus clientes, a partir de las métricas de Meta,
+          LinkedIn y X. El PDF se guarda en los Documentos del cliente y puedes exportarlo para
+          enviarlo.
         </p>
       </div>
       <div className="tabs" role="tablist" aria-label="Informes">

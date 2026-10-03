@@ -108,7 +108,7 @@ describe('informes para clientes', () => {
     const nombre = vault.data.listFields('cliente').find((f) => f.key === 'nombre')!.id
     const otro = vault.data.create('cliente', { [nombre]: 'Sin cuentas' })
     await reports.generate(gen({ clientId: otro.id }))
-    expect(printed[0]).toContain('Sin datos de Meta en este periodo.')
+    expect(printed[0]).toContain('Sin datos publicitarios en este periodo.')
     await expect(reports.generate(gen({ clientId: 'no-existe' }))).rejects.toThrow(/no existe/)
     await expect(
       reports.generate(gen({ since: '2026-10-01', until: '2026-09-01' })),

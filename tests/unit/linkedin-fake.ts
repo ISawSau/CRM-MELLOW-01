@@ -8,7 +8,11 @@ export const LI_TOKEN_OK = 'token-linkedin'
 
 export class FakeLinkedIn {
   readonly calls: string[] = []
-  constructor(readonly base = FAKE_LI) {}
+  constructor(
+    readonly base = FAKE_LI,
+    /** Primer día con actividad en la cuenta 501. */
+    readonly activeFrom = '2026-09-01',
+  ) {}
 
   /** Gasto de una campaña un día (determinista). */
   static day(campaign: number, date: string) {
@@ -88,8 +92,8 @@ export class FakeLinkedIn {
       if (acc[1] === '501')
         for (let t = Date.parse(since); t <= Date.parse(until); t += 86_400_000) {
           const date = new Date(t).toISOString().slice(0, 10)
-          // Solo hay actividad desde septiembre de 2026.
-          if (date < '2026-09-01') continue
+          // Solo hay actividad desde activeFrom (septiembre de 2026 por defecto).
+          if (date < this.activeFrom) continue
           for (const c of [11, 12]) {
             const v = FakeLinkedIn.day(c, date)
             const [y, mo, d] = date.split('-').map(Number)
