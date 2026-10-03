@@ -544,3 +544,34 @@ El usuario no quiere escribir comandos de desarrollo para usar la app. Los insta
 - **Límites:** según la documentación, 6.000 unidades por minuto y usuario; `threads.list` cuesta 10 unidades y `threads.get` 40, así que una página son 610. Ante un 429 o `rateLimitExceeded` se pide esperar un minuto. Si la API no está activada en el proyecto, se explica cómo activarla. Con un 401 se renueva el token una vez.
 - **Sin copia local:** el correo no se guarda en la bóveda ni en disco. Los hilos se piden al abrir la ficha y se guardan 5 minutos en memoria («Actualizar» los vuelve a pedir). La caché se borra al bloquear.
 - **Pruebas:** sin cuenta de Google en este entorno, se prueba contra un Google simulado (token, revoke, perfil, `threads.list` con la búsqueda y `threads.get`), en tests unitarios y de interfaz, con el consentimiento del navegador simulado.
+
+## Fase 11 · X y LinkedIn
+
+### D-079 · LinkedIn por su API de publicidad, en solo lectura
+
+- **Gratis con aprobación:** la Advertising API de LinkedIn no cuesta dinero, pero hay que solicitarla en el portal de desarrolladores. Con el nivel de desarrollo ya se pueden leer las cuentas que administra el usuario, que es todo lo que necesita una app personal. Solo se piden `r_ads` y `r_ads_reporting` (lectura): nada que cree o modifique campañas.
+- **Versión y llamadas**, comprobadas en la documentación oficial actual (versión `202609`, cabeceras `LinkedIn-Version` y `X-Restli-Protocol-Version: 2.0.0`):
+  - `GET /rest/adAccounts?q=search` y `GET /rest/adAccounts/{id}/adCampaigns?q=search`, paginadas con `pageSize` y `pageToken` (`metadata.nextPageToken`).
+  - `GET /rest/adAnalytics?q=analytics&pivot=CAMPAIGN&timeGranularity=DAILY` con `dateRange` y `accounts` en sintaxis Rest.li y la lista de `fields` (máximo 20). Esta llamada no pagina y corta en 15.000 filas, así que se pide en trozos de 90 días.
+  - Campos: `costInLocalCurrency` (texto), `impressions`, `clicks`, `landingPageClicks`, `externalWebsiteConversions` y `conversionValueInLocalCurrency`.
+- **Acceso:**
+  - Por OAuth con el id y el secreto de la app del usuario (LinkedIn exige el secreto para canjear el código), con la dirección de vuelta fija `http://localhost:53135/linkedin`, que hay que registrar en la app. También se puede pegar un token generado en el portal.
+  - Los tokens duran 60 días y las apps normales no reciben token de actualización: la app avisa una semana antes de que caduque y pide reconectar.
+  - El token y el secreto se guardan en la base de datos cifrada.
+- **Sincronización:**
+  - Las cuentas descubiertas se crean sin activar (`li_<id>`); la cuenta de pruebas de LinkedIn se omite.
+  - Al activar una cuenta se descarga el último año; después, cada tres horas mientras la app está abierta, desde siete días antes del último dato (LinkedIn corrige conversiones atrasadas).
+  - Ante un 401 (token caducado) o un 429 se para y se muestra el error en la cuenta.
+- **Pruebas:** sin cuenta de LinkedIn en este entorno, se prueba contra una API simulada con las mismas URL, cabeceras, paginación y sintaxis Rest.li, en tests unitarios y de interfaz.
+
+### D-080 · X por CSV, y LinkedIn también por CSV
+
+- **X:** la API de X es de pago por uso (no hay nivel gratuito con lectura de anuncios), así que se descarta por la regla de cero costes. X entra con los CSV que exporta X Ads.
+- **LinkedIn sin aprobación:** los CSV de Campaign Manager sirven igual mientras LinkedIn no aprueba la API o si el usuario no quiere pedirla.
+- **Importación:**
+  - Lector de CSV propio: detecta el separador (`,`, `;` o tabulador), comillas, BOM y el preámbulo de LinkedIn (la cabecera se busca entre las primeras filas).
+  - Propone el mapeo por sinónimos de las cabeceras en español e inglés, y deduce el formato de fecha y el separador decimal de los datos. El usuario lo puede corregir y se recuerda por plataforma y cabeceras para la próxima vez.
+  - Las filas de totales y las que no tienen fecha se descartan y se cuentan.
+  - Reimportar un periodo sustituye esos días (por cuenta y campaña), no los duplica.
+- **Mismas tablas que Meta:** las métricas van a `ad_insights_daily` (niveles cuenta y campaña) y `ad_actions`, con la plataforma en `ad_accounts.platform`. Así Análisis, Inicio, Facturación, Informes y alertas las incluyen sin cambios, y los filtros por cuenta y cliente funcionan igual. Las conversiones se guardan como compras (cuentan en ROAS y CPA) u «otras conversiones», a elección del usuario.
+- **Moneda:** cada cuenta tiene la suya. Los tipos del BCE se descargan también tras importar o sincronizar LinkedIn, aunque Meta no esté conectado.
