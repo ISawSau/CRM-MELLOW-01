@@ -57,6 +57,10 @@ export interface PlatformsOptions {
   pollMs?: number
   now?: () => Date
   onChange?: () => void
+  /** Tipos de cambio del BCE para las monedas de las cuentas (los descarga MetaService). */
+  updateRates?: () => Promise<void>
+  /** Han llegado métricas nuevas (evaluar alertas). */
+  onSynced?: () => void
 }
 
 interface AccountRow {
@@ -95,6 +99,15 @@ export class PlatformsService {
 
   private now(): Date {
     return this.opts.now?.() ?? new Date()
+  }
+
+  /** Tipos de cambio y alertas tras recibir métricas; un fallo del BCE no interrumpe nada. */
+  private async afterData(): Promise<void> {
+    await this.opts.updateRates?.().catch(() => {
+      // Sin tipos de cambio, los importes se ven en la moneda de la cuenta.
+    })
+    this.opts.onChange?.()
+    this.opts.onSynced?.()
   }
 
   private touched(): void {
@@ -205,6 +218,7 @@ export class PlatformsService {
     all[this.signature(input.platform, headers)] = input.mapping
     writeSetting(this.db(), MAPPINGS_KEY, all)
     this.touched()
+    void this.afterData()
     return result
   }
 
@@ -355,7 +369,8 @@ export class PlatformsService {
     }
     this.phase = failed ? 'error' : 'idle'
     this.error = failed
-    this.opts.onChange?.()
+    if (accounts.length) await this.afterData()
+    else this.opts.onChange?.()
   }
 
   private async syncAccount(client: LinkedInClient, a: AccountRow): Promise<void> {

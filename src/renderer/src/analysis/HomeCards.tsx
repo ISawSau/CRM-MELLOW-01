@@ -3,6 +3,7 @@ import { rangeFor } from '@shared/analysis'
 import { formatDateTime } from '@shared/format'
 import { call } from '../lib/ipc'
 import { useMetaStatus } from '../meta/meta'
+import { useHasAdData } from '../platforms/platforms'
 import { formatMetric } from '../meta/metrics'
 import { useAnalysis, useMetricKit, useToday } from './kit'
 import { useUnseenAlerts } from './AnalysisPage'
@@ -12,7 +13,7 @@ export function SpendCard({ onNavigate }: { onNavigate: (s: string) => void }) {
   const status = useMetaStatus()
   const today = useToday()
   const kit = useMetricKit()
-  const connected = !!status?.connected
+  const connected = useHasAdData() === true
   const d0 = useAnalysis(connected ? { since: today, until: today } : null)
   const r7 = rangeFor('7d', today)
   const r30 = rangeFor('30d', today)
@@ -34,7 +35,9 @@ export function SpendCard({ onNavigate }: { onNavigate: (s: string) => void }) {
         </button>
       </div>
       {!connected ? (
-        <p className="faint">Conecta tus cuentas de Meta en Campañas para ver el gasto aquí.</p>
+        <p className="faint">
+          Conecta Meta en Campañas o importa LinkedIn o X para ver el gasto aquí.
+        </p>
       ) : (
         <dl className="mini-kpis">
           <div>

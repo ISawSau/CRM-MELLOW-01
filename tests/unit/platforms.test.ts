@@ -95,7 +95,10 @@ describe('otras plataformas en la bóveda', () => {
   async function ready() {
     const ctx = await setup()
     const li = new FakeLinkedIn()
+    const synced = { n: 0 }
     const platforms = new PlatformsService(ctx.vault, {
+      updateRates: () => ctx.meta.syncRates(),
+      onSynced: () => synced.n++,
       http: li.fetch as typeof fetch,
       openBrowser: () => {},
       apiUrl: FAKE_LI,
@@ -110,7 +113,7 @@ describe('otras plataformas en la bóveda', () => {
         ctx.vault.dispose()
       },
     })
-    return { ...ctx, platforms, li }
+    return { ...ctx, platforms, li, synced }
   }
 
   const mapping = (text: string, extra: Partial<CsvMapping> = {}): CsvMapping => {
@@ -269,5 +272,30 @@ describe('otras plataformas en la bóveda', () => {
     platforms.deleteAccount('li_501')
     expect(total(vault).totals['gasto'] ?? 0).toBe(0)
     expect(platforms.linkedinDisconnect().connected).toBe(false)
+  })
+
+  it('una cuenta en dólares sin Meta conectado trae los tipos del BCE y avisa a las alertas', async () => {
+    const { vault, platforms, synced, fake } = await ready()
+    const text = LINKEDIN_CSV
+    expect(total(vault).partial).toBe(false)
+    platforms.importCsv(
+      {
+        platform: 'linkedin',
+        accountId: null,
+        newAccount: { name: 'Acme USA', currency: 'USD', timezone: 'UTC' },
+        text,
+        mapping: mapping(text, { dateFormat: 'mdy' }),
+      },
+      parseCsv(text)[2]!,
+    )
+    await new Promise((r) => setTimeout(r, 50))
+    expect(synced.n).toBe(1)
+    const t = total(vault)
+    expect(t.partial).toBe(false)
+    expect(t.currency).toBe('EUR')
+    // Septiembre usa el tipo publicado más reciente anterior (1 USD = 1 EUR en el BCE falso).
+    expect(t.totals['gasto']).toBeCloseTo(1344.75)
+    // Solo se ha pedido el histórico del BCE (nada a Meta, que no está conectado).
+    expect(fake.urls).toEqual(['GET /eurofxref-hist.xml'])
   })
 })

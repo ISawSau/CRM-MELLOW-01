@@ -63,8 +63,7 @@ function useOptions(mode: Mode, since: string, until: string, tagFieldId: string
       : null,
   )
   if (mode === 'cliente') return (clients.data ?? []).map((c) => ({ key: c.id, label: c.title }))
-  if (mode === 'cuenta')
-    return accounts.map((a) => ({ key: a.id, label: a.name }))
+  if (mode === 'cuenta') return accounts.map((a) => ({ key: a.id, label: a.name }))
   if (mode === 'etiqueta') {
     const f = (fields.data ?? []).find((x) => x.id === tagFieldId)
     return ((f?.config['options'] as { id: string; label: string }[] | undefined) ?? []).map(

@@ -2,7 +2,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect } from 'react'
 import { PLATFORMS } from '@shared/platforms'
 import { call, subscribe } from '../lib/ipc'
-import { useMetaAccounts } from '../meta/meta'
+import { useMetaAccounts, useMetaStatus } from '../meta/meta'
 
 /** Cuentas de LinkedIn y X, al día con los avisos del proceso principal. */
 export function usePlatformAccounts() {
@@ -38,4 +38,12 @@ export function useAllAccounts(): { id: string; name: string }[] {
       .filter((a) => a.enabled)
       .map((a) => ({ id: a.id, name: `${a.name} (${PLATFORMS[a.platform]})` })),
   ]
+}
+
+/** Hay datos publicitarios que analizar: Meta conectado o alguna cuenta de LinkedIn o X activada. */
+export function useHasAdData(): boolean | null {
+  const status = useMetaStatus()
+  const other = usePlatformAccounts().data
+  if (!status || !other) return null
+  return status.connected || other.some((a) => a.enabled)
 }

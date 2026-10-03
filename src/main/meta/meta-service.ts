@@ -769,7 +769,8 @@ export class MetaService {
     }
   }
 
-  private async syncRates(): Promise<void> {
+  /** Tipos de cambio del BCE para las monedas de todas las cuentas activadas (también LinkedIn y X). */
+  async syncRates(): Promise<void> {
     const currencies = new Set(
       (
         this.db.prepare('SELECT DISTINCT currency FROM ad_accounts WHERE enabled = 1').all() as {

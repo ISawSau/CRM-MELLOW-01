@@ -123,6 +123,8 @@ if (process.argv.includes('--autoprueba')) {
   const platforms = new PlatformsService(vault, {
     openBrowser: openExternalSafely,
     onChange: () => mainWindow?.webContents.send('platforms:changed', null),
+    updateRates: () => meta.syncRates(),
+    onSynced: () => analysis.evaluate(),
     ...(linkedinUrl ? { apiUrl: linkedinUrl } : {}),
   })
   /** Bloqueo con subida previa de lo pendiente (manual o por inactividad). */
