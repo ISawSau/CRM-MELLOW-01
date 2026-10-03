@@ -105,6 +105,10 @@ export const IPC_CHANNELS = [
   'analysis:markSeen',
   'billing:summary',
   'tools:status',
+  'gmail:status',
+  'gmail:connect',
+  'gmail:disconnect',
+  'gmail:threads',
   'reports:templates',
   'reports:setTemplates',
   'reports:generate',
@@ -121,4 +125,5 @@ export const IPC_EVENTS = [
   'meta:changed',
   'analysis:changed',
   'tools:progress',
+  'gmail:changed',
 ] as const

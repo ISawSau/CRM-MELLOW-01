@@ -68,20 +68,20 @@ const manifestSchema = z.object({
 })
 type RemoteManifest = z.infer<typeof manifestSchema>
 
-function readSetting(db: SqliteDb, key: string): unknown {
+export function readSetting(db: SqliteDb, key: string): unknown {
   const r = db.prepare('SELECT value FROM settings WHERE key = ?').get(key) as
     { value: string } | undefined
   return r ? JSON.parse(r.value) : undefined
 }
 
-function writeSetting(db: SqliteDb, key: string, value: unknown): void {
+export function writeSetting(db: SqliteDb, key: string, value: unknown): void {
   db.prepare(
     `INSERT INTO settings (key, value, updated_at) VALUES (?, ?, ?)
      ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`,
   ).run(key, JSON.stringify(value), new Date().toISOString())
 }
 
-function deleteSetting(db: SqliteDb, key: string): void {
+export function deleteSetting(db: SqliteDb, key: string): void {
   db.prepare('DELETE FROM settings WHERE key = ?').run(key)
 }
 
@@ -151,6 +151,16 @@ export class SyncService {
   private config(): SyncConfig | null {
     const r = configSchema.safeParse(readSetting(this.db(), CONFIG_KEY))
     return r.success ? r.data : null
+  }
+
+  /** El cliente de Google de Drive, para reutilizarlo en Gmail (mismo proyecto). */
+  googleClient(): GoogleClient | null {
+    try {
+      const c = this.config()
+      return c?.kind === 'drive' ? { clientId: c.clientId, clientSecret: c.clientSecret } : null
+    } catch {
+      return null
+    }
   }
 
   private state(): SyncState {

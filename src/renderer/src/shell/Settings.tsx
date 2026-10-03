@@ -9,6 +9,7 @@ import { BriefTemplatesSettings } from '../data/BriefTemplatesSettings'
 import { DataSettings, FieldsSettings } from '../data/FieldsSettings'
 import { ProfileSettings } from './ProfileSettings'
 import { SyncSettings } from './SyncSettings'
+import { GmailSettings } from '../gmail/GmailSettings'
 import { Alert } from '../ui/Alert'
 import { PasswordField } from '../ui/PasswordField'
 
@@ -245,6 +246,7 @@ export function Settings({ status }: { status: VaultStatus }) {
         <BriefTemplatesSettings />
         <DataSettings />
         <SyncSettings />
+        <GmailSettings />
         <AutoLock status={status} />
         <ChangePassword />
         <RotateKey />

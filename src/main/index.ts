@@ -27,6 +27,7 @@ import { ToolsService } from './tools/tools-service'
 import { reportFonts } from './reports/fonts'
 import { htmlToPdf } from './reports/print'
 import { ReportService } from './reports/report-service'
+import { GmailService } from './gmail/gmail-service'
 import { isVaultFolder } from './vault/vault-file'
 import { VaultService } from './vault/vault-service'
 import { createMainWindow } from './window'
@@ -102,11 +103,26 @@ if (process.argv.includes('--autoprueba')) {
     actionTypes: () => meta.actionTypes(),
     addDocument: (name, file, tipo, clientId) => tools.addDocument(name, file, tipo, clientId),
   })
+  // Google falso para los tests de Gmail (token, revoke y API), solo sin empaquetar.
+  const googleUrl = testUrl('CRM_TEST_GOOGLE_URL')
+  const gmail = new GmailService(vault, {
+    openBrowser: openExternalSafely,
+    driveClient: () => sync.googleClient(),
+    onChange: (s) => mainWindow?.webContents.send('gmail:changed', s),
+    ...(googleUrl
+      ? {
+          apiUrl: `${googleUrl}/gmail/v1`,
+          tokenUrl: `${googleUrl}/token`,
+          revokeUrl: `${googleUrl}/revoke`,
+        }
+      : {}),
+  })
   /** Bloqueo con subida previa de lo pendiente (manual o por inactividad). */
   const lockWithSync = async () => {
     autoLock.stop()
     meta.dispose()
     tools.dispose()
+    gmail.dispose()
     try {
       await sync.beforeClose()
     } finally {
@@ -174,6 +190,7 @@ if (process.argv.includes('--autoprueba')) {
         analysis,
         tools,
         reports,
+        gmail,
         lockWithSync,
         getWindow: () => mainWindow,
       }),
@@ -187,6 +204,7 @@ if (process.argv.includes('--autoprueba')) {
       autoLock.stop()
       meta.dispose()
       tools.dispose()
+      gmail.dispose()
       sync.dispose()
       vault.lock()
     }
