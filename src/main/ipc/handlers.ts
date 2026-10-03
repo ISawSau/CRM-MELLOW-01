@@ -8,10 +8,13 @@ import type { VaultService } from '../vault/vault-service'
 import type { SyncService } from '../sync/sync-service'
 import type { MetaService } from '../meta/meta-service'
 import type { AnalysisService } from '../analysis/analysis-service'
+import type { ToolsService } from '../tools/tools-service'
+import type { ReportService } from '../reports/report-service'
 import { createAnalysisHandlers } from './analysis-handlers'
 import { createDataHandlers } from './data-handlers'
 import { createMetaHandlers } from './meta-handlers'
 import { createSyncHandlers } from './sync-handlers'
+import { createToolsHandlers } from './tools-handlers'
 import type { IpcHandlers } from './register'
 
 const CLIPBOARD_CLEAR_MS = 60_000
@@ -23,6 +26,8 @@ export interface HandlerDeps {
   sync: SyncService
   meta: MetaService
   analysis: AnalysisService
+  tools: ToolsService
+  reports: ReportService
   /** Sube lo pendiente y bloquea (bloqueo manual y automático). */
   lockWithSync: () => Promise<void>
   getWindow: () => BrowserWindow | null
@@ -38,6 +43,8 @@ export function createHandlers({
   sync,
   meta,
   analysis,
+  tools,
+  reports,
   lockWithSync,
   getWindow,
 }: HandlerDeps): IpcHandlers {
@@ -138,6 +145,7 @@ export function createHandlers({
     'vault:close': async () => {
       autoLock.stop()
       meta.dispose()
+      tools.dispose()
       await sync.beforeClose()
       config.setLastVaultPath(null)
       return vault.close()
@@ -167,5 +175,6 @@ export function createHandlers({
     ...createSyncHandlers(sync, getWindow),
     ...createMetaHandlers(meta),
     ...createAnalysisHandlers(analysis),
+    ...createToolsHandlers(tools, reports),
   }
 }

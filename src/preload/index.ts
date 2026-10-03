@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
+import { contextBridge, ipcRenderer, webUtils, type IpcRendererEvent } from 'electron'
 import { IPC_CHANNELS, IPC_EVENTS } from '../shared/channels'
 
 /**
@@ -20,6 +20,16 @@ const api = {
     const listener = (_e: IpcRendererEvent, payload: unknown) => callback(payload)
     ipcRenderer.on(event, listener)
     return () => ipcRenderer.removeListener(event, listener)
+  },
+  /**
+   * Abre un vídeo soltado sobre la ventana. La ruta sale del propio `File` (solo existe
+   * para archivos que el usuario ha arrastrado o elegido), nunca de la interfaz.
+   */
+  openDroppedVideo(file: unknown): Promise<unknown> {
+    if (!(file instanceof File)) return Promise.reject(new Error('No es un archivo'))
+    const path = webUtils.getPathForFile(file)
+    if (!path) return Promise.reject(new Error('El archivo no está en el disco'))
+    return ipcRenderer.invoke('tools:openDropped', path)
   },
 }
 

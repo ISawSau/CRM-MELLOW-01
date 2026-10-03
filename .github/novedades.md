@@ -1,8 +1,18 @@
-## Novedades de la 0.9.0 · Análisis
+## Novedades de la 0.10.0 · Negocio
 
-- **Nueva sección Análisis** con dashboards, comparativas y alertas sobre tus cuentas de Meta.
-- **Dashboards:** el dashboard «General» trae gasto, valor de compras, ROAS y coste por compra con su comparación, la evolución diaria del gasto, el gasto por cliente, el ranking de campañas y una tabla por cuenta. Pulsa **Editar** para añadir, quitar u ordenar widgets (cifras, líneas, barras, tablas y rankings) o crea dashboards nuevos, globales o de un cliente.
-- **Comparar:** un periodo frente al anterior o frente al mismo del año pasado, o un cliente, cuenta, campaña, creatividad o etiqueta frente a otra, con la tabla de diferencias y la gráfica día a día.
-- **Alertas:** por ejemplo, «CPA mayor que 30 € en los últimos 3 días». Se comprueban después de cada sincronización y avisan dentro de la app: en Análisis, con un número en la barra lateral y en Inicio.
-- **Inicio** muestra ya el gasto de hoy, de 7 y 30 días y el ROAS de todas tus cuentas, y los últimos avisos.
-- Todas las gráficas tienen su vista de tabla y se adaptan al tema claro u oscuro.
+- **Facturación:**
+  - Registra las facturas que emites con tu programa de facturación: número, cliente, fechas, base, IVA, moneda, estado y PDF.
+  - Registra también los gastos de cada cliente.
+  - En la ficha del cliente indica el acuerdo: fee mensual, porcentaje del gasto o por proyecto.
+  - La sección **Facturación** muestra, por cliente y periodo, lo facturado, lo cobrado, lo pendiente y lo vencido, los gastos, la inversión en Meta, lo previsto por el acuerdo y el beneficio. Debajo tienes la lista de facturas vencidas.
+- **Informes en PDF para tus clientes:**
+  - En **Informes**, elige cliente, periodo y moneda, escribe tus comentarios y genera el PDF. Incluye portada, cifras clave con la variación, la evolución diaria, las campañas, la comparativa con el periodo anterior y tus comentarios.
+  - Se guarda en los Documentos del cliente, lo ves al momento y puedes exportarlo.
+  - En la pestaña **Plantillas** puedes cambiar los bloques y su orden y crear plantillas nuevas.
+- **Herramientas**, para trabajar con archivos sin salir de la app:
+  - **Imágenes:** comprimir, cambiar el tamaño y pasar a JPEG, PNG o WebP.
+  - **PDF:** unir varios, dividir por páginas y comprimir.
+  - **Vídeo:** comprimir y convertir a los formatos de Meta (9:16, 1:1 y 4:5), recortando o con bandas.
+  - Arrastra los archivos. El resultado se guarda cifrado en **Documentos** o se exporta a la carpeta que elijas.
+- **Documentos:** sección nueva para informes, resultados de las herramientas, contratos y cualquier otro archivo, con su cliente.
+- El instalador incluye FFmpeg (licencia GPL, con su texto en la carpeta `licencias` de la instalación).

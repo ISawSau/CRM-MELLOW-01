@@ -20,6 +20,11 @@ export const ERROR_MESSAGES = {
   INVALID_INPUT: 'Los datos enviados no son válidos.',
   MIGRATION_FAILED:
     'No se pudo actualizar la base de datos. Se ha guardado una copia de seguridad en backups/.',
+  FFMPEG_MISSING:
+    'Falta FFmpeg. Reinstala la app o, en desarrollo, ejecuta node scripts/descargar-ffmpeg.mjs.',
+  TOOL_FAILED: 'No se ha podido procesar el archivo.',
+  TOOL_BUSY: 'Ese archivo ya se está procesando.',
+  TOOL_CANCELLED: 'Proceso cancelado.',
   UNKNOWN: 'Ha ocurrido un error inesperado.',
 } as const
 

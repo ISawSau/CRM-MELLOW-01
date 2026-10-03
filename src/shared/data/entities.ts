@@ -49,6 +49,15 @@ const opt = (id: string, label: string, color: SelectOption['color']): SelectOpt
   color,
 })
 
+/** Monedas de facturas y gastos (editables desde Ajustes → Campos). */
+const CURRENCY_OPTIONS: SelectOption[] = [
+  opt('eur', 'EUR', 'gris'),
+  opt('usd', 'USD', 'gris'),
+  opt('gbp', 'GBP', 'gris'),
+  opt('mxn', 'MXN', 'gris'),
+  opt('chf', 'CHF', 'gris'),
+]
+
 export const ENTITIES: readonly EntityDef[] = [
   {
     id: 'nota',
@@ -114,7 +123,7 @@ export const ENTITIES: readonly EntityDef[] = [
     singular: 'cliente',
     gender: 'm',
     titleKey: 'nombre',
-    seedVersion: 3,
+    seedVersion: 4,
     fields: [
       { key: 'nombre', label: 'Nombre', type: 'text', system: true, required: true },
       { key: 'descripcion', label: 'Descripción', type: 'longtext', system: true },
@@ -208,6 +217,52 @@ export const ENTITIES: readonly EntityDef[] = [
         config: { target: 'creatividad', multiple: true },
         inverse: { entity: 'creatividad', key: 'cliente' },
         since: 3,
+      },
+      // Fase 9: acuerdo económico, facturas y gastos.
+      {
+        key: 'acuerdo',
+        label: 'Acuerdo',
+        type: 'multiselect',
+        config: {
+          options: [
+            opt('fee', 'Fee fijo mensual', 'verde'),
+            opt('porcentaje', 'Porcentaje del gasto', 'azul'),
+            opt('proyecto', 'Por proyecto', 'lila'),
+          ],
+        },
+        since: 4,
+      },
+      {
+        key: 'porcentaje_gasto',
+        label: '% del gasto publicitario',
+        type: 'number',
+        config: { decimals: 2 },
+        visible: false,
+        since: 4,
+      },
+      {
+        key: 'facturas',
+        label: 'Facturas',
+        type: 'relation',
+        config: { target: 'factura', multiple: true },
+        inverse: { entity: 'factura', key: 'cliente' },
+        since: 4,
+      },
+      {
+        key: 'gastos',
+        label: 'Gastos',
+        type: 'relation',
+        config: { target: 'gasto', multiple: true },
+        inverse: { entity: 'gasto', key: 'cliente' },
+        since: 4,
+      },
+      {
+        key: 'documentos',
+        label: 'Documentos',
+        type: 'relation',
+        config: { target: 'documento', multiple: true },
+        inverse: { entity: 'documento', key: 'cliente' },
+        since: 4,
       },
     ],
     views: [
@@ -572,6 +627,169 @@ export const ENTITIES: readonly EntityDef[] = [
           filters: [{ fieldId: 'referencia', op: 'is_true', value: null }],
           cardFields: ['tipo', 'angulo'],
         },
+      },
+    ],
+  },
+  {
+    id: 'factura',
+    label: 'Facturas',
+    singular: 'factura',
+    gender: 'f',
+    titleKey: 'numero',
+    seedVersion: 1,
+    // Registro de facturas emitidas con un programa que cumple la normativa (Verifactu):
+    // el CRM no las emite (SPEC §7.9, D-071).
+    fields: [
+      { key: 'numero', label: 'Número', type: 'text', system: true, required: true },
+      {
+        key: 'cliente',
+        label: 'Cliente',
+        type: 'relation',
+        config: { target: 'cliente', multiple: false },
+      },
+      { key: 'concepto', label: 'Concepto', type: 'text' },
+      {
+        key: 'estado',
+        label: 'Estado',
+        type: 'select',
+        config: {
+          pipeline: true,
+          options: [
+            opt('pendiente', 'Pendiente', 'ambar'),
+            { ...opt('cobrada', 'Cobrada', 'verde'), done: true },
+            opt('vencida', 'Vencida', 'vino'),
+          ],
+        },
+      },
+      { key: 'emision', label: 'Fecha de emisión', type: 'date' },
+      { key: 'vencimiento', label: 'Vencimiento', type: 'date' },
+      { key: 'cobro', label: 'Fecha de cobro', type: 'date' },
+      { key: 'base', label: 'Base imponible', type: 'number', config: { decimals: 2 } },
+      { key: 'iva', label: 'IVA (%)', type: 'number', config: { decimals: 2 } },
+      {
+        key: 'total',
+        label: 'Total',
+        type: 'formula',
+        config: {
+          expression: 'REDONDEAR(base * (1 + iva / 100); 2)',
+          format: 'number',
+          decimals: 2,
+        },
+      },
+      { key: 'moneda', label: 'Moneda', type: 'select', config: { options: CURRENCY_OPTIONS } },
+      { key: 'pdf', label: 'PDF', type: 'files' },
+      { key: 'notas', label: 'Notas', type: 'longtext', system: true },
+    ],
+    views: [
+      { name: 'Todas', kind: 'table', config: { sorts: [{ fieldId: 'emision', dir: 'desc' }] } },
+      {
+        name: 'Pendientes de cobro',
+        kind: 'table',
+        config: {
+          filters: [{ fieldId: 'estado', op: 'none_of', value: ['cobrada'] }],
+          sorts: [{ fieldId: 'vencimiento', dir: 'asc' }],
+        },
+      },
+      {
+        name: 'Por estado',
+        kind: 'kanban',
+        config: { groupBy: 'estado', cardFields: ['cliente', 'total'] },
+      },
+      { name: 'Vencimientos', kind: 'calendar', config: { dateField: 'vencimiento' } },
+    ],
+  },
+  {
+    id: 'gasto',
+    label: 'Gastos',
+    singular: 'gasto',
+    gender: 'm',
+    titleKey: 'concepto',
+    seedVersion: 1,
+    fields: [
+      { key: 'concepto', label: 'Concepto', type: 'text', system: true, required: true },
+      {
+        key: 'cliente',
+        label: 'Cliente',
+        type: 'relation',
+        config: { target: 'cliente', multiple: false },
+      },
+      { key: 'fecha', label: 'Fecha', type: 'date' },
+      { key: 'importe', label: 'Importe', type: 'number', config: { decimals: 2 } },
+      { key: 'moneda', label: 'Moneda', type: 'select', config: { options: CURRENCY_OPTIONS } },
+      {
+        key: 'categoria',
+        label: 'Categoría',
+        type: 'select',
+        config: {
+          options: [
+            opt('herramientas', 'Herramientas', 'azul'),
+            opt('freelance', 'Freelance', 'lila'),
+            opt('produccion', 'Producción', 'melocoton'),
+            opt('publicidad', 'Publicidad (otras)', 'ambar'),
+            opt('otros', 'Otros', 'gris'),
+          ],
+        },
+      },
+      { key: 'recibo', label: 'Recibo', type: 'files' },
+      { key: 'notas', label: 'Notas', type: 'longtext', system: true },
+    ],
+    views: [
+      { name: 'Todos', kind: 'table', config: { sorts: [{ fieldId: 'fecha', dir: 'desc' }] } },
+      {
+        name: 'Por categoría',
+        kind: 'kanban',
+        config: { groupBy: 'categoria', cardFields: ['cliente', 'importe'] },
+      },
+    ],
+  },
+  {
+    // Archivos sueltos de la bóveda: informes generados, resultados de las herramientas,
+    // contratos… (SPEC §7.10 y §7.11).
+    id: 'documento',
+    label: 'Documentos',
+    singular: 'documento',
+    gender: 'm',
+    titleKey: 'nombre',
+    seedVersion: 1,
+    fields: [
+      { key: 'nombre', label: 'Nombre', type: 'text', system: true, required: true },
+      {
+        key: 'tipo',
+        label: 'Tipo',
+        type: 'select',
+        config: {
+          options: [
+            opt('informe', 'Informe', 'azul'),
+            opt('herramienta', 'Herramientas', 'lila'),
+            opt('contrato', 'Contrato', 'verde'),
+            opt('otro', 'Otro', 'gris'),
+          ],
+        },
+      },
+      {
+        key: 'cliente',
+        label: 'Cliente',
+        type: 'relation',
+        config: { target: 'cliente', multiple: false },
+      },
+      { key: 'fecha', label: 'Fecha', type: 'date' },
+      { key: 'archivos', label: 'Archivos', type: 'files' },
+      { key: 'notas', label: 'Notas', type: 'longtext', system: true },
+    ],
+    views: [
+      { name: 'Todos', kind: 'table', config: { sorts: [{ fieldId: 'fecha', dir: 'desc' }] } },
+      {
+        name: 'Informes',
+        kind: 'table',
+        config: {
+          filters: [{ fieldId: 'tipo', op: 'any_of', value: ['informe'] }],
+          sorts: [{ fieldId: 'fecha', dir: 'desc' }],
+        },
+      },
+      {
+        name: 'Por tipo',
+        kind: 'kanban',
+        config: { groupBy: 'tipo', cardFields: ['cliente', 'fecha'] },
       },
     ],
   },

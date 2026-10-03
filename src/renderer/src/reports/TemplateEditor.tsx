@@ -1,0 +1,477 @@
+import { useQueryClient } from '@tanstack/react-query'
+import { useState } from 'react'
+import {
+  BLOCK_LABELS,
+  DEFAULT_TEMPLATE,
+  GROUP_LABELS,
+  REPORT_GROUPS,
+  type ReportBlock,
+  type ReportBlockKind,
+  type ReportGroup,
+  type ReportTemplate,
+} from '@shared/reports'
+import type { MetricDef } from '@shared/meta-metrics'
+import { call, IpcCallError } from '../lib/ipc'
+import { useToast } from '../ui/Toast'
+import { MetricSelect, useMetricKit } from '../analysis/kit'
+import { useReportTemplates } from './hooks'
+
+const newId = (prefix: string) =>
+  `${prefix}-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`
+
+function newBlock(kind: ReportBlockKind): ReportBlock {
+  const id = newId('b')
+  switch (kind) {
+    case 'portada':
+      return { id, kind }
+    case 'kpis':
+      return { id, kind, title: '', metrics: ['gasto', 'compras', 'cpa'], compare: true }
+    case 'linea':
+      return { id, kind, title: '', metric: 'gasto', compare: true }
+    case 'barras':
+      return { id, kind, title: '', metric: 'gasto', groupBy: 'campana', limit: 8 }
+    case 'tabla':
+      return {
+        id,
+        kind,
+        title: '',
+        metrics: ['gasto', 'compras', 'cpa'],
+        groupBy: 'campana',
+        limit: 10,
+      }
+    case 'comparativa':
+      return { id, kind, title: '', metrics: ['gasto', 'compras', 'cpa'], compare: 'previous' }
+    case 'texto':
+      return { id, kind, title: '', text: '' }
+    case 'comentarios':
+      return { id, kind, title: 'Comentarios' }
+  }
+}
+
+/** Plantillas de informe: bloques en orden, cada uno con sus opciones. */
+export function TemplateEditor() {
+  const qc = useQueryClient()
+  const toast = useToast()
+  const saved = useReportTemplates().data
+  const [draft, setDraft] = useState<ReportTemplate[] | null>(null)
+  const [selected, setSelected] = useState(0)
+  const [saving, setSaving] = useState(false)
+  const list = draft ?? saved ?? []
+  const t = list[Math.min(selected, list.length - 1)]
+  const dirty = draft !== null
+
+  const update = (next: ReportTemplate) =>
+    setDraft(list.map((x, i) => (i === Math.min(selected, list.length - 1) ? next : x)))
+  const setBlocks = (blocks: ReportBlock[]) => t && update({ ...t, blocks })
+
+  const save = async () => {
+    setSaving(true)
+    try {
+      const r = await call('reports:setTemplates', { templates: list })
+      qc.setQueryData(['data', 'reports', 'templates'], r)
+      setDraft(null)
+      toast.show('Plantillas guardadas.')
+    } catch (e) {
+      toast.show(e instanceof IpcCallError ? e.message : 'No se han podido guardar.', 'error')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  if (!t) return null
+  return (
+    <div className="template-editor" data-testid="template-editor">
+      <div className="template-bar">
+        <div className="field">
+          <label htmlFor="tpl-select">Plantilla</label>
+          <select
+            id="tpl-select"
+            className="input"
+            value={Math.min(selected, list.length - 1)}
+            onChange={(e) => setSelected(Number(e.target.value))}
+          >
+            {list.map((x, i) => (
+              <option key={x.id} value={i}>
+                {x.name}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="field">
+          <label htmlFor="tpl-name">Nombre</label>
+          <input
+            id="tpl-name"
+            className="input"
+            maxLength={80}
+            value={t.name}
+            onChange={(e) => update({ ...t, name: e.target.value })}
+          />
+        </div>
+        <span className="form-actions">
+          <button
+            type="button"
+            className="btn"
+            onClick={() => {
+              setDraft([...list, { ...t, id: newId('p'), name: `${t.name} (copia)` }])
+              setSelected(list.length)
+            }}
+          >
+            Duplicar
+          </button>
+          <button
+            type="button"
+            className="btn"
+            onClick={() => {
+              setDraft([...list, { ...DEFAULT_TEMPLATE, id: newId('p'), name: 'Nueva plantilla' }])
+              setSelected(list.length)
+            }}
+          >
+            + Plantilla
+          </button>
+          <button
+            type="button"
+            className="btn btn-danger"
+            disabled={list.length <= 1}
+            onClick={() => {
+              setDraft(list.filter((x) => x.id !== t.id))
+              setSelected(0)
+            }}
+          >
+            Eliminar
+          </button>
+        </span>
+      </div>
+
+      <ol className="block-list">
+        {t.blocks.map((b, i) => (
+          <li key={b.id} className="block-item" data-testid="report-block">
+            <div className="block-head">
+              <span className="block-kind">{BLOCK_LABELS[b.kind]}</span>
+              <span className="form-actions">
+                <button
+                  type="button"
+                  className="icon-btn"
+                  aria-label={`Subir ${BLOCK_LABELS[b.kind]}`}
+                  disabled={i === 0}
+                  onClick={() => {
+                    const next = [...t.blocks]
+                    next.splice(i - 1, 0, next.splice(i, 1)[0]!)
+                    setBlocks(next)
+                  }}
+                >
+                  ↑
+                </button>
+                <button
+                  type="button"
+                  className="icon-btn"
+                  aria-label={`Bajar ${BLOCK_LABELS[b.kind]}`}
+                  disabled={i === t.blocks.length - 1}
+                  onClick={() => {
+                    const next = [...t.blocks]
+                    next.splice(i + 1, 0, next.splice(i, 1)[0]!)
+                    setBlocks(next)
+                  }}
+                >
+                  ↓
+                </button>
+                <button
+                  type="button"
+                  className="icon-btn"
+                  aria-label={`Quitar ${BLOCK_LABELS[b.kind]}`}
+                  disabled={t.blocks.length <= 1}
+                  onClick={() => setBlocks(t.blocks.filter((x) => x.id !== b.id))}
+                >
+                  ×
+                </button>
+              </span>
+            </div>
+            <BlockOptions
+              block={b}
+              onChange={(nb) => setBlocks(t.blocks.map((x) => (x.id === b.id ? nb : x)))}
+            />
+          </li>
+        ))}
+      </ol>
+
+      <div className="form-actions">
+        <AddBlock onAdd={(kind) => setBlocks([...t.blocks, newBlock(kind)])} />
+      </div>
+      <div className="form-actions template-save">
+        <button
+          type="button"
+          className="btn btn-primary"
+          disabled={!dirty || saving || list.some((x) => !x.name.trim())}
+          onClick={() => void save()}
+        >
+          Guardar plantillas
+        </button>
+        {dirty && (
+          <button type="button" className="btn" onClick={() => setDraft(null)}>
+            Descartar cambios
+          </button>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function AddBlock({ onAdd }: { onAdd: (k: ReportBlockKind) => void }) {
+  const [kind, setKind] = useState<ReportBlockKind>('kpis')
+  return (
+    <>
+      <div className="field">
+        <label htmlFor="tpl-add">Añadir bloque</label>
+        <select
+          id="tpl-add"
+          className="input"
+          value={kind}
+          onChange={(e) => setKind(e.target.value as ReportBlockKind)}
+        >
+          {Object.entries(BLOCK_LABELS).map(([k, l]) => (
+            <option key={k} value={k}>
+              {l}
+            </option>
+          ))}
+        </select>
+      </div>
+      <button type="button" className="btn" onClick={() => onAdd(kind)}>
+        + Bloque
+      </button>
+    </>
+  )
+}
+
+function BlockOptions({
+  block: b,
+  onChange,
+}: {
+  block: ReportBlock
+  onChange: (b: ReportBlock) => void
+}) {
+  const { defs } = useMetricKit()
+  if (b.kind === 'portada')
+    return <p className="hint">Cliente, periodo, moneda y tu nombre o empresa (del perfil).</p>
+  const title = (
+    <div className="field">
+      <label htmlFor={`${b.id}-title`}>Título</label>
+      <input
+        id={`${b.id}-title`}
+        className="input"
+        maxLength={120}
+        placeholder={BLOCK_LABELS[b.kind]}
+        value={b.title}
+        onChange={(e) => onChange({ ...b, title: e.target.value })}
+      />
+    </div>
+  )
+  const group = (value: ReportGroup, set: (g: ReportGroup) => void) => (
+    <div className="field">
+      <label htmlFor={`${b.id}-group`}>Por</label>
+      <select
+        id={`${b.id}-group`}
+        className="input"
+        value={value}
+        onChange={(e) => set(e.target.value as ReportGroup)}
+      >
+        {REPORT_GROUPS.map((g) => (
+          <option key={g} value={g}>
+            {GROUP_LABELS[g]}
+          </option>
+        ))}
+      </select>
+    </div>
+  )
+  const limit = (value: number, max: number, set: (n: number) => void) => (
+    <div className="field">
+      <label htmlFor={`${b.id}-limit`}>Filas</label>
+      <input
+        id={`${b.id}-limit`}
+        className="input"
+        type="number"
+        min={2}
+        max={max}
+        value={value}
+        onChange={(e) => {
+          const n = Number(e.target.value)
+          if (Number.isInteger(n) && n >= 2 && n <= max) set(n)
+        }}
+      />
+    </div>
+  )
+  switch (b.kind) {
+    case 'kpis':
+      return (
+        <div className="block-options">
+          {title}
+          <MetricList
+            id={b.id}
+            defs={defs}
+            value={b.metrics}
+            max={8}
+            onChange={(metrics) => onChange({ ...b, metrics })}
+          />
+          <label className="check">
+            <input
+              type="checkbox"
+              checked={b.compare}
+              onChange={(e) => onChange({ ...b, compare: e.target.checked })}
+            />
+            <span>Variación frente al periodo anterior</span>
+          </label>
+        </div>
+      )
+    case 'linea':
+      return (
+        <div className="block-options">
+          {title}
+          <MetricSelect
+            id={`${b.id}-metric`}
+            value={b.metric}
+            defs={defs}
+            onChange={(metric) => onChange({ ...b, metric })}
+          />
+          <label className="check">
+            <input
+              type="checkbox"
+              checked={b.compare}
+              onChange={(e) => onChange({ ...b, compare: e.target.checked })}
+            />
+            <span>Con el periodo anterior</span>
+          </label>
+        </div>
+      )
+    case 'barras':
+      return (
+        <div className="block-options">
+          {title}
+          <MetricSelect
+            id={`${b.id}-metric`}
+            value={b.metric}
+            defs={defs}
+            onChange={(metric) => onChange({ ...b, metric })}
+          />
+          {group(b.groupBy, (groupBy) => onChange({ ...b, groupBy }))}
+          {limit(b.limit, 15, (n) => onChange({ ...b, limit: n }))}
+        </div>
+      )
+    case 'tabla':
+      return (
+        <div className="block-options">
+          {title}
+          <MetricList
+            id={b.id}
+            defs={defs}
+            value={b.metrics}
+            max={8}
+            onChange={(metrics) => onChange({ ...b, metrics })}
+          />
+          {group(b.groupBy, (groupBy) => onChange({ ...b, groupBy }))}
+          {limit(b.limit, 30, (n) => onChange({ ...b, limit: n }))}
+        </div>
+      )
+    case 'comparativa':
+      return (
+        <div className="block-options">
+          {title}
+          <MetricList
+            id={b.id}
+            defs={defs}
+            value={b.metrics}
+            max={12}
+            onChange={(metrics) => onChange({ ...b, metrics })}
+          />
+          <div className="field">
+            <label htmlFor={`${b.id}-compare`}>Frente a</label>
+            <select
+              id={`${b.id}-compare`}
+              className="input"
+              value={b.compare}
+              onChange={(e) => onChange({ ...b, compare: e.target.value as 'previous' | 'year' })}
+            >
+              <option value="previous">El periodo anterior</option>
+              <option value="year">El mismo periodo del año anterior</option>
+            </select>
+          </div>
+        </div>
+      )
+    case 'texto':
+      return (
+        <div className="block-options">
+          {title}
+          <div className="field block-text">
+            <label htmlFor={`${b.id}-text`}>Texto</label>
+            <textarea
+              id={`${b.id}-text`}
+              className="input textarea"
+              rows={4}
+              maxLength={5000}
+              value={b.text}
+              onChange={(e) => onChange({ ...b, text: e.target.value })}
+            />
+          </div>
+        </div>
+      )
+    case 'comentarios':
+      return (
+        <div className="block-options">
+          {title}
+          <p className="hint">
+            Lo que escribas en «Comentarios del periodo» al generar el informe.
+          </p>
+        </div>
+      )
+  }
+}
+
+function MetricList({
+  id,
+  defs,
+  value,
+  max,
+  onChange,
+}: {
+  id: string
+  defs: Map<string, MetricDef>
+  value: string[]
+  max: number
+  onChange: (v: string[]) => void
+}) {
+  const [pick, setPick] = useState('gasto')
+  return (
+    <div className="metric-list">
+      <ul className="chips">
+        {value.map((k) => (
+          <li key={k} className="chip">
+            {defs.get(k)?.label ?? k}
+            <button
+              type="button"
+              className="icon-btn"
+              aria-label={`Quitar ${defs.get(k)?.label ?? k}`}
+              disabled={value.length <= 1}
+              onClick={() => onChange(value.filter((x) => x !== k))}
+            >
+              ×
+            </button>
+          </li>
+        ))}
+      </ul>
+      <span className="metric-add">
+        <MetricSelect
+          id={`${id}-add`}
+          label="Añadir métrica"
+          value={pick}
+          defs={defs}
+          onChange={setPick}
+        />
+        <button
+          type="button"
+          className="btn"
+          disabled={value.includes(pick) || value.length >= max}
+          onClick={() => onChange([...value, pick])}
+        >
+          Añadir
+        </button>
+      </span>
+    </div>
+  )
+}

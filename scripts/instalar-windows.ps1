@@ -101,6 +101,10 @@ Write-Paso 'Descargando Electron (se verifica con las sumas SHA-256 del propio p
 & node node_modules\electron\install.js
 if ($LASTEXITCODE -ne 0) { Stop-ConError "no se pudo descargar Electron (código $LASTEXITCODE)." }
 
+Write-Paso 'Descargando FFmpeg para el vídeo (se verifica con su huella SHA-256)'
+& node scripts\descargar-ffmpeg.mjs
+if ($LASTEXITCODE -ne 0) { Stop-ConError "no se pudo descargar FFmpeg (código $LASTEXITCODE)." }
+
 Write-Paso 'Comprobando que todo funciona (tests unitarios)'
 & npm test
 if ($LASTEXITCODE -ne 0) { Stop-ConError "los tests han fallado (código $LASTEXITCODE)." }

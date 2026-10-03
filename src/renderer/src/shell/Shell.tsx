@@ -3,6 +3,9 @@ import { DEFAULT_APPEARANCE, type Density } from '@shared/appearance'
 import type { VaultStatus } from '@shared/ipc'
 import { MetaPage } from '../meta/MetaPage'
 import { AnalysisPage } from '../analysis/AnalysisPage'
+import { BillingPage } from '../billing/BillingPage'
+import { ToolsPage } from '../tools/ToolsPage'
+import { ReportsPage } from '../reports/ReportsPage'
 import { DataPage } from '../data/DataPage'
 import { useDataEvents } from '../data/hooks'
 import { NavContext } from '../data/nav'
@@ -145,6 +148,12 @@ function ShellInner({ status }: { status: VaultStatus }) {
             />
           ) : current.id === 'inicio' ? (
             <Home onNavigate={navigate} />
+          ) : current.id === 'facturacion' ? (
+            <BillingPage num="03" onNavigate={navigate} />
+          ) : current.id === 'informes' ? (
+            <ReportsPage num="03" />
+          ) : current.id === 'herramientas' ? (
+            <ToolsPage num="03" />
           ) : current.id === 'analisis' ? (
             <AnalysisPage num="02" onMeta={() => navigate('campanas')} />
           ) : current.id === 'campanas' ? (

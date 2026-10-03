@@ -45,6 +45,7 @@ La especificación completa está en `docs/SPEC.md`. Léela antes de cualquier t
 | Tests unitarios | `npm test` |
 | Tests de interfaz | `npm run test:e2e` (en un Linux sin pantalla: `xvfb-run -a npm run test:e2e`) |
 | Generar migración | `npm run db:generate` (tras cambiar `src/main/db/schema.ts`) |
+| Descargar FFmpeg (vídeo) | `node scripts/descargar-ffmpeg.mjs` (lo hacen ya los scripts de instalación) |
 | Build Windows | `npm run dist:win` → `release/*.exe` |
 | Build Linux | `npm run dist:linux` → `release/*.pacman` y `release/*.AppImage` (necesita `bsdtar`) |
 | Autoprueba de una instalación | `crm-mellow --autoprueba` |

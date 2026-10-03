@@ -1,0 +1,347 @@
+/* Herramientas de archivos e informes (fase 9). */
+
+.tool {
+  display: grid;
+  gap: var(--space-4);
+  max-width: 760px;
+  padding-top: var(--space-4);
+}
+
+.dropzone {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-5) var(--space-4);
+  border: 1px dashed var(--line-strong);
+  background: var(--bg-raised);
+}
+
+.dropzone[data-over='true'] {
+  border-color: var(--accent);
+  background: var(--bg-hover);
+}
+
+.dropzone p {
+  margin: 0;
+}
+
+.dropzone label.btn {
+  cursor: pointer;
+}
+
+.dropzone label.btn:focus-within {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.tool-files,
+.tool-results {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--line);
+}
+
+.tool-files li,
+.tool-results li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: center;
+  min-height: var(--row-height);
+  padding: var(--space-1) 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.tool-files li > span:first-child,
+.tool-result-name {
+  flex: 1 1 200px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.tool-results .marker {
+  flex: none;
+}
+
+.tool-results li[data-status='ok'] .marker {
+  background: var(--success);
+}
+
+.tool-results li[data-status='trabajando'] .marker {
+  background: var(--warning);
+}
+
+.tool-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: var(--space-3) var(--space-4);
+  align-items: end;
+}
+
+.tool-options input[type='range'] {
+  width: 100%;
+  accent-color: var(--accent);
+}
+
+.tool-check {
+  align-self: center;
+}
+
+.tool-dest,
+.tool-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3) var(--space-5);
+  align-items: center;
+  margin: 0;
+  padding: var(--space-3) 0 0;
+  border: 0;
+  border-top: 1px solid var(--line);
+}
+
+.tool-dest legend,
+.tool-presets legend {
+  float: left;
+  width: 100%;
+  margin-bottom: var(--space-1);
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.tool-dest .field {
+  min-width: 220px;
+}
+
+.tool-presets {
+  align-items: stretch;
+}
+
+.tool-preset {
+  display: grid;
+  grid-template-rows: 44px auto;
+  align-content: start;
+  align-items: center;
+  justify-items: center;
+  gap: var(--space-2);
+  width: 132px;
+  padding: var(--space-3) var(--space-2);
+  border: 1px solid var(--line);
+  font-size: var(--text-sm);
+  text-align: center;
+  cursor: pointer;
+}
+
+.tool-preset[data-checked='true'] {
+  border-color: var(--accent);
+  background: var(--bg-hover);
+}
+
+.tool-preset:focus-within {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* Silueta de la proporción de cada preset. */
+.tool-aspect {
+  display: block;
+  height: 40px;
+  border: 2px solid var(--text-muted);
+}
+
+.tool-aspect[data-preset='comprimir'] {
+  width: 64px;
+  height: 36px;
+}
+
+.tool-aspect[data-preset='vertical'] {
+  width: 22.5px;
+}
+
+.tool-aspect[data-preset='cuadrado'] {
+  width: 40px;
+}
+
+.tool-aspect[data-preset='feed'] {
+  width: 32px;
+}
+
+.tool-preset[data-checked='true'] .tool-aspect {
+  border-color: var(--accent);
+}
+
+.tool-video-info {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin: 0;
+}
+
+.tool-progress {
+  width: 200px;
+  height: 6px;
+  accent-color: var(--accent);
+}
+
+/* --- Informes --------------------------------------------------------------- */
+
+.report-generate {
+  display: grid;
+  grid-template-columns: minmax(260px, 340px) 1fr;
+  gap: var(--space-6);
+  align-items: start;
+  padding-top: var(--space-4);
+}
+
+@media (max-width: 1100px) {
+  .report-generate {
+    grid-template-columns: 1fr;
+  }
+}
+
+.report-dates {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.report-result {
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.report-empty {
+  padding: var(--space-6) var(--space-4);
+  border: 1px dashed var(--line);
+}
+
+.report-saved {
+  display: flex;
+  gap: var(--space-2);
+  align-items: baseline;
+  margin: 0;
+}
+
+.report-saved .marker {
+  background: var(--success);
+}
+
+.pdf-preview {
+  display: grid;
+  gap: var(--space-4);
+  justify-items: start;
+  max-height: 75vh;
+  overflow: auto;
+  padding: var(--space-4);
+  background: var(--bg-hover);
+}
+
+.pdf-preview img {
+  display: block;
+  width: min(100%, 560px);
+  height: auto;
+  box-shadow: 0 2px 10px var(--shadow);
+}
+
+.template-editor {
+  display: grid;
+  gap: var(--space-4);
+  max-width: 900px;
+  padding-top: var(--space-4);
+}
+
+.template-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3) var(--space-4);
+  align-items: end;
+}
+
+.template-bar .field {
+  min-width: 220px;
+}
+
+.block-list {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.block-item {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--line);
+  background: var(--bg-raised);
+}
+
+.block-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.block-kind {
+  font-family: var(--font-display);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: var(--text-sm);
+}
+
+.block-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: var(--space-3) var(--space-4);
+  align-items: end;
+}
+
+.block-options .metric-list,
+.block-options .block-text {
+  grid-column: 1 / -1;
+}
+
+.metric-list {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.metric-add {
+  display: flex;
+  gap: var(--space-2);
+  align-items: end;
+}
+
+.metric-add .field {
+  min-width: 220px;
+}
+
+.template-save {
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--line);
+}
+
+.metric-list .chips {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 0;
+}
+
+.metric-list .chip {
+  line-height: 22px;
+  padding-right: 0;
+}
+
+.metric-list .chip .icon-btn {
+  width: 22px;
+  height: 22px;
+  min-height: 0;
+  padding: 0;
+}
