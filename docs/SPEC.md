@@ -338,6 +338,8 @@ El negocio actual es ecommerce y no usa formularios de leads. Si en el futuro se
 - Dashboards de widgets configurables (KPI, línea, barras, tabla, ranking), global y por cliente.
 - Alertas configurables por cliente o cuenta: métrica, condición, umbral y ventana (p. ej. "CPA superior a 30 € en los últimos 3 días"). Solo avisan dentro de la app.
 
+- *Implementación (fase 8):* sección Análisis con tres pestañas. **Dashboards** de widgets (cifra, líneas, barras, tabla y ranking), global y por cliente, editables. **Comparar** periodo frente al anterior o al mismo del año anterior, y cliente, cuenta, campaña, creatividad o etiqueta frente a otra, con tabla de diferencias y gráfica. **Alertas** por métrica, condición, umbral y ventana, con avisos en Análisis, la barra lateral e Inicio (D-066 a D-070).
+
 ### 7.14 Ajustes
 
 Perfil · bóveda · seguridad (contraseña, autobloqueo, clave de recuperación) · sincronización y copias · conexiones (Meta, Google, X, LinkedIn) · monedas y zonas horarias · formato regional · apariencia (selector de temas con los predefinidos claro y oscuro, temas propios creados y editados desde la app, densidad compacta o cómoda) · campos, etiquetas, estados y pipelines · presets de columnas · atajos de teclado.

@@ -4,6 +4,7 @@ import { formatCurrency, formatNumber } from '@shared/format'
 import { OptionChip } from '../data/FieldValue'
 import { useFields, useRecords } from '../data/hooks'
 import { useNav, useProfile } from '../data/nav'
+import { AlertsCard, SpendCard } from '../analysis/HomeCards'
 
 const ALL = { filters: [], match: 'all' as const, sorts: [] }
 const RECENT = {
@@ -21,16 +22,6 @@ function Kpi({ label, value, hint }: { label: string; value: string; hint?: stri
       <span className="kpi-value num">{value}</span>
       {hint && <span className="kpi-hint faint">{hint}</span>}
     </div>
-  )
-}
-
-function Upcoming({ title, phase, text }: { title: string; phase: number; text: string }) {
-  return (
-    <section className="home-card home-upcoming">
-      <h2 className="home-card-title">{title}</h2>
-      <p className="muted">{text}</p>
-      <span className="faint">Llega en la fase {phase}.</span>
-    </section>
   )
 }
 
@@ -194,13 +185,9 @@ export function Home({ onNavigate }: { onNavigate: (section: string) => void }) 
           )}
         </section>
 
-        <Upcoming
-          title="Gasto y ROAS"
-          phase={6}
-          text="Gasto de hoy, 7 y 30 días y ROAS de tus cuentas de Meta."
-        />
+        <SpendCard onNavigate={onNavigate} />
         <TasksCard onNavigate={onNavigate} />
-        <Upcoming title="Alertas" phase={8} text="Avisos cuando una métrica cruza tu umbral." />
+        <AlertsCard onNavigate={onNavigate} />
       </div>
     </div>
   )

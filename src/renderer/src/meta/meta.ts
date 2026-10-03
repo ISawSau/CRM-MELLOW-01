@@ -1,6 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect } from 'react'
-import { shiftDate } from '@shared/data/dates'
 import type { MetaStatus } from '@shared/meta'
 import { call, subscribe } from '../lib/ipc'
 
@@ -50,40 +49,8 @@ export function deliveryTone(status: string | null): string {
   return 'gris'
 }
 
-export type RangePreset = 'today' | 'yesterday' | '7d' | '14d' | '30d' | 'month' | 'lastMonth'
-
-export const RANGE_LABELS: Record<RangePreset, string> = {
-  today: 'Hoy',
-  yesterday: 'Ayer',
-  '7d': 'Últimos 7 días',
-  '14d': 'Últimos 14 días',
-  '30d': 'Últimos 30 días',
-  month: 'Este mes',
-  lastMonth: 'Mes pasado',
-}
-
-/** Fechas del rango (en la zona de la cuenta). Los «últimos N días» no incluyen hoy. */
-export function rangeFor(preset: RangePreset, today: string): { since: string; until: string } {
-  const yesterday = shiftDate(today, -1)
-  switch (preset) {
-    case 'today':
-      return { since: today, until: today }
-    case 'yesterday':
-      return { since: yesterday, until: yesterday }
-    case '7d':
-      return { since: shiftDate(today, -7), until: yesterday }
-    case '14d':
-      return { since: shiftDate(today, -14), until: yesterday }
-    case '30d':
-      return { since: shiftDate(today, -30), until: yesterday }
-    case 'month':
-      return { since: `${today.slice(0, 7)}-01`, until: today }
-    case 'lastMonth': {
-      const end = shiftDate(`${today.slice(0, 7)}-01`, -1)
-      return { since: `${end.slice(0, 7)}-01`, until: end }
-    }
-  }
-}
+// Periodos compartidos con Análisis.
+export { RANGE_LABELS, rangeFor, type RangePreset } from '@shared/analysis'
 
 /** «2026-10-03» → «03/10/2026» */
 export function isoToEs(iso: string | null): string {

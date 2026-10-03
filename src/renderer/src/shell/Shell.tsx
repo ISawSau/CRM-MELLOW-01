@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { DEFAULT_APPEARANCE, type Density } from '@shared/appearance'
 import type { VaultStatus } from '@shared/ipc'
 import { MetaPage } from '../meta/MetaPage'
+import { AnalysisPage } from '../analysis/AnalysisPage'
 import { DataPage } from '../data/DataPage'
 import { useDataEvents } from '../data/hooks'
 import { NavContext } from '../data/nav'
@@ -144,6 +145,8 @@ function ShellInner({ status }: { status: VaultStatus }) {
             />
           ) : current.id === 'inicio' ? (
             <Home onNavigate={navigate} />
+          ) : current.id === 'analisis' ? (
+            <AnalysisPage num="02" onMeta={() => navigate('campanas')} />
           ) : current.id === 'campanas' ? (
             <MetaPage num="02" />
           ) : current.id === 'papelera' ? (

@@ -1,9 +1,8 @@
-## Novedades de la 0.8.0 · Tabla tipo Ads Manager
+## Novedades de la 0.9.0 · Análisis
 
-- **Columnas a tu medida.** En Campañas → Rendimiento elige un preset (Rendimiento, Ecom, Creatividades, Entrega) o pulsa **Personalizar…** para elegir y ordenar columnas, guardar tus propios presets y añadir **formato condicional** (por ejemplo, ROAS mayor que 3 en verde).
-- **Métricas propias.** En Campañas → Ajustes crea métricas con fórmulas sobre cualquier métrica o acción de Meta (por ejemplo, beneficio = valor de compras − gasto − fee) en moneda, porcentaje o número. También puedes definir tu **hold rate**.
-- **Ordena** por cualquier columna, **compara** cada fila con el periodo anterior y mira **alcance y frecuencia** del periodo.
-- **Desgloses** por edad, sexo, país, plataforma, ubicación o dispositivo: actívalos por cuenta y nivel en Campañas → Cuentas.
-- **Última edición significativa** de cada campaña, conjunto y anuncio, sacada del historial de actividad de Meta.
-- **Creatividades y anuncios vinculados.** Desde la ficha de una creatividad vincula sus anuncios (o deja que se vinculen solos por código o por tu convención de nombres) y mira su rendimiento. En Campañas → **Creatividades** tienes el ranking por ángulo, hook, formato y cualquier otra etiqueta.
-- Si un cliente tiene su propia moneda en la ficha, sus cuentas se ven en esa moneda.
+- **Nueva sección Análisis** con dashboards, comparativas y alertas sobre tus cuentas de Meta.
+- **Dashboards:** el dashboard «General» trae gasto, valor de compras, ROAS y coste por compra con su comparación, la evolución diaria del gasto, el gasto por cliente, el ranking de campañas y una tabla por cuenta. Pulsa **Editar** para añadir, quitar u ordenar widgets (cifras, líneas, barras, tablas y rankings) o crea dashboards nuevos, globales o de un cliente.
+- **Comparar:** un periodo frente al anterior o frente al mismo del año pasado, o un cliente, cuenta, campaña, creatividad o etiqueta frente a otra, con la tabla de diferencias y la gráfica día a día.
+- **Alertas:** por ejemplo, «CPA mayor que 30 € en los últimos 3 días». Se comprueban después de cada sincronización y avisan dentro de la app: en Análisis, con un número en la barra lateral y en Inicio.
+- **Inicio** muestra ya el gasto de hoy, de 7 y 30 días y el ROAS de todas tus cuentas, y los últimos avisos.
+- Todas las gráficas tienen su vista de tabla y se adaptan al tema claro u oscuro.
