@@ -68,11 +68,12 @@ function hasData(r: AnalysisResult): boolean {
   return (r.totals['impresiones'] ?? 0) > 0 || (r.totals['gasto'] ?? 0) > 0
 }
 
-const empty = () => `<p class="empty">${escapeHtml(t('Sin datos publicitarios en este periodo.'))}</p>`
+const empty = () =>
+  `<p class="empty">${escapeHtml(t('Sin datos publicitarios en este periodo.'))}</p>`
 
 function section(b: ReportBlock, inner: string): string {
-  const title = t('title' in b && b.title ? b.title : BLOCK_LABELS[b.kind])
-  return `<section class="block block-${b.kind}"><h2>${escapeHtml(title)}</h2>${inner}</section>`
+  const title = 'title' in b && b.title ? b.title : BLOCK_LABELS[b.kind]
+  return `<section class="block block-${b.kind}"><h2>${escapeHtml(t(title))}</h2>${inner}</section>`
 }
 
 export function buildReportHtml(ctx: ReportContext): string {

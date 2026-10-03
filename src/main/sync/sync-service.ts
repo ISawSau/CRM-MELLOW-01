@@ -237,7 +237,8 @@ export class SyncService {
   // --- Configuración -------------------------------------------------------------
 
   configureFolder(path: string): SyncStatus {
-    if (!existsSync(path)) throw new AppError('INVALID_INPUT', undefined, t('La carpeta no existe.'))
+    if (!existsSync(path))
+      throw new AppError('INVALID_INPUT', undefined, t('La carpeta no existe.'))
     const vaultPath = this.vault.currentPath
     if (vaultPath && (path.startsWith(vaultPath) || vaultPath.startsWith(path)))
       throw new AppError(
@@ -407,8 +408,9 @@ export class SyncService {
       const r = await this.vault.replaceDatabase(dir, 'antes-de-sincronizar')
       if (r === 'locked') {
         this.phase = 'idle'
-        this.error =
-          t('Los datos de la nube usan otra contraseña: desbloquea con la contraseña actual.')
+        this.error = t(
+          'Los datos de la nube usan otra contraseña: desbloquea con la contraseña actual.',
+        )
         this.emit()
         return 'locked'
       }

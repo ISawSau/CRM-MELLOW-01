@@ -243,10 +243,10 @@ export class GmailService {
   private async thread(id: string, snippet: string, me: string): Promise<GmailThread> {
     const params = new URLSearchParams({ format: 'metadata' })
     for (const h of ['From', 'Subject']) params.append('metadataHeaders', h)
-    const t = (await this.get(`/users/me/threads/${encodeURIComponent(id)}?${params}`)) as {
+    const res = (await this.get(`/users/me/threads/${encodeURIComponent(id)}?${params}`)) as {
       messages?: ApiMessage[]
     }
-    const messages: GmailMessage[] = (t.messages ?? []).map((m) => {
+    const messages: GmailMessage[] = (res.messages ?? []).map((m) => {
       const header = (n: string) =>
         m.payload?.headers?.find((h) => h.name.toLowerCase() === n.toLowerCase())?.value ?? ''
       const from = parseMailbox(header('From'))
@@ -258,7 +258,7 @@ export class GmailService {
         unread: m.labelIds?.includes('UNREAD') ?? false,
       }
     })
-    const first = t.messages?.[0]
+    const first = res.messages?.[0]
     const subject =
       first?.payload?.headers?.find((h) => h.name.toLowerCase() === 'subject')?.value.trim() ||
       t('(sin asunto)')

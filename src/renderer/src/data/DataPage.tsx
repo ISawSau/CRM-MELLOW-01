@@ -2,6 +2,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import type { BriefTemplate } from '@shared/data/brief-templates'
 import { useCallback, useMemo, useState } from 'react'
 import { VIEW_KIND_LABELS, VIEW_KINDS, type View, type ViewKind } from '@shared/data/views'
+import { t, tn } from '@shared/i18n'
 import { call, IpcCallError } from '../lib/ipc'
 import { Popover } from '../ui/Popover'
 import { useToast } from '../ui/Toast'
@@ -76,7 +77,9 @@ export function DataPage({
     (config: Partial<View['config']>) => {
       if (!view) return
       saveView(view.id, { config }).catch((e: unknown) =>
-        toast.show(e instanceof IpcCallError ? e.message : 'No se pudo guardar la vista.', 'error'),
+        toast.show(e instanceof IpcCallError ? e.message : t('No se pudo guardar la vista.'),
+          'error',
+        ),
       )
     },
     [view, saveView, toast],
@@ -117,7 +120,7 @@ export function DataPage({
       await qc.invalidateQueries({ queryKey: ['data', 'views', entity] })
       setViewId(v.id)
     } catch (e) {
-      toast.show(e instanceof IpcCallError ? e.message : 'No se pudo crear la vista.', 'error')
+      toast.show(e instanceof IpcCallError ? e.message : t('No se pudo crear la vista.'), 'error')
     }
   }
 
@@ -143,7 +146,7 @@ export function DataPage({
       setViewId(v.id)
       setEditingField(field)
     } catch (e) {
-      toast.show(e instanceof IpcCallError ? e.message : 'No se pudo crear el pipeline.', 'error')
+      toast.show(e instanceof IpcCallError ? e.message : t('No se pudo crear el pipeline.'), 'error')
     }
   }
 
@@ -151,9 +154,9 @@ export function DataPage({
     if (!view) return
     try {
       const path = await call('data:exportCsv', { viewId: view.id })
-      if (path) toast.show(`Exportado: ${path}`)
+      if (path) toast.show(t('Exportado: {path}', { path }))
     } catch (e) {
-      toast.show(e instanceof IpcCallError ? e.message : 'No se pudo exportar.', 'error')
+      toast.show(e instanceof IpcCallError ? e.message : t('No se pudo exportar.'), 'error')
     }
   }
 
@@ -164,7 +167,9 @@ export function DataPage({
   const selectFields = allFields.filter((f) => f.type === 'select')
   const hasPipelines = selectFields.some((f) => f.config['pipeline'] === true)
   const dateFields = allFields.filter((f) => f.type === 'date' || f.type === 'datetime')
-  const article = def.gender === 'f' ? 'Nueva' : 'Nuevo'
+  const newLabel = t(def.gender === 'f' ? 'Nueva {singular}' : 'Nuevo {singular}', {
+    singular: def.singular,
+  })
 
   return (
     <div className="data-page" data-testid={`page-${entity}`}>
@@ -181,22 +186,24 @@ export function DataPage({
               type="button"
               className="btn"
               onClick={() => setSettingsOpen(true)}
-              title={`Campos${entity === 'brief' ? ' y plantillas' : ''} de ${def.label}`}
+              title={t(entity === 'brief' ? 'Campos y plantillas de {label}' : 'Campos de {label}', {
+                label: def.label,
+              })}
               data-testid="open-section-settings"
             >
-              ⚙ Ajustes
+              ⚙ {t('Ajustes')}
             </button>
             {entity === 'brief' && (
               <TemplatePicker
-                onPick={(t) =>
+                onPick={(tpl) =>
                   void call('briefs:createFromTemplate', {
-                    templateId: t.id,
+                    templateId: tpl.id,
                     values: viewDefaults(),
                   })
                     .then((r) => onOpenRecord(r.id))
                     .catch((e: unknown) =>
                       toast.show(
-                        e instanceof IpcCallError ? e.message : 'No se pudo crear el brief.',
+                        e instanceof IpcCallError ? e.message : t('No se pudo crear el brief.'),
                         'error',
                       ),
                     )
@@ -209,12 +216,12 @@ export function DataPage({
               onClick={() => void newRecord()}
               data-testid="new-record"
             >
-              + {article} {def.singular}
+              + {newLabel}
             </button>
           </div>
         </div>
 
-        <div className="view-tabs" role="tablist" aria-label="Vistas">
+        <div className="view-tabs" role="tablist" aria-label={t('Vistas')}>
           {views.data!.map((v) => (
             <button
               key={v.id}
@@ -224,11 +231,16 @@ export function DataPage({
               onClick={() => setViewId(v.id)}
               data-testid="view-tab"
             >
-              <span className="view-kind">{VIEW_KIND_LABELS[v.kind].slice(0, 1)}</span>
+              <span className="view-kind">{t(VIEW_KIND_LABELS[v.kind]).slice(0, 1)}</span>
               {v.name}
             </button>
           ))}
-          <Popover label="Nueva vista" className="view-add" button="+ Vista" testId="add-view">
+          <Popover
+            label={t('Nueva vista')}
+            className="view-add"
+            button={'+ ' + t('Vista')}
+            testId="add-view"
+          >
             {(close) => (
               <ul className="menu">
                 {VIEW_KINDS.map((k) => (
@@ -241,7 +253,7 @@ export function DataPage({
                         void addView(k)
                       }}
                     >
-                      {VIEW_KIND_LABELS[k]}
+                      {t(VIEW_KIND_LABELS[k])}
                     </button>
                   </li>
                 ))}
@@ -255,7 +267,7 @@ export function DataPage({
                         setNaming(true)
                       }}
                     >
-                      + Pipeline nuevo…
+                      + {t('Pipeline nuevo…')}
                     </button>
                   </li>
                 )}
@@ -272,7 +284,7 @@ export function DataPage({
           )}
           {view.kind === 'kanban' && (
             <FieldPicker
-              label="Agrupar por"
+              label={t('Agrupar por')}
               value={view.config.groupBy}
               fields={selectFields}
               onChange={(groupBy) => save({ groupBy })}
@@ -285,12 +297,12 @@ export function DataPage({
               data-testid="edit-stages"
               onClick={() => setEditingField(byId.get(view.config.groupBy!)!)}
             >
-              Editar etapas
+              {t('Editar etapas')}
             </button>
           )}
           {view.kind === 'calendar' && (
             <FieldPicker
-              label="Campo de fecha"
+              label={t('Campo de fecha')}
               value={view.config.dateField}
               fields={dateFields}
               onChange={(dateField) => save({ dateField })}
@@ -301,18 +313,18 @@ export function DataPage({
           )}
           <span className="toolbar-spacer" />
           <span className="faint num" data-testid="record-count">
-            {rows.length} {rows.length === 1 ? 'registro' : 'registros'}
+            {tn(rows.length, '{n} registro', '{n} registros')}
           </span>
           <ViewMenu view={view} canDelete={views.data!.length > 1} entity={entity} />
           <button type="button" className="btn" onClick={() => void exportCsv()}>
-            Exportar CSV
+            {t('Exportar CSV')}
           </button>
         </div>
 
         {selected.size > 0 && (
           <div className="bulk-bar" role="status">
             <span>
-              {selected.size} {selected.size === 1 ? 'seleccionado' : 'seleccionados'}
+              {tn(selected.size, '{n} seleccionado', '{n} seleccionados')}
             </span>
             <button
               type="button"
@@ -322,10 +334,10 @@ export function DataPage({
                 setSelected(new Set())
               }}
             >
-              Enviar a la papelera
+              {t('Enviar a la papelera')}
             </button>
             <button type="button" className="btn-link" onClick={() => setSelected(new Set())}>
-              Quitar selección
+              {t('Quitar selección')}
             </button>
           </div>
         )}
@@ -334,12 +346,14 @@ export function DataPage({
           {rows.length === 0 && view.kind !== 'calendar' && view.kind !== 'kanban' ? (
             <div className="empty">
               <h2>
-                {view.config.filters.length ? 'Nada coincide' : `Sin ${def.label.toLowerCase()}`}
+                {view.config.filters.length
+                  ? t('Nada coincide')
+                  : t('Sin {label}', { label: def.label.toLowerCase() })}
               </h2>
               <p className="muted">
                 {view.config.filters.length
-                  ? 'Ningún registro cumple los filtros de esta vista.'
-                  : `Crea la primera con «+ ${article} ${def.singular}».`}
+                  ? t('Ningún registro cumple los filtros de esta vista.')
+                  : t('Crea la primera con «+ {label}».', { label: newLabel })}
               </p>
             </div>
           ) : view.kind === 'table' ? (
@@ -402,9 +416,9 @@ export function DataPage({
       )}
       {naming && (
         <NameDialog
-          title="Pipeline nuevo"
-          label="Nombre del pipeline"
-          placeholder="Ventas, Reclutamiento…"
+          title={t('Pipeline nuevo')}
+          label={t('Nombre del pipeline')}
+          placeholder={t('Ventas, Reclutamiento…')}
           onCancel={() => setNaming(false)}
           onSubmit={(name) => {
             setNaming(false)
@@ -426,36 +440,38 @@ export function DataPage({
   )
 }
 
-function TemplatePicker({ onPick }: { onPick: (t: BriefTemplate) => void }) {
+function TemplatePicker({ onPick }: { onPick: (tpl: BriefTemplate) => void }) {
   const templates = useQuery({
     queryKey: ['data', 'brief-templates'],
     queryFn: () => call('briefs:templates'),
   })
   return (
     <Popover
-      label="Nuevo desde plantilla"
-      button="Desde plantilla ▾"
+      label={t('Nuevo desde plantilla')}
+      button={t('Desde plantilla') + ' ▾'}
       align="end"
       testId="from-template"
     >
       {(close) => (
         <ul className="menu">
-          {(templates.data ?? []).map((t) => (
-            <li key={t.id}>
+          {(templates.data ?? []).map((tpl) => (
+            <li key={tpl.id}>
               <button
                 type="button"
                 className="menu-item"
                 onClick={() => {
                   close()
-                  onPick(t)
+                  onPick(tpl)
                 }}
               >
-                {t.name}
+                {tpl.name}
               </button>
             </li>
           ))}
           {templates.data?.length === 0 && (
-            <li className="faint menu-empty">Crea plantillas en «⚙ Ajustes» de esta sección.</li>
+            <li className="faint menu-empty">
+              {t('Crea plantillas en «⚙ Ajustes» de esta sección.')}
+            </li>
           )}
         </ul>
       )}
@@ -474,7 +490,7 @@ function ViewMenu({ view, canDelete, entity }: { view: View; canDelete: boolean;
     setName(view.name)
   }
   return (
-    <Popover label="Opciones de la vista" button="Vista ▾" align="end">
+    <Popover label={t('Opciones de la vista')} button={t('Vista') + ' ▾'} align="end">
       {(close) => (
         <div className="menu">
           <form
@@ -487,13 +503,13 @@ function ViewMenu({ view, canDelete, entity }: { view: View; canDelete: boolean;
           >
             <input
               className="input"
-              aria-label="Nombre de la vista"
+              aria-label={t('Nombre de la vista')}
               value={name}
               maxLength={120}
               onChange={(e) => setName(e.target.value)}
             />
             <button type="submit" className="btn">
-              Renombrar
+              {t('Renombrar')}
             </button>
           </form>
           <button
@@ -505,11 +521,11 @@ function ViewMenu({ view, canDelete, entity }: { view: View; canDelete: boolean;
               void call('data:deleteView', { id: view.id })
                 .then(() => qc.invalidateQueries({ queryKey: ['data', 'views', entity] }))
                 .catch((e: unknown) =>
-                  toast.show(e instanceof IpcCallError ? e.message : 'No se pudo borrar.', 'error'),
+                  toast.show(e instanceof IpcCallError ? e.message : t('No se pudo borrar.'), 'error'),
                 )
             }}
           >
-            Eliminar esta vista
+            {t('Eliminar esta vista')}
           </button>
         </div>
       )}

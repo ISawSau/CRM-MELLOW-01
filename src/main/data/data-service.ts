@@ -453,7 +453,8 @@ export class DataService {
 
   private requireEntity(id: string) {
     const e = this.entityDef(id)
-    if (!e) throw new AppError('INVALID_INPUT', undefined, t('No existe la entidad «{id}».', { id }))
+    if (!e)
+      throw new AppError('INVALID_INPUT', undefined, t('No existe la entidad «{id}».', { id }))
     return e
   }
 
@@ -908,10 +909,10 @@ export class DataService {
           : {}
     const config =
       patch.config !== undefined
-        ? (fieldConfigSchemas[f.type].parse({ ...untranslatedOptions(f, patch.config), ...fixed }) as Record<
-            string,
-            unknown
-          >)
+        ? (fieldConfigSchemas[f.type].parse({
+            ...untranslatedOptions(f, patch.config),
+            ...fixed,
+          }) as Record<string, unknown>)
         : f.config
     if (patch.config !== undefined) this.validateComputed(f.entity, f.type, config, f.id, key)
     const required =
@@ -1394,7 +1395,11 @@ export class DataService {
       const f = fields.get(fid)
       if (!f) throw new AppError('INVALID_INPUT', undefined, t('Ese campo no existe.'))
       if (COMPUTED_TYPES.includes(f.type) || f.type === 'relation')
-        throw new AppError('INVALID_INPUT', undefined, t('«{field}» no se edita directamente.', { field: t(f.label) }))
+        throw new AppError(
+          'INVALID_INPUT',
+          undefined,
+          t('«{field}» no se edita directamente.', { field: t(f.label) }),
+        )
       let value: unknown
       try {
         value = parseValue(f, raw)
@@ -1414,7 +1419,11 @@ export class DataService {
           throw new AppError('INVALID_INPUT', undefined, t('Algún archivo no está en la bóveda.'))
       }
       if (f.required && value === null)
-        throw new AppError('INVALID_INPUT', undefined, t('«{field}» no puede quedar vacío.', { field: t(f.label) }))
+        throw new AppError(
+          'INVALID_INPUT',
+          undefined,
+          t('«{field}» no puede quedar vacío.', { field: t(f.label) }),
+        )
       out[fid] = value
     }
     return out
@@ -1675,7 +1684,8 @@ export class DataService {
   // --- Archivos ---------------------------------------------------------------
 
   get files(): FileStore {
-    if (!this.store) throw new AppError('UNKNOWN', undefined, t('Los archivos no están disponibles.'))
+    if (!this.store)
+      throw new AppError('UNKNOWN', undefined, t('Los archivos no están disponibles.'))
     return this.store
   }
 
@@ -1734,7 +1744,8 @@ export class DataService {
     id: string,
     meta: { width?: number; height?: number; duration?: number; thumb?: Uint8Array },
   ): FileInfo {
-    if (!this.fileInfo(id)) throw new AppError('INVALID_INPUT', undefined, t('El archivo no existe.'))
+    if (!this.fileInfo(id))
+      throw new AppError('INVALID_INPUT', undefined, t('El archivo no existe.'))
     if (meta.thumb) this.files.saveThumb(id, meta.thumb)
     this.db
       .prepare(

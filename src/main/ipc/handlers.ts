@@ -107,7 +107,9 @@ export function createHandlers({
       const win = getWindow()
       const options: Electron.OpenDialogOptions = {
         title:
-          purpose === 'create' ? t('Elige dónde crear la bóveda') : t('Elige la carpeta de la bóveda'),
+          purpose === 'create'
+            ? t('Elige dónde crear la bóveda')
+            : t('Elige la carpeta de la bóveda'),
         buttonLabel: purpose === 'create' ? t('Crear aquí') : t('Abrir bóveda'),
         properties: ['openDirectory', 'createDirectory'],
       }

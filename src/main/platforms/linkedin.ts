@@ -104,7 +104,9 @@ export class LinkedInClient {
       res.status === 401
         ? t('LinkedIn ha rechazado el token (caducado o retirado): vuelve a conectar.')
         : res.status === 403
-          ? t('LinkedIn no da acceso: la app necesita la API de publicidad aprobada y tu usuario un rol en la cuenta.')
+          ? t(
+              'LinkedIn no da acceso: la app necesita la API de publicidad aprobada y tu usuario un rol en la cuenta.',
+            )
           : res.status === 429
             ? t('LinkedIn pide esperar (límite de datos en 5 minutos). Se reintentará más tarde.')
             : t('LinkedIn ha respondido con un error ({status}){detail}.', {
@@ -281,7 +283,11 @@ export async function connectLinkedIn(
         if (failed === 2) {
           clearTimeout(timer)
           reject(
-            new Error(t('El puerto {port} está ocupado: cierra lo que lo use e inténtalo otra vez.', { port })),
+            new Error(
+              t('El puerto {port} está ocupado: cierra lo que lo use e inténtalo otra vez.', {
+                port,
+              }),
+            ),
           )
         }
       })

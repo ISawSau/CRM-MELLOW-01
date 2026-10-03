@@ -35,7 +35,10 @@ export interface GoogleTokens {
 
 const b64url = (b: Buffer) => b.toString('base64url')
 
-const PAGE = (title: string, text: string) => `<!doctype html><html lang="${getLocale()}"><meta charset="utf-8">
+const PAGE = (
+  title: string,
+  text: string,
+) => `<!doctype html><html lang="${getLocale()}"><meta charset="utf-8">
 <title>${title}</title><body style="font-family:sans-serif;background:#0d0908;color:#fdf6ee;display:grid;place-items:center;height:100vh;margin:0">
 <div style="max-width:420px"><h1 style="font-size:20px">${title}</h1><p>${text}</p></div></body></html>`
 

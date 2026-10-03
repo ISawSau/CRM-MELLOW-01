@@ -140,7 +140,12 @@ export class DriveRemote implements Remote {
     })
     if (!res.ok && res.status !== 308 && res.status !== 404) {
       const text = await res.text().catch(() => '')
-      throw new Error(t('Google Drive respondió {status}: {text}', { status: res.status, text: text.slice(0, 200) }))
+      throw new Error(
+        t('Google Drive respondió {status}: {text}', {
+          status: res.status,
+          text: text.slice(0, 200),
+        }),
+      )
     }
     return res
   }
