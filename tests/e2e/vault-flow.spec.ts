@@ -51,7 +51,7 @@ test('crear, usar, bloquear, recuperar y reabrir una bóveda', async () => {
 
   // Navegación por la barra lateral.
   await page.getByTestId('nav-facturacion').click()
-  await expect(page.getByTestId('page-facturacion')).toContainText('fase 9')
+  await expect(page.getByTestId('page-facturacion')).toContainText('Beneficio por cliente')
 
   // Paleta Ctrl+K: cambiar al tema claro.
   await page.keyboard.press('Control+k')

@@ -17,8 +17,6 @@
     "drizzle-orm": "^0.45.3",
     "echarts": "^6.1.0",
     "hash-wasm": "^4.12.0",
-    "pdf-lib": "^1.17.1",
-    "pdfjs-dist": "^6.3.289",
     "zod": "^4.6.5"
   },
   "devDependencies": {
@@ -48,6 +46,8 @@
     "eslint": "^10.11.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "globals": "^17.13.0",
+    "pdf-lib": "^1.17.1",
+    "pdfjs-dist": "^6.3.289",
     "prettier": "^3.9.9",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",

@@ -104,6 +104,10 @@ export const IPC_CHANNELS = [
   'analysis:unseen',
   'analysis:markSeen',
   'billing:summary',
+  'tools:status',
+  'tools:save',
+  'tools:convertVideo',
+  'tools:cancel',
   'meta:clientAccounts',
 ] as const
 
@@ -113,4 +117,5 @@ export const IPC_EVENTS = [
   'sync:changed',
   'meta:changed',
   'analysis:changed',
+  'tools:progress',
 ] as const

@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { AutoLock } from './auto-lock'
 import { ConfigStore } from './config'
 import { createHandlers } from './ipc/handlers'
+import { registerDropHandler } from './ipc/tools-handlers'
 import { registerIpc } from './ipc/register'
 import { runSelfTest } from './self-test'
 import {
@@ -21,6 +22,8 @@ import { registerVaultProtocol } from './files/vault-protocol'
 import { SyncService } from './sync/sync-service'
 import { MetaService } from './meta/meta-service'
 import { AnalysisService } from './analysis/analysis-service'
+import { ffmpegPath, saveFileAs } from './tools/dialogs'
+import { ToolsService } from './tools/tools-service'
 import { isVaultFolder } from './vault/vault-file'
 import { VaultService } from './vault/vault-service'
 import { createMainWindow } from './window'
@@ -82,10 +85,16 @@ if (process.argv.includes('--autoprueba')) {
     tableSettings: () => meta.tableSettings(),
     onChange: () => mainWindow?.webContents.send('analysis:changed', null),
   })
+  const tools = new ToolsService(vault, {
+    ffmpeg: ffmpegPath,
+    savePath: (name) => saveFileAs(mainWindow, name),
+    onProgress: (p) => mainWindow?.webContents.send('tools:progress', p),
+  })
   /** Bloqueo con subida previa de lo pendiente (manual o por inactividad). */
   const lockWithSync = async () => {
     autoLock.stop()
     meta.dispose()
+    tools.dispose()
     try {
       await sync.beforeClose()
     } finally {
@@ -151,17 +160,20 @@ if (process.argv.includes('--autoprueba')) {
         sync,
         meta,
         analysis,
+        tools,
         lockWithSync,
         getWindow: () => mainWindow,
       }),
       isTrustedSender,
     )
+    registerDropHandler(tools, isTrustedSender)
 
     // Bloqueo al suspender o bloquear la sesión del sistema.
     // Al suspender no hay tiempo para subir: se sube en la próxima sincronización.
     const lockNow = () => {
       autoLock.stop()
       meta.dispose()
+      tools.dispose()
       sync.dispose()
       vault.lock()
     }
@@ -180,6 +192,7 @@ if (process.argv.includes('--autoprueba')) {
   app.on('before-quit', (event) => {
     if (quitting) return
     meta.dispose()
+    tools.dispose()
     if (vault.status().state === 'unlocked' && sync.status().pending && sync.status().kind) {
       event.preventDefault()
       quitting = true

@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { saveResultSchema, videoJobSchema, type SavedResult, type ToolsProgress } from './tools'
 import { appearanceSchema, type Appearance } from './appearance'
 import { FIELD_TYPES, idSchema, type FieldDef, type FileRef } from './data/fields'
 import { profileSchema, type Profile } from './profile'
@@ -324,6 +325,10 @@ export const ipcSchemas = {
   'analysis:unseen': z.void(),
   'analysis:markSeen': z.void(),
   'billing:summary': billingQuerySchema,
+  'tools:status': z.void(),
+  'tools:save': saveResultSchema,
+  'tools:convertVideo': videoJobSchema,
+  'tools:cancel': z.object({ token: z.string().regex(/^[a-f0-9]{16}$/) }),
   'meta:clientAccounts': z.object({ clientId: idSchema }),
 } as const
 
@@ -429,6 +434,10 @@ export interface IpcOutputs {
   'analysis:unseen': number
   'analysis:markSeen': void
   'billing:summary': BillingSummary
+  'tools:status': { ffmpeg: boolean }
+  'tools:save': SavedResult | null
+  'tools:convertVideo': SavedResult | null
+  'tools:cancel': void
   'meta:clientAccounts': AdAccountInfo[]
 }
 
@@ -445,5 +454,7 @@ export interface IpcEvents {
   'meta:changed': MetaStatus
   /** Hay avisos de alertas nuevos o se han marcado como vistos. */
   'analysis:changed': null
+  /** Avance de una conversión de vídeo. */
+  'tools:progress': ToolsProgress
 }
 export type IpcEvent = keyof IpcEvents

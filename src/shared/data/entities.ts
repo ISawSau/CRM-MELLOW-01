@@ -256,6 +256,14 @@ export const ENTITIES: readonly EntityDef[] = [
         inverse: { entity: 'gasto', key: 'cliente' },
         since: 4,
       },
+      {
+        key: 'documentos',
+        label: 'Documentos',
+        type: 'relation',
+        config: { target: 'documento', multiple: true },
+        inverse: { entity: 'documento', key: 'cliente' },
+        since: 4,
+      },
     ],
     views: [
       { name: 'Todos', kind: 'table', config: {} },
@@ -731,6 +739,57 @@ export const ENTITIES: readonly EntityDef[] = [
         name: 'Por categoría',
         kind: 'kanban',
         config: { groupBy: 'categoria', cardFields: ['cliente', 'importe'] },
+      },
+    ],
+  },
+  {
+    // Archivos sueltos de la bóveda: informes generados, resultados de las herramientas,
+    // contratos… (SPEC §7.10 y §7.11).
+    id: 'documento',
+    label: 'Documentos',
+    singular: 'documento',
+    gender: 'm',
+    titleKey: 'nombre',
+    seedVersion: 1,
+    fields: [
+      { key: 'nombre', label: 'Nombre', type: 'text', system: true, required: true },
+      {
+        key: 'tipo',
+        label: 'Tipo',
+        type: 'select',
+        config: {
+          options: [
+            opt('informe', 'Informe', 'azul'),
+            opt('herramienta', 'Herramientas', 'lila'),
+            opt('contrato', 'Contrato', 'verde'),
+            opt('otro', 'Otro', 'gris'),
+          ],
+        },
+      },
+      {
+        key: 'cliente',
+        label: 'Cliente',
+        type: 'relation',
+        config: { target: 'cliente', multiple: false },
+      },
+      { key: 'fecha', label: 'Fecha', type: 'date' },
+      { key: 'archivos', label: 'Archivos', type: 'files' },
+      { key: 'notas', label: 'Notas', type: 'longtext', system: true },
+    ],
+    views: [
+      { name: 'Todos', kind: 'table', config: { sorts: [{ fieldId: 'fecha', dir: 'desc' }] } },
+      {
+        name: 'Informes',
+        kind: 'table',
+        config: {
+          filters: [{ fieldId: 'tipo', op: 'any_of', value: ['informe'] }],
+          sorts: [{ fieldId: 'fecha', dir: 'desc' }],
+        },
+      },
+      {
+        name: 'Por tipo',
+        kind: 'kanban',
+        config: { groupBy: 'tipo', cardFields: ['cliente', 'fecha'] },
       },
     ],
   },
