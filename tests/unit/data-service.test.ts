@@ -380,6 +380,84 @@ describe('plantillas de brief (fase 12)', () => {
   })
 })
 
+describe('colecciones personalizadas (fase 12)', () => {
+  const input = { label: 'Proveedores', singular: 'Proveedor', gender: 'm' as const, letter: 'V' }
+
+  it('crear una colección: campos, vista, registros, relaciones, búsqueda y papelera', () => {
+    const { svc } = setup()
+    const list = svc.createCollection(input)
+    const col = list.find((e) => e.custom)!
+    expect(col).toMatchObject({
+      id: 'col-proveedores',
+      label: 'Proveedores',
+      singular: 'proveedor',
+      titleKey: 'nombre',
+      letter: 'V',
+    })
+    expect(svc.listFields(col.id).map((f) => f.key)).toEqual(['nombre', 'notas'])
+    expect(svc.listViews(col.id).map((v) => v.name)).toEqual(['Todos'])
+    // Mismo nombre: id distinto.
+    expect(
+      svc
+        .createCollection(input)
+        .filter((e) => e.custom)
+        .map((e) => e.id),
+    ).toEqual(['col-proveedores', 'col-proveedores-2'])
+    // Campos propios y relación con clientes (con su campo inverso).
+    const precio = svc.createField(col.id, { label: 'Precio', type: 'currency' })
+    const rel = svc.createField(col.id, {
+      label: 'Clientes',
+      type: 'relation',
+      config: { target: 'cliente', multiple: true },
+    })
+    svc.createInverseField(rel.id, 'Proveedores', true)
+    const acme = svc.create('cliente', {}, { title: 'Acme' })
+    const p = svc.create(col.id, { [precio.id]: 120 }, { title: 'Imprenta Pérez' })
+    svc.setLinks(rel.id, p.id, [acme.id])
+    const inv = svc.listFields('cliente').find((f) => f.label === 'Proveedores')!
+    expect((svc.get(acme.id).values[inv.id] as { title: string }[]).map((l) => l.title)).toEqual([
+      'Imprenta Pérez',
+    ])
+    expect(svc.search('imprenta').map((h) => h.entity)).toEqual([col.id])
+    expect(svc.query(col.id, { filters: [], match: 'all', sorts: [] })).toHaveLength(1)
+
+    // No se borra con registros ni mientras otra entidad la enlace.
+    expect(() => svc.deleteCollection(col.id)).toThrow(/tiene 1 registro/)
+    svc.trash([p.id])
+    expect(() => svc.deleteCollection(col.id)).toThrow(/«Proveedores» de Clientes/)
+    svc.deleteField(inv.id)
+    const after = svc.deleteCollection(col.id)
+    expect(after.some((e) => e.id === col.id)).toBe(false)
+    expect(() => svc.listFields(col.id)).toThrow(/No existe la entidad/)
+    expect(svc.listTrash().some((t) => t.id === p.id)).toBe(false)
+  })
+
+  it('renombrar y validar', () => {
+    const { svc } = setup()
+    const [col] = svc.createCollection(input).filter((e) => e.custom)
+    const r = svc.updateCollection(col!.id, {
+      ...input,
+      label: 'Agencias',
+      singular: 'Agencia',
+      gender: 'f',
+    })
+    expect(r.find((e) => e.id === col!.id)).toMatchObject({
+      label: 'Agencias',
+      singular: 'agencia',
+    })
+    expect(() => svc.createCollection({ ...input, letter: 'VV' })).toThrow()
+    expect(() => svc.createCollection({ ...input, label: '' })).toThrow()
+    // Una relación hacia una colección que no existe se rechaza.
+    expect(() =>
+      svc.createField('nota', {
+        label: 'X',
+        type: 'relation',
+        config: { target: 'col-no-existe', multiple: true },
+      }),
+    ).toThrow(/no existe/)
+  })
+})
+
 describe('archivos y versiones', () => {
   it('adjunta archivos cifrados y borra los huérfanos al cabo de un día', () => {
     const { svc, files, setNow } = setup()

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { DEFAULT_APPEARANCE, type Density } from '@shared/appearance'
 import { BUILT_IN_THEMES } from '@shared/themes'
 import type { VaultStatus } from '@shared/ipc'
@@ -9,7 +9,7 @@ import { ToolsPage } from '../tools/ToolsPage'
 import { ReportsPage } from '../reports/ReportsPage'
 import { PlatformsPage } from '../platforms/PlatformsPage'
 import { DataPage } from '../data/DataPage'
-import { useDataEvents } from '../data/hooks'
+import { useDataEvents, useSections } from '../data/hooks'
 import { NavContext } from '../data/nav'
 import { TrashPage } from '../data/TrashPage'
 import { call, IpcCallError } from '../lib/ipc'
@@ -18,7 +18,6 @@ import { ToastProvider, useToast } from '../ui/Toast'
 import { CommandPalette, type PaletteActions } from './CommandPalette'
 import { Home } from './Home'
 import { Upcoming } from './Pages'
-import { ALL_SECTIONS, SECTION_GROUPS } from './sections'
 import { Settings } from './Settings'
 import { Sidebar } from './Sidebar'
 import { StatusBar } from './StatusBar'
@@ -53,6 +52,12 @@ function ShellInner({ status }: { status: VaultStatus }) {
   useActivityPing()
 
   const appearance = status.appearance ?? DEFAULT_APPEARANCE
+  // Secciones fijas más las colecciones del usuario; la referencia sirve a openRecord.
+  const sections = useSections()
+  const sectionsRef = useRef(sections.all)
+  useEffect(() => {
+    sectionsRef.current = sections.all
+  }, [sections.all])
   const lock = useCallback(() => void call('vault:lock').catch(() => {}), [])
   const closePalette = useCallback(() => setPaletteOpen(false), [])
   const openPalette = useCallback(() => setPaletteOpen(true), [])
@@ -98,7 +103,7 @@ function ShellInner({ status }: { status: VaultStatus }) {
   const nav = useMemo(
     () => ({
       openRecord: (entity: string, id: string) => {
-        const target = ALL_SECTIONS.find((s) => s.entity === entity)
+        const target = sectionsRef.current.find((s) => s.entity === entity)
         if (!target) return
         setSection(target.id)
         setOpenRecord(id)
@@ -126,13 +131,14 @@ function ShellInner({ status }: { status: VaultStatus }) {
     [lock, navigate, undo, appearance.density, appearance.theme],
   )
 
-  const current = ALL_SECTIONS.find((s) => s.id === section) ?? ALL_SECTIONS[0]!
+  const current = sections.all.find((s) => s.id === section) ?? sections.all[0]!
   const goSettings = () => navigate('ajustes')
 
   return (
     <NavContext.Provider value={nav}>
       <div className="shell" data-collapsed={collapsed} data-testid="shell">
         <Sidebar
+          groups={sections.groups}
           current={section}
           onSelect={navigate}
           collapsed={collapsed}
@@ -144,7 +150,7 @@ function ShellInner({ status }: { status: VaultStatus }) {
             <DataPage
               key={current.entity}
               entity={current.entity}
-              num={SECTION_GROUPS.find((g) => g.sections.includes(current))?.num ?? '01'}
+              num={sections.groups.find((g) => g.sections.includes(current))?.num ?? '01'}
               openRecordId={openRecord}
               onOpenRecord={setOpenRecord}
             />
@@ -179,6 +185,7 @@ function ShellInner({ status }: { status: VaultStatus }) {
         <ConflictDialog />
         {paletteOpen && (
           <CommandPalette
+            sections={sections.all}
             open
             onClose={closePalette}
             actions={actions}

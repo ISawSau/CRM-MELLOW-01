@@ -157,6 +157,65 @@ test('brief desde plantilla con entrega y tareas; guardar un brief como plantill
   await panel.getByRole('button', { name: 'Cerrar ficha' }).click()
 })
 
+test('crear una colección: aparece en la barra lateral y se le añaden campos', async () => {
+  await page.getByTestId('nav-ajustes').click()
+  const box = page.getByTestId('collections-settings')
+  await box.getByLabel('Nombre (en plural)', { exact: true }).fill('Proveedores')
+  await expect(box.getByLabel('Letra', { exact: true })).toHaveValue('P')
+  await box.getByLabel('En singular', { exact: true }).fill('Proveedor')
+  await box.getByRole('button', { name: 'Crear colección' }).click()
+  await expect(page.getByText('«Proveedores» ya está en la barra lateral.')).toBeVisible()
+  await expect(page.getByTestId('nav-col-proveedores')).toContainText('Proveedores')
+
+  // Un campo de moneda en la colección.
+  const fields = page.getByTestId('fields-settings')
+  await fields.getByLabel('Entidad de los campos').selectOption('col-proveedores')
+  await expect(fields.getByTestId('field-row')).toHaveCount(2)
+  await fields.getByTestId('add-field').click()
+  const dialog = page.getByTestId('field-dialog')
+  await dialog.getByLabel('Nombre').fill('Tarifa')
+  await dialog.getByLabel('Tipo').selectOption({ label: 'Moneda' })
+  await dialog.getByRole('button', { name: 'Crear campo' }).click()
+  await expect(fields.getByTestId('field-row').filter({ hasText: 'Tarifa' })).toHaveCount(1)
+  if (shots) await page.screenshot({ path: join(shots, '83-colecciones-ajustes.png') })
+})
+
+test('usar la colección: registros, búsqueda y borrado protegido', async () => {
+  await page.getByTestId('nav-col-proveedores').click()
+  const pageCol = page.getByTestId('page-col-proveedores')
+  await expect(pageCol.getByRole('heading', { name: 'Proveedores', level: 1 })).toBeVisible()
+  await expect(page.getByTestId('new-record')).toHaveText('+ Nuevo proveedor')
+  await page.getByTestId('new-record').click()
+  const panel = page.getByTestId('record-panel')
+  await panel.locator('#panel-title').fill('Imprenta Pérez')
+  await panel.locator('#panel-title').press('Enter')
+  await expect(panel).toContainText('Tarifa')
+  await panel.getByRole('button', { name: 'Cerrar ficha' }).click()
+  await expect(page.getByTestId('table-row')).toHaveCount(1)
+  if (shots) await page.screenshot({ path: join(shots, '84-coleccion.png') })
+
+  // La búsqueda global la encuentra y abre su ficha.
+  await page.getByTestId('nav-inicio').click()
+  await page.keyboard.press('Control+k')
+  await page.keyboard.type('Imprenta')
+  await expect(page.getByTestId('palette')).toContainText('proveedor')
+  await page.keyboard.press('Enter')
+  await expect(page.getByTestId('record-panel').locator('#panel-title')).toHaveValue(
+    'Imprenta Pérez',
+  )
+  await page.getByTestId('record-panel').getByRole('button', { name: 'Cerrar ficha' }).click()
+
+  // No se puede borrar con registros; renombrarla cambia la barra lateral.
+  await page.getByTestId('nav-ajustes').click()
+  const box = page.getByTestId('collections-settings')
+  await box.getByRole('button', { name: 'Borrar…' }).click()
+  await page.getByRole('button', { name: 'Borrar colección' }).click()
+  await expect(box).toContainText('«Proveedores» tiene 1 registro')
+  await box.getByLabel('Proveedores: Nombre (en plural)').fill('Proveedores locales')
+  await box.getByRole('button', { name: 'Guardar', exact: true }).click()
+  await expect(page.getByTestId('nav-col-proveedores')).toContainText('Proveedores locales')
+})
+
 test('sin errores de consola ni de la CSP', () => {
   expect(errors).toEqual([])
 })

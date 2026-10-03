@@ -7,7 +7,15 @@ import {
   type BriefTemplate,
 } from '@shared/data/brief-templates'
 import { shiftDate, todayIn } from '@shared/data/dates'
-import { ENTITIES, findEntity } from '@shared/data/entities'
+import {
+  collectionEntity,
+  collectionIdFor,
+  collectionInputSchema,
+  collectionsSchema,
+  type Collection,
+  type CollectionInput,
+} from '@shared/data/collections'
+import { ENTITIES, findEntity, type EntityDef } from '@shared/data/entities'
 import {
   COMPUTED_TYPES,
   FIELD_TYPES,
@@ -62,7 +70,7 @@ import { mimeFromName, safeFileName } from '@shared/files'
 import { DEFAULT_HOME_LAYOUT, homeLayoutSchema, type HomeLayout } from '@shared/home'
 import { DEFAULT_PROFILE, profileSchema, type Profile } from '@shared/profile'
 import { AppError } from '@shared/errors'
-import type { FileInfo, VersionEntry } from '@shared/ipc'
+import type { EntityInfo, FileInfo, VersionEntry } from '@shared/ipc'
 import type { SqliteDb } from '../db/connection'
 import type { FileStore } from '../files/file-store'
 import { toCsv } from './csv'
@@ -129,6 +137,7 @@ const TRASH_DAYS_KEY = 'data.trashDays'
 const PROFILE_KEY = 'profile'
 const BRIEF_TEMPLATES_KEY = 'briefs.templates'
 const HOME_LAYOUT_KEY = 'home.layout'
+const COLLECTIONS_KEY = 'data.collections'
 export const DEFAULT_TRASH_DAYS = 30
 const CHUNK = 500
 
@@ -176,6 +185,8 @@ export class DataService {
   private readonly store: FileStore | undefined
   /** El campo de título de cada entidad no cambia nunca: se busca una vez. */
   private titleIds = new Map<string, string | null>()
+  /** Colecciones del usuario (se leen de la bóveda una vez y tras cada cambio). */
+  private collectionCache: Collection[] | null = null
 
   constructor(db: SqliteDb, opts: DataServiceOptions = {}) {
     this.db = db
@@ -355,19 +366,127 @@ export class DataService {
 
   // --- Entidades y siembra --------------------------------------------------
 
-  entities() {
-    return ENTITIES.map((e) => ({
+  entities(): EntityInfo[] {
+    const letters = new Map(this.collections().map((c) => [c.id, c.letter]))
+    return this.allEntities().map((e) => ({
       id: e.id,
       label: e.label,
       singular: e.singular,
       gender: e.gender,
+      titleKey: e.titleKey,
+      custom: letters.has(e.id),
+      letter: letters.get(e.id) ?? null,
     }))
   }
 
+  /** Entidades de sistema y colecciones del usuario. */
+  private allEntities(): EntityDef[] {
+    return [...ENTITIES, ...this.collections().map(collectionEntity)]
+  }
+
+  private entityDef(id: string): EntityDef | undefined {
+    const sys = findEntity(id)
+    if (sys) return sys
+    const c = this.collections().find((x) => x.id === id)
+    return c ? collectionEntity(c) : undefined
+  }
+
   private requireEntity(id: string) {
-    const e = findEntity(id)
+    const e = this.entityDef(id)
     if (!e) throw new AppError('INVALID_INPUT', undefined, `No existe la entidad «${id}».`)
     return e
+  }
+
+  // --- Colecciones personalizadas (fase 12) -----------------------------------
+
+  collections(): Collection[] {
+    if (!this.collectionCache) {
+      const r = collectionsSchema.safeParse(this.getSetting(COLLECTIONS_KEY) ?? [])
+      this.collectionCache = r.success ? r.data : []
+    }
+    return this.collectionCache
+  }
+
+  private saveCollections(list: Collection[]): void {
+    this.putSetting(COLLECTIONS_KEY, list)
+    this.collectionCache = null
+  }
+
+  /** Crea una colección con un campo «Nombre», otro «Notas» y la vista «Todos». */
+  createCollection(input: CollectionInput): EntityInfo[] {
+    const c = collectionInputSchema.parse(input)
+    const list = this.collections()
+    if (list.length >= 50)
+      throw new AppError('INVALID_INPUT', undefined, 'Como mucho puede haber 50 colecciones.')
+    const taken = new Set([...ENTITIES.map((e) => e.id), ...list.map((x) => x.id)])
+    const id = collectionIdFor(c.label, (x) => taken.has(x))
+    const col: Collection = { ...c, id, createdAt: this.nowIso() }
+    this.tx(() => {
+      this.saveCollections([...list, col])
+      this.seed([collectionEntity(col)])
+    })
+    this.emit(id)
+    return this.entities()
+  }
+
+  updateCollection(id: string, input: CollectionInput): EntityInfo[] {
+    const c = collectionInputSchema.parse(input)
+    const list = this.collections()
+    if (!list.some((x) => x.id === id)) throw new AppError('INVALID_INPUT')
+    this.saveCollections(list.map((x) => (x.id === id ? { ...x, ...c } : x)))
+    this.emit(id)
+    return this.entities()
+  }
+
+  /**
+   * Borra una colección vacía: sus campos, vistas y lo que tenga en la papelera. Si tiene
+   * registros o la enlaza otra entidad, se explica qué hacer antes.
+   */
+  deleteCollection(id: string): EntityInfo[] {
+    const list = this.collections()
+    const col = list.find((x) => x.id === id)
+    if (!col) throw new AppError('INVALID_INPUT')
+    const live = this.db
+      .prepare('SELECT COUNT(*) AS n FROM records WHERE entity = ? AND deleted_at IS NULL')
+      .get(id) as { n: number }
+    if (live.n > 0)
+      throw new AppError(
+        'INVALID_INPUT',
+        undefined,
+        `«${col.label}» tiene ${live.n} ${live.n === 1 ? 'registro' : 'registros'}: bórralos antes (van a la papelera).`,
+      )
+    const refs = (
+      this.db
+        .prepare(
+          "SELECT entity, label, config FROM field_defs WHERE entity != ? AND type = 'relation' AND deleted_at IS NULL",
+        )
+        .all(id) as { entity: string; label: string; config: string }[]
+    ).filter((f) => (JSON.parse(f.config) as { target?: string }).target === id)
+    if (refs.length)
+      throw new AppError(
+        'INVALID_INPUT',
+        undefined,
+        `Antes quita los campos que la enlazan: ${refs
+          .map((f) => `«${f.label}» de ${this.entityDef(f.entity)?.label ?? f.entity}`)
+          .join(', ')}.`,
+      )
+    this.tx(() => {
+      const trashed = this.db.prepare('SELECT id FROM records WHERE entity = ?').all(id) as {
+        id: string
+      }[]
+      for (const r of trashed) this.hardDelete(r.id)
+      this.db
+        .prepare('DELETE FROM links WHERE field_id IN (SELECT id FROM field_defs WHERE entity = ?)')
+        .run(id)
+      this.db.prepare('DELETE FROM field_defs WHERE entity = ?').run(id)
+      this.db.prepare('DELETE FROM views WHERE entity = ?').run(id)
+      this.db.prepare('DELETE FROM settings WHERE key = ?').run(`data.seeded.${id}`)
+      this.saveCollections(list.filter((x) => x.id !== id))
+    })
+    this.titleIds.delete(id)
+    this.undoStack.clear()
+    this.emit(id)
+    return this.entities()
   }
 
   private getSetting(key: string): unknown {
@@ -391,12 +510,12 @@ export class DataService {
    * falta (un campo cuya clave ya exista, aunque esté eliminado, no se vuelve a crear).
    * Los campos inversos van al final, cuando ya existen los campos de los que dependen.
    */
-  private seed(): void {
+  private seed(defs: readonly EntityDef[] = ENTITIES): void {
     const seededVersion = (id: string): number => {
       const v = this.getSetting(`data.seeded.${id}`)
       return v === true ? 1 : typeof v === 'number' ? v : 0
     }
-    const pending = ENTITIES.filter((e) => seededVersion(e.id) < e.seedVersion)
+    const pending = defs.filter((e) => seededVersion(e.id) < e.seedVersion)
     if (pending.length === 0) return
     this.tx(() => {
       const now = this.nowIso()
@@ -406,7 +525,7 @@ export class DataService {
             .prepare('SELECT id FROM field_defs WHERE entity = ? AND key = ?')
             .get(entity, key) as { id: string } | undefined
         )?.id
-      const insertField = (entity: string, f: (typeof ENTITIES)[number]['fields'][number]) => {
+      const insertField = (entity: string, f: EntityDef['fields'][number]) => {
         if (keyToId(entity, f.key)) return
         const raw: Record<string, unknown> = { ...(f.config ?? {}) }
         if (f.inverse) {
@@ -438,8 +557,7 @@ export class DataService {
             now,
           )
       }
-      const fresh = (e: (typeof ENTITIES)[number], since: number | undefined) =>
-        (since ?? 1) > seededVersion(e.id)
+      const fresh = (e: EntityDef, since: number | undefined) => (since ?? 1) > seededVersion(e.id)
       for (const pass of ['direct', 'inverse'] as const)
         for (const e of pending)
           for (const f of e.fields)
@@ -540,7 +658,7 @@ export class DataService {
   ) {
     if (type === 'relation') {
       const target = String(config['target'] ?? '')
-      if (!findEntity(target))
+      if (!this.entityDef(target))
         throw new AppError(
           'INVALID_INPUT',
           undefined,
@@ -895,7 +1013,7 @@ export class DataService {
 
   private titleFieldId(entity: string): string | null {
     if (this.titleIds.has(entity)) return this.titleIds.get(entity)!
-    const def = findEntity(entity)
+    const def = this.entityDef(entity)
     const r = def
       ? (this.db
           .prepare('SELECT id FROM field_defs WHERE entity = ? AND key = ? AND system = 1')
@@ -1704,7 +1822,7 @@ export class DataService {
    */
   processRecurrences(): number {
     let created = 0
-    for (const e of ENTITIES) {
+    for (const e of this.allEntities()) {
       const meta = this.recurringMeta(e.id)
       if (!meta) continue
       const today = this.ctx().today

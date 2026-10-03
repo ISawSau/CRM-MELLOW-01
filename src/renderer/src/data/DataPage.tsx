@@ -1,14 +1,13 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import type { BriefTemplate } from '@shared/data/brief-templates'
 import { useCallback, useMemo, useState } from 'react'
-import { findEntity } from '@shared/data/entities'
 import { VIEW_KIND_LABELS, VIEW_KINDS, type View, type ViewKind } from '@shared/data/views'
 import { call, IpcCallError } from '../lib/ipc'
 import { Popover } from '../ui/Popover'
 import { useToast } from '../ui/Toast'
 import { useRecordActions } from './actions'
 import { viewColumns } from './columns'
-import { useFields, useRecords, useSaveView, useViews } from './hooks'
+import { useEntity, useFields, useRecords, useSaveView, useViews } from './hooks'
 import { FieldDialog } from './FieldsSettings'
 import { RecordPanel } from './RecordPanel'
 import { useTimeZone } from './nav'
@@ -38,7 +37,7 @@ export function DataPage({
   openRecordId: string | null
   onOpenRecord: (id: string | null) => void
 }) {
-  const def = findEntity(entity)!
+  const def = useEntity(entity)!
   const fields = useFields(entity)
   const views = useViews(entity)
   const saveView = useSaveView(entity)

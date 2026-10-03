@@ -2,10 +2,10 @@ import { useQuery } from '@tanstack/react-query'
 import { Command, defaultFilter } from 'cmdk'
 import { useEffect, useRef, useState } from 'react'
 import type { Density } from '@shared/appearance'
-import { findEntity } from '@shared/data/entities'
 import { call } from '../lib/ipc'
+import { useEntityLookup } from '../data/hooks'
 import type { Theme } from '@shared/themes'
-import { ALL_SECTIONS } from './sections'
+import type { Section } from './sections'
 
 export interface PaletteActions {
   navigate: (sectionId: string) => void
@@ -28,14 +28,18 @@ export function CommandPalette({
   onClose,
   actions,
   themes,
+  sections,
 }: {
   open: boolean
   onClose: () => void
   actions: PaletteActions
   /** Temas predefinidos y propios. */
   themes: readonly Theme[]
+  /** Secciones fijas y colecciones del usuario. */
+  sections: Section[]
 }) {
   const previousFocus = useRef<Element | null>(null)
+  const entityOf = useEntityLookup()
   const [search, setSearch] = useState('')
   const [debounced, setDebounced] = useState('')
   useEffect(() => {
@@ -112,7 +116,7 @@ export function CommandPalette({
             {debounced.length >= 2 && (hits.data?.length ?? 0) > 0 && (
               <Command.Group heading="Registros">
                 {hits.data!.map((h) => {
-                  const section = ALL_SECTIONS.find((s) => s.entity === h.entity)
+                  const section = sections.find((s) => s.entity === h.entity)
                   return (
                     <Command.Item
                       key={h.id}
@@ -124,14 +128,14 @@ export function CommandPalette({
                         <span>{h.title}</span>
                         {h.snippet && <span className="faint hit-snippet">{h.snippet}</span>}
                       </span>
-                      <span className="faint">{findEntity(h.entity)?.singular}</span>
+                      <span className="faint">{entityOf(h.entity)?.singular}</span>
                     </Command.Item>
                   )
                 })}
               </Command.Group>
             )}
             <Command.Group heading="Ir a">
-              {ALL_SECTIONS.map((s) => (
+              {sections.map((s) => (
                 <Command.Item
                   key={s.id}
                   value={`ir a ${s.label}`}

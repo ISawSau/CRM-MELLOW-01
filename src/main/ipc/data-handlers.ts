@@ -29,6 +29,9 @@ export function createDataHandlers(
 
   return {
     'data:entities': () => vault.data.entities(),
+    'data:createCollection': (input) => vault.data.createCollection(input),
+    'data:updateCollection': ({ id, ...input }) => vault.data.updateCollection(id, input),
+    'data:deleteCollection': ({ id }) => vault.data.deleteCollection(id),
     'data:fields': ({ entity, includeDeleted }) => vault.data.listFields(entity, includeDeleted),
     'data:createField': ({ entity, label, type, config }) =>
       vault.data.createField(entity, { label, type, ...(config ? { config } : {}) }),

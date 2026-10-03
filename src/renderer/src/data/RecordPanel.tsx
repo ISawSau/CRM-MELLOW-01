@@ -1,7 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { diffLines } from '@shared/diff'
-import { findEntity } from '@shared/data/entities'
 import { COMPUTED_TYPES, type FieldDef, type RichText } from '@shared/data/fields'
 import { formatValue } from '@shared/data/format-value'
 import type { HistoryEntry, LinkRef, RecordRow } from '@shared/data/records'
@@ -13,7 +12,7 @@ import { useRecordActions } from './actions'
 import { useNav } from './nav'
 import { FieldEditor } from './FieldEditor'
 import { FieldValue } from './FieldValue'
-import { useHistory, useRecord } from './hooks'
+import { useEntityLookup, useHistory, useRecord } from './hooks'
 import { RichTextEditor } from './RichTextEditor'
 import { ClientAdAccounts } from '../meta/ClientAdAccounts'
 import { GmailThreads } from '../gmail/GmailThreads'
@@ -39,6 +38,7 @@ export function RecordPanel({
   onOpen: (id: string) => void
 }) {
   const record = useRecord(id)
+  const entityOf = useEntityLookup()
   const [tab, setTab] = useState<'detalles' | 'historial' | 'versiones'>('detalles')
   const { setValue, trash, duplicate, fail } = useRecordActions()
   const nav = useNav()
@@ -94,7 +94,7 @@ export function RecordPanel({
   }
   if (!r) return <aside className="panel" aria-label="Ficha" aria-busy="true" />
 
-  const entity = findEntity(r.entity)
+  const entity = entityOf(r.entity)
   const titleField = fields.find((f) => f.key === entity?.titleKey && f.system)
   const visible = fields.filter((f) => f.id !== titleField?.id)
   const rich = visible.filter((f) => f.type === 'longtext')

@@ -1,4 +1,4 @@
-import { SECTION_GROUPS, SETTINGS_SECTION, TRASH_SECTION, type Section } from './sections'
+import { SETTINGS_SECTION, TRASH_SECTION, type Section, type SectionGroup } from './sections'
 import { useQuery } from '@tanstack/react-query'
 import { call } from '../lib/ipc'
 import { BrandEye } from '../ui/BrandEye'
@@ -44,12 +44,14 @@ function NavItem({
 }
 
 export function Sidebar({
+  groups,
   current,
   onSelect,
   collapsed,
   onToggle,
   onLock,
 }: {
+  groups: SectionGroup[]
   current: string
   onSelect: (id: string) => void
   collapsed: boolean
@@ -89,7 +91,7 @@ export function Sidebar({
         </button>
       </div>
       <nav className="nav">
-        {SECTION_GROUPS.map((g) => (
+        {groups.map((g) => (
           <div className="nav-group" key={g.num}>
             <div className="nav-group-title">
               <span className="num">{g.num}</span>

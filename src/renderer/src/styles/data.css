@@ -2050,3 +2050,34 @@ img.ProseMirror-separator {
 .popover-form .btn {
   justify-self: start;
 }
+
+/* --- Colecciones (fase 12) ------------------------------------------------- */
+
+.collection-list {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.collection-list > li {
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--line);
+}
+
+.collection-form {
+  display: grid;
+  grid-template-columns: minmax(140px, 2fr) minmax(140px, 2fr) minmax(150px, 1.6fr) 64px;
+  gap: var(--space-3);
+  align-items: end;
+}
+
+.collection-form .field label {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.collection-form .form-actions {
+  grid-column: 1 / -1;
+}

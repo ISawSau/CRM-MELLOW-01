@@ -26,6 +26,7 @@ import {
 import { appearanceSchema, type Appearance } from './appearance'
 import { customThemesSchema, type Theme } from './themes'
 import { homeLayoutSchema, type HomeLayout } from './home'
+import { collectionIdSchema, collectionInputSchema } from './data/collections'
 import { FIELD_TYPES, idSchema, type FieldDef, type FileRef } from './data/fields'
 import { profileSchema, type Profile } from './profile'
 import { briefTemplatesSchema, type BriefTemplate } from './data/brief-templates'
@@ -112,6 +113,12 @@ export interface EntityInfo {
   label: string
   singular: string
   gender: 'f' | 'm'
+  /** Clave del campo de título. */
+  titleKey: string
+  /** Colección creada por el usuario (fase 12). */
+  custom: boolean
+  /** Letra de la barra lateral (solo colecciones). */
+  letter: string | null
 }
 
 /** Valores por id de campo; el proceso principal los valida contra cada campo. */
@@ -205,6 +212,9 @@ export const ipcSchemas = {
 
   // --- Motor de datos (fase 1) ---
   'data:entities': z.void(),
+  'data:createCollection': collectionInputSchema,
+  'data:updateCollection': collectionInputSchema.extend({ id: collectionIdSchema }),
+  'data:deleteCollection': z.object({ id: collectionIdSchema }),
   'data:fields': z.object({ entity: idSchema, includeDeleted: z.boolean().default(false) }),
   'data:createField': z.object({
     entity: idSchema,
@@ -404,6 +414,9 @@ export interface IpcOutputs {
   'settings:setThemes': VaultStatus
   'clipboard:writeSecret': void
   'data:entities': EntityInfo[]
+  'data:createCollection': EntityInfo[]
+  'data:updateCollection': EntityInfo[]
+  'data:deleteCollection': EntityInfo[]
   'data:fields': FieldDef[]
   'data:createField': FieldDef
   'data:updateField': FieldDef

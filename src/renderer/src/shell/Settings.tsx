@@ -6,6 +6,7 @@ import { useAction } from '../lib/hooks'
 import { RecoveryKeyPanel } from '../screens/RecoveryKey'
 import { BUILT_IN_THEMES, findTheme, type Theme } from '@shared/themes'
 import { BriefTemplatesSettings } from '../data/BriefTemplatesSettings'
+import { CollectionsSettings } from '../data/CollectionsSettings'
 import { DataSettings, FieldsSettings } from '../data/FieldsSettings'
 import { ProfileSettings } from './ProfileSettings'
 import { SyncSettings } from './SyncSettings'
@@ -280,6 +281,7 @@ export function Settings({ status }: { status: VaultStatus }) {
       <div>
         <ProfileSettings />
         <Appearance status={status} />
+        <CollectionsSettings />
         <FieldsSettings />
         <BriefTemplatesSettings />
         <DataSettings />

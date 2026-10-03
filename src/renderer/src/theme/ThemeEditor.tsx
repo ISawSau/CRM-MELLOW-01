@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { Density } from '@shared/appearance'
 import { OPTION_COLORS, type OptionColor } from '@shared/data/fields'
 import { formatNumber } from '@shared/format'
@@ -164,12 +164,17 @@ export function ThemeEditor({
   const [error, setError] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
 
-  // Vista previa en directo; al salir se vuelve a aplicar el tema guardado.
+  // Vista previa en directo. Al cancelar se vuelve a aplicar el tema guardado; al guardar
+  // o borrar lo aplica la app con los temas nuevos.
+  const committed = useRef(false)
   useEffect(() => {
     if (themeSchema.safeParse(draft).success) applyAppearance(draft, density)
   }, [draft, density])
   useEffect(
-    () => () => applyAppearance(findTheme(current, [...BUILT_IN_THEMES, ...themes]), density),
+    () => () => {
+      if (!committed.current)
+        applyAppearance(findTheme(current, [...BUILT_IN_THEMES, ...themes]), density)
+    },
     // Solo al cerrar el editor.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [],
@@ -187,19 +192,23 @@ export function ThemeEditor({
     if (!t.name) return setError('Ponle un nombre al tema.')
     const list = isNew ? [...themes, t] : themes.map((x) => (x.id === t.id ? t : x))
     try {
+      committed.current = true
       await call('settings:setThemes', { themes: list })
       await call('settings:setAppearance', { theme: t.id, density })
       onClose()
     } catch (e) {
+      committed.current = false
       setError(e instanceof IpcCallError ? e.message : 'No se ha podido guardar el tema.')
     }
   }
 
   const remove = async () => {
     try {
+      committed.current = true
       await call('settings:setThemes', { themes: themes.filter((x) => x.id !== draft.id) })
       onClose()
     } catch (e) {
+      committed.current = false
       setError(e instanceof IpcCallError ? e.message : 'No se ha podido borrar el tema.')
     }
   }
