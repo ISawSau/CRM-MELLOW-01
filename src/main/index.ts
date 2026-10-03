@@ -20,6 +20,7 @@ import {
 import { registerVaultProtocol } from './files/vault-protocol'
 import { SyncService } from './sync/sync-service'
 import { MetaService } from './meta/meta-service'
+import { AnalysisService } from './analysis/analysis-service'
 import { isVaultFolder } from './vault/vault-file'
 import { VaultService } from './vault/vault-service'
 import { createMainWindow } from './window'
@@ -71,9 +72,15 @@ if (process.argv.includes('--autoprueba')) {
   const meta = new MetaService(vault, {
     onChange: (status) => mainWindow?.webContents.send('meta:changed', status),
     onData: () => mainWindow?.webContents.send('meta:changed', meta.status()),
+    onSynced: () => analysis.evaluate(),
     ...(graphUrl ? { graphUrl } : {}),
     ...(ecbUrl ? { ecbUrl } : {}),
     ...(pollMs ? { pollMs: Number(pollMs) } : {}),
+  })
+  const analysis = new AnalysisService(vault, {
+    currency: () => meta.settings().displayCurrency,
+    tableSettings: () => meta.tableSettings(),
+    onChange: () => mainWindow?.webContents.send('analysis:changed', null),
   })
   /** Bloqueo con subida previa de lo pendiente (manual o por inactividad). */
   const lockWithSync = async () => {
@@ -143,6 +150,7 @@ if (process.argv.includes('--autoprueba')) {
         autoLock,
         sync,
         meta,
+        analysis,
         lockWithSync,
         getWindow: () => mainWindow,
       }),

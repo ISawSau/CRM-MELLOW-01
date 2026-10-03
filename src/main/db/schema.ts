@@ -389,3 +389,22 @@ export const adRangeStats = sqliteTable(
     index('ad_range_account_idx').on(t.accountId, t.since, t.until),
   ],
 )
+
+// --- Análisis (fase 8) ----------------------------------------------------------------
+
+/** Avisos de las alertas: uno por alerta y periodo mientras se cumple la condición. */
+export const alertEvents = sqliteTable(
+  'alert_events',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    alertId: text('alert_id').notNull(),
+    since: text('since').notNull(),
+    until: text('until').notNull(),
+    value: real('value').notNull(),
+    /** Copia de la alerta al saltar (por si luego se edita o se borra). */
+    snapshot: text('snapshot', { mode: 'json' }).notNull(),
+    createdAt: text('created_at').notNull(),
+    seenAt: text('seen_at'),
+  },
+  (t) => [uniqueIndex('alert_events_period').on(t.alertId, t.until)],
+)

@@ -7,6 +7,8 @@ import type { ConfigStore } from '../config'
 import type { VaultService } from '../vault/vault-service'
 import type { SyncService } from '../sync/sync-service'
 import type { MetaService } from '../meta/meta-service'
+import type { AnalysisService } from '../analysis/analysis-service'
+import { createAnalysisHandlers } from './analysis-handlers'
 import { createDataHandlers } from './data-handlers'
 import { createMetaHandlers } from './meta-handlers'
 import { createSyncHandlers } from './sync-handlers'
@@ -20,6 +22,7 @@ export interface HandlerDeps {
   autoLock: AutoLock
   sync: SyncService
   meta: MetaService
+  analysis: AnalysisService
   /** Sube lo pendiente y bloquea (bloqueo manual y automático). */
   lockWithSync: () => Promise<void>
   getWindow: () => BrowserWindow | null
@@ -34,6 +37,7 @@ export function createHandlers({
   autoLock,
   sync,
   meta,
+  analysis,
   lockWithSync,
   getWindow,
 }: HandlerDeps): IpcHandlers {
@@ -162,5 +166,6 @@ export function createHandlers({
     ...createDataHandlers(vault, getWindow),
     ...createSyncHandlers(sync, getWindow),
     ...createMetaHandlers(meta),
+    ...createAnalysisHandlers(analysis),
   }
 }

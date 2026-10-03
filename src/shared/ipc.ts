@@ -30,6 +30,15 @@ import {
   type TagPerfResult,
 } from './meta'
 import { metaTableSettingsSchema, type MetaTableSettings } from './meta-metrics'
+import {
+  alertsSchema,
+  analysisQuerySchema,
+  dashboardsSchema,
+  type Alert,
+  type AlertEvent,
+  type AnalysisResult,
+  type Dashboard,
+} from './analysis'
 
 /**
  * Contrato IPC entre la interfaz (renderer) y el proceso principal.
@@ -304,6 +313,15 @@ export const ipcSchemas = {
   'meta:creativePerf': creativePerfSchema,
   'meta:tagPerf': tagPerfSchema,
   'meta:autoLink': z.void(),
+  'analysis:query': analysisQuerySchema,
+  'analysis:dashboards': z.void(),
+  'analysis:setDashboards': z.object({ dashboards: dashboardsSchema }),
+  'analysis:alerts': z.void(),
+  'analysis:setAlerts': z.object({ alerts: alertsSchema }),
+  'analysis:alertValues': z.void(),
+  'analysis:events': z.void(),
+  'analysis:unseen': z.void(),
+  'analysis:markSeen': z.void(),
   'meta:clientAccounts': z.object({ clientId: idSchema }),
 } as const
 
@@ -399,6 +417,15 @@ export interface IpcOutputs {
   'meta:creativePerf': CreativePerfResult
   'meta:tagPerf': TagPerfResult
   'meta:autoLink': number
+  'analysis:query': AnalysisResult
+  'analysis:dashboards': Dashboard[]
+  'analysis:setDashboards': Dashboard[]
+  'analysis:alerts': Alert[]
+  'analysis:setAlerts': Alert[]
+  'analysis:alertValues': Record<string, number | null>
+  'analysis:events': AlertEvent[]
+  'analysis:unseen': number
+  'analysis:markSeen': void
   'meta:clientAccounts': AdAccountInfo[]
 }
 
@@ -413,5 +440,7 @@ export interface IpcEvents {
   'data:changed': DataChange
   'sync:changed': SyncStatus
   'meta:changed': MetaStatus
+  /** Hay avisos de alertas nuevos o se han marcado como vistos. */
+  'analysis:changed': null
 }
 export type IpcEvent = keyof IpcEvents

@@ -426,3 +426,30 @@ El usuario no quiere escribir comandos de desarrollo para usar la app. Los insta
 ### D-065 · Moneda del cliente
 
 - Si la cuenta está asignada a un cliente con el campo «Moneda» relleno, la tabla de esa cuenta usa esa moneda; si no, la global de Campañas → Ajustes.
+
+## Fase 8 · Análisis
+
+### D-066 · Gráficas con ECharts en canvas y paleta validada
+
+- Apache ECharts 6 (Apache-2.0), importado por módulos (líneas, barras, rejilla, tooltip, leyenda y accesibilidad) con el renderizador canvas. El tooltip también va en canvas (`renderMode: 'richText'`): el modo HTML mete estilos en línea que la CSP estricta bloquea.
+- Paleta categórica de ocho tonos en orden fijo, una versión para temas claros y otra para oscuros (los mismos tonos), elegida según la luminancia del fondo del tema. Validada con el validador de la guía de visualización contra el fondo de los dos temas: pasa banda de luminosidad, croma, separación para daltonismo (ΔE ≥ 8 entre vecinos) y visión normal. En el tema claro cuatro tonos quedan por debajo de 3:1 con el fondo, así que cada gráfica tiene vista de tabla, leyenda y etiquetas directas en las barras.
+- Un solo eje en cada gráfica, líneas de 2 px, el periodo anterior en discontinua y el color sigue a la serie (no al orden). La gráfica se repinta al cambiar de tema.
+
+### D-067 · Un motor de consultas para dashboards, comparativas y alertas
+
+- `analysis:query` suma las métricas diarias de las cuentas activadas con un filtro (todo, cliente, cuenta, campaña, creatividad o etiqueta) y agrupa por día, semana (de lunes), mes, cuenta, cliente, campaña, creatividad o etiqueta. Compara con el periodo anterior o con el mismo del año anterior. Los grupos que no caben se suman en «Otros». Las métricas derivadas y las propias se calculan en la interfaz con el mismo motor de la tabla (D-059).
+- El alcance y la frecuencia no se ofrecen aquí: no se pueden sumar entre días ni entre cuentas.
+- Las fechas son las de cada cuenta (como en Ads Manager); con cuentas en varias zonas horarias, el «día» de cada una es el suyo.
+
+### D-068 · Dashboards en los ajustes de la bóveda
+
+- Lista de dashboards con sus widgets (cifra, líneas, barras, tabla y ranking), cada uno con métrica, agrupación, periodo y ancho. Uno global por defecto («General») y los que se creen, globales o de un cliente. Se guardan cifrados en los ajustes y cuentan como cambio para la sincronización entre equipos.
+
+### D-069 · Alertas que solo avisan dentro de la app
+
+- Cada alerta: datos (todo, un cliente o una cuenta), métrica, mayor o menor que un umbral y ventana de días completos sin contar hoy. Se comprueban tras cada sincronización con Meta y al guardarlas.
+- Cada aviso se guarda en `alert_events` con una copia de la alerta, uno por alerta y día de cierre del periodo (no se repite cada hora). Se ven en Análisis → Alertas, con un contador en la barra lateral y en Inicio, y se marcan como vistos al abrir Alertas. No hay notificaciones fuera de la app (SPEC §1).
+
+### D-070 · Inicio con Meta
+
+- La tarjeta «Gasto y ROAS» de Inicio (prevista para la fase 6) y la de alertas usan el mismo motor: gasto de hoy, 7 y 30 días y ROAS de 30 días de todas las cuentas, en la moneda de visualización.

@@ -1,10 +1,9 @@
 import { expect, test, type Page } from '@playwright/test'
 import { mkdtempSync, rmSync } from 'node:fs'
-import { createServer, type Server } from 'node:http'
-import type { AddressInfo } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { FakeMeta, GOOD_TOKEN } from '../unit/meta-fake'
+import { GOOD_TOKEN, type FakeMeta } from '../unit/meta-fake'
+import { startFakeMeta } from './fake-meta-server'
 import { collectConsoleErrors, createVaultAndEnter, launchApp, type Launched } from './app'
 
 /**
@@ -16,7 +15,7 @@ let ctx: Launched
 let page: Page
 let errors: string[]
 let parent: string
-let server: Server
+let closeServer: () => void
 let fake: FakeMeta
 const shots = process.env['E2E_SHOTS']
 
@@ -27,34 +26,11 @@ async function shot(name: string) {
 const panel = () => page.getByTestId('record-panel')
 
 test.beforeAll(async () => {
-  server = createServer((req, res) => {
-    const chunks: Buffer[] = []
-    req.on('data', (c: Buffer) => chunks.push(c))
-    req.on('end', () => {
-      const body = Buffer.concat(chunks).toString()
-      const headers: Record<string, string> = {}
-      for (const [k, v] of Object.entries(req.headers)) if (typeof v === 'string') headers[k] = v
-      void fake
-        .fetch(`${fake.base}${req.url}`, {
-          method: req.method ?? 'GET',
-          headers,
-          ...(body ? { body: new URLSearchParams(body) } : {}),
-        })
-        .then(async (r) => {
-          res.writeHead(r.status, Object.fromEntries(r.headers))
-          res.end(Buffer.from(await r.arrayBuffer()))
-        })
-    })
-  })
-  await new Promise<void>((r) => server.listen(0, '127.0.0.1', r))
-  const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`
-  fake = new FakeMeta({}, base)
+  const srv = await startFakeMeta()
+  fake = srv.fake
+  closeServer = srv.close
   parent = mkdtempSync(join(tmpdir(), 'crm-e2e-meta-'))
-  ctx = await launchApp([], undefined, {
-    CRM_TEST_GRAPH_URL: base,
-    CRM_TEST_ECB_URL: `${base}/ecb`,
-    CRM_TEST_META_POLL_MS: '10',
-  })
+  ctx = await launchApp([], undefined, srv.env)
   page = ctx.page
   errors = collectConsoleErrors(page)
   await createVaultAndEnter(ctx, parent)
@@ -62,7 +38,7 @@ test.beforeAll(async () => {
 
 test.afterAll(async () => {
   await ctx.close()
-  server.close()
+  closeServer()
   rmSync(parent, { recursive: true, force: true })
 })
 

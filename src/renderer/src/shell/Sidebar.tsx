@@ -2,6 +2,7 @@ import { SECTION_GROUPS, SETTINGS_SECTION, TRASH_SECTION, type Section } from '.
 import { useQuery } from '@tanstack/react-query'
 import { call } from '../lib/ipc'
 import { BrandEye } from '../ui/BrandEye'
+import { useUnseenAlerts } from '../analysis/AnalysisPage'
 
 function NavItem({
   section,
@@ -60,6 +61,8 @@ export function Sidebar({
     queryFn: () => call('tasks:summary'),
     refetchInterval: 5 * 60_000,
   })
+  const unseen = useUnseenAlerts()
+  const alertBadge = { count: unseen, urgent: true, label: `${unseen} avisos de alertas sin ver` }
   const t = tasks.data
   const taskBadge = t
     ? {
@@ -98,7 +101,7 @@ export function Sidebar({
                 section={s}
                 current={current}
                 onSelect={onSelect}
-                badge={s.id === 'tareas' ? taskBadge : undefined}
+                badge={s.id === 'tareas' ? taskBadge : s.id === 'analisis' ? alertBadge : undefined}
               />
             ))}
           </div>
