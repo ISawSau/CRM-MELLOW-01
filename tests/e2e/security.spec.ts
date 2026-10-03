@@ -49,9 +49,24 @@ test('el renderer no tiene acceso a Node ni a Electron', async () => {
     require: 'undefined',
     process: 'undefined',
     module: 'undefined',
-    apiKeys: ['invoke', 'on'],
+    apiKeys: ['invoke', 'on', 'openDroppedVideo'],
     apiFrozen: true,
   })
+  // El canal de los vídeos soltados no se puede llamar con una ruta escrita a mano.
+  const direct = await ctx.page.evaluate(() =>
+    window.api.invoke('tools:openDropped' as never, '/etc/passwd' as never).then(
+      () => 'aceptado',
+      (e: Error) => e.message,
+    ),
+  )
+  expect(direct).toContain('Canal IPC no permitido')
+  const fake = await ctx.page.evaluate(() =>
+    window.api.openDroppedVideo(new File(['x'], 'a.mp4')).then(
+      () => 'aceptado',
+      (e: Error) => e.message,
+    ),
+  )
+  expect(fake).toContain('no está en el disco')
 })
 
 test('la CSP llega como cabecera y bloquea código inline y eval', async () => {

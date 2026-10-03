@@ -186,3 +186,162 @@
   height: 6px;
   accent-color: var(--accent);
 }
+
+/* --- Informes --------------------------------------------------------------- */
+
+.report-generate {
+  display: grid;
+  grid-template-columns: minmax(260px, 340px) 1fr;
+  gap: var(--space-6);
+  align-items: start;
+  padding-top: var(--space-4);
+}
+
+@media (max-width: 1100px) {
+  .report-generate {
+    grid-template-columns: 1fr;
+  }
+}
+
+.report-dates {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.report-result {
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.report-empty {
+  padding: var(--space-6) var(--space-4);
+  border: 1px dashed var(--line);
+}
+
+.report-saved {
+  display: flex;
+  gap: var(--space-2);
+  align-items: baseline;
+  margin: 0;
+}
+
+.report-saved .marker {
+  background: var(--success);
+}
+
+.pdf-preview {
+  display: grid;
+  gap: var(--space-4);
+  justify-items: start;
+  max-height: 75vh;
+  overflow: auto;
+  padding: var(--space-4);
+  background: var(--bg-hover);
+}
+
+.pdf-preview img {
+  display: block;
+  width: min(100%, 560px);
+  height: auto;
+  box-shadow: 0 2px 10px var(--shadow);
+}
+
+.template-editor {
+  display: grid;
+  gap: var(--space-4);
+  max-width: 900px;
+  padding-top: var(--space-4);
+}
+
+.template-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3) var(--space-4);
+  align-items: end;
+}
+
+.template-bar .field {
+  min-width: 220px;
+}
+
+.block-list {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.block-item {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--line);
+  background: var(--bg-raised);
+}
+
+.block-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.block-kind {
+  font-family: var(--font-display);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: var(--text-sm);
+}
+
+.block-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: var(--space-3) var(--space-4);
+  align-items: end;
+}
+
+.block-options .metric-list,
+.block-options .block-text {
+  grid-column: 1 / -1;
+}
+
+.metric-list {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.metric-add {
+  display: flex;
+  gap: var(--space-2);
+  align-items: end;
+}
+
+.metric-add .field {
+  min-width: 220px;
+}
+
+.template-save {
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--line);
+}
+
+.metric-list .chips {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 0;
+}
+
+.metric-list .chip {
+  line-height: 22px;
+  padding-right: 0;
+}
+
+.metric-list .chip .icon-btn {
+  width: 22px;
+  height: 22px;
+  min-height: 0;
+  padding: 0;
+}

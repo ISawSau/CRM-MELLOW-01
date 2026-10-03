@@ -1,5 +1,11 @@
 import { z } from 'zod'
 import { saveResultSchema, videoJobSchema, type SavedResult, type ToolsProgress } from './tools'
+import {
+  reportGenerateSchema,
+  reportTemplatesSchema,
+  type ReportResult,
+  type ReportTemplate,
+} from './reports'
 import { appearanceSchema, type Appearance } from './appearance'
 import { FIELD_TYPES, idSchema, type FieldDef, type FileRef } from './data/fields'
 import { profileSchema, type Profile } from './profile'
@@ -326,6 +332,9 @@ export const ipcSchemas = {
   'analysis:markSeen': z.void(),
   'billing:summary': billingQuerySchema,
   'tools:status': z.void(),
+  'reports:templates': z.void(),
+  'reports:setTemplates': z.object({ templates: reportTemplatesSchema }),
+  'reports:generate': reportGenerateSchema,
   'tools:save': saveResultSchema,
   'tools:convertVideo': videoJobSchema,
   'tools:cancel': z.object({ token: z.string().regex(/^[a-f0-9]{16}$/) }),
@@ -435,6 +444,9 @@ export interface IpcOutputs {
   'analysis:markSeen': void
   'billing:summary': BillingSummary
   'tools:status': { ffmpeg: boolean }
+  'reports:templates': ReportTemplate[]
+  'reports:setTemplates': ReportTemplate[]
+  'reports:generate': ReportResult
   'tools:save': SavedResult | null
   'tools:convertVideo': SavedResult | null
   'tools:cancel': void

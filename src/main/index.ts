@@ -24,6 +24,9 @@ import { MetaService } from './meta/meta-service'
 import { AnalysisService } from './analysis/analysis-service'
 import { ffmpegPath, saveFileAs } from './tools/dialogs'
 import { ToolsService } from './tools/tools-service'
+import { reportFonts } from './reports/fonts'
+import { htmlToPdf } from './reports/print'
+import { ReportService } from './reports/report-service'
 import { isVaultFolder } from './vault/vault-file'
 import { VaultService } from './vault/vault-service'
 import { createMainWindow } from './window'
@@ -89,6 +92,15 @@ if (process.argv.includes('--autoprueba')) {
     ffmpeg: ffmpegPath,
     savePath: (name) => saveFileAs(mainWindow, name),
     onProgress: (p) => mainWindow?.webContents.send('tools:progress', p),
+  })
+  const reports = new ReportService(vault, {
+    print: htmlToPdf,
+    savePath: (name) => saveFileAs(mainWindow, name),
+    fonts: () => reportFonts(join(__dirname, '..')),
+    displayCurrency: () => meta.settings().displayCurrency,
+    tableSettings: () => meta.tableSettings(),
+    actionTypes: () => meta.actionTypes(),
+    addDocument: (name, file, tipo, clientId) => tools.addDocument(name, file, tipo, clientId),
   })
   /** Bloqueo con subida previa de lo pendiente (manual o por inactividad). */
   const lockWithSync = async () => {
@@ -161,6 +173,7 @@ if (process.argv.includes('--autoprueba')) {
         meta,
         analysis,
         tools,
+        reports,
         lockWithSync,
         getWindow: () => mainWindow,
       }),

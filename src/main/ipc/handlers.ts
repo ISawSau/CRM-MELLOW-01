@@ -9,6 +9,7 @@ import type { SyncService } from '../sync/sync-service'
 import type { MetaService } from '../meta/meta-service'
 import type { AnalysisService } from '../analysis/analysis-service'
 import type { ToolsService } from '../tools/tools-service'
+import type { ReportService } from '../reports/report-service'
 import { createAnalysisHandlers } from './analysis-handlers'
 import { createDataHandlers } from './data-handlers'
 import { createMetaHandlers } from './meta-handlers'
@@ -26,6 +27,7 @@ export interface HandlerDeps {
   meta: MetaService
   analysis: AnalysisService
   tools: ToolsService
+  reports: ReportService
   /** Sube lo pendiente y bloquea (bloqueo manual y automático). */
   lockWithSync: () => Promise<void>
   getWindow: () => BrowserWindow | null
@@ -42,6 +44,7 @@ export function createHandlers({
   meta,
   analysis,
   tools,
+  reports,
   lockWithSync,
   getWindow,
 }: HandlerDeps): IpcHandlers {
@@ -172,6 +175,6 @@ export function createHandlers({
     ...createSyncHandlers(sync, getWindow),
     ...createMetaHandlers(meta),
     ...createAnalysisHandlers(analysis),
-    ...createToolsHandlers(tools),
+    ...createToolsHandlers(tools, reports),
   }
 }
