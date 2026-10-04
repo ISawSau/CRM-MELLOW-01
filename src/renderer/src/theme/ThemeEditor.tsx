@@ -1,3 +1,4 @@
+import { pickFiles } from '../data/pick-files'
 import { useEffect, useRef, useState } from 'react'
 import type { Density } from '@shared/appearance'
 import { OPTION_COLORS, type OptionColor } from '@shared/data/fields'
@@ -531,7 +532,7 @@ function BackgroundEditor({
   const pick = async () => {
     setError(null)
     try {
-      const [file] = await call('files:pick')
+      const [file] = await pickFiles()
       if (!file) return
       const kind = file.mime.startsWith('video/')
         ? 'video'

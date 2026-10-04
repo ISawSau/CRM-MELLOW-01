@@ -24,7 +24,9 @@ function arg(name: string): string {
 }
 
 async function main(): Promise<void> {
-  useNativeSqlite(join(arg('native'), 'libbetter_sqlite3.so'))
+  // Sin --native (tests de interfaz en el PC) se usa el SQLite de node_modules.
+  if (process.argv.includes('--native'))
+    useNativeSqlite(join(arg('native'), 'libbetter_sqlite3.so'))
   if (process.argv.includes('--autoprueba'))
     await runMobileSelfTest(arg('cache'), (line) => console.log(`CRM Mellow autoprueba: ${line}`))
   const data = arg('data')
@@ -42,6 +44,8 @@ async function main(): Promise<void> {
     config,
     hostname: `Android (${hostname()})`,
     emit: (event, payload) => server?.emit(event, payload),
+    // Fotos y documentos sí; los vídeos grandes se quedan en la nube (se ven sus miniaturas).
+    maxAutoDownloadBytes: 25 * 1024 * 1024,
   })
   backend.openLastVault()
   server = await startMobileServer({

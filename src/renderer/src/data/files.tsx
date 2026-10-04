@@ -1,3 +1,4 @@
+import { pickFiles } from './pick-files'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState, type DragEvent } from 'react'
 import type { FieldDef, FileRef } from '@shared/data/fields'
@@ -297,7 +298,7 @@ export function FilesEditor({
           disabled={busy}
           onClick={() => {
             setBusy(true)
-            void call('files:pick')
+            void pickFiles()
               .then(add)
               .catch(fail)
               .finally(() => setBusy(false))

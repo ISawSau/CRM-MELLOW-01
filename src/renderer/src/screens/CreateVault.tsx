@@ -1,10 +1,11 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { MIN_PASSWORD_LENGTH } from '@shared/ipc'
 import { call } from '../lib/ipc'
 import { useAction } from '../lib/hooks'
 import { Alert } from '../ui/Alert'
 import { PasswordField } from '../ui/PasswordField'
 import { Gate } from './Gate'
+import { isMobile } from '../lib/platform'
 import { t } from '@shared/i18n'
 
 const DEFAULT_NAME = 'CRM-Boveda'
@@ -31,6 +32,12 @@ export function CreateVault({
     const p = await call('vault:pickFolder', { purpose: 'create' })
     if (p) setParent(p)
   })
+  // En el móvil la bóveda va siempre a la carpeta privada de la app (D-101).
+  const mobile = isMobile()
+  useEffect(() => {
+    if (mobile) void pick.run()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mobile])
   const create = useAction(async () => {
     const result = await call('vault:create', { parentPath: parent!, name: name.trim(), password })
     onCreated(result.recoveryKey)
@@ -57,38 +64,42 @@ export function CreateVault({
       </div>
 
       <form className="form" onSubmit={submit} noValidate>
-        <div className="field">
-          <label>{t('Dónde guardarla')}</label>
-          <div className="path-box">
-            <span data-testid="create-parent">{parent ?? t('Ninguna carpeta elegida')}</span>
-            <button
-              type="button"
-              className="btn"
-              onClick={() => void pick.run()}
-              disabled={pick.pending}
-              data-testid="create-pick"
-            >
-              {t('Elegir carpeta…')}
-            </button>
-          </div>
-          {tried && parent === null && <span className="hint">{t('Elige una carpeta.')}</span>}
-        </div>
+        {!mobile && (
+          <>
+            <div className="field">
+              <label>{t('Dónde guardarla')}</label>
+              <div className="path-box">
+                <span data-testid="create-parent">{parent ?? t('Ninguna carpeta elegida')}</span>
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={() => void pick.run()}
+                  disabled={pick.pending}
+                  data-testid="create-pick"
+                >
+                  {t('Elegir carpeta…')}
+                </button>
+              </div>
+              {tried && parent === null && <span className="hint">{t('Elige una carpeta.')}</span>}
+            </div>
 
-        <div className="field">
-          <label htmlFor="vault-name">{t('Nombre de la carpeta de la bóveda')}</label>
-          <input
-            id="vault-name"
-            className="input"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            spellCheck={false}
-          />
-          {parent && !nameEmpty && (
-            <span className="hint mono" data-testid="create-target">
-              {joinPath(parent, name.trim())}
-            </span>
-          )}
-        </div>
+            <div className="field">
+              <label htmlFor="vault-name">{t('Nombre de la carpeta de la bóveda')}</label>
+              <input
+                id="vault-name"
+                className="input"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                spellCheck={false}
+              />
+              {parent && !nameEmpty && (
+                <span className="hint mono" data-testid="create-target">
+                  {joinPath(parent, name.trim())}
+                </span>
+              )}
+            </div>
+          </>
+        )}
 
         <PasswordField
           label={t('Contraseña')}

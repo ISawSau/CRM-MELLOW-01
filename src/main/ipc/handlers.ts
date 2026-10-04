@@ -6,6 +6,7 @@ import { safeFileName } from '@shared/files'
 import { getLocale, setLocale, t } from '@shared/i18n'
 import type { AutoLock } from '../auto-lock'
 import type { Platform } from '../platform'
+import { cloneFromDrive } from '../sync/clone'
 import type { ConfigStore } from '../config'
 import type { VaultService } from '../vault/vault-service'
 import type { SyncService } from '../sync/sync-service'
@@ -123,6 +124,19 @@ export function createHandlers({
 
     'vault:open': ({ path }) => {
       requireAllowed(path)
+      const status = vault.open(path)
+      remember()
+      return status
+    },
+
+    'vault:cloneFromDrive': async ({ parentPath, clientId, clientSecret }) => {
+      requireAllowed(parentPath)
+      const path = await cloneFromDrive({
+        client: { clientId, clientSecret },
+        parentPath,
+        openBrowser: (url) => platform.openExternal(url),
+      })
+      allow(path)
       const status = vault.open(path)
       remember()
       return status

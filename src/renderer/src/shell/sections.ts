@@ -125,11 +125,24 @@ export const ALL_SECTIONS: Section[] = [
 ]
 
 /** Grupo de la barra lateral con las colecciones del usuario (fase 12). */
-export function withCollections(custom: { id: string; label: string; letter: string | null }[]): {
+/** Secciones que solo existen en escritorio: vídeo con FFmpeg y PDF con Chromium (D-101). */
+export const DESKTOP_ONLY_SECTIONS = new Set(['herramientas', 'informes'])
+
+function withoutDesktopOnly(groups: SectionGroup[]): SectionGroup[] {
+  return groups.map((g) => ({
+    ...g,
+    sections: g.sections.filter((s) => !DESKTOP_ONLY_SECTIONS.has(s.id)),
+  }))
+}
+
+export function withCollections(
+  custom: { id: string; label: string; letter: string | null }[],
+  mobile = false,
+): {
   groups: SectionGroup[]
   all: Section[]
 } {
-  const base = SECTION_GROUPS
+  const base = mobile ? withoutDesktopOnly(SECTION_GROUPS) : SECTION_GROUPS
   const groups = custom.length
     ? [
         ...base,

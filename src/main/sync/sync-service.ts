@@ -8,7 +8,7 @@ import { checkpoint, type SqliteDb } from '../db/connection'
 import { VAULT_FILES } from '../vault/vault-file'
 import type { VaultService } from '../vault/vault-service'
 import { connectGoogle, refreshAccess, type GoogleClient } from './google-auth'
-import { DriveRemote, FolderRemote, type FetchLike, type Remote } from './remote'
+import { DRIVE_ROOT_PREFIX, DriveRemote, FolderRemote, type FetchLike, type Remote } from './remote'
 import { t } from '@shared/i18n'
 
 /**
@@ -59,7 +59,7 @@ export const backupConfigSchema = z.object({
 })
 export type BackupConfig = z.infer<typeof backupConfigSchema>
 
-const manifestSchema = z.object({
+export const manifestSchema = z.object({
   format: z.literal('crm-mellow-sync'),
   version: z.literal(1),
   vaultId: z.string(),
@@ -118,6 +118,11 @@ export function backupsToPrune(names: string[], cfg: BackupConfig): string[] {
 
 export interface SyncServiceOptions {
   hostname: string
+  /**
+   * Archivos que se bajan solos de la nube: los de este tamaño o menos (en el móvil, para
+   * no llenarlo de vídeos, D-101). Las miniaturas se bajan siempre. Sin límite si no se da.
+   */
+  maxAutoDownloadBytes?: number
   openBrowser: (url: string) => void
   onChange?: (s: SyncStatus) => void
   http?: FetchLike
@@ -259,7 +264,7 @@ export class SyncService {
       kind: 'drive',
       ...client,
       refreshToken: tokens.refreshToken,
-      rootName: `CRM Mellow · ${id}`,
+      rootName: `${DRIVE_ROOT_PREFIX}${id}`,
     })
     this.resetState()
     return this.emit()
@@ -486,13 +491,16 @@ export class SyncService {
   /** Archivos que usa la base de datos y aún no están en este equipo. */
   private async downloadMissing(remote: Remote): Promise<void> {
     const vaultPath = this.vault.currentPath!
-    const rows = this.db().prepare('SELECT id, has_thumb FROM files').all() as {
+    const rows = this.db().prepare('SELECT id, size, has_thumb FROM files').all() as {
       id: string
+      size: number
       has_thumb: number
     }[]
+    const limit = this.opts.maxAutoDownloadBytes ?? Infinity
     for (const r of rows) {
       for (const kind of ['files', 'thumbs'] as const) {
         if (kind === 'thumbs' && !r.has_thumb) continue
+        if (kind === 'files' && r.size > limit) continue
         const dest = join(vaultPath, kind, r.id.slice(0, 2), `${r.id}.bin`)
         if (!existsSync(dest)) await remote.get(`${kind}/${r.id}.bin`, dest)
       }

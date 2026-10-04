@@ -35,6 +35,8 @@ export interface BackendOptions {
   decodeHeic?: (data: Uint8Array) => Promise<DecodedImage | null>
   print?: (html: string) => Promise<Buffer>
   fonts?: () => ReportFonts
+  /** Móvil: hasta qué tamaño se bajan solos los archivos de la nube (D-101). */
+  maxAutoDownloadBytes?: number
 }
 
 export interface Backend {
@@ -66,6 +68,7 @@ export function createBackend(o: BackendOptions): Backend {
   })
   const sync = new SyncService(vault, {
     hostname: o.hostname,
+    ...(o.maxAutoDownloadBytes ? { maxAutoDownloadBytes: o.maxAutoDownloadBytes } : {}),
     openBrowser: (url) => platform.openExternal(url),
     onChange: (status) => emit('sync:changed', status),
   })

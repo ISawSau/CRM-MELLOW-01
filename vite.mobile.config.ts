@@ -17,17 +17,22 @@ const backendAlias = {
  *                   compila aparte para Android (scripts/compilar-sqlite-android.sh).
  */
 export default defineConfig(({ mode }) =>
-  mode === 'backend'
+  mode === 'backend' || mode === 'backend-test'
     ? {
-        resolve: { alias: backendAlias },
+        // backend-test: el mismo motor para Node del PC (tests de la interfaz móvil en
+        // Chromium), con el better-sqlite3 de node_modules.
+        resolve: { alias: mode === 'backend' ? backendAlias : alias },
         build: {
           ssr: resolve(__dirname, 'src/mobile/main.ts'),
           target: 'node18',
-          outDir: 'out/mobile/backend',
+          outDir: mode === 'backend' ? 'out/mobile/backend' : 'out/mobile-test/backend',
           emptyOutDir: true,
           minify: false,
           sourcemap: false,
-          rollupOptions: { output: { format: 'cjs', entryFileNames: 'main.js' } },
+          rollupOptions: {
+            external: mode === 'backend' ? [] : ['better-sqlite3'],
+            output: { format: 'cjs', entryFileNames: 'main.js' },
+          },
         },
         // Todo dentro del bundle: en el móvil no hay node_modules.
         ssr: { noExternal: true, target: 'node' },

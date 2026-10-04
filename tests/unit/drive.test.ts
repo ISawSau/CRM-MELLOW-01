@@ -4,7 +4,10 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { connectGoogle, refreshAccess } from '../../src/main/sync/google-auth'
 import { DriveRemote, type FetchLike } from '../../src/main/sync/remote'
-import { tempDir } from './helpers'
+import { cloneFromDrive } from '../../src/main/sync/clone'
+import { SyncService } from '../../src/main/sync/sync-service'
+import { VaultService } from '../../src/main/vault/vault-service'
+import { TEST_KDF, tempDir } from './helpers'
 
 /** Google Drive v3 simulado en memoria con las llamadas que usa la app. */
 function fakeDrive() {
@@ -219,5 +222,70 @@ describe('conexión con Google (OAuth para escritorio)', () => {
     await expect(refreshAccess({ clientId: 'c', clientSecret: '' }, 'r', http)).rejects.toThrow(
       /vuelve a conectar/,
     )
+  })
+})
+
+describe('traer la bóveda desde Google Drive (D-101)', () => {
+  /** Drive simulado más el canje de tokens; el «navegador» vuelve solo a la dirección local. */
+  const google = () => {
+    const drive = fakeDrive()
+    const http: FetchLike = async (input, init) =>
+      String(input) === 'https://oauth2.googleapis.com/token'
+        ? new Response(
+            JSON.stringify({ access_token: 'tok', refresh_token: 'renovar', expires_in: 3600 }),
+          )
+        : drive.http(input, init)
+    const openBrowser = (u: string) => {
+      const url = new URL(u)
+      const redirect = url.searchParams.get('redirect_uri')!
+      void fetch(`${redirect}/?code=c&state=${url.searchParams.get('state')!}`)
+    }
+    return { drive, http, openBrowser }
+  }
+  const client = { clientId: 'cliente.apps.googleusercontent.com', clientSecret: 'secreto' }
+
+  it('baja crm.db y vault.json de la bóveda subida y se abre con la misma contraseña', async () => {
+    const g = google()
+    const pc = new VaultService({ kdf: TEST_KDF, hostname: 'portatil' })
+    const { status } = await pc.create(tempDir(), 'boveda', 'contraseña larga')
+    const client1 = pc.data.create('cliente', {}, { title: 'Desde el PC' })
+    const sync = new SyncService(pc, {
+      hostname: 'portatil',
+      openBrowser: g.openBrowser,
+      http: g.http,
+    })
+    await sync.configureDrive(client)
+    await sync.sync()
+    expect(sync.status().phase).toBe('idle')
+    pc.dispose()
+
+    const path = await cloneFromDrive({
+      client,
+      parentPath: tempDir(),
+      openBrowser: g.openBrowser,
+      http: g.http,
+    })
+    expect(readFileSync(join(path, 'vault.json'), 'utf8')).toBe(
+      readFileSync(join(status.path!, 'vault.json'), 'utf8'),
+    )
+    const phone = new VaultService({ kdf: TEST_KDF, hostname: 'movil' })
+    phone.open(path)
+    await phone.unlock('contraseña larga')
+    expect(phone.data.get(client1.id)?.title).toBe('Desde el PC')
+    // La sincronización sigue configurada y al día: no hay nada que subir ni bajar.
+    const phoneSync = new SyncService(phone, {
+      hostname: 'movil',
+      openBrowser: () => {},
+      http: g.http,
+    })
+    expect(phoneSync.status()).toMatchObject({ kind: 'drive', pending: false })
+    phone.dispose()
+  })
+
+  it('explica que no hay bóveda si Drive está vacío', async () => {
+    const g = google()
+    await expect(
+      cloneFromDrive({ client, parentPath: tempDir(), openBrowser: g.openBrowser, http: g.http }),
+    ).rejects.toThrow(/No hay ninguna bóveda/)
   })
 })

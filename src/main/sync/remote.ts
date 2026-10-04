@@ -108,6 +108,8 @@ export class FolderRemote implements Remote {
 const API = 'https://www.googleapis.com/drive/v3'
 const UPLOAD = 'https://www.googleapis.com/upload/drive/v3'
 const FOLDER = 'application/vnd.google-apps.folder'
+/** Nombre de la carpeta de cada bóveda en Drive: el prefijo y el principio de su id. */
+export const DRIVE_ROOT_PREFIX = 'CRM Mellow · '
 /** Por encima de esto se usa la subida reanudable (documentación de Drive: 5 MB). */
 const SIMPLE_LIMIT = 5 * 1024 * 1024
 /** Trozos de la subida reanudable: múltiplo de 256 KB. */
@@ -131,6 +133,34 @@ export class DriveRemote implements Remote {
 
   get label(): string {
     return `Google Drive · ${this.rootName}`
+  }
+
+  /**
+   * Carpetas de bóvedas de CRM Mellow en la raíz de Drive («CRM Mellow · <id>»). Con
+   * `drive.file` solo aparecen las que creó la propia app (desde cualquier equipo).
+   */
+  static async vaultFolders(
+    token: () => Promise<string>,
+    http: FetchLike = fetch,
+  ): Promise<string[]> {
+    const q = [
+      `name contains '${DRIVE_ROOT_PREFIX}'`,
+      'trashed = false',
+      `'root' in parents`,
+      `mimeType = '${FOLDER}'`,
+    ].join(' and ')
+    const res = await http(
+      `${API}/files?${new URLSearchParams({ q, fields: 'files(name)', pageSize: '50', spaces: 'drive' })}`,
+      { headers: { Authorization: `Bearer ${await token()}` } },
+    )
+    if (!res.ok)
+      throw new Error(
+        t('Google Drive respondió {status}: {text}', { status: res.status, text: '' }),
+      )
+    const json = (await res.json()) as { files?: { name: string }[] }
+    return [...new Set((json.files ?? []).map((f) => f.name))].filter((n) =>
+      n.startsWith(DRIVE_ROOT_PREFIX),
+    )
   }
 
   private async call(url: string, init: RequestInit = {}): Promise<Response> {

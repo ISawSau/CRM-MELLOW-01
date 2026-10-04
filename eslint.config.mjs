@@ -4,11 +4,22 @@ import reactHooks from 'eslint-plugin-react-hooks'
 import tseslint from 'typescript-eslint'
 
 export default tseslint.config(
-  { ignores: ['out/**', 'release/**', 'node_modules/**', 'drizzle/**', 'test-results/**'] },
+  {
+    ignores: [
+      'out/**',
+      'release/**',
+      'node_modules/**',
+      'drizzle/**',
+      'test-results/**',
+      // App de Android: builds y la copia del motor que va dentro del APK (D-101).
+      'android/**',
+      'mobile/**',
+    ],
+  },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
-    files: ['scripts/**/*.mjs'],
+    files: ['scripts/**/*.mjs', 'tests/e2e-mobile/*.mjs'],
     languageOptions: { globals: globals.node },
   },
   {

@@ -219,6 +219,8 @@ export function startMobileServer(o: MobileServerOptions): Promise<MobileServer>
       if (path === '/native/events') return openStream(res, nativeClients)
       if (path.startsWith('/vault/')) return serveVault(req, res, path)
       if (path.startsWith('/api/') || path.startsWith('/native/')) return notFound(res)
+      // La WebView pide el icono por su cuenta; la app no tiene (el icono es el del sistema).
+      if (path === '/favicon.ico') return send(res, 204, '', 'image/x-icon')
       return serveStatic(path, res)
     }
     if (req.method !== 'POST') return send(res, 405, '', 'text/plain')
