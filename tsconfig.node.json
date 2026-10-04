@@ -6,6 +6,7 @@
   },
   "include": [
     "src/main/**/*",
+    "src/mobile/**/*",
     "src/preload/**/*",
     "src/shared/**/*",
     "tests/unit/**/*",

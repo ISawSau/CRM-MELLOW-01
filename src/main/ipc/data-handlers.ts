@@ -4,7 +4,7 @@ import { t } from '@shared/i18n'
 import { uiField, uiView } from '../data/data-service'
 import type { Platform } from '../platform'
 import type { VaultService } from '../vault/vault-service'
-import type { IpcHandlers } from './register'
+import type { IpcHandlers } from './run'
 
 type DataChannel = Extract<
   keyof IpcHandlers,

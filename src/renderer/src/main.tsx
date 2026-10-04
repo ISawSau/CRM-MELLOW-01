@@ -16,6 +16,10 @@ import { createRoot } from 'react-dom/client'
 import { getLocale, setLocale } from '@shared/i18n'
 import { App } from './App'
 import { call } from './lib/ipc'
+import { installMobileBridge } from './lib/mobile-bridge'
+
+// En Android no hay preload: la interfaz habla con el motor por el servidor local (D-101).
+if (!('api' in window)) installMobileBridge()
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: false, refetchOnWindowFocus: false } },

@@ -1,5 +1,5 @@
 import type { MetaService } from '../meta/meta-service'
-import type { IpcHandlers } from './register'
+import type { IpcHandlers } from './run'
 
 type MetaChannel = Extract<keyof IpcHandlers, `meta:${string}`>
 export type MetaHandlers = Pick<IpcHandlers, MetaChannel>

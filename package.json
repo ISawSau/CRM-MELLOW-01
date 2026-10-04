@@ -72,7 +72,8 @@
     "test:e2e": "npm run build && playwright test",
     "db:generate": "drizzle-kit generate",
     "dist:win": "npm run build && electron-builder --win --publish never",
-    "dist:linux": "npm run build && electron-builder --linux --publish never"
+    "dist:linux": "npm run build && electron-builder --linux --publish never",
+    "build:mobile": "vite build -c vite.mobile.config.ts --mode ui && vite build -c vite.mobile.config.ts --mode backend"
   },
   "desktopName": "crm-mellow.desktop"
 }

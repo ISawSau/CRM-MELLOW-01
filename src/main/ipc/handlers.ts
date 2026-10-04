@@ -20,7 +20,7 @@ import { createDataHandlers } from './data-handlers'
 import { createMetaHandlers } from './meta-handlers'
 import { createSyncHandlers } from './sync-handlers'
 import { createToolsHandlers } from './tools-handlers'
-import type { IpcHandlers } from './register'
+import type { IpcHandlers } from './run'
 
 export interface HandlerDeps {
   vault: VaultService

@@ -1,5 +1,5 @@
 import type { AnalysisService } from '../analysis/analysis-service'
-import type { IpcHandlers } from './register'
+import type { IpcHandlers } from './run'
 
 type AnalysisChannel = Extract<keyof IpcHandlers, `analysis:${string}` | `billing:${string}`>
 export type AnalysisHandlers = Pick<IpcHandlers, AnalysisChannel>

@@ -3,7 +3,7 @@ import { hostname } from 'node:os'
 import { join } from 'node:path'
 import { ConfigStore } from './config'
 import { getLocale, intlLocale, setLocale } from '@shared/i18n'
-import { registerDropHandler } from './ipc/tools-handlers'
+import { registerDropHandler } from './ipc/drop-handler'
 import { registerIpc } from './ipc/register'
 import { runSelfTest } from './self-test'
 import {

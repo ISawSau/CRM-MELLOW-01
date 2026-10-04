@@ -1,6 +1,6 @@
 import type { GmailService } from '../gmail/gmail-service'
 import type { VaultService } from '../vault/vault-service'
-import type { IpcHandlers } from './register'
+import type { IpcHandlers } from './run'
 
 type GmailChannel = Extract<keyof IpcHandlers, `gmail:${string}` | `mail:${string}`>
 export type GmailHandlers = Pick<IpcHandlers, GmailChannel>

@@ -1,6 +1,6 @@
 import type { Platform } from '../platform'
 import type { SyncService } from '../sync/sync-service'
-import type { IpcHandlers } from './register'
+import type { IpcHandlers } from './run'
 import { t } from '@shared/i18n'
 
 type SyncChannel = Extract<keyof IpcHandlers, `sync:${string}` | `backups:${string}`>
