@@ -1,6 +1,6 @@
 # Especificación del CRM personal
 
-Versión 0.4.1 · 4 de octubre de 2026
+Versión 0.5 · 4 de octubre de 2026
 
 Este documento recoge todas las decisiones de diseño tomadas antes de escribir código. Es la referencia para construir el proyecto fase a fase. Lo que aparece marcado como **verificar** depende de APIs o normativa externa que cambian con el tiempo y debe comprobarse en la documentación oficial antes de implementarlo.
 
@@ -368,9 +368,19 @@ El negocio actual es ecommerce y no usa formularios de leads. Si en el futuro se
 
 - Comparativas: periodo frente a periodo anterior, frente al mismo periodo del año anterior, cliente frente a cliente, campaña frente a campaña, creatividad frente a creatividad, etiqueta frente a etiqueta.
 - Dashboards de widgets configurables (KPI, línea, barras, tabla, ranking), global y por cliente.
-- Alertas configurables por cliente o cuenta: métrica, condición, umbral y ventana (p. ej. "CPA superior a 30 € en los últimos 3 días"). Solo avisan dentro de la app.
+- Alertas configurables por cliente o cuenta: métrica, condición, umbral y ventana (p. ej. "CPA superior a 30 € en los últimos 3 días"). Avisan dentro de la app y, desde la fase 14, también con un aviso del sistema que solo dice cuántos avisos hay (D-107).
 
 - *Implementación (fase 8):* sección Análisis con tres pestañas. **Dashboards** de widgets (cifra, líneas, barras, tabla y ranking), global y por cliente, editables. **Comparar** periodo frente al anterior o al mismo del año anterior, y cliente, cuenta, campaña, creatividad o etiqueta frente a otra, con tabla de diferencias y gráfica. **Alertas** por métrica, condición, umbral y ventana, con avisos en Análisis, la barra lateral e Inicio (D-066 a D-070).
+
+### 7.15 Objetivos, ritmo de gasto, fatiga, tests y rentabilidad (fase 14)
+
+- **Objetivos por cliente** (D-104): CPA objetivo (medido en compras o en resultados de la campaña), ROAS objetivo, ROAS de equilibrio y presupuesto publicitario mensual, en la ficha del cliente. En Campañas, la opción «Colores según el objetivo» colorea cada campaña, conjunto o anuncio: verde si cumple el objetivo de su cliente y de amarillo a rojo cuanto más se pasa (rojo del todo a 1,5 veces el objetivo). Sin compras, cuenta como fuera de objetivo si ya ha gastado un CPA objetivo entero.
+- **Lista de arranque** (D-104): cada cliente nuevo empieza con una lista de lo que hay que dejar listo (accesos, píxel, API de conversiones, dominio, eventos, catálogo, pago, objetivos). Los que ya existían pueden usar la plantilla con un botón.
+- **Ritmo de gasto del mes** (D-105): tarjeta de Inicio con lo gastado por cada cliente con presupuesto, la proyección a fin de mes y si va bien, se queda corto o se pasa (±10 %).
+- **Fatiga creativa** (D-106): tras cada sincronización se comparan los últimos 3 días de cada anuncio activo con la semana anterior; si el CTR del enlace cae un 25 % o más y además sube la frecuencia (20 %) o el coste por conversión (25 %), salta un aviso (uno por anuncio y semana). Se puede apagar.
+- **Avisos del sistema** (D-107): en escritorio y Android, con la app abierta y la bóveda desbloqueada, avisos nuevos de Campañas y una vez al día las tareas para hoy o atrasadas. Solo recuentos, nunca nombres: el sistema guarda los avisos fuera de la bóveda. Se pueden apagar.
+- **Tests A/B** (D-108): colección propia con hipótesis, qué se prueba, métrica que decide, fechas, anuncios de cada variante, ganador y conclusión. La ficha calcula las cifras de cada variante con los datos de Meta y dice quién gana solo si la diferencia es clara (95 %).
+- **Rentabilidad y resumen semanal** (D-109): beneficio por hora en Facturación; en la ficha del cliente, un resumen de la última semana en texto para copiar y pegar.
 
 ### 7.14 Ajustes
 
@@ -414,6 +424,7 @@ Cada fase termina con algo que funciona, tests y build verificado en Windows y L
 | 11. X y LinkedIn | Conectores por API si son gratuitos; si no, importación de CSV con mapeo guardado. Retirado en la 0.13.3 (D-091). |
 | 12. Personalización avanzada | Colecciones personalizadas, plantillas de brief definitivas, widgets de inicio configurables, editor de temas (crear y modificar temas desde la app). |
 | 13. Móvil | App de Android con el mismo motor e interfaz adaptada a pantalla táctil; la bóveda se trae y sincroniza con Google Drive (D-101). |
+| 14. Rendimiento y negocio | Objetivos por cliente con colores de verde a rojo en Campañas, lista de arranque, ritmo de gasto del mes, fatiga creativa, avisos del sistema, registro de tests A/B, beneficio por hora y resumen semanal (D-104 a D-109). |
 
 Hasta la fase 5, el traslado entre ordenadores se hace copiando la carpeta de la bóveda manualmente.
 

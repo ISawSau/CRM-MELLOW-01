@@ -804,3 +804,35 @@ El usuario no quiere escribir comandos de desarrollo para usar la app. Los insta
 - **Qué:** el nombre de cada anuncio (en la tabla de Campañas al nivel de anuncio y en los anuncios vinculados de una creatividad) es un enlace a su vista previa pública de Meta, que se abre en el navegador del sistema. Ahí se ve el anuncio como lo ve la gente: imagen o vídeo, texto y botón.
 - **Cómo:** se pide a Meta el campo `preview_shareable_link` del anuncio (objeto Ad, Marketing API v25, de solo lectura; comprobado en la referencia oficial) junto con el resto de la estructura. Se guarda en el JSON del anuncio que ya existía, así que no hay migración. Solo se enlaza si es `https`.
 - **Datos existentes:** los anuncios ya guardados reciben el enlace en la siguiente sincronización con Meta; hasta entonces el nombre se ve sin enlace.
+
+### D-104 · Objetivos por cliente y colores de verde a rojo en Campañas (fase 14)
+
+- **Qué:** campos nuevos en la ficha del cliente (siembra incremental, versión 6): CPA objetivo, en qué se mide (compras o resultados), ROAS objetivo, ROAS de equilibrio y presupuesto publicitario mensual. En Campañas, la casilla «Colores según el objetivo» (se guarda en los ajustes de la tabla) colorea cada fila con los colores del tema: verde si cumple el objetivo (más intenso cuanto mejor) y de amarillo a rojo según lo que se pasa, rojo del todo a 1,5 veces el objetivo. Una leyenda explica los colores.
+- **Por qué:** lo pidió el usuario («que se vea qué anuncios tienen el target CPA de la compañía»). Se mira el CPA y, si el cliente no tiene, el ROAS.
+- **Cómo:** el motor añade a la tabla el objetivo del cliente de la cuenta, ya en la moneda de la tabla (con el tipo del BCE del último día si el campo está en otra moneda); si faltan tipos de cambio no se colorea. La cuenta de cada fila es una función compartida (`targetRatio`): sin compras, la fila está fuera de objetivo si ya ha gastado un CPA entero; si no, aún no se juzga.
+- **Lista de arranque:** el campo de tipo lista admite una plantilla; un cliente nuevo empieza con la lista de arranque (accesos, píxel, API de conversiones, dominio, eventos, catálogo, páginas, pago y objetivos) y los que ya existían tienen el botón «Usar la plantilla». No se incluye la «medición de eventos agregados», que Meta retiró en 2025.
+
+### D-105 · Ritmo de gasto del mes
+
+- **Qué:** tarjeta de Inicio «Ritmo de gasto del mes»: para cada cliente con presupuesto mensual, lo gastado desde el día 1 en sus cuentas de Meta (en la moneda del presupuesto), una barra con la marca de lo que tocaría llevar hoy y la proyección a fin de mes (lo gastado ÷ días transcurridos × días del mes). Bien si la proyección está a ±10 % del presupuesto; si no, «se queda corto» o «se pasa».
+- **Tarjetas nuevas en un Inicio ya personalizado:** se guarda qué tarjetas conocía el usuario al personalizar; las que lleguen después se añaden al final hasta que vuelva a personalizar (si la quita, no vuelve).
+
+### D-106 · Detector de fatiga creativa
+
+- **Qué:** tras cada sincronización con Meta, para cada anuncio activo, los últimos 3 días completos frente a los 7 anteriores. Hay fatiga si el CTR del enlace cae un 25 % o más y, además, la frecuencia media diaria sube un 20 % o el coste por conversión un 25 % (por compra si hay compras en los dos periodos; si no, por resultado). Hacen falta al menos 1.000 impresiones recientes y 3.000 anteriores.
+- **Avisos:** se guardan como avisos de alertas (misma lista, Inicio y barra lateral), con el detalle en el nombre («Posible fatiga: anuncio (CTR −40 %, frecuencia +33 %)»). Como mucho uno por anuncio cada 7 días. Activado de serie; se apaga en Análisis → Alertas.
+
+### D-107 · Avisos del sistema
+
+- **Qué:** avisos de Windows, Linux (Electron `Notification`) y Android (`NotificationManager`, permiso `POST_NOTIFICATIONS` que se pide la primera vez): avisos nuevos de Campañas tras sincronizar, y una vez al día las tareas para hoy o atrasadas. Solo con la app abierta y la bóveda desbloqueada (también minimizada o en segundo plano). Se apagan por separado en Análisis → Alertas.
+- **Privacidad:** el sistema guarda un historial de avisos fuera de la bóveda, así que el texto solo dice cuántos hay («Tienes 2 avisos nuevos en Campañas»), nunca nombres de clientes, anuncios ni tareas. El día en que ya se avisó de las tareas se recuerda solo en memoria (no se escribe nada fuera de la bóveda).
+
+### D-108 · Registro de tests A/B
+
+- **Qué:** colección nueva «Tests A/B» (sección en media buying y relación con el cliente): hipótesis, qué se prueba, métrica que decide (CPA, coste por resultado, ROAS, CTR del enlace, hook rate o CPM), estado, fechas, anuncios de cada variante, ganador y conclusión. Los anuncios se eligen buscándolos en la ficha y se guardan como ids en dos campos ocultos (sin tablas nuevas ni migración).
+- **Resultado:** la ficha suma con los datos de Meta lo de cada variante entre el inicio y el fin (o hoy), en la moneda de visualización, y compara la métrica elegida. Solo hay ganador si la diferencia es clara al 95 %: contraste de dos proporciones para CTR y hook rate, y de tasas de Poisson (compras, resultados o impresiones por euro) para CPA, coste por resultado, ROAS y CPM. El ganador se apunta con un botón; no se decide solo.
+
+### D-109 · Beneficio por hora y resumen semanal
+
+- **Beneficio por hora:** columna nueva en Facturación: (cobrado − gastos) ÷ horas registradas del periodo, en rojo si es negativo. Junto a «Facturado por hora» (D-099) da la rentabilidad real de cada cliente.
+- **Resumen semanal:** en la ficha del cliente, el resumen de los últimos 7 días completos en texto plano (inversión, compras, CPA y ROAS con su cambio frente a la semana anterior y el objetivo, CTR, las campañas con más inversión y el ritmo del mes) para copiar y pegar en un correo o en WhatsApp. Se genera en el momento y no se guarda.
