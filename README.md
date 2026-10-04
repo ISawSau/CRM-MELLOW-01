@@ -57,10 +57,12 @@ La app de Android usa la misma interfaz y el mismo motor que el escritorio (D-10
 1. Crear la clave (pide una contraseña y unos datos; basta con tu nombre):
    - **Arch:** `sudo pacman -S --needed jre-openjdk-headless` y después
      `keytool -genkeypair -keystore crm-mellow.jks -alias crm-mellow -keyalg RSA -keysize 4096 -validity 36500`
-   - **Windows:** `winget install EclipseAdoptium.Temurin.21.JDK`, abrir una ventana nueva y el mismo comando `keytool …`.
+   - **Windows:** `winget install EclipseAdoptium.Temurin.21.JDK`, abrir una ventana nueva de **PowerShell** (no el «Símbolo del sistema») y pegar entero:
+     `keytool -genkeypair -keystore "$HOME\crm-mellow.jks" -alias crm-mellow -keyalg RSA -keysize 4096 -validity 36500`
+     (la contraseña no se ve al escribirla; a «¿Es correcto?» se responde `sí`).
 2. Pasarla a texto:
    - **Arch:** `base64 -w0 crm-mellow.jks > crm-mellow.txt`
-   - **Windows (PowerShell):** `[Convert]::ToBase64String([IO.File]::ReadAllBytes("crm-mellow.jks")) | Set-Content crm-mellow.txt`
+   - **Windows (PowerShell):** `[Convert]::ToBase64String([IO.File]::ReadAllBytes("$HOME\crm-mellow.jks")) | Set-Content "$HOME\crm-mellow.txt"` y `notepad "$HOME\crm-mellow.txt"` para copiarlo.
 3. En GitHub: **Settings → Secrets and variables → Actions → New repository secret**, cuatro secretos:
    - `ANDROID_KEYSTORE_B64`: el contenido de `crm-mellow.txt` (después borra ese archivo).
    - `ANDROID_KEYSTORE_PASSWORD` y `ANDROID_KEY_PASSWORD`: la contraseña que pusiste.
