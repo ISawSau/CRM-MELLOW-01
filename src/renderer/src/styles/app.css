@@ -306,7 +306,12 @@
   gap: var(--space-5);
   align-content: start;
   padding: var(--space-5) var(--space-6);
-  max-width: 1200px;
+}
+
+/* Las páginas ocupan todo el ancho de la ventana (pantalla completa, monitores grandes);
+   solo los párrafos largos se limitan para que se lean bien. */
+.page p {
+  max-width: 120ch;
 }
 
 .empty {

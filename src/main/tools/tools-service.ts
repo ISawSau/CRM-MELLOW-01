@@ -10,6 +10,7 @@ import {
   VIDEO_EXTENSIONS,
   videoArgs,
   videoOutputName,
+  type DecodedImage,
   type SavedResult,
   type ToolsProgress,
   type VideoInfo,
@@ -36,6 +37,8 @@ export interface ToolsDeps {
   /** Diálogo «Guardar como»; null si se cancela. */
   savePath: (defaultName: string) => Promise<string | null>
   onProgress?: (p: ToolsProgress) => void
+  /** Decodifica fotos HEIC/HEIF (en un hilo aparte); null si no se puede. */
+  decodeHeic?: (data: Uint8Array) => Promise<DecodedImage | null>
   now?: () => Date
 }
 
@@ -59,6 +62,18 @@ export class ToolsService {
 
   status(): { ffmpeg: boolean } {
     return { ffmpeg: existsSync(this.deps.ffmpeg()) }
+  }
+
+  /** Foto HEIC/HEIF a píxeles RGBA, para que la interfaz la convierta como cualquier otra. */
+  async decodeHeic(data: Uint8Array): Promise<DecodedImage> {
+    const image = await this.deps.decodeHeic?.(data)
+    if (!image)
+      throw new AppError(
+        'TOOL_FAILED',
+        undefined,
+        t('No se ha podido leer la foto HEIC: puede que esté dañada.'),
+      )
+    return image
   }
 
   // --- Resultados de la interfaz (imágenes y PDF) -----------------------------------

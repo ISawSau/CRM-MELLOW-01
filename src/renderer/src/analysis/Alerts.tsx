@@ -5,8 +5,7 @@ import { formatDateTime, formatNumber, parseNumberEs } from '@shared/format'
 import { t, tn } from '@shared/i18n'
 import { call, IpcCallError } from '../lib/ipc'
 import { useToast } from '../ui/Toast'
-import { isoToEs, useMetaStatus } from '../meta/meta'
-import { useAllAccounts } from '../platforms/platforms'
+import { isoToEs, useAllAccounts, useMetaStatus } from '../meta/meta'
 import { formatMetric } from '../meta/metrics'
 import { MetricSelect, useMetricKit } from './kit'
 
@@ -210,7 +209,7 @@ export function Alerts() {
     <div className="meta-perf" data-testid="alerts">
       <p className="muted">
         {t(
-          'Las alertas se comprueban después de cada sincronización con Meta o LinkedIn y de cada importación de CSV, y solo avisan dentro de la app: en la barra lateral, en Inicio y aquí.',
+          'Las alertas se comprueban después de cada sincronización con Meta, y solo avisan dentro de la app: en la barra lateral, en Inicio y aquí.',
         )}
       </p>
       <ul className="alert-list" data-testid="alert-list">

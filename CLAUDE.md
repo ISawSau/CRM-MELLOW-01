@@ -1,6 +1,6 @@
 # CRM personal de media buying
 
-App de escritorio personal (un solo usuario) para gestionar clientes, media buying en Meta (y más adelante X y LinkedIn), tareas, briefs, creatividades, facturación e informes. Local-first, 100 % gratuita, funciona igual en Windows y Linux, y guarda todos los datos en una única carpeta portable ("bóveda").
+App de escritorio personal (un solo usuario) para gestionar clientes, media buying en Meta, tareas, briefs, creatividades, facturación e informes. Local-first, 100 % gratuita, funciona igual en Windows y Linux, y guarda todos los datos en una única carpeta portable ("bóveda").
 
 La especificación completa está en `docs/SPEC.md`. Léela antes de cualquier tarea y respétala. Si algo de lo que te pido la contradice, avísame antes de hacerlo.
 

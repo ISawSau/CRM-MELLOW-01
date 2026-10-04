@@ -63,6 +63,11 @@ const TABLE_KEY = 'meta.table'
 const FIRST_DAYS = 30
 /** Días por petición síncrona de Insights. */
 const CHUNK_DAYS = 10
+/**
+ * Meses por trozo del histórico, según el nivel. Cuantos menos trozos, menos consultas (con el
+ * acceso de desarrollo Meta solo deja unas 60 cada 5 minutos); por anuncio hay muchas más filas.
+ */
+const HISTORY_MONTHS: Record<InsightLevel, number> = { account: 12, campaign: 3, adset: 3, ad: 1 }
 /** Los informes asíncronos caducan a los 30 días: a partir de 25 se piden de nuevo. */
 const REPORT_TTL_MS = 25 * 86_400_000
 const MAX_JOB_ATTEMPTS = 3
@@ -258,11 +263,11 @@ export function chunks(since: string, until: string, days: number): [string, str
 }
 
 /** Meses naturales entre dos fechas, del más reciente al más antiguo. */
-export function monthChunks(since: string, until: string): [string, string][] {
+export function monthChunks(since: string, until: string, months = 1): [string, string][] {
   const out: [string, string][] = []
   let end = until
   while (end >= since) {
-    const first = `${end.slice(0, 7)}-01`
+    const first = shiftMonths(`${end.slice(0, 7)}-01`, -(months - 1))
     out.push([first < since ? since : first, end])
     end = shiftDate(first, -1)
   }
@@ -1058,8 +1063,11 @@ export class MetaService {
     try {
       return await this.insights(graph, accountId, level, since, until, breakdown)
     } catch (e) {
-      if (!(e instanceof GraphError) || !e.isTooMuchData) throw e
-      if (since < until) {
+      if (!(e instanceof GraphError) || !(e.isTooMuchData || e.isTransient)) throw e
+      // «Service temporarily unavailable» (código 2) o «unknown error» (código 1) que siguen
+      // tras los reintentos suelen ser consultas que no le da tiempo a resolver: como
+      // informe asíncrono sí las hace. Partir el trozo solo cuando dice que son demasiados datos.
+      if (e.isTooMuchData && since < until) {
         const half = Math.floor(daysBetween(since, until) / 2)
         const mid = shiftDate(since, half)
         const left = await this.insightsFlexible(
@@ -1331,8 +1339,10 @@ export class MetaService {
     )
     this.db.transaction(() => {
       this.db.prepare('DELETE FROM ad_jobs WHERE account_id = ? AND breakdown IS NULL').run(a.id)
-      for (const [s, u] of end >= limit ? monthChunks(limit, end) : [])
-        for (const level of INSIGHT_LEVELS) ins.run(a.id, level, s, u)
+      if (end >= limit)
+        for (const level of INSIGHT_LEVELS)
+          for (const [s, u] of monthChunks(limit, end, HISTORY_MONTHS[level]))
+            ins.run(a.id, level, s, u)
     })()
     const pending = this.db
       .prepare('SELECT COUNT(*) AS n FROM ad_jobs WHERE account_id = ?')
@@ -1357,7 +1367,7 @@ export class MetaService {
       if (!this.alive(epoch)) return
       const job = this.db
         .prepare(
-          "SELECT * FROM ad_jobs WHERE account_id = ? AND status IN ('pending', 'running') ORDER BY since DESC, id ASC LIMIT 1",
+          "SELECT * FROM ad_jobs WHERE account_id = ? AND status IN ('pending', 'running') ORDER BY until DESC, id ASC LIMIT 1",
         )
         .get(accountId) as JobRow | undefined
       if (!job) break
@@ -1446,6 +1456,8 @@ export class MetaService {
     const sleep = this.opts.sleep ?? ((ms: number) => new Promise((r) => setTimeout(r, ms)))
     const poll = this.opts.pollMs ?? 5000
     for (let i = 0; ; i++) {
+      // Un informe nunca está listo al instante: esperar antes de preguntar ahorra consultas.
+      await sleep(Math.min(poll * (1 + Math.floor(i / 6)), 30_000))
       if (!this.alive(epoch)) return null
       const s = await graph.get<{ async_status?: string; async_percent_completion?: number }>(
         reportId,
@@ -1459,7 +1471,6 @@ export class MetaService {
           null,
           200,
         )
-      await sleep(Math.min(poll * (1 + Math.floor(i / 6)), 30_000))
     }
     if (!this.alive(epoch)) return null
     return graph.getAll<InsightRow>(`${reportId}/insights`, { limit: 500 })

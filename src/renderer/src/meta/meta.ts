@@ -58,3 +58,16 @@ export function isoToEs(iso: string | null): string {
   const [y, m, d] = iso.split('-')
   return `${d}/${m}/${y}`
 }
+
+/** Cuentas de Meta activadas (filtros de Análisis). */
+export function useAllAccounts(): { id: string; name: string }[] {
+  const meta = useMetaAccounts().data ?? []
+  return meta.filter((a) => a.enabled).map((a) => ({ id: a.id, name: a.name }))
+}
+
+/** Hay datos publicitarios que analizar: Meta conectado. */
+export function useHasAdData(): boolean | null {
+  const status = useMetaStatus()
+  if (!status) return null
+  return status.connected
+}

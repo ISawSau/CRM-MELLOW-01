@@ -3,8 +3,6 @@ import { formatDateTime } from '@shared/format'
 import { GmailSettings } from '../gmail/GmailSettings'
 import { useProfile } from '../data/nav'
 import { useMetaAccounts, useMetaStatus } from '../meta/meta'
-import { LinkedInToggle } from '../platforms/LinkedInToggle'
-import { useLinkedInStatus, usePlatformAccounts } from '../platforms/platforms'
 import { ProfileSettings } from './ProfileSettings'
 import { useSyncStatus } from './sync'
 import { t, tc, tn } from '@shared/i18n'
@@ -54,10 +52,6 @@ function Accounts({ onNavigate }: { onNavigate: (section: string) => void }) {
   const meta = useMetaStatus()
   const metaAccounts = (useMetaAccounts().data ?? []).filter((a) => a.enabled)
   const sync = useSyncStatus()
-  const linkedin = useLinkedInStatus().data
-  const other = usePlatformAccounts().data ?? []
-  const xAccounts = other.filter((a) => a.platform === 'x')
-  const liAccounts = other.filter((a) => a.platform === 'linkedin' && a.enabled)
   return (
     <div className="profile-accounts">
       <ul className="account-cards">
@@ -99,40 +93,8 @@ function Accounts({ onNavigate }: { onNavigate: (section: string) => void }) {
           action={t('Configurar')}
           onAction={() => onNavigate('ajustes')}
         />
-        <AccountCard
-          testId="account-x"
-          name="X Ads"
-          tone={xAccounts.length ? 'ok' : 'off'}
-          state={
-            xAccounts.length
-              ? t('{accounts} por CSV', {
-                  accounts: tn(xAccounts.length, '{n} cuenta', '{n} cuentas'),
-                })
-              : t('Sin cuentas: se importan con los CSV de X Ads')
-          }
-          action={t('Abrir')}
-          onAction={() => onNavigate('plataformas')}
-        />
-        {linkedin?.enabled && (
-          <AccountCard
-            testId="account-linkedin"
-            name="LinkedIn Ads"
-            tone={!linkedin.connected ? 'off' : linkedin.error ? 'error' : 'ok'}
-            state={
-              linkedin.connected
-                ? t('Conectado (solo lectura) · {accounts}', {
-                    accounts: tn(liAccounts.length, '{n} cuenta activada', '{n} cuentas activadas'),
-                  })
-                : t('Activado, sin conectar')
-            }
-            detail={linkedin.error ?? when(linkedin.lastSyncAt)}
-            action={t('Gestionar')}
-            onAction={() => onNavigate('plataformas')}
-          />
-        )}
       </ul>
       <GmailSettings />
-      <LinkedInToggle />
     </div>
   )
 }

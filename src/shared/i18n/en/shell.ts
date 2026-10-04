@@ -12,8 +12,6 @@ export const shell: Record<string, string> = {
   Tareas: 'Tasks',
   Briefs: 'Briefs',
   Campañas: 'Campaigns',
-  'LinkedIn y X': 'LinkedIn and X',
-  'X Ads': 'X Ads',
   Creatividades: 'Creatives',
   Análisis: 'Analytics',
   Facturación: 'Billing',
@@ -226,8 +224,6 @@ export const shell: Record<string, string> = {
     'Not set up: the vault is only on this computer',
   Configurar: 'Set up',
   '{accounts} por CSV': '{accounts} via CSV',
-  'Sin cuentas: se importan con los CSV de X Ads':
-    'No accounts: they are imported with X Ads CSV files',
   Abrir: 'Open',
   'Activado, sin conectar': 'Enabled, not connected',
   perfil: 'profile',

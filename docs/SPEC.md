@@ -8,7 +8,7 @@ Este documento recoge todas las decisiones de diseño tomadas antes de escribir 
 
 ## 1. Visión y principios
 
-Una app de escritorio personal para llevar todo el trabajo de media buying en un solo sitio: clientes, cuentas publicitarias, métricas de Meta (y más adelante X y LinkedIn), tareas, briefs, biblioteca de creatividades y copies, facturación, informes y archivos.
+Una app de escritorio personal para llevar todo el trabajo de media buying en un solo sitio: clientes, cuentas publicitarias, métricas de Meta, tareas, briefs, biblioteca de creatividades y copies, facturación, informes y archivos.
 
 Principios que guían cualquier decisión:
 
@@ -26,6 +26,7 @@ Principios que guían cualquier decisión:
 - Colaboradores o acceso de terceros.
 - Automatizaciones que actúen solas (mover registros, crear tareas automáticamente). Las alertas solo avisan.
 - Escritura en Meta (pausar anuncios, cambiar presupuestos).
+- Otras plataformas de anuncios (X, LinkedIn): retiradas en la 0.13.3 (D-091).
 - Detección de leads duplicados y valor económico de oportunidades (no aplica de momento).
 - Notificaciones fuera de la app: los avisos se ven al abrirla.
 - App móvil, hasta que la versión de escritorio esté completa (fase 13).
@@ -187,7 +188,7 @@ Tabla genérica de vínculos (campo de relación, id de origen, id de destino, p
 - Deshacer y rehacer (Ctrl+Z, Ctrl+Mayús+Z) para las acciones recientes.
 - Paleta de comandos (Ctrl+K) y búsqueda global.
 - Historial de cambios por registro.
-- Exportar cualquier vista a CSV (separador «;», coma decimal y BOM, para abrirlo con Excel en español; protegido contra la inyección de fórmulas). Importar CSV con mapeo de columnas llega con X y LinkedIn (fase 11).
+- Exportar cualquier vista a CSV (separador «;», coma decimal y BOM, para abrirlo con Excel en español; protegido contra la inyección de fórmulas).
 - Ctrl+Z deshace las acciones de la sesión (hasta 100). Mientras se escribe en un campo de texto, Ctrl+Z deshace el texto, como en cualquier programa.
 
 ---
@@ -198,7 +199,7 @@ Tabla genérica de vínculos (campo de relación, id de origen, id de destino, p
 
 - Pantalla de contraseña.
 - Perfil: nombre, foto, datos fiscales y de empresa, moneda y zona horaria por defecto.
-- *Arreglos tras la 0.13:* Perfil es una sección propia antes de Inicio, con Datos y Cuentas conectadas (Meta, sincronización, X, LinkedIn y Gmail) (D-087).
+- *Arreglos tras la 0.13:* Perfil es una sección propia antes de Inicio, con Datos y Cuentas conectadas (Meta, sincronización y Gmail) (D-087). X y LinkedIn se quitaron después (D-091).
 - Inicio: visión general con gasto de hoy, 7 y 30 días, ROAS, alertas activas, tareas de hoy y atrasadas, estado de la última sincronización. En una fase posterior, widgets configurables.
 - *Fase 12:* Inicio configurable con «Personalizar»:
   - quitar, ordenar y volver a añadir las tarjetas (cifras clave, clientes por etapa, notas, gasto y ROAS, tareas y alertas);
@@ -281,17 +282,9 @@ Tabla genérica de vínculos (campo de relación, id de origen, id de destino, p
 - Última edición significativa con el historial de actividad (D-063). Moneda por cliente (D-065).
 - Vínculo creatividad-anuncio manual y automático (código o convención de nombres), rendimiento por creatividad y ranking por etiqueta (D-064).
 
-### 7.4 X y LinkedIn
+### 7.4 X y LinkedIn (retirado)
 
-- Los conectores de plataformas comparten una interfaz común (listar cuentas, estructura, métricas diarias), de forma que añadir una plataforma nueva no cambia el resto de la app. Las métricas se normalizan (gasto, impresiones, clics, conversiones, valor) y además se guardan las específicas de cada plataforma.
-- **Aviso sobre "gratis":** el acceso de lectura a la API de X ha sido de pago en los últimos años, y la API de publicidad de LinkedIn es gratuita pero requiere solicitar y obtener aprobación. **Verificar** el estado actual antes de implementar.
-- Alternativa gratuita garantizada: importar los CSV que exportan X Ads y LinkedIn Campaign Manager, con un mapeo de columnas que se guarda para reutilizarlo cada semana.
-- *Fase 11:*
-  - Sección **LinkedIn y X** con tres pestañas: Cuentas (cliente, uso en Análisis y borrado), Importar CSV y API de LinkedIn.
-  - LinkedIn se conecta por su API de publicidad en solo lectura (D-079). X, solo por CSV porque su API es de pago (D-080). LinkedIn también admite CSV.
-  - Las métricas comparten tablas con Meta (gasto, impresiones, clics, clics en el enlace, conversiones y valor, por campaña y día). Así entran en Análisis, Inicio, Facturación, Informes y alertas, y en la ficha del cliente.
-  - LinkedIn es una integración opcional, desactivada de serie (Ajustes → Integraciones opcionales). Sin ella, la sección es «X Ads» (D-086).
-  - No hay conjuntos, anuncios ni desgloses de estas plataformas; la tabla tipo Ads Manager sigue siendo solo de Meta. Tampoco se guardan todavía las métricas propias de cada plataforma (solo las normalizadas).
+Se construyó en la fase 11 (LinkedIn por API y CSV, X por CSV) y se quitó después a petición del usuario: no los usa. La versión 0.13.3 borra el código, la sección y, con una migración precedida de copia de seguridad automática, las cuentas, métricas y ajustes que hubiera de estas plataformas (D-091). La app trabaja solo con Meta.
 
 ### 7.5 Leads de Meta (opcional, baja prioridad)
 
@@ -346,12 +339,12 @@ El negocio actual es ecommerce y no usa formularios de leads. Si en el futuro se
 ### 7.11 Herramientas de archivos
 
 - Comprimir PDF con varios niveles de calidad.
-- Comprimir, redimensionar y convertir imágenes (JPEG, PNG, WebP).
+- Comprimir, redimensionar y convertir imágenes a JPEG, PNG o WebP. Se leen JPEG, PNG, WebP, HEIC/HEIF (iPhone), GIF, AVIF, TIFF, BMP, ICO y SVG (D-093).
 - Comprimir y convertir vídeo, con presets para formatos de Meta (9:16, 1:1, 4:5).
 - Unir y dividir PDF.
 - Funcionamiento por arrastrar y soltar; el resultado se guarda en la bóveda o se exporta a una carpeta.
 - *Implementación (fase 9):* sección Herramientas con tres pestañas, y el resultado se guarda en Documentos (con cliente) o se exporta.
-  - **Imágenes:** canvas de Chromium (D-074).
+  - **Imágenes:** canvas de Chromium (D-074); TIFF con UTIF y HEIC con libheif en un hilo del proceso principal (D-093).
   - **PDF:** unir, dividir por rangos y comprimir en tres niveles, con pdf-lib y pdf.js (D-075).
   - **Vídeo:** FFmpeg con presets para Meta, recorte o bandas, calidad, sin sonido, avance y cancelar (D-073).
 
@@ -372,7 +365,7 @@ El negocio actual es ecommerce y no usa formularios de leads. Si en el futuro se
 
 ### 7.14 Ajustes
 
-Perfil · bóveda · seguridad (contraseña, autobloqueo, clave de recuperación) · sincronización y copias · conexiones (Meta, Google, X, LinkedIn) · monedas y zonas horarias · formato regional · apariencia (selector de temas con los predefinidos claro y oscuro, temas propios creados y editados desde la app, densidad compacta o cómoda) · campos, etiquetas, estados y pipelines · presets de columnas · atajos de teclado.
+Perfil · bóveda · seguridad (contraseña, autobloqueo, clave de recuperación) · sincronización y copias · conexiones (Meta, Google) · monedas y zonas horarias · formato regional · apariencia (selector de temas con los predefinidos claro y oscuro, temas propios creados y editados desde la app, densidad compacta o cómoda) · campos, etiquetas, estados y pipelines · presets de columnas · atajos de teclado.
 
 ---
 
@@ -406,7 +399,7 @@ Cada fase termina con algo que funciona, tests y build verificado en Windows y L
 | 8. Análisis | Dashboards, comparativas, alertas. |
 | 9. Negocio | Facturación y cobros, informes PDF, herramientas de compresión de archivos. |
 | 10. Gmail | Hilos por cliente y contacto. |
-| 11. X y LinkedIn | Conectores por API si son gratuitos; si no, importación de CSV con mapeo guardado. |
+| 11. X y LinkedIn | Conectores por API si son gratuitos; si no, importación de CSV con mapeo guardado. Retirado en la 0.13.3 (D-091). |
 | 12. Personalización avanzada | Colecciones personalizadas, plantillas de brief definitivas, widgets de inicio configurables, editor de temas (crear y modificar temas desde la app). |
 | 13. Móvil | Se decide el enfoque cuando el escritorio esté completo. |
 
@@ -421,4 +414,3 @@ Hasta la fase 5, el traslado entre ordenadores se hace copiando la carpeta de la
 - Convención de nombres de anuncios para el vínculo automático (configurable desde la fase 7; falta fijar la del usuario).
 - Lista final de monedas.
 - Enfoque de la versión móvil.
-- Viabilidad gratuita de las APIs de X y LinkedIn.

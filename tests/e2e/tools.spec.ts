@@ -58,6 +58,52 @@ function png(w: number, h: number): Buffer {
   ])
 }
 
+/** TIFF RGB sin comprimir, de un color. */
+function tiff(w: number, h: number): Buffer {
+  const entries: [number, number, number, number][] = [
+    [256, 3, 1, w],
+    [257, 3, 1, h],
+    [258, 3, 3, 122],
+    [259, 3, 1, 1],
+    [262, 3, 1, 2],
+    [273, 4, 1, 128],
+    [277, 3, 1, 3],
+    [278, 3, 1, h],
+    [279, 4, 1, w * h * 3],
+  ]
+  const head = Buffer.alloc(128)
+  head.write('II', 0, 'ascii')
+  head.writeUInt16LE(42, 2)
+  head.writeUInt32LE(8, 4)
+  head.writeUInt16LE(entries.length, 8)
+  entries.forEach(([tag, type, count, value], i) => {
+    const o = 10 + i * 12
+    head.writeUInt16LE(tag, o)
+    head.writeUInt16LE(type, o + 2)
+    head.writeUInt32LE(count, o + 4)
+    if (type === 3 && count === 1) head.writeUInt16LE(value, o + 8)
+    else head.writeUInt32LE(value, o + 8)
+  })
+  for (let i = 0; i < 3; i++) head.writeUInt16LE(8, 122 + i * 2)
+  return Buffer.concat([head, Buffer.alloc(w * h * 3, 0x40)])
+}
+
+/** BMP de 24 bits, de un color. */
+function bmp(w: number, h: number): Buffer {
+  const row = Math.ceil((w * 3) / 4) * 4
+  const out = Buffer.alloc(54 + row * h, 0x60)
+  out.write('BM', 0, 'ascii')
+  out.writeUInt32LE(out.length, 2)
+  out.writeUInt32LE(54, 10)
+  out.writeUInt32LE(40, 14)
+  out.writeInt32LE(w, 18)
+  out.writeInt32LE(h, 22)
+  out.writeUInt16LE(1, 26)
+  out.writeUInt16LE(24, 28)
+  out.writeUInt32LE(0, 30)
+  return out
+}
+
 async function pdf(pages: number, label: string): Promise<Buffer> {
   const doc = await PDFDocument.create()
   const font = await doc.embedFont(StandardFonts.Helvetica)
@@ -70,6 +116,13 @@ test.beforeAll(async () => {
   parent = mkdtempSync(join(tmpdir(), 'crm-e2e-herramientas-'))
   fixtures = mkdtempSync(join(tmpdir(), 'crm-e2e-fixtures-'))
   writeFileSync(join(fixtures, 'foto.png'), png(640, 480))
+  writeFileSync(join(fixtures, 'escaneo.tif'), tiff(40, 30))
+  writeFileSync(join(fixtures, 'captura.bmp'), bmp(50, 20))
+  writeFileSync(
+    join(fixtures, 'logo.svg'),
+    '<svg xmlns="http://www.w3.org/2000/svg" width="64" height="32"><rect width="64" height="32" fill="#e0a47c"/></svg>',
+  )
+  writeFileSync(join(fixtures, 'rota.heic'), Buffer.from('esto no es una foto HEIC'))
   writeFileSync(join(fixtures, 'a.pdf'), await pdf(2, 'Primero'))
   writeFileSync(join(fixtures, 'b.pdf'), await pdf(3, 'Segundo'))
   ctx = await launchApp()
@@ -103,6 +156,27 @@ test('imágenes: convertir a WebP y reducir el ancho, guardado en Documentos', a
   await expect(results).toContainText('320 × 240 px')
   await expect(results).toContainText('Guardado en Documentos')
   await shot('50-herramientas-imagenes')
+})
+
+test('imágenes: lee TIFF, BMP y SVG, y avisa si una foto HEIC está dañada', async () => {
+  const tool = page.getByTestId('tool-imagenes')
+  await tool
+    .getByTestId('image-drop')
+    .locator('input[type=file]')
+    .setInputFiles(
+      ['escaneo.tif', 'captura.bmp', 'logo.svg', 'rota.heic'].map((f) => join(fixtures, f)),
+    )
+  await tool.getByLabel('Formato').selectOption('mismo')
+  await tool.getByLabel('Ancho máximo (px)').fill('')
+  await tool.getByRole('button', { name: /^Procesar/ }).click()
+  const results = tool.getByTestId('tool-results')
+  await expect(results).toContainText('escaneo.png')
+  await expect(results).toContainText('40 × 30 px')
+  await expect(results).toContainText('captura.png')
+  await expect(results).toContainText('50 × 20 px')
+  await expect(results).toContainText('logo.png')
+  await expect(results).toContainText('64 × 32 px')
+  await expect(results).toContainText('No se ha podido leer la foto HEIC')
 })
 
 test('PDF: unir en orden, dividir por rangos y comprimir', async () => {

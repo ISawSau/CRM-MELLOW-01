@@ -50,6 +50,13 @@
       "when": 1791020192154,
       "tag": "0006_alertas",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1791112237449,
+      "tag": "0007_quitar_x_linkedin",
+      "breakpoints": true
     }
   ]
 }

@@ -72,7 +72,7 @@ export function BillingPage({ num, onNavigate }: { num: string; onNavigate: (s: 
         <h1 className="title">{t('Facturación')}</h1>
         <p className="muted">
           {t(
-            'Beneficio por cliente: lo facturado y cobrado, los gastos asociados, la inversión publicitaria (Meta, LinkedIn y X) y lo previsto por el acuerdo de cada cliente. Las facturas se emiten con tu programa de facturación (que cumpla Verifactu) y aquí se registran.',
+            'Beneficio por cliente: lo facturado y cobrado, los gastos asociados, la inversión publicitaria en Meta y lo previsto por el acuerdo de cada cliente. Las facturas se emiten con tu programa de facturación (que cumpla Verifactu) y aquí se registran.',
           )}
         </p>
       </div>

@@ -164,11 +164,12 @@ describe('sincronización con Meta', () => {
     expect(sync[0]).toMatchObject({ level: 'account', until: '2026-10-03', since: '2026-09-24' })
     expect(sync.at(-1)).toMatchObject({ level: 'ad', since: '2026-09-04' })
 
-    // Después el histórico por meses, desde la creación de la cuenta (10 de mayo).
+    // Después el histórico desde la creación de la cuenta (10 de mayo), en trozos de 12 meses
+    // por cuenta, 3 por campaña y conjunto y 1 por anuncio: los más recientes primero.
     const asyncCalls = fake.insightCalls().filter((c) => c.method === 'POST')
     expect(asyncCalls[0]).toMatchObject({
       level: 'account',
-      since: '2026-09-01',
+      since: '2026-05-10',
       until: '2026-09-03',
     })
     expect(asyncCalls.at(-1)).toMatchObject({
@@ -176,7 +177,7 @@ describe('sincronización con Meta', () => {
       since: '2026-05-10',
       until: '2026-05-31',
     })
-    expect(asyncCalls).toHaveLength(5 * 4)
+    expect(asyncCalls).toHaveLength(1 + 2 + 2 + 5)
 
     const [a] = meta.listAccounts()
     expect(a).toMatchObject({
@@ -274,7 +275,7 @@ describe('sincronización con Meta', () => {
     const failed = vault.sqlite
       .prepare("SELECT COUNT(*) AS n FROM ad_jobs WHERE status = 'failed'")
       .get() as { n: number }
-    expect(failed.n).toBe(20)
+    expect(failed.n).toBe(10)
 
     fake.set({ failReports: false })
     meta.retryHistory('act_111')

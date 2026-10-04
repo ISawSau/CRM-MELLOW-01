@@ -1417,10 +1417,6 @@ img.ProseMirror-separator {
 
 /* --- Inicio --------------------------------------------------------------------- */
 
-.page-wide {
-  max-width: 1400px;
-}
-
 .kpis {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));

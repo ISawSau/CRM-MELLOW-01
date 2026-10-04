@@ -682,3 +682,21 @@ El usuario no quiere escribir comandos de desarrollo para usar la app. Los insta
 - **Formatos:** `en-GB` (1,234.56, dd/mm/aaaa, semana desde el lunes). Los números que escribe el usuario se leen según el idioma.
 - **Dónde se guarda:** en la configuración mínima de fuera de la bóveda, junto a la ruta de la última bóveda. Hace falta antes de desbloquear y no es un dato del usuario. Al cambiar de idioma la ventana se recarga y vuelve a la misma sección. El proceso principal usa el idioma para sus mensajes y para el `--lang` de Chromium.
 - **Cobertura:** un test recorre `src` y falla si un texto pasado a `t()`/`tn()`/`tc()` no tiene traducción o usa `${}`, que debe ir como variable. Ahora hay unos 1.800 textos traducidos. Las fórmulas siguen con sus funciones en español (SI, Y, O…), porque son la sintaxis de los datos.
+
+### D-091 · Se quitan X y LinkedIn
+
+- **Qué:** fuera la sección «LinkedIn y X», la conexión con la API de LinkedIn, la importación de CSV de X Ads y Campaign Manager, sus canales IPC, sus textos y sus tests. La app trabaja solo con Meta. El campo «LinkedIn» de los contactos (la URL de su perfil) se queda: no tiene que ver con la publicidad.
+- **Por qué:** el usuario no las usa y ocupaban sitio en la barra lateral, en Perfil y en Ajustes.
+- **Datos:** la migración `0007_quitar_x_linkedin` borra las cuentas de otras plataformas (`platform <> 'meta'`), sus métricas, objetos, acciones, desgloses y trabajos pendientes, y los ajustes `linkedin.*` y `platforms.mappings`, donde estaba el token de LinkedIn. Como toda migración sobre una bóveda con datos, antes se hace una copia de seguridad automática, así que se puede recuperar. No cambia el esquema: la columna `platform` de `ad_accounts` se queda por si algún día vuelve otra plataforma.
+
+### D-092 · Meta: «Service temporarily unavailable» y un histórico con menos trozos
+
+- **Qué pasaba:** en cuentas grandes, Meta respondía a veces «Service temporarily unavailable» (código 2) al pedir métricas por anuncio. Tras los reintentos, ese trozo quedaba para segundo plano y la cuenta mostraba el aviso «Faltan métricas por anuncio…». El histórico iba en trozos de un mes por nivel: 123 trozos en una cuenta de unos 31 meses.
+- **Ahora:** si un error transitorio sigue después de los reintentos (códigos 1 y 2, o un 5xx), el trozo se pide en la misma sincronización como informe asíncrono, que es como Meta recomienda hacer las consultas pesadas. Solo cuando Meta dice que son demasiados datos se parte el rango, como antes. Si ni el informe asíncrono funciona, se sigue como hasta ahora: el trozo va a segundo plano y queda el aviso.
+- **Histórico:** trozos de 12 meses por cuenta, 3 por campaña y por conjunto, y 1 por anuncio, que es donde hay más filas. Una cuenta de 31 meses pasa de 124 trozos a unos 56. Antes de preguntar si un informe ha terminado se espera unos segundos, porque nunca está listo al instante: es una consulta menos por trozo. Con el acceso de desarrollo (60 puntos cada 5 minutos) un histórico grande sigue tardando, pero avanza sin fallar.
+
+### D-093 · Más formatos de imagen, barras de desplazamiento del tema y páginas a todo el ancho
+
+- **Formatos:** Chromium ya lee BMP, ICO y SVG; solo faltaba aceptarlos. El SVG se dibuja como imagen, así que sus scripts no se ejecutan. TIFF se lee en la interfaz con `utif2` (MIT, JavaScript puro, sin `eval`). HEIC/HEIF, las fotos del iPhone, se leen con `heic-decode` (ISC) y `libheif-js` (LGPL-3.0, libheif compilado a WebAssembly). Va en un hilo del proceso principal (`worker_threads`) por dos motivos: no bloquear la app mientras decodifica y no tener que abrir la CSP de la interfaz a `wasm-unsafe-eval`. La interfaz manda los bytes (máximo 100 MB) y recibe los píxeles. Las fotos HEIC se guardan como JPEG cuando el formato es «El mismo». La licencia de libheif va con las demás en `licencias/`, y la autoprueba comprueba que el lector carga en la app instalada.
+- **Barras de desplazamiento:** finas, redondeadas y con los colores del tema (`--line-strong`, y el acento al arrastrar), en lugar de las del sistema.
+- **Ancho:** las páginas ya no se quedan en 1.200 o 1.400 px. En pantalla completa o en monitores grandes ocupan toda la ventana, y solo los párrafos largos se limitan a 120 caracteres para que se lean bien.

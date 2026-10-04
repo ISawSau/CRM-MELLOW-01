@@ -100,12 +100,11 @@ describe('cuentas grandes de Meta', () => {
     vault.dispose()
   })
 
-  it('si un nivel falla, las campañas se ven igual y ese nivel se recupera en segundo plano', async () => {
-    const { vault, meta } = await setup(heavy({ failSyncLevel: 'ad' }))
+  it('si Meta no puede con un nivel («Service temporarily unavailable»), lo pide como informe asíncrono', async () => {
+    const { vault, meta, fake } = await setup(heavy({ failSyncLevel: 'ad' }))
     await meta.connect({ token: GOOD_TOKEN, appSecret: '' })
     meta.updateAccount({ id: 'act_111', enabled: true })
     await meta.idle()
-    // Campañas con gasto; los anuncios llegan por informes asíncronos (el histórico).
     expect(campaignSpend(meta)).toBeGreaterThan(0)
     const ads = vault.sqlite
       .prepare(
@@ -113,6 +112,20 @@ describe('cuentas grandes de Meta', () => {
       )
       .get() as { n: number }
     expect(ads.n).toBe(30)
+    // Los trozos recientes por anuncio se han pedido como informe en la misma sincronización.
+    const reports = fake.insightCalls().filter((c) => c.method === 'POST' && c.level === 'ad')
+    expect(reports.some((c) => c.until === '2026-10-03')).toBe(true)
+    expect(meta.listAccounts()[0]!.lastError).toBeNull()
+    meta.dispose()
+    vault.dispose()
+  })
+
+  it('si ni el informe asíncrono funciona, las campañas se ven igual y queda un aviso', async () => {
+    const { vault, meta } = await setup(heavy({ failSyncLevel: 'ad', failReports: true }))
+    await meta.connect({ token: GOOD_TOKEN, appSecret: '' })
+    meta.updateAccount({ id: 'act_111', enabled: true })
+    await meta.idle()
+    expect(campaignSpend(meta)).toBeGreaterThan(0)
     // El aviso se queda en la cuenta hasta la próxima sincronización.
     expect(meta.listAccounts()[0]!.lastError).toMatch(/Faltan métricas por anuncio/)
     meta.dispose()

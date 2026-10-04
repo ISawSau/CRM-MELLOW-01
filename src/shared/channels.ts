@@ -117,16 +117,6 @@ export const IPC_CHANNELS = [
   'analysis:markSeen',
   'billing:summary',
   'tools:status',
-  'platforms:accounts',
-  'platforms:updateAccount',
-  'platforms:deleteAccount',
-  'platforms:savedMapping',
-  'platforms:importCsv',
-  'linkedin:status',
-  'linkedin:setEnabled',
-  'linkedin:connect',
-  'linkedin:disconnect',
-  'linkedin:sync',
   'gmail:status',
   'gmail:connect',
   'gmail:disconnect',
@@ -137,6 +127,7 @@ export const IPC_CHANNELS = [
   'tools:save',
   'tools:convertVideo',
   'tools:cancel',
+  'tools:decodeHeic',
   'meta:clientAccounts',
 ] as const
 
@@ -148,5 +139,4 @@ export const IPC_EVENTS = [
   'analysis:changed',
   'tools:progress',
   'gmail:changed',
-  'platforms:changed',
 ] as const

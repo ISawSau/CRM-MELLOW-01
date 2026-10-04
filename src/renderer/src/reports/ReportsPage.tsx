@@ -26,7 +26,7 @@ export function ReportsPage({ num }: { num: string }) {
         <h1 className="title">{t('Informes')}</h1>
         <p className="muted">
           {t(
-            'Informes de resultados en PDF para tus clientes, a partir de las métricas de Meta, LinkedIn y X. El PDF se guarda en los Documentos del cliente y puedes exportarlo para enviarlo.',
+            'Informes de resultados en PDF para tus clientes, a partir de las métricas de Meta. El PDF se guarda en los Documentos del cliente y puedes exportarlo para enviarlo.',
           )}
         </p>
       </div>

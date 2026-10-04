@@ -7,8 +7,8 @@ export const reports: Record<string, string> = {
     'And {n} more pages: open the document to see them all.',
 
   // --- reports/ReportsPage.tsx ---
-  'Informes de resultados en PDF para tus clientes, a partir de las métricas de Meta, LinkedIn y X. El PDF se guarda en los Documentos del cliente y puedes exportarlo para enviarlo.':
-    'PDF performance reports for your clients, based on Meta, LinkedIn and X metrics. The PDF is saved in the client’s Documents and you can export it to send it.',
+  'Informes de resultados en PDF para tus clientes, a partir de las métricas de Meta. El PDF se guarda en los Documentos del cliente y puedes exportarlo para enviarlo.':
+    'PDF performance reports for your clients, based on Meta metrics. The PDF is saved in the client’s Documents and you can export it to send it.',
   Generar: 'Generate',
   'No se ha podido generar el informe.': 'Could not generate the report.',
   'Revisa las fechas.': 'Check the dates.',

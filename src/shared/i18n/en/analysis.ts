@@ -1,11 +1,11 @@
 /** Traducciones al inglés: analysis. Clave: el texto en español tal y como aparece en `t()`. */
 export const analysis: Record<string, string> = {
   // --- analysis/AnalysisPage.tsx ---
-  'Dashboards, comparativas y alertas sobre las métricas de las cuentas activadas de Meta, LinkedIn y X. Importes en {currency}; fechas de cada cuenta.':
-    'Dashboards, comparisons and alerts on the metrics of your enabled Meta, LinkedIn and X accounts. Amounts in {currency}; dates in each account’s time zone.',
+  'Dashboards, comparativas y alertas sobre las métricas de las cuentas activadas de Meta. Importes en {currency}; fechas de cada cuenta.':
+    'Dashboards, comparisons and alerts on the metrics of your enabled Meta accounts. Amounts in {currency}; dates in each account’s time zone.',
   'Sin datos publicitarios': 'No ad data',
-  'Conecta Meta en Campañas o activa una cuenta de LinkedIn o X para ver dashboards y alertas.':
-    'Connect Meta in Campaigns or enable a LinkedIn or X account to see dashboards and alerts.',
+  'Conecta Meta en Campañas para ver dashboards y alertas.':
+    'Connect Meta in Campaigns to see dashboards and alerts.',
   'Ir a Campañas': 'Go to Campaigns',
   Dashboards: 'Dashboards',
   Comparar: 'Compare',
@@ -67,8 +67,8 @@ export const analysis: Record<string, string> = {
   'Escribe un número, p. ej. 30 o 1,5.': 'Enter a number, e.g. 30 or 1.5.',
   'En los últimos': 'Over the last',
   'Días completos, sin contar hoy.': 'Full days, not counting today.',
-  'Las alertas se comprueban después de cada sincronización con Meta o LinkedIn y de cada importación de CSV, y solo avisan dentro de la app: en la barra lateral, en Inicio y aquí.':
-    'Alerts are checked after every sync with Meta or LinkedIn and every CSV import, and they only notify you inside the app: in the sidebar, on Home and here.',
+  'Las alertas se comprueban después de cada sincronización con Meta, y solo avisan dentro de la app: en la barra lateral, en Inicio y aquí.':
+    'Alerts are checked after every sync with Meta, and they only notify you inside the app: in the sidebar, on Home and here.',
   'Activar {name}': 'Enable {name}',
   'últimos {n} día': 'last {n} day',
   'últimos {n} días': 'last {n} days',
@@ -85,8 +85,8 @@ export const analysis: Record<string, string> = {
   // --- analysis/HomeCards.tsx ---
   'Ver análisis →': 'View analytics →',
   'Conectar Meta →': 'Connect Meta →',
-  'Conecta Meta en Campañas o importa LinkedIn o X para ver el gasto aquí.':
-    'Connect Meta in Campaigns or import LinkedIn or X to see your spend here.',
+  'Conecta Meta en Campañas para ver el gasto aquí.':
+    'Connect Meta in Campaigns to see your spend here.',
   'ROAS 30 días': 'ROAS 30 days',
   'Alertas · {n} sin ver': 'Alerts · {n} unseen',
   'Ver alertas →': 'View alerts →',
@@ -105,8 +105,8 @@ export const analysis: Record<string, string> = {
   'Inversión publicitaria': 'Ad spend',
   'Fee previsto': 'Expected fee',
   '% del gasto previsto': 'Expected % of spend',
-  'Beneficio por cliente: lo facturado y cobrado, los gastos asociados, la inversión publicitaria (Meta, LinkedIn y X) y lo previsto por el acuerdo de cada cliente. Las facturas se emiten con tu programa de facturación (que cumpla Verifactu) y aquí se registran.':
-    'Profit by client: what was invoiced and collected, related expenses, ad spend (Meta, LinkedIn and X) and what each client’s agreement provides for. Invoices are issued with your invoicing software (Verifactu compliant) and recorded here.',
+  'Beneficio por cliente: lo facturado y cobrado, los gastos asociados, la inversión publicitaria en Meta y lo previsto por el acuerdo de cada cliente. Las facturas se emiten con tu programa de facturación (que cumpla Verifactu) y aquí se registran.':
+    'Profit by client: what was invoiced and collected, related expenses, Meta ad spend and what each client’s agreement provides for. Invoices are issued with your invoicing software (Verifactu compliant) and recorded here.',
   'Faltan tipos de cambio de alguna moneda: esos importes no se han sumado.':
     'Exchange rates are missing for some currency: those amounts have not been added.',
   '{n} factura': '{n} invoice',

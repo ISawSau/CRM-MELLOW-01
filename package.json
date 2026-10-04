@@ -1,7 +1,7 @@
 {
   "name": "crm-mellow",
   "productName": "CRM-Mellow",
-  "version": "0.13.2",
+  "version": "0.13.3",
   "description": "CRM personal de media buying, local-first",
   "author": "yellowmellow",
   "license": "UNLICENSED",
@@ -17,6 +17,8 @@
     "drizzle-orm": "^0.45.3",
     "echarts": "^6.1.0",
     "hash-wasm": "^4.12.0",
+    "heic-decode": "^2.1.0",
+    "utif2": "^4.1.0",
     "zod": "^4.6.5"
   },
   "devDependencies": {

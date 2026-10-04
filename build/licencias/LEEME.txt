@@ -8,3 +8,10 @@ FFmpeg (resources/ffmpeg/)
   (compilaciones de John Van Sickle para Linux y de Gyan Doshi para Windows).
   Código fuente: https://ffmpeg.org/releases/ y
   https://github.com/eugeneware/ffmpeg-static/releases/tag/b6.1.1
+
+libheif (dentro de la app, node_modules/libheif-js)
+  Biblioteca para leer fotos HEIC/HEIF (las del iPhone) en la herramienta de imágenes,
+  compilada a WebAssembly por el paquete libheif-js 1.23.2, sin modificar.
+  Licencia: GNU LGPL versión 3 (texto completo en libheif-LGPL-3.0.txt).
+  Código fuente: https://github.com/strukturag/libheif y
+  https://github.com/catdad-experiments/libheif-js

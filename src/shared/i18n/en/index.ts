@@ -4,7 +4,6 @@ import { data } from './data'
 import { fixes } from './fixes'
 import { main } from './main'
 import { meta } from './meta'
-import { platforms } from './platforms'
 import { reports } from './reports'
 import { screens } from './screens'
 import { shared } from './shared'
@@ -23,7 +22,6 @@ export const EN: Record<string, string> = {
   ...meta,
   ...analysis,
   ...tools,
-  ...platforms,
   ...reports,
   ...theme,
   ...fixes,
