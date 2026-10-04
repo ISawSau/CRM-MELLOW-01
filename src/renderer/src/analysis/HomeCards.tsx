@@ -35,9 +35,7 @@ export function SpendCard({ onNavigate }: { onNavigate: (s: string) => void }) {
         </button>
       </div>
       {!connected ? (
-        <p className="faint">
-          {t('Conecta Meta en Campañas para ver el gasto aquí.')}
-        </p>
+        <p className="faint">{t('Conecta Meta en Campañas para ver el gasto aquí.')}</p>
       ) : (
         <dl className="mini-kpis">
           <div>

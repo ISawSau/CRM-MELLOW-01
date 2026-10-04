@@ -49,11 +49,7 @@ export function AnalysisPage({ num, onMeta }: { num: string; onMeta: () => void 
       {hasData === false ? (
         <div className="empty">
           <h2>{t('Sin datos publicitarios')}</h2>
-          <p className="muted">
-            {t(
-              'Conecta Meta en Campañas para ver dashboards y alertas.',
-            )}
-          </p>
+          <p className="muted">{t('Conecta Meta en Campañas para ver dashboards y alertas.')}</p>
           <button type="button" className="btn btn-primary" onClick={onMeta}>
             {t('Ir a Campañas')}
           </button>

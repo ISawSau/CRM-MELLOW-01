@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { formatBytes } from '@shared/files'
 import { formatNumber, parseNumberEs } from '@shared/format'
 import { t, tn } from '@shared/i18n'
-import { convertImage, IMAGE_FORMATS, type ImageOptions } from './image'
+import { convertImage, IMAGE_ACCEPT, IMAGE_FORMATS, type ImageOptions } from './image'
 import {
   DestinationPicker,
   DropZone,
@@ -62,9 +62,11 @@ export function ImageTool() {
   return (
     <div className="tool" data-testid="tool-imagenes">
       <DropZone
-        accept="image/jpeg,image/png,image/webp,image/gif,image/avif"
+        accept={IMAGE_ACCEPT}
         multiple
-        hint={t('Arrastra aquí imágenes JPEG, PNG, WebP, GIF o AVIF.')}
+        hint={t(
+          'Arrastra aquí imágenes: JPEG, PNG, WebP, HEIC (iPhone), GIF, AVIF, TIFF, BMP, ICO o SVG.',
+        )}
         onFiles={(f) => {
           setFiles((prev) => [...prev, ...f])
           setRows([])

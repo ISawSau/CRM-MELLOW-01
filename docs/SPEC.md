@@ -339,12 +339,12 @@ El negocio actual es ecommerce y no usa formularios de leads. Si en el futuro se
 ### 7.11 Herramientas de archivos
 
 - Comprimir PDF con varios niveles de calidad.
-- Comprimir, redimensionar y convertir imágenes (JPEG, PNG, WebP).
+- Comprimir, redimensionar y convertir imágenes a JPEG, PNG o WebP. Se leen JPEG, PNG, WebP, HEIC/HEIF (iPhone), GIF, AVIF, TIFF, BMP, ICO y SVG (D-093).
 - Comprimir y convertir vídeo, con presets para formatos de Meta (9:16, 1:1, 4:5).
 - Unir y dividir PDF.
 - Funcionamiento por arrastrar y soltar; el resultado se guarda en la bóveda o se exporta a una carpeta.
 - *Implementación (fase 9):* sección Herramientas con tres pestañas, y el resultado se guarda en Documentos (con cliente) o se exporta.
-  - **Imágenes:** canvas de Chromium (D-074).
+  - **Imágenes:** canvas de Chromium (D-074); TIFF con UTIF y HEIC con libheif en un hilo del proceso principal (D-093).
   - **PDF:** unir, dividir por rangos y comprimir en tres niveles, con pdf-lib y pdf.js (D-075).
   - **Vídeo:** FFmpeg con presets para Meta, recorte o bandas, calidad, sin sonido, avance y cancelar (D-073).
 

@@ -1,5 +1,12 @@
 import { z } from 'zod'
-import { saveResultSchema, videoJobSchema, type SavedResult, type ToolsProgress } from './tools'
+import {
+  decodeHeicSchema,
+  saveResultSchema,
+  videoJobSchema,
+  type DecodedImage,
+  type SavedResult,
+  type ToolsProgress,
+} from './tools'
 import {
   gmailConnectSchema,
   gmailThreadsSchema,
@@ -375,6 +382,7 @@ export const ipcSchemas = {
   'tools:save': saveResultSchema,
   'tools:convertVideo': videoJobSchema,
   'tools:cancel': z.object({ token: z.string().regex(/^[a-f0-9]{16}$/) }),
+  'tools:decodeHeic': decodeHeicSchema,
   'meta:clientAccounts': z.object({ clientId: idSchema }),
 } as const
 
@@ -503,6 +511,7 @@ export interface IpcOutputs {
   'tools:save': SavedResult | null
   'tools:convertVideo': SavedResult | null
   'tools:cancel': void
+  'tools:decodeHeic': DecodedImage
   'meta:clientAccounts': AdAccountInfo[]
 }
 

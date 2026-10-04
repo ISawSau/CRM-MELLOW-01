@@ -23,6 +23,20 @@ export const saveResultSchema = z.object({
   tipo: z.enum(DOC_TIPOS).default('herramienta'),
 })
 
+/** Foto HEIC/HEIF que la interfaz no sabe leer: se decodifica en el proceso principal. */
+export const decodeHeicSchema = z.object({
+  data: z
+    .instanceof(Uint8Array)
+    .refine((d) => d.byteLength > 0 && d.byteLength <= 100 * 1024 * 1024),
+})
+
+/** Píxeles RGBA de una imagen decodificada. */
+export interface DecodedImage {
+  width: number
+  height: number
+  data: Uint8Array
+}
+
 export interface SavedResult {
   /** Nombre del archivo resultante. */
   name: string

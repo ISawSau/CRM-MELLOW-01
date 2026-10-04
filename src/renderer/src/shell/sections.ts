@@ -122,9 +122,10 @@ export const ALL_SECTIONS: Section[] = [
 ]
 
 /** Grupo de la barra lateral con las colecciones del usuario (fase 12). */
-export function withCollections(
-  custom: { id: string; label: string; letter: string | null }[],
-): { groups: SectionGroup[]; all: Section[] } {
+export function withCollections(custom: { id: string; label: string; letter: string | null }[]): {
+  groups: SectionGroup[]
+  all: Section[]
+} {
   const base = SECTION_GROUPS
   const groups = custom.length
     ? [

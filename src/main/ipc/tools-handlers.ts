@@ -18,6 +18,7 @@ export function createToolsHandlers(tools: ToolsService, reports: ReportService)
     'tools:save': (input) => tools.saveResult(input),
     'tools:convertVideo': (job) => tools.convertVideo(job),
     'tools:cancel': ({ token }) => tools.cancel(token),
+    'tools:decodeHeic': ({ data }) => tools.decodeHeic(data),
   }
 }
 

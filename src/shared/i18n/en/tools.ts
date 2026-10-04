@@ -22,8 +22,8 @@ export const tools: Record<string, string> = {
   'Quitar {name}': 'Remove {name}',
   // Imágenes
   'No se ha podido leer la imagen.': 'The image could not be read.',
-  'Arrastra aquí imágenes JPEG, PNG, WebP, GIF o AVIF.':
-    'Drag JPEG, PNG, WebP, GIF or AVIF images here.',
+  'Arrastra aquí imágenes: JPEG, PNG, WebP, HEIC (iPhone), GIF, AVIF, TIFF, BMP, ICO o SVG.':
+    'Drop images here: JPEG, PNG, WebP, HEIC (iPhone), GIF, AVIF, TIFF, BMP, ICO or SVG.',
   'El mismo': 'Same as original',
   'Calidad: {n} %': 'Quality: {n}%',
   'PNG no tiene pérdida.': 'PNG is lossless.',

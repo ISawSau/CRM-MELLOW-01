@@ -5,6 +5,7 @@ import { join } from 'node:path'
 import { lineChartSvg } from './reports/charts'
 import { htmlToPdf } from './reports/print'
 import { ffmpegPath } from './tools/dialogs'
+import { heicWorkerLoads } from './tools/heic'
 import { VaultService } from './vault/vault-service'
 
 /**
@@ -13,8 +14,8 @@ import { VaultService } from './vault/vault-service'
  * Crea una bóveda de prueba en la carpeta temporal del sistema (con los parámetros
  * reales de Argon2id y el módulo nativo de SQLite cifrado), la bloquea, la vuelve a
  * desbloquear, comprueba que no quedan -wal ni -shm y la borra. Después comprueba las
- * piezas de la fase 9: FFmpeg (con x264), las gráficas en SVG y la impresión a PDF. No
- * toca la configuración ni ninguna bóveda real.
+ * piezas de la fase 9: FFmpeg (con x264), el lector de fotos HEIC, las gráficas en SVG y
+ * la impresión a PDF. No toca la configuración ni ninguna bóveda real.
  */
 export async function runSelfTest(log: (line: string) => void = console.log): Promise<boolean> {
   const parent = mkdtempSync(join(tmpdir(), 'crm-autoprueba-'))
@@ -42,6 +43,8 @@ export async function runSelfTest(log: (line: string) => void = console.log): Pr
     })
     if (!/libx264/.test(encoders)) throw new Error('FFmpeg no tiene el codificador x264')
     log('ok  FFmpeg con x264')
+    if (!(await heicWorkerLoads())) throw new Error('no carga el lector de fotos HEIC')
+    log('ok  lector de fotos HEIC')
     const svg = lineChartSvg({
       labels: ['01/10', '02/10'],
       values: [1, 2],

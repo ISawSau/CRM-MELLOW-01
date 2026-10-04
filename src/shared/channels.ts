@@ -127,6 +127,7 @@ export const IPC_CHANNELS = [
   'tools:save',
   'tools:convertVideo',
   'tools:cancel',
+  'tools:decodeHeic',
   'meta:clientAccounts',
 ] as const
 

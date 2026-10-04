@@ -115,11 +115,7 @@ export const byId = (fields: FieldDef[] | undefined) =>
 /** Secciones de la barra lateral, con las colecciones del usuario. */
 export function useSections() {
   const entities = useEntities().data
-  return useMemo(
-    () =>
-withCollections((entities ?? []).filter((e) => e.custom)),
-    [entities],
-  )
+  return useMemo(() => withCollections((entities ?? []).filter((e) => e.custom)), [entities])
 }
 
 /** Datos de una entidad (de sistema o colección) para la interfaz. */

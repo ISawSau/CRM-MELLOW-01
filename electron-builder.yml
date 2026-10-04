@@ -21,6 +21,11 @@ files:
   - '!node_modules/better-sqlite3/prebuilds/{darwin,linuxmusl}-*'
   - '!node_modules/better-sqlite3/prebuilds/*-arm64.node'
   - '!node_modules/hash-wasm/dist/*.umd.min.js.map'
+  # De libheif-js solo se usa la versión con el WebAssembly incrustado (wasm-bundle).
+  - '!node_modules/libheif-js/libheif/**'
+  - '!node_modules/libheif-js/libheif-wasm/libheif.wasm'
+  - '!node_modules/libheif-js/libheif-wasm/*.mjs'
+  - '!node_modules/libheif-js/libheif-wasm/*.d.ts'
 
 # FFmpeg (vídeo, fase 9) va fuera del asar, junto con su licencia (GPL-3.0). Lo
 # descarga y verifica scripts/descargar-ffmpeg.mjs.

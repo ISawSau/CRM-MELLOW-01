@@ -28,6 +28,7 @@ import { ToolsService } from './tools/tools-service'
 import { reportFonts } from './reports/fonts'
 import { htmlToPdf } from './reports/print'
 import { ReportService } from './reports/report-service'
+import { decodeHeic } from './tools/heic'
 import { GmailService } from './gmail/gmail-service'
 import { isVaultFolder } from './vault/vault-file'
 import { VaultService } from './vault/vault-service'
@@ -98,6 +99,7 @@ if (process.argv.includes('--autoprueba')) {
     ffmpeg: ffmpegPath,
     savePath: (name) => saveFileAs(mainWindow, name),
     onProgress: (p) => mainWindow?.webContents.send('tools:progress', p),
+    decodeHeic,
   })
   const reports = new ReportService(vault, {
     print: htmlToPdf,
