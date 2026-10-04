@@ -518,7 +518,8 @@ export class DataService {
       estado && doneIds.length ? [{ fieldId: estado.id, op: 'none_of', value: doneIds }] : []
     return (['today', 'before_today'] as const).reduce(
       (n, op) =>
-        n + this.query('tarea', { filters: [{ fieldId: due.id, op, value: null }, ...notDone] }).length,
+        n +
+        this.query('tarea', { filters: [{ fieldId: due.id, op, value: null }, ...notDone] }).length,
       0,
     )
   }
