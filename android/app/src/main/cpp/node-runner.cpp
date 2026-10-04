@@ -11,9 +11,62 @@
 #include <string>
 #include <vector>
 
+#include <dlfcn.h>
+#include <unwind.h>
+
 #include "node.h"
 
 static const char *TAG = "CRM-Mellow-Node";
+
+// --- Diagnóstico: quién termina el proceso -----------------------------------------------
+// En una app de Android, exit() cierra todo el proceso y los demás hilos caen al usar lo ya
+// destruido. Esta función se registra con atexit al cargar el puente (antes que el motor) y,
+// si algo llama a exit(), apunta la pila de llamadas en el registro y en el archivo de errores.
+
+struct Frames {
+    void *pcs[48];
+    int count;
+};
+
+static _Unwind_Reason_Code collect(struct _Unwind_Context *ctx, void *arg) {
+    auto *f = static_cast<Frames *>(arg);
+    const uintptr_t pc = _Unwind_GetIP(ctx);
+    if (pc && f->count < 48) f->pcs[f->count++] = reinterpret_cast<void *>(pc);
+    return f->count < 48 ? _URC_NO_REASON : _URC_END_OF_STACK;
+}
+
+static void log_line(const char *line) {
+    __android_log_write(ANDROID_LOG_ERROR, "CRM-Mellow-Salida", line);
+    // También al archivo de errores del motor (salida de errores, fd 2).
+    dprintf(STDERR_FILENO, "%s\n", line);
+}
+
+static void on_exit_handler() {
+    char line[512];
+    snprintf(line, sizeof line, "exit() llamado en el hilo %d; pila:", gettid());
+    log_line(line);
+    Frames f{};
+    _Unwind_Backtrace(collect, &f);
+    for (int i = 0; i < f.count; i++) {
+        Dl_info info{};
+        if (dladdr(f.pcs[i], &info) && info.dli_fname) {
+            const char *lib = strrchr(info.dli_fname, '/');
+            snprintf(line, sizeof line, "  #%02d %s %s+%#lx", i, lib ? lib + 1 : info.dli_fname,
+                     info.dli_sname ? info.dli_sname : "?",
+                     static_cast<unsigned long>(reinterpret_cast<uintptr_t>(f.pcs[i]) -
+                                                reinterpret_cast<uintptr_t>(
+                                                    info.dli_saddr ? info.dli_saddr : info.dli_fbase)));
+        } else {
+            snprintf(line, sizeof line, "  #%02d %p", i, f.pcs[i]);
+        }
+        log_line(line);
+    }
+}
+
+extern "C" JNIEXPORT jint JNI_OnLoad(JavaVM *, void *) {
+    atexit(on_exit_handler);
+    return JNI_VERSION_1_6;
+}
 static int pipe_out[2];
 
 static void *forward(void *arg) {
