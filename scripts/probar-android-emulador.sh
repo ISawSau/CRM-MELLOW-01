@@ -9,6 +9,10 @@ APK=$1
 OUT=registro-android
 mkdir -p "$OUT"
 LOG=$OUT/logcat.txt
+# Con root (las imágenes google_apis del emulador lo permiten) se pueden leer los informes de
+# cierre de Android, con la pila de llamadas nativa de cada hilo.
+adb root > /dev/null 2>&1 && sleep 3 && adb wait-for-device
+adb shell 'rm -f /data/tombstones/*' > /dev/null 2>&1 || true
 adb install -r "$APK" || { echo "No se ha podido instalar el APK"; exit 1; }
 adb logcat -c || true
 adb logcat -b crash -c || true
@@ -37,6 +41,14 @@ echo "--- Registro de la app (pid ${PID:-ninguno}) ---"
 grep -E "CRM-Mellow|CRM Mellow|AndroidRuntime|DEBUG|libc|chromium" "$LOG" | tail -150 || true
 echo "--- Cierres ---"
 tail -120 "$OUT/crash.txt" || true
+TOMB=$(adb shell 'ls -t /data/tombstones/ 2>/dev/null | grep -v pb | head -1' | tr -d '\r')
+if [ -n "$TOMB" ]; then
+  adb shell "cat /data/tombstones/$TOMB" > "$OUT/tombstone.txt" 2>/dev/null || true
+  echo "--- Informe de cierre ($TOMB): hilo que cae ---"
+  head -90 "$OUT/tombstone.txt"
+  echo "--- Hilos del motor (node, arranque, canal) ---"
+  awk '/^--- --- ---/{show=0} /name: (node|arranque|canal-nativo|main)/{show=1} show' "$OUT/tombstone.txt" | head -160
+fi
 grep -q "AUTOPRUEBA CORRECTA" "$LOG" || { echo "La autoprueba del motor no ha pasado"; exit 1; }
 grep -q "interfaz conectada" "$LOG" || { echo "La interfaz no ha llegado a conectarse al motor"; exit 1; }
 if grep -q "FATAL EXCEPTION\|Fatal signal" "$LOG"; then echo "La app se ha cerrado con un error"; exit 1; fi
