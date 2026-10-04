@@ -29,6 +29,12 @@ final class NodeRunner {
 
     private static native int startNode(String[] arguments, String stderrPath);
 
+    private static final String LOADER =
+        "try { require(process.argv[1]) } catch (e) {"
+            + " const m = 'CRM Mellow: no se ha podido cargar el motor: ' + (e && e.stack || e) + '\\n';"
+            + " try { require('fs').writeSync(2, m) } catch {}"
+            + " try { require('fs').writeSync(1, m) } catch {} }";
+
     private static boolean started = false;
     private static int port;
     private static String token;
@@ -64,8 +70,12 @@ final class NodeRunner {
         }
         port = freePort();
         token = randomToken();
+        // Node carga el motor dentro de un try/catch: si falla al cargar, el error queda en el
+        // archivo de errores en lugar de cerrar la app sin decir nada.
         java.util.List<String> list = new java.util.ArrayList<>(java.util.Arrays.asList(
             "node",
+            "-e",
+            LOADER,
             new File(project, "backend/main.js").getAbsolutePath(),
             "--port", Integer.toString(port),
             "--token", token,
