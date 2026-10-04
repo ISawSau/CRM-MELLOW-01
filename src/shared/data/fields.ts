@@ -129,7 +129,12 @@ export const fieldConfigSchemas = {
   email: z.object({}).strict(),
   phone: z.object({}).strict(),
   rating: z.object({ max: z.number().int().min(1).max(10).default(5) }).strict(),
-  checklist: z.object({}).strict(),
+  checklist: z
+    .object({
+      /** Elementos con los que empieza la lista en cada registro nuevo (fase 14). */
+      template: z.array(z.string().trim().min(1).max(500)).max(50).optional(),
+    })
+    .strict(),
   recurrence: z.object({}).strict(),
   relation: z
     .object({

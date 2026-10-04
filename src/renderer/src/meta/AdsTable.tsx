@@ -1,10 +1,11 @@
 import { Fragment, useMemo, useState } from 'react'
 import { formatCurrency, formatDate, formatDateTime } from '@shared/format'
 import { t, tc } from '@shared/i18n'
-import type { PerfLevel, TableResult, TableRow } from '@shared/meta'
+import type { PerfLevel, TableResult, TableRow, TableTarget } from '@shared/meta'
 import {
   computeMetrics,
   ruleColor,
+  targetRatio,
   type ConditionalRule,
   type CustomMetric,
   type MetricDef,
@@ -66,6 +67,25 @@ export interface TableOptions {
   actionTypes: string[]
   defs: Map<string, MetricDef>
   compare: boolean
+  /** Colorear las filas según el objetivo del cliente (null: sin colores). */
+  target: TableTarget | null
+}
+
+/**
+ * Color de una fila según su objetivo: verde si lo cumple (más intenso cuanto mejor) y de
+ * amarillo a rojo si se pasa (rojo del todo a partir de 1,5 veces el objetivo).
+ */
+function targetStyle(ratio: number | null): {
+  tone?: 'ok' | 'over'
+  style?: Record<string, string>
+} {
+  if (ratio === null) return {}
+  if (ratio <= 1) {
+    const strength = 12 + Math.round(Math.min(1, (1 - ratio) / 0.5) * 16)
+    return { tone: 'ok', style: { '--target-alpha': `${strength}%` } }
+  }
+  const red = Math.round(Math.min(1, (ratio - 1) / 0.5) * 100)
+  return { tone: 'over', style: { '--target-red': `${red}%` } }
 }
 
 type Sort = { key: string; dir: 1 | -1 } | null
@@ -295,6 +315,8 @@ export function AdsTable({
     )
   }
 
+  const rowTarget = (values: MetricValues) =>
+    o.target ? targetStyle(targetRatio(o.target, values)) : {}
   const span = cols.length + 1
   return (
     <div className="meta-table-scroll">
@@ -314,7 +336,11 @@ export function AdsTable({
         <tbody>
           {rows.map(({ row, values, previous }) => (
             <Fragment key={row.id}>
-              <tr data-testid="meta-row">
+              <tr
+                data-testid="meta-row"
+                data-target={rowTarget(values).tone}
+                style={rowTarget(values).style}
+              >
                 <td>
                   <div className="meta-name">
                     {level === 'ad' &&

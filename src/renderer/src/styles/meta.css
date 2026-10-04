@@ -490,3 +490,42 @@
   background: var(--accent);
   transition: width var(--dur) var(--ease);
 }
+
+/* Colores según el objetivo del cliente (fase 14, D-104): verde si lo cumple; de amarillo a
+   rojo cuanto más se pasa. Con los colores del tema. */
+.meta-table tr[data-target='ok'] > td {
+  background: color-mix(in srgb, var(--success) var(--target-alpha, 18%), transparent);
+}
+
+.meta-table tr[data-target='over'] > td {
+  background: color-mix(
+    in srgb,
+    color-mix(in oklab, var(--danger) var(--target-red, 100%), var(--warning)) 24%,
+    transparent
+  );
+}
+
+.meta-table tr[data-target] > td:first-child {
+  box-shadow: inset 3px 0 0 var(--target-edge);
+}
+
+.meta-table tr[data-target='ok'] {
+  --target-edge: var(--success);
+}
+
+.meta-table tr[data-target='over'] {
+  --target-edge: color-mix(in oklab, var(--danger) var(--target-red, 100%), var(--warning));
+}
+
+.target-swatch {
+  display: inline-block;
+  width: 0.8em;
+  height: 0.8em;
+  border-radius: 2px;
+  vertical-align: -0.05em;
+  background: var(--success);
+}
+
+.target-swatch[data-tone='over'] {
+  background: linear-gradient(90deg, var(--warning), var(--danger));
+}

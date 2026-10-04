@@ -13,6 +13,7 @@ import {
 } from '@shared/meta'
 import type { SqliteDb } from '../db/connection'
 import { externalUrl } from '../platform'
+import { tableTarget } from './targets'
 import { addDaily, clientCurrency, moneyConverter, type DailyRow } from './sums'
 import { t, tn } from '@shared/i18n'
 
@@ -299,5 +300,6 @@ export function table(db: SqliteDb, input: TableQuery, displayCurrency: string):
     previous,
     rangeMissing: rows.length > 0 && rangeRows.length === 0,
     breakdowns: enabled,
+    target: unconverted ? null : tableTarget(db, account.client_id, currency, q.until),
   }
 }

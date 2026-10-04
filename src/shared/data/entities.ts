@@ -1,6 +1,19 @@
 import type { FieldType, SelectOption } from './fields'
 import type { ViewConfig, ViewKind } from './views'
 
+/** Lo que hay que dejar listo al empezar con un cliente (lista de arranque, fase 14). */
+export const ONBOARDING_CHECKLIST = [
+  'Acceso a la cuenta publicitaria y al Business Manager',
+  'Píxel instalado y comprobado',
+  'API de conversiones configurada',
+  'Dominio verificado',
+  'Eventos de conversión configurados',
+  'Catálogo de productos conectado',
+  'Acceso a la página de Facebook y a la cuenta de Instagram',
+  'Método de pago de la cuenta publicitaria',
+  'Objetivos acordados (CPA o ROAS y presupuesto)',
+]
+
 /**
  * Entidades del motor. Cada fase activa las suyas sobre el mismo motor: Notas (fase 1),
  * Clientes y Contactos (fase 2)…
@@ -123,7 +136,7 @@ export const ENTITIES: readonly EntityDef[] = [
     singular: 'cliente',
     gender: 'm',
     titleKey: 'nombre',
-    seedVersion: 5,
+    seedVersion: 6,
     fields: [
       { key: 'nombre', label: 'Nombre', type: 'text', system: true, required: true },
       { key: 'descripcion', label: 'Descripción', type: 'longtext', system: true },
@@ -271,6 +284,42 @@ export const ENTITIES: readonly EntityDef[] = [
         config: { target: 'documento', multiple: true },
         inverse: { entity: 'documento', key: 'cliente' },
         since: 4,
+      },
+      // Fase 14: objetivos, presupuesto y lista de arranque (D-104).
+      { key: 'cpa_objetivo', label: 'CPA objetivo', type: 'currency', since: 6 },
+      {
+        key: 'cpa_medida',
+        label: 'El CPA se mide en',
+        type: 'select',
+        visible: false,
+        config: {
+          options: [
+            opt('compras', 'Compras', 'verde'),
+            opt('resultados', 'Resultados de la campaña', 'azul'),
+          ],
+        },
+        since: 6,
+      },
+      { key: 'roas_objetivo', label: 'ROAS objetivo', type: 'number', since: 6 },
+      {
+        key: 'roas_equilibrio',
+        label: 'ROAS de equilibrio',
+        type: 'number',
+        visible: false,
+        since: 6,
+      },
+      {
+        key: 'presupuesto_mensual',
+        label: 'Presupuesto publicitario mensual',
+        type: 'currency',
+        since: 6,
+      },
+      {
+        key: 'arranque',
+        label: 'Lista de arranque',
+        type: 'checklist',
+        config: { template: ONBOARDING_CHECKLIST },
+        since: 6,
       },
     ],
     views: [

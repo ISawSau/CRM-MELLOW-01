@@ -1608,11 +1608,18 @@ export class DataService {
     const titleId = this.titleFieldId(entity)
     const withTitle = { ...values }
     if (titleId && opts.title?.trim()) withTitle[titleId] = opts.title.trim()
-    // Los pipelines (estado de una tarea, etapa de un cliente…) empiezan en su primera etapa.
+    // Los pipelines (estado de una tarea, etapa de un cliente…) empiezan en su primera etapa
+    // y las listas con plantilla (lista de arranque de un cliente), con sus elementos.
     for (const f of this.listFields(entity)) {
-      if (f.type !== 'select' || withTitle[f.id] !== undefined) continue
-      const c = parseFieldConfig('select', f.config)
-      if (c.pipeline && c.options[0]) withTitle[f.id] = c.options[0].id
+      if (withTitle[f.id] !== undefined) continue
+      if (f.type === 'select') {
+        const c = parseFieldConfig('select', f.config)
+        if (c.pipeline && c.options[0]) withTitle[f.id] = c.options[0].id
+      } else if (f.type === 'checklist') {
+        const items = parseFieldConfig('checklist', f.config).template ?? []
+        if (items.length)
+          withTitle[f.id] = items.map((text) => ({ id: newId(), text: t(text), done: false }))
+      }
     }
     if (
       titleId &&
