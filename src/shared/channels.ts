@@ -15,6 +15,7 @@ export const IPC_CHANNELS = [
   'vault:pickFolder',
   'vault:create',
   'vault:open',
+  'vault:cloneFromDrive',
   'vault:unlock',
   'vault:recover',
   'vault:lock',

@@ -1,4 +1,3 @@
-import { app, clipboard, dialog, BrowserWindow } from 'electron'
 import { hostname } from 'node:os'
 import { writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
@@ -6,6 +5,8 @@ import { AppError } from '@shared/errors'
 import { safeFileName } from '@shared/files'
 import { getLocale, setLocale, t } from '@shared/i18n'
 import type { AutoLock } from '../auto-lock'
+import type { Platform } from '../platform'
+import { cloneFromDrive } from '../sync/clone'
 import type { ConfigStore } from '../config'
 import type { VaultService } from '../vault/vault-service'
 import type { SyncService } from '../sync/sync-service'
@@ -20,9 +21,7 @@ import { createDataHandlers } from './data-handlers'
 import { createMetaHandlers } from './meta-handlers'
 import { createSyncHandlers } from './sync-handlers'
 import { createToolsHandlers } from './tools-handlers'
-import type { IpcHandlers } from './register'
-
-const CLIPBOARD_CLEAR_MS = 60_000
+import type { IpcHandlers } from './run'
 
 export interface HandlerDeps {
   vault: VaultService
@@ -36,7 +35,7 @@ export interface HandlerDeps {
   gmail: GmailService
   /** Sube lo pendiente y bloquea (bloqueo manual y automático). */
   lockWithSync: () => Promise<void>
-  getWindow: () => BrowserWindow | null
+  platform: Platform
 }
 
 /** La sincronización al desbloquear no debe dejar la pantalla esperando eternamente. */
@@ -53,7 +52,7 @@ export function createHandlers({
   reports,
   gmail,
   lockWithSync,
-  getWindow,
+  platform,
 }: HandlerDeps): IpcHandlers {
   // Tras traer la versión de la nube, Meta rellena el hueco desde la última vez.
   const syncAfterUnlock = () =>
@@ -90,10 +89,10 @@ export function createHandlers({
 
   return {
     'app:info': () => ({
-      version: app.getVersion(),
-      platform: process.platform,
+      version: platform.version(),
+      platform: platform.name === 'android' ? 'android' : process.platform,
       hostname: hostname(),
-      isPackaged: app.isPackaged,
+      isPackaged: platform.isPackaged(),
     }),
 
     'app:activity': () => autoLock.touch(),
@@ -101,19 +100,13 @@ export function createHandlers({
     'vault:status': () => vault.status(),
 
     'vault:pickFolder': async ({ purpose }) => {
-      const win = getWindow()
-      const options: Electron.OpenDialogOptions = {
+      const picked = await platform.pickFolder({
         title:
           purpose === 'create'
             ? t('Elige dónde crear la bóveda')
             : t('Elige la carpeta de la bóveda'),
         buttonLabel: purpose === 'create' ? t('Crear aquí') : t('Abrir bóveda'),
-        properties: ['openDirectory', 'createDirectory'],
-      }
-      const result = win
-        ? await dialog.showOpenDialog(win, options)
-        : await dialog.showOpenDialog(options)
-      const picked = result.canceled ? undefined : result.filePaths[0]
+      })
       if (!picked) return null
       allow(picked)
       return picked
@@ -131,6 +124,19 @@ export function createHandlers({
 
     'vault:open': ({ path }) => {
       requireAllowed(path)
+      const status = vault.open(path)
+      remember()
+      return status
+    },
+
+    'vault:cloneFromDrive': async ({ parentPath, clientId, clientSecret }) => {
+      requireAllowed(parentPath)
+      const path = await cloneFromDrive({
+        client: { clientId, clientSecret },
+        parentPath,
+        openBrowser: (url) => platform.openExternal(url),
+      })
+      allow(path)
       const status = vault.open(path)
       remember()
       return status
@@ -192,36 +198,25 @@ export function createHandlers({
 
     // Exportar un tema es una acción explícita: el archivo va donde elija el usuario.
     'settings:exportTheme': async ({ name, json }) => {
-      const win = getWindow()
-      const options: Electron.SaveDialogOptions = {
+      const path = await platform.saveAs({
         title: t('Exportar tema'),
-        defaultPath: join(app.getPath('documents'), safeFileName(`${name}.json`)),
+        defaultName: safeFileName(`${name}.json`),
+        folder: 'documents',
         buttonLabel: t('Exportar'),
         filters: [{ name: t('Tema (JSON)'), extensions: ['json'] }],
-      }
-      const result = win
-        ? await dialog.showSaveDialog(win, options)
-        : await dialog.showSaveDialog(options)
-      if (result.canceled || !result.filePath) return false
-      writeFileSync(result.filePath, json, 'utf8')
-      return true
+      })
+      if (!path) return false
+      writeFileSync(path, json, 'utf8')
+      return (await platform.delivered(path)) !== null
     },
 
-    'clipboard:writeText': ({ text }) => clipboard.writeText(text),
+    'clipboard:writeText': ({ text }) => platform.writeClipboard(text, false),
 
-    // La clave de recuperación se copia desde el proceso principal y se borra del
-    // portapapeles al minuto si sigue ahí.
-    'clipboard:writeSecret': async ({ text }) => {
-      await clipboard.writeText(text)
-      setTimeout(() => {
-        void clipboard.readText().then((current) => {
-          if (current === text) clipboard.clear()
-        })
-      }, CLIPBOARD_CLEAR_MS).unref()
-    },
+    // La clave de recuperación se borra del portapapeles al minuto si sigue ahí.
+    'clipboard:writeSecret': ({ text }) => platform.writeClipboard(text, true),
 
-    ...createDataHandlers(vault, getWindow),
-    ...createSyncHandlers(sync, getWindow),
+    ...createDataHandlers(vault, platform),
+    ...createSyncHandlers(sync, platform),
     ...createMetaHandlers(meta),
     ...createAnalysisHandlers(analysis),
     ...createToolsHandlers(tools, reports),

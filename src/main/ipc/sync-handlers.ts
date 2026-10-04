@@ -1,30 +1,21 @@
-import { dialog, type BrowserWindow } from 'electron'
+import type { Platform } from '../platform'
 import type { SyncService } from '../sync/sync-service'
-import type { IpcHandlers } from './register'
+import type { IpcHandlers } from './run'
 import { t } from '@shared/i18n'
 
 type SyncChannel = Extract<keyof IpcHandlers, `sync:${string}` | `backups:${string}`>
 export type SyncHandlers = Pick<IpcHandlers, SyncChannel>
 
 /** Sincronización y copias de seguridad (SPEC §4). */
-export function createSyncHandlers(
-  sync: SyncService,
-  getWindow: () => BrowserWindow | null,
-): SyncHandlers {
+export function createSyncHandlers(sync: SyncService, platform: Platform): SyncHandlers {
   return {
     'sync:status': () => sync.status(),
     // La carpeta se elige en el diálogo del sistema (la interfaz no envía rutas).
     'sync:pickFolder': async () => {
-      const win = getWindow()
-      const options: Electron.OpenDialogOptions = {
+      const path = await platform.pickFolder({
         title: t('Carpeta para sincronizar la bóveda'),
         buttonLabel: t('Usar esta carpeta'),
-        properties: ['openDirectory', 'createDirectory'],
-      }
-      const r = win
-        ? await dialog.showOpenDialog(win, options)
-        : await dialog.showOpenDialog(options)
-      const path = r.canceled ? undefined : r.filePaths[0]
+      })
       if (!path) return null
       sync.configureFolder(path)
       await sync.sync()

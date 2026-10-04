@@ -194,6 +194,12 @@ export const ipcSchemas = {
   'vault:pickFolder': z.object({ purpose: z.enum(['create', 'open']) }),
   'vault:create': z.object({ parentPath: absolutePath, name: vaultNameSchema, password }),
   'vault:open': z.object({ path: absolutePath }),
+  /** Trae la bóveda desde Google Drive a una carpeta nueva dentro de `parentPath` (D-101). */
+  'vault:cloneFromDrive': z.object({
+    parentPath: absolutePath,
+    clientId: z.string().trim().min(1).max(300),
+    clientSecret: z.string().trim().max(300),
+  }),
   'vault:unlock': z.object({ password: anyPassword, force: z.boolean().default(false) }),
   'vault:recover': z.object({
     recoveryKey: z.string().min(1).max(200),
@@ -412,6 +418,7 @@ export interface IpcOutputs {
   'vault:pickFolder': string | null
   'vault:create': { status: VaultStatus; recoveryKey: string }
   'vault:open': VaultStatus
+  'vault:cloneFromDrive': VaultStatus
   'vault:unlock': VaultStatus
   'vault:recover': VaultStatus
   'vault:lock': VaultStatus

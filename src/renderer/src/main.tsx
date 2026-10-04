@@ -10,12 +10,17 @@ import './styles/analysis.css'
 import './styles/tools.css'
 import './styles/gmail.css'
 import './styles/hypr.css'
+import './styles/mobile.css'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { getLocale, setLocale } from '@shared/i18n'
 import { App } from './App'
 import { call } from './lib/ipc'
+import { installMobileBridge } from './lib/mobile-bridge'
+
+// En Android no hay preload: la interfaz habla con el motor por el servidor local (D-101).
+if (!('api' in window)) installMobileBridge()
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: false, refetchOnWindowFocus: false } },

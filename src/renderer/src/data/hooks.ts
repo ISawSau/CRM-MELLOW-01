@@ -1,3 +1,4 @@
+import { isMobile } from '../lib/platform'
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useMemo } from 'react'
 import { findEntity } from '@shared/data/entities'
@@ -115,7 +116,14 @@ export const byId = (fields: FieldDef[] | undefined) =>
 /** Secciones de la barra lateral, con las colecciones del usuario. */
 export function useSections() {
   const entities = useEntities().data
-  return useMemo(() => withCollections((entities ?? []).filter((e) => e.custom)), [entities])
+  return useMemo(
+    () =>
+      withCollections(
+        (entities ?? []).filter((e) => e.custom),
+        isMobile(),
+      ),
+    [entities],
+  )
 }
 
 /** Datos de una entidad (de sistema o colección) para la interfaz. */

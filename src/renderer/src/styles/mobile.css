@@ -1,0 +1,253 @@
+/*
+ * Móvil y pantallas estrechas (D-101). La estructura cambia en `.shell[data-narrow]`
+ * (barra superior, menú lateral que se abre encima y barra inferior); el resto se ajusta con
+ * la misma anchura que usa la interfaz para decidirlo (NARROW_QUERY, 760 px).
+ */
+
+/* --- Estructura ------------------------------------------------------------ */
+
+.shell[data-narrow] {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-areas:
+    'top'
+    'main'
+    'tabs';
+}
+
+:root[data-layout='flotante'] .shell[data-narrow] {
+  padding: 6px;
+  gap: 6px;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+}
+
+.m-topbar {
+  grid-area: top;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-height: 52px;
+  padding: 0 4px;
+  background: var(--bg-raised);
+  border-bottom: 1px solid var(--line);
+}
+
+.m-title {
+  flex: 1;
+  min-width: 0;
+  margin: 0 var(--space-1);
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.m-icon-btn {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: var(--radius);
+  background: none;
+  color: var(--text);
+}
+
+.m-icon-btn:active {
+  background: var(--bg-hover);
+}
+
+/* El cronómetro, solo el icono (o la hora si está en marcha). */
+.m-topbar .timer-item .statusbar-item {
+  min-width: 44px;
+  min-height: 44px;
+  justify-content: center;
+  padding: 0;
+  border-radius: var(--radius);
+  background: none;
+  font-size: 0;
+  text-decoration: none;
+}
+
+.m-topbar .timer-item .statusbar-item .num {
+  font-size: var(--text-sm);
+}
+
+.m-tabbar {
+  grid-area: tabs;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  background: var(--bg-raised);
+  border-top: 1px solid var(--line);
+}
+
+.m-tab {
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: 2px;
+  min-height: 56px;
+  padding: 6px 2px 4px;
+  border: 0;
+  background: none;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.m-tab[aria-current='page'] {
+  color: var(--accent);
+}
+
+.m-tab[aria-current='page'] svg {
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--accent) 45%, transparent));
+}
+
+:root[data-layout='flotante'] .m-topbar,
+:root[data-layout='flotante'] .m-tabbar {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+  background: var(--panel-bg, var(--bg-raised));
+}
+
+/* Menú lateral: se abre encima del contenido. */
+.shell[data-narrow] .sidebar {
+  position: fixed;
+  z-index: 50;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: min(86vw, 320px);
+  border-radius: 0 var(--radius-panel, 0) var(--radius-panel, 0) 0;
+  transform: translateX(-105%);
+  visibility: hidden;
+  transition:
+    transform var(--dur) var(--ease),
+    visibility 0s linear var(--dur);
+  box-shadow: 0 0 40px var(--shadow);
+}
+
+.shell[data-drawer] .sidebar {
+  transform: none;
+  visibility: visible;
+  transition: transform var(--dur) var(--ease);
+}
+
+.m-scrim {
+  position: fixed;
+  z-index: 49;
+  inset: 0;
+  background: rgb(0 0 0 / 0.55);
+}
+
+.shell[data-narrow] .nav {
+  overflow-y: auto;
+}
+
+.shell[data-narrow] .nav-item {
+  min-height: 44px;
+}
+
+:root[data-motion='ninguno'] .shell[data-narrow] .sidebar {
+  transition: none;
+}
+
+/* --- Contenido ---------------------------------------------------------------- */
+
+@media (max-width: 760px) {
+  .page {
+    padding: var(--space-4) var(--space-4) var(--space-6);
+    gap: var(--space-4);
+  }
+
+  .data-main {
+    padding: var(--space-4) var(--space-3) 0;
+  }
+
+  .data-head {
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  /* Las rejillas de varias columnas pasan a una. */
+  .page [class*='grid'],
+  .home-grid,
+  .settings-block {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* Ficha de un registro: pantalla completa por encima. */
+  .panel {
+    position: fixed;
+    z-index: 40;
+    inset: 0;
+    width: auto;
+    border-left: 0;
+  }
+
+  .panel-head {
+    height: 56px;
+  }
+
+  /* Diálogos como hojas que suben desde abajo. */
+  .dialog,
+  .dialog-wide {
+    top: auto;
+    bottom: 0;
+    left: 0;
+    transform: none;
+    width: 100%;
+    max-height: 92vh;
+    overflow: auto;
+    border-radius: var(--radius-panel, 12px) var(--radius-panel, 12px) 0 0;
+    padding: var(--space-4) var(--space-4) var(--space-5);
+  }
+
+  .palette {
+    top: 0;
+    width: 100%;
+    max-height: 100vh;
+  }
+
+  .timer-popover {
+    left: var(--space-3);
+    right: var(--space-3);
+    top: 64px;
+    bottom: auto;
+    width: auto;
+  }
+
+  /* Tablas: se desplazan en horizontal dentro de su caja. */
+  .table-wrap,
+  .grid-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Zonas táctiles cómodas. */
+  .btn,
+  .input,
+  select.input {
+    min-height: 40px;
+  }
+
+  .form-actions {
+    flex-wrap: wrap;
+  }
+}
+
+/* El nombre de la sección ya está en la barra superior: no se repite en la página. */
+.shell[data-narrow] .main .section-head > .eyebrow,
+.shell[data-narrow] .main .section-head > h1 {
+  display: none;
+}
+
+.shell[data-narrow] .main .section-head:not(:has(> :not(.eyebrow, h1))) {
+  display: none;
+}

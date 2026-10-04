@@ -1,3 +1,5 @@
+import { useNarrow } from '../lib/use-narrow'
+import { MobileTabBar, MobileTopBar } from './MobileBars'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { DEFAULT_APPEARANCE, type Density } from '@shared/appearance'
 import { sectionIconName } from '../ui/section-icons'
@@ -67,6 +69,9 @@ function ShellInner({ status }: { status: VaultStatus }) {
   useDataEvents()
   const [collapsed, setCollapsed] = useState(false)
   const [paletteOpen, setPaletteOpen] = useState(false)
+  // Móvil (D-101): la barra lateral es un menú que se abre encima.
+  const narrow = useNarrow()
+  const [drawer, setDrawer] = useState(false)
   // Al abrir la bóveda los paneles entran como ventanas; después ya no se repite.
   const [intro, setIntro] = useState(true)
   useEffect(() => {
@@ -133,7 +138,42 @@ function ShellInner({ status }: { status: VaultStatus }) {
   const navigate = useCallback((id: string) => {
     setSection(id)
     setOpenRecord(null)
+    setDrawer(false)
   }, [])
+
+  // Botón «atrás» de Android: cierra lo que esté abierto encima o vuelve a Inicio; si no
+  // queda nada, la app pasa a segundo plano (lo decide el lado nativo con la respuesta).
+  useEffect(() => {
+    if (!narrow) return
+    const w = window as { __crmBack?: () => boolean }
+    w.__crmBack = () => {
+      if (paletteOpen) {
+        setPaletteOpen(false)
+        return true
+      }
+      if (drawer) {
+        setDrawer(false)
+        return true
+      }
+      if (document.querySelector('[role="dialog"], .overlay')) {
+        const target = document.activeElement ?? document.body
+        target.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+        return true
+      }
+      if (openRecord) {
+        setOpenRecord(null)
+        return true
+      }
+      if (section !== 'inicio') {
+        navigate('inicio')
+        return true
+      }
+      return false
+    }
+    return () => {
+      delete w.__crmBack
+    }
+  }, [narrow, paletteOpen, drawer, openRecord, section, navigate])
 
   const nav = useMemo(
     () => ({
@@ -173,19 +213,32 @@ function ShellInner({ status }: { status: VaultStatus }) {
     <NavContext.Provider value={nav}>
       <div
         className="shell"
-        data-collapsed={collapsed}
+        data-collapsed={!narrow && collapsed}
+        data-narrow={narrow || undefined}
+        data-drawer={(narrow && drawer) || undefined}
         data-intro={intro || undefined}
         data-testid="shell"
       >
+        {narrow && (
+          <MobileTopBar
+            title={t(current.label)}
+            onMenu={() => setDrawer(true)}
+            onSearch={openPalette}
+            onLock={lock}
+          />
+        )}
         <Sidebar
           groups={groups}
           current={section}
           onSelect={navigate}
-          collapsed={collapsed}
-          onToggle={() => setCollapsed((c) => !c)}
+          collapsed={!narrow && collapsed}
+          onToggle={() => (narrow ? setDrawer(false) : setCollapsed((c) => !c))}
           onLock={lock}
           icons={icons}
         />
+        {narrow && drawer && (
+          <div className="m-scrim" onClick={() => setDrawer(false)} aria-hidden="true" />
+        )}
         <main className="main">
           {current.entity ? (
             <DataPage
@@ -217,12 +270,22 @@ function ShellInner({ status }: { status: VaultStatus }) {
             <Upcoming section={current} onSettings={goSettings} />
           )}
         </main>
-        <StatusBar
-          status={status}
-          onOpenPalette={openPalette}
-          onSettings={goSettings}
-          onMeta={() => navigate('campanas')}
-        />
+        {narrow ? (
+          <MobileTabBar
+            sections={sections.all}
+            current={section}
+            onSelect={navigate}
+            onMore={() => setDrawer(true)}
+            icons={(id) => sectionIconName(id, icons)}
+          />
+        ) : (
+          <StatusBar
+            status={status}
+            onOpenPalette={openPalette}
+            onSettings={goSettings}
+            onMeta={() => navigate('campanas')}
+          />
+        )}
         <ConflictDialog />
         {paletteOpen && (
           <CommandPalette

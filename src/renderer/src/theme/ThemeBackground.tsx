@@ -1,11 +1,12 @@
 import type { ThemeBackground as Bg } from '@shared/themes'
+import { fileUrl } from '../data/files'
 
 /**
  * Fondo del tema (imagen o vídeo de la bóveda) detrás de toda la app, con un velo del color
  * de fondo para que el texto se siga leyendo. El vídeo va sin sonido y en bucle.
  */
 export function ThemeBackground({ bg }: { bg: Bg }) {
-  const src = `vault://file/${bg.fileId}`
+  const src = fileUrl(bg.fileId)
   const style = {
     objectFit: bg.fit,
     filter: bg.blur ? `blur(${bg.blur}px)` : undefined,

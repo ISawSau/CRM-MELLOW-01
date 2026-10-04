@@ -1,11 +1,9 @@
 import { app, BrowserWindow, Menu, powerMonitor, session, type IpcMainInvokeEvent } from 'electron'
 import { hostname } from 'node:os'
 import { join } from 'node:path'
-import { AutoLock } from './auto-lock'
 import { ConfigStore } from './config'
 import { getLocale, intlLocale, setLocale } from '@shared/i18n'
-import { createHandlers } from './ipc/handlers'
-import { registerDropHandler } from './ipc/tools-handlers'
+import { registerDropHandler } from './ipc/drop-handler'
 import { registerIpc } from './ipc/register'
 import { runSelfTest } from './self-test'
 import {
@@ -14,24 +12,17 @@ import {
   disableSpellcheckOnEverySession,
   hardenWebContents,
   isAppUrl,
-  openExternalSafely,
   refuseDebugSwitches,
   registerAppProtocol,
   registerPrivilegedScheme,
 } from './security'
 import { registerVaultProtocol } from './files/vault-protocol'
-import { SyncService } from './sync/sync-service'
-import { MetaService } from './meta/meta-service'
-import { AnalysisService } from './analysis/analysis-service'
-import { ffmpegPath, saveFileAs } from './tools/dialogs'
-import { ToolsService } from './tools/tools-service'
+import { ffmpegPath } from './tools/dialogs'
+import { createBackend } from './backend'
+import { electronPlatform } from './electron-platform'
 import { reportFonts } from './reports/fonts'
 import { htmlToPdf } from './reports/print'
-import { ReportService } from './reports/report-service'
 import { decodeHeic } from './tools/heic'
-import { GmailService } from './gmail/gmail-service'
-import { isVaultFolder } from './vault/vault-file'
-import { VaultService } from './vault/vault-service'
 import { createMainWindow } from './window'
 
 // En desarrollo electron-vite sirve la interfaz desde Vite; empaquetada, desde app://crm.
@@ -68,76 +59,26 @@ if (process.argv.includes('--autoprueba')) {
 } else {
   let mainWindow: BrowserWindow | null = null
 
-  const vault = new VaultService({
-    onChange: (status) => mainWindow?.webContents.send('vault:changed', status),
-    data: { onChange: (change) => mainWindow?.webContents.send('data:changed', change) },
-  })
-  const sync = new SyncService(vault, {
-    hostname: hostname(),
-    openBrowser: openExternalSafely,
-    onChange: (status) => mainWindow?.webContents.send('sync:changed', status),
-  })
-  // Servidores falsos de Meta y del BCE: solo en desarrollo y tests, nunca empaquetada.
+  // Servidores falsos de Meta, del BCE y de Google: solo en desarrollo y tests, nunca empaquetada.
   const testUrl = (name: string) => (!app.isPackaged && process.env[name]) || undefined
-  const graphUrl = testUrl('CRM_TEST_GRAPH_URL')
-  const ecbUrl = testUrl('CRM_TEST_ECB_URL')
-  const pollMs = testUrl('CRM_TEST_META_POLL_MS')
-  const meta = new MetaService(vault, {
-    onChange: (status) => mainWindow?.webContents.send('meta:changed', status),
-    onData: () => mainWindow?.webContents.send('meta:changed', meta.status()),
-    onSynced: () => analysis.evaluate(),
-    ...(graphUrl ? { graphUrl } : {}),
-    ...(ecbUrl ? { ecbUrl } : {}),
-    ...(pollMs ? { pollMs: Number(pollMs) } : {}),
-  })
-  const analysis = new AnalysisService(vault, {
-    currency: () => meta.settings().displayCurrency,
-    tableSettings: () => meta.tableSettings(),
-    onChange: () => mainWindow?.webContents.send('analysis:changed', null),
-  })
-  const tools = new ToolsService(vault, {
+  const platform = electronPlatform(() => mainWindow)
+  const backend = createBackend({
+    platform,
+    config,
+    hostname: hostname(),
+    emit: (event, payload) => mainWindow?.webContents.send(event, payload),
+    testUrls: {
+      graph: testUrl('CRM_TEST_GRAPH_URL'),
+      ecb: testUrl('CRM_TEST_ECB_URL'),
+      metaPollMs: testUrl('CRM_TEST_META_POLL_MS'),
+      google: testUrl('CRM_TEST_GOOGLE_URL'),
+    },
     ffmpeg: ffmpegPath,
-    savePath: (name) => saveFileAs(mainWindow, name),
-    onProgress: (p) => mainWindow?.webContents.send('tools:progress', p),
     decodeHeic,
-  })
-  const reports = new ReportService(vault, {
     print: htmlToPdf,
-    savePath: (name) => saveFileAs(mainWindow, name),
     fonts: () => reportFonts(join(__dirname, '..')),
-    displayCurrency: () => meta.settings().displayCurrency,
-    tableSettings: () => meta.tableSettings(),
-    actionTypes: () => meta.actionTypes(),
-    addDocument: (name, file, tipo, clientId) => tools.addDocument(name, file, tipo, clientId),
   })
-  // Google falso para los tests de Gmail (token, revoke y API), solo sin empaquetar.
-  const googleUrl = testUrl('CRM_TEST_GOOGLE_URL')
-  const gmail = new GmailService(vault, {
-    openBrowser: openExternalSafely,
-    driveClient: () => sync.googleClient(),
-    onChange: (s) => mainWindow?.webContents.send('gmail:changed', s),
-    ...(googleUrl
-      ? {
-          apiUrl: `${googleUrl}/gmail/v1`,
-          tokenUrl: `${googleUrl}/token`,
-          revokeUrl: `${googleUrl}/revoke`,
-        }
-      : {}),
-  })
-  /** Bloqueo con subida previa de lo pendiente (manual o por inactividad). */
-  const lockWithSync = async () => {
-    autoLock.stop()
-    meta.dispose()
-    tools.dispose()
-    gmail.dispose()
-    try {
-      await sync.beforeClose()
-    } finally {
-      sync.dispose()
-      vault.lock()
-    }
-  }
-  const autoLock = new AutoLock(vault, Date.now, () => void lockWithSync())
+  const { vault, sync, meta, tools } = backend
 
   app.on('second-instance', () => {
     if (mainWindow) {
@@ -172,50 +113,20 @@ if (process.argv.includes('--autoprueba')) {
       devServerUrl ? new URL(devServerUrl).origin : APP_ORIGIN,
     )
 
-    const last = config.get().lastVaultPath
-    if (last && isVaultFolder(last)) {
-      try {
-        vault.open(last)
-      } catch {
-        // Bóveda movida o dañada: se muestra la pantalla de bienvenida.
-      }
-    }
+    backend.openLastVault()
 
     const isTrustedSender = (event: IpcMainInvokeEvent) =>
       mainWindow !== null &&
       event.sender === mainWindow.webContents &&
       isAppUrl(event.senderFrame?.url ?? '', devServerUrl)
 
-    registerIpc(
-      createHandlers({
-        vault,
-        config,
-        autoLock,
-        sync,
-        meta,
-        analysis,
-        tools,
-        reports,
-        gmail,
-        lockWithSync,
-        getWindow: () => mainWindow,
-      }),
-      isTrustedSender,
-    )
+    registerIpc(backend.handlers, isTrustedSender)
     registerDropHandler(tools, isTrustedSender)
 
     // Bloqueo al suspender o bloquear la sesión del sistema.
     // Al suspender no hay tiempo para subir: se sube en la próxima sincronización.
-    const lockNow = () => {
-      autoLock.stop()
-      meta.dispose()
-      tools.dispose()
-      gmail.dispose()
-      sync.dispose()
-      vault.lock()
-    }
-    powerMonitor.on('suspend', lockNow)
-    powerMonitor.on('lock-screen', lockNow)
+    powerMonitor.on('suspend', backend.lockNow)
+    powerMonitor.on('lock-screen', backend.lockNow)
 
     mainWindow = createWindowFor(ses)
     mainWindow.on('closed', () => {

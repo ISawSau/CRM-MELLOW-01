@@ -55,7 +55,7 @@ import type {
   TrashItem,
   UndoState,
 } from '@shared/data/records'
-import { norm, richTextToPlain } from '@shared/data/text'
+import { norm, richTextToPlain, words } from '@shared/data/text'
 import {
   viewConfigSchema,
   VIEW_KINDS,
@@ -2324,10 +2324,7 @@ export class DataService {
   }
 
   search(text: string, limit = 20): SearchHit[] {
-    const terms = norm(text)
-      .split(/[^\p{L}\p{N}]+/u)
-      .filter(Boolean)
-      .slice(0, 8)
+    const terms = words(norm(text)).slice(0, 8)
     if (terms.length === 0) return []
     // Cada palabra como prefijo, entre comillas para que FTS5 no la interprete.
     const match = terms.map((t) => `"${t.replace(/"/g, '""')}"*`).join(' ')

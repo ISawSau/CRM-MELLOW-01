@@ -1,3 +1,4 @@
+import { isMobile } from '../lib/platform'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import type { BackupEntry } from '@shared/ipc'
@@ -309,18 +310,20 @@ export function SyncSettings() {
               <button type="button" className="btn" onClick={() => setGoogle((g) => !g)}>
                 {t('Conectar Google Drive…')}
               </button>
-              <button
-                type="button"
-                className="btn"
-                data-testid="sync-folder"
-                onClick={() => run(call('sync:pickFolder'))}
-              >
-                {t('Usar una carpeta…')}
-              </button>
+              {!isMobile() && (
+                <button
+                  type="button"
+                  className="btn"
+                  data-testid="sync-folder"
+                  onClick={() => run(call('sync:pickFolder'))}
+                >
+                  {t('Usar una carpeta…')}
+                </button>
+              )}
             </>
           )}
         </div>
-        {!s?.kind && (
+        {!s?.kind && !isMobile() && (
           <p className="hint">
             {t(
               '«Usar una carpeta» sirve para un USB, un disco de red o una carpeta que ya sincroniza otro programa.',

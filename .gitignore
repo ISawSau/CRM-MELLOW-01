@@ -39,3 +39,18 @@ Thumbs.db
 .vscode/*
 !.vscode/extensions.json
 vendor/
+
+# App de Android (D-101): builds, SDK local y claves de firma
+android/.gradle/
+android/build/
+android/app/build/
+android/app/.cxx/
+android/local.properties
+android/app/src/main/assets/nodejs-project/
+android/app/libnode/
+*.jks
+*.keystore
+*.apk
+*.aab
+android/.nodejs-mobile/
+registro-android/

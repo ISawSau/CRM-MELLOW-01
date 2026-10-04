@@ -1,3 +1,4 @@
+import { pickFiles } from './pick-files'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState, type DragEvent } from 'react'
 import type { FieldDef, FileRef } from '@shared/data/fields'
@@ -5,6 +6,7 @@ import { formatBytes, isPreviewImage, isVideo } from '@shared/files'
 import { t } from '@shared/i18n'
 import { MAX_UPLOAD_BYTES } from '@shared/ipc'
 import { call, IpcCallError } from '../lib/ipc'
+import { isMobile } from '../lib/platform'
 import { useToast } from '../ui/Toast'
 
 /**
@@ -13,8 +15,8 @@ import { useToast } from '../ui/Toast'
  * la primera vez que se ve el archivo (sin dependencias nativas).
  */
 
-export const fileUrl = (id: string) => `vault://file/${id}`
-export const thumbUrl = (id: string) => `vault://thumb/${id}`
+export const fileUrl = (id: string) => (isMobile() ? `/vault/file/${id}` : `vault://file/${id}`)
+export const thumbUrl = (id: string) => (isMobile() ? `/vault/thumb/${id}` : `vault://thumb/${id}`)
 
 const THUMB_SIDE = 480
 const pending = new Set<string>()
@@ -296,7 +298,7 @@ export function FilesEditor({
           disabled={busy}
           onClick={() => {
             setBusy(true)
-            void call('files:pick')
+            void pickFiles()
               .then(add)
               .catch(fail)
               .finally(() => setBusy(false))

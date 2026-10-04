@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { DEFAULT_APPEARANCE } from '@shared/appearance'
 import { useVaultStatus } from './lib/hooks'
 import { call } from './lib/ipc'
+import { CloneFromDrive } from './screens/CloneFromDrive'
 import { CreateVault } from './screens/CreateVault'
 import { Gate } from './screens/Gate'
 import { RecoveryKeyPanel } from './screens/RecoveryKey'
@@ -16,6 +17,7 @@ import { t } from '@shared/i18n'
 export function App() {
   const status = useVaultStatus()
   const [creating, setCreating] = useState(false)
+  const [cloning, setCloning] = useState(false)
   /** Clave de recuperación recién creada: se muestra antes de entrar. */
   const [newRecoveryKey, setNewRecoveryKey] = useState<string | null>(null)
 
@@ -79,5 +81,6 @@ export function App() {
   if (creating) {
     return <CreateVault onCancel={() => setCreating(false)} onCreated={setNewRecoveryKey} />
   }
-  return <Welcome onCreate={() => setCreating(true)} />
+  if (cloning) return <CloneFromDrive onDone={() => setCloning(false)} />
+  return <Welcome onCreate={() => setCreating(true)} onClone={() => setCloning(true)} />
 }
