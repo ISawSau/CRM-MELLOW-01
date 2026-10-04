@@ -24,6 +24,14 @@ done
 adb logcat -d -v threadtime > "$LOG"
 adb logcat -d -b crash -v threadtime > "$OUT/crash.txt" || true
 PID=$(adb shell pidof cc.yellowmellow.crm || true)
+if ! grep -q "interfaz conectada" "$LOG"; then
+  # Si no ha llegado al final, se reabre: la app vuelca al registro lo que el motor apuntó.
+  adb shell am force-stop cc.yellowmellow.crm || true
+  adb shell am start -n cc.yellowmellow.crm/.MainActivity || true
+  sleep 10
+  echo "--- Arranque anterior (apuntado por el motor) ---"
+  adb logcat -d -s CRM-Mellow-Anterior || true
+fi
 echo "--- Registro de la app (pid ${PID:-ninguno}) ---"
 grep -E "CRM-Mellow|CRM Mellow|AndroidRuntime|DEBUG|libc|chromium" "$LOG" | tail -150 || true
 echo "--- Cierres ---"

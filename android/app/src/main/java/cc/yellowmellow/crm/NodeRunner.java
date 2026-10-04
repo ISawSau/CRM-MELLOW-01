@@ -50,6 +50,7 @@ final class NodeRunner {
         if (started) return;
         Context app = context.getApplicationContext();
         File project = copyProject(app);
+        logPreviousStart(new File(new File(app.getFilesDir(), "datos"), "arranque.txt"));
         port = freePort();
         token = randomToken();
         java.util.List<String> list = new java.util.ArrayList<>(java.util.Arrays.asList(
@@ -71,6 +72,17 @@ final class NodeRunner {
         node.start();
         started = true;
         waitUntilListening(port);
+    }
+
+    /**
+     * El motor apunta su arranque en arranque.txt. Si la vez anterior se cayó, lo que escribió
+     * queda ahí: se pasa al registro de Android y se empieza de cero.
+     */
+    private static void logPreviousStart(File file) {
+        if (!file.exists()) return;
+        for (String line : read(file).split("\n")) Log.i(TAG + "-Anterior", line);
+        //noinspection ResultOfMethodCallIgnored
+        file.delete();
     }
 
     private static String randomToken() {

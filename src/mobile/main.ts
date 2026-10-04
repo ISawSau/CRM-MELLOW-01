@@ -1,3 +1,4 @@
+import './boot'
 import { trace } from './trace'
 import { hostname } from 'node:os'
 import { join } from 'node:path'
@@ -74,10 +75,10 @@ async function main(): Promise<void> {
   trace(`motor listo en 127.0.0.1:${server.port}`)
 }
 
+// Si falla, se deja escrito y el proceso sigue vivo: en Android salir de Node cierra la app
+// entera (y la deja colgada). La interfaz se queda en «Abriendo…» y el registro dice por qué.
 main().catch((e: unknown) => {
-  console.error(
-    'CRM Mellow: no se ha podido arrancar el motor:',
-    e instanceof Error ? e.message : e,
+  trace(
+    `no se ha podido arrancar el motor: ${e instanceof Error ? (e.stack ?? e.message) : String(e)}`,
   )
-  process.exit(1)
 })
