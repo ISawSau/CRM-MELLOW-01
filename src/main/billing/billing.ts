@@ -76,6 +76,7 @@ export function billingSummary(
           porcentajePrevisto: 0,
           beneficio: 0,
           facturas: 0,
+          horas: 0,
         }),
       )
     return r
@@ -137,7 +138,15 @@ export function billingSummary(
     row(clientOf(gf('cliente'), g)).gastos += money(importe, cur, fecha as string)
   }
 
-  // Inversión publicitaria (Meta, LinkedIn y X) por cliente (cuentas asignadas).
+  // Horas registradas (D-099).
+  const hf = byKey(data.listFields('hora'))
+  for (const h of data.query('hora') as RecordRow[]) {
+    const fecha = hf('fecha') ? h.values[hf('fecha')!.id] : undefined
+    if (!inRange(fecha)) continue
+    row(clientOf(hf('cliente'), h)).horas += hf('horas') ? num(h.values[hf('horas')!.id]) : 0
+  }
+
+  // Inversión publicitaria en Meta por cliente (cuentas asignadas).
   const meta = analyze(db, data, { since, until, groupBy: 'cliente', limit: 50 }, currency)
   partial ||= meta.partial
   for (const g of meta.groups) {
@@ -174,6 +183,7 @@ export function billingSummary(
     'porcentajePrevisto',
     'beneficio',
     'facturas',
+    'horas',
   ] as const
   const totals = Object.fromEntries(
     keys.map((k) => [k, list.reduce((n, r) => n + r[k], 0)]),

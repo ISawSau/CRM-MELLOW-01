@@ -22,11 +22,13 @@ export interface BillingRow {
   inversion: number
   /** Fee mensual prorrateado por los días del periodo. */
   feePrevisto: number
-  /** Porcentaje acordado sobre la inversión publicitaria (Meta, LinkedIn y X). */
+  /** Porcentaje acordado sobre la inversión publicitaria en Meta. */
   porcentajePrevisto: number
   /** Cobrado − gastos. */
   beneficio: number
   facturas: number
+  /** Horas registradas en el periodo (D-099). */
+  horas: number
 }
 
 export interface OverdueInvoice {

@@ -69,6 +69,18 @@ import { DEFAULT_TIME_ZONE } from '@shared/format'
 import { mimeFromName, safeFileName } from '@shared/files'
 import { DEFAULT_HOME_LAYOUT, homeLayoutSchema, type HomeLayout } from '@shared/home'
 import { DEFAULT_PROFILE, profileSchema, type Profile } from '@shared/profile'
+import {
+  elapsedHours,
+  runningTimerSchema,
+  timerStartSchema,
+  type RunningTimer,
+  type TimerStart,
+} from '@shared/timer'
+import {
+  DEFAULT_MAIL_TEMPLATES,
+  mailTemplatesSchema,
+  type MailTemplate,
+} from '@shared/mail-templates'
 import { AppError } from '@shared/errors'
 import { t, tn } from '@shared/i18n'
 import type { EntityInfo, FileInfo, VersionEntry } from '@shared/ipc'
@@ -138,6 +150,8 @@ const TRASH_DAYS_KEY = 'data.trashDays'
 const PROFILE_KEY = 'profile'
 const BRIEF_TEMPLATES_KEY = 'briefs.templates'
 const HOME_LAYOUT_KEY = 'home.layout'
+const MAIL_TEMPLATES_KEY = 'mail.templates'
+const TIMER_KEY = 'timer.running'
 const COLLECTIONS_KEY = 'data.collections'
 export const DEFAULT_TRASH_DAYS = 30
 const CHUNK = 500
@@ -390,6 +404,60 @@ export class DataService {
   }
 
   /** Tarjetas y widgets de Inicio (fase 12). */
+  /** Cronómetro en marcha (D-099), guardado en la bóveda: sobrevive a cerrar la app. */
+  getTimer(): RunningTimer | null {
+    const r = runningTimerSchema.safeParse(this.getSetting(TIMER_KEY))
+    return r.success ? r.data : null
+  }
+
+  startTimer(input: TimerStart): RunningTimer {
+    if (this.getTimer())
+      throw new AppError('INVALID_INPUT', undefined, t('Ya hay un cronómetro en marcha.'))
+    const timer = { ...timerStartSchema.parse(input), startedAt: this.now().toISOString() }
+    this.putSetting(TIMER_KEY, timer)
+    this.emit(null)
+    return timer
+  }
+
+  /** Para el cronómetro y crea el registro de horas (o lo descarta si `discard`). */
+  stopTimer(discard = false): RecordRow | null {
+    const timer = this.getTimer()
+    if (!timer) return null
+    this.db.prepare('DELETE FROM settings WHERE key = ?').run(TIMER_KEY)
+    if (discard) {
+      this.emit(null)
+      return null
+    }
+    const fields = this.listFields('hora')
+    const id = (k: string) => fields.find((f) => f.key === k)?.id
+    const values: Values = {}
+    if (id('fecha')) values[id('fecha')!] = todayIn(this.zone(), this.now())
+    if (id('horas')) values[id('horas')!] = elapsedHours(timer.startedAt, this.now())
+    if (id('facturable')) values[id('facturable')!] = true
+    let rec = this.create('hora', values, { title: timer.description })
+    if (timer.clientId && id('cliente') && this.get(timer.clientId))
+      rec = this.setLinks(id('cliente')!, rec.id, [timer.clientId])
+    return rec
+  }
+
+  /** Plantillas de correo (D-098). Sin guardar, las de serie en el idioma de la app. */
+  getMailTemplates(): MailTemplate[] {
+    const r = mailTemplatesSchema.safeParse(this.getSetting(MAIL_TEMPLATES_KEY))
+    if (r.success) return r.data
+    return DEFAULT_MAIL_TEMPLATES.map((m) => ({
+      ...m,
+      name: t(m.name),
+      subject: t(m.subject),
+      body: t(m.body),
+    }))
+  }
+
+  setMailTemplates(list: MailTemplate[]): MailTemplate[] {
+    this.putSetting(MAIL_TEMPLATES_KEY, mailTemplatesSchema.parse(list))
+    this.emit(null)
+    return this.getMailTemplates()
+  }
+
   getHomeLayout(): HomeLayout {
     const r = homeLayoutSchema.safeParse(this.getSetting(HOME_LAYOUT_KEY))
     return r.success ? r.data : DEFAULT_HOME_LAYOUT

@@ -148,6 +148,34 @@ test('perfil: destacar un cliente y ver la actividad', async () => {
   await expect(page.getByTestId('record-panel')).toBeVisible()
 })
 
+test('plantillas de correo: crear una y escribir a un cliente con ella', async () => {
+  await page.getByTestId('nav-ajustes').click()
+  const block = page.getByTestId('mail-templates-settings')
+  await expect(block).toContainText('Seguimiento de propuesta')
+  await block.getByTestId('mail-template-new').click()
+  const form = block.getByTestId('mail-template-form')
+  await form.getByLabel('Nombre de la plantilla').fill('Bienvenida')
+  await form.getByLabel('Asunto').fill('Bienvenido, {cliente}')
+  await form.getByLabel('Texto').fill('Hola, {nombre}. Soy {mi_nombre}.')
+  await form.getByRole('button', { name: 'Guardar plantilla' }).click()
+  await expect(block).toContainText('Bienvenida')
+
+  // La ficha se abre desde el cliente destacado del perfil.
+  await page.getByTestId('nav-perfil').click()
+  await page.getByTestId('profile-pinned').getByRole('button', { name: 'Acme Moda' }).click()
+  await page.getByTestId('compose-mail').click()
+  const dialog = page.getByTestId('compose-dialog')
+  await dialog.getByLabel('Plantilla').selectOption({ label: 'Bienvenida' })
+  await expect(dialog.getByLabel('Asunto')).toHaveValue('Bienvenido, Acme Moda')
+  await expect(dialog.getByLabel('Texto')).toHaveValue('Hola, Acme Moda. Soy Joan Mellow.')
+  await dialog.getByLabel('Para').fill('ana@acme.es')
+  const href = await dialog.getByTestId('compose-gmail').getAttribute('href')
+  const url = new URL(href!)
+  expect(url.searchParams.get('to')).toBe('ana@acme.es')
+  expect(url.searchParams.get('su')).toBe('Bienvenido, Acme Moda')
+  await dialog.getByRole('button', { name: 'Cerrar' }).click()
+})
+
 test('sin errores de consola ni de la CSP', () => {
   expect(errors).toEqual([])
 })

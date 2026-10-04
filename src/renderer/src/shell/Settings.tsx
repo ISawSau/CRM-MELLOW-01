@@ -8,6 +8,7 @@ import { useAction } from '../lib/hooks'
 import { RecoveryKeyPanel } from '../screens/RecoveryKey'
 import { BUILT_IN_THEMES, findTheme, type Theme } from '@shared/themes'
 import { CollectionsSettings } from '../data/CollectionsSettings'
+import { MailTemplatesSettings } from '../gmail/MailTemplatesSettings'
 import { SectionIconsSettings } from './SectionIconsSettings'
 import { DataSettings } from '../data/FieldsSettings'
 import { SyncSettings } from './SyncSettings'
@@ -341,6 +342,7 @@ export function Settings({ status }: { status: VaultStatus }) {
         <Appearance status={status} />
         <SectionIconsSettings status={status} />
         <CollectionsSettings />
+        <MailTemplatesSettings />
         <DataSettings />
         <SyncSettings />
         <AutoLock status={status} />

@@ -50,6 +50,24 @@ const COLUMNS = [
   ['porcentajePrevisto', '% del gasto previsto'],
 ] as const
 
+/** Horas del periodo y lo facturado por cada hora (rentabilidad, D-099). */
+function HoursCells({
+  horas,
+  facturado,
+  money,
+}: {
+  horas: number
+  facturado: number
+  money: (n: number) => string
+}) {
+  return (
+    <>
+      <td className="num">{horas ? formatNumber(horas, 2) : '—'}</td>
+      <td className="num">{horas ? money(facturado / horas) : '—'}</td>
+    </>
+  )
+}
+
 /** Facturación y beneficio por cliente (SPEC §7.9). */
 export function BillingPage({ num, onNavigate }: { num: string; onNavigate: (s: string) => void }) {
   const today = useToday()
@@ -140,6 +158,8 @@ export function BillingPage({ num, onNavigate }: { num: string; onNavigate: (s: 
                       {tc('facturacion', l)}
                     </th>
                   ))}
+                  <th className="num">{t('Horas')}</th>
+                  <th className="num">{t('Facturado por hora')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -167,11 +187,12 @@ export function BillingPage({ num, onNavigate }: { num: string; onNavigate: (s: 
                         {money(r[k])}
                       </td>
                     ))}
+                    <HoursCells horas={r.horas} facturado={r.facturado} money={money} />
                   </tr>
                 ))}
                 {s.rows.length === 0 && (
                   <tr>
-                    <td colSpan={COLUMNS.length + 1} className="faint">
+                    <td colSpan={COLUMNS.length + 3} className="faint">
                       {t('Nada en este periodo. Registra facturas y gastos en sus secciones.')}
                     </td>
                   </tr>
@@ -186,6 +207,11 @@ export function BillingPage({ num, onNavigate }: { num: string; onNavigate: (s: 
                         {money(s.totals[k])}
                       </td>
                     ))}
+                    <HoursCells
+                      horas={s.totals.horas}
+                      facturado={s.totals.facturado}
+                      money={money}
+                    />
                   </tr>
                 </tfoot>
               )}

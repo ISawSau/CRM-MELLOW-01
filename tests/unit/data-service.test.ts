@@ -9,6 +9,7 @@ import { FileStore } from '../../src/main/files/file-store'
 import { matchesFilter } from '../../src/main/data/query'
 import { briefDocFromTemplate } from '../../src/shared/data/brief-templates'
 import { socialUrl } from '../../src/shared/profile'
+import { fillTemplate, gmailComposeUrl, mailtoUrl } from '../../src/shared/mail-templates'
 import { shiftDate } from '../../src/shared/data/dates'
 import type { FieldDef } from '../../src/shared/data/fields'
 import type { ComputedValue, DataChange, RecordRow } from '../../src/shared/data/records'
@@ -228,6 +229,42 @@ describe('perfil', () => {
     svc.create('nota', {}, { title: 'Una' })
     svc.create('nota', {}, { title: 'Otra' })
     expect(svc.activity()).toEqual([{ date: '2026-06-15', count: 2 }])
+  })
+
+  it('plantillas de correo: las de serie, guardar y rellenar variables', () => {
+    const { svc } = setup()
+    expect(svc.getMailTemplates().map((m) => m.id)).toEqual(['seguimiento', 'informe', 'factura'])
+    const mine = { id: 'mia', name: 'Mía', subject: 'Hola {nombre}', body: '{cliente} · {nada}' }
+    expect(svc.setMailTemplates([mine])).toEqual([mine])
+    expect(() => svc.setMailTemplates([mine, mine])).toThrow()
+    expect(fillTemplate(mine.body, { cliente: 'Acme' })).toBe('Acme · {nada}')
+    const url = new URL(gmailComposeUrl(['a@b.com', 'c@d.com'], 'Hola Ana', 'Línea 1\nLínea 2'))
+    expect(url.origin).toBe('https://mail.google.com')
+    expect(url.searchParams.get('to')).toBe('a@b.com,c@d.com')
+    expect(url.searchParams.get('body')).toBe('Línea 1\nLínea 2')
+    expect(mailtoUrl(['a@b.com'], 'Hola Ana', 'x y')).toBe(
+      'mailto:a%40b.com?subject=Hola%20Ana&body=x%20y',
+    )
+  })
+
+  it('cronómetro: uno a la vez, y al pararlo crea el registro de horas del cliente', () => {
+    let now = new Date('2026-06-15T08:00:00Z')
+    const { svc } = setup({ now: () => now })
+    const acme = svc.create('cliente', {}, { title: 'Acme' })
+    expect(svc.getTimer()).toBeNull()
+    svc.startTimer({ description: 'Optimizar campañas', clientId: acme.id })
+    expect(() => svc.startTimer({ description: 'Otra', clientId: null })).toThrow(/en marcha/)
+    now = new Date('2026-06-15T09:30:00Z')
+    const rec = svc.stopTimer()!
+    expect(rec.title).toBe('Optimizar campañas')
+    const f = (k: string) => svc.listFields('hora').find((x) => x.key === k)!.id
+    expect(rec.values[f('horas')]).toBe(1.5)
+    expect(rec.values[f('fecha')]).toBe('2026-06-15')
+    expect(rec.values[f('cliente')]).toEqual([{ id: acme.id, title: 'Acme' }])
+    expect(svc.getTimer()).toBeNull()
+    svc.startTimer({ description: 'Descartar', clientId: null })
+    expect(svc.stopTimer(true)).toBeNull()
+    expect(svc.query('hora')).toHaveLength(1)
   })
 
   it('crea un registro con título directamente', () => {

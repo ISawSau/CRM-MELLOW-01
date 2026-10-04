@@ -10,6 +10,7 @@ import {
   themeSchema,
   toHex,
   type Theme,
+  type ThemeStyle,
   type ThemeBackground as ThemeBg,
   type ThemeColors,
 } from '@shared/themes'
@@ -89,6 +90,122 @@ const OPTION_LABELS: Record<OptionColor, string> = {
 const HEX = /^#[0-9a-f]{6}$/i
 
 /** Un color: selector, código hexadecimal y, si el token lo lleva, opacidad. */
+const LAYOUTS = [
+  ['flotante', 'Flotante (paneles separados, como Hyprland)'],
+  ['clasica', 'Clásica (paneles pegados)'],
+] as const
+const TRANSPARENCIES = [
+  ['solido', 'Sin transparencia'],
+  ['cristal', 'Cristal: fondo dentro de la app y paneles desenfocados'],
+  ['ventana', 'Ventana transparente (se ve el escritorio)'],
+] as const
+const MOTIONS = [
+  ['ninguno', 'Sin animaciones'],
+  ['suave', 'Suaves'],
+  ['vivo', 'Más marcadas'],
+] as const
+const TITLES = [
+  ['normal', 'Normales'],
+  ['mayusculas', 'En mayúsculas'],
+] as const
+
+/** Disposición, transparencia, animaciones y títulos del tema (D-097). */
+function StyleEditor({
+  value,
+  onChange,
+}: {
+  value: ThemeStyle
+  onChange: (v: ThemeStyle) => void
+}) {
+  const set = (patch: Partial<ThemeStyle>) => onChange({ ...value, ...patch })
+  const floating = value.layout === 'flotante'
+  const glass = value.transparency !== 'solido'
+  const range = (label: string, key: 'gap' | 'border' | 'blur', max: number, disabled: boolean) => (
+    <label className="theme-range">
+      <span>{t(label)}</span>
+      <input
+        type="range"
+        min={0}
+        max={max}
+        value={value[key]}
+        disabled={disabled}
+        aria-label={t(label)}
+        onChange={(e) => set({ [key]: Number(e.target.value) })}
+      />
+      <span className="num faint">{value[key]} px</span>
+    </label>
+  )
+  const select = <K extends 'layout' | 'transparency' | 'motion' | 'titles'>(
+    label: string,
+    key: K,
+    options: readonly (readonly [ThemeStyle[K], string])[],
+  ) => (
+    <label className="theme-select">
+      <span>{t(label)}</span>
+      <select
+        className="input"
+        aria-label={t(label)}
+        value={value[key]}
+        onChange={(e) => set({ [key]: e.target.value } as Partial<ThemeStyle>)}
+      >
+        {options.map(([id, text]) => (
+          <option key={id} value={id}>
+            {t(text)}
+          </option>
+        ))}
+      </select>
+    </label>
+  )
+  return (
+    <fieldset className="theme-group theme-group-wide" data-testid="theme-style">
+      <legend>{t('Estilo')}</legend>
+      {select('Disposición', 'layout', LAYOUTS)}
+      {range('Huecos entre paneles', 'gap', 32, !floating)}
+      {range('Borde del panel activo', 'border', 4, !floating)}
+      <label className="theme-check">
+        <input
+          type="checkbox"
+          checked={value.gradient}
+          disabled={!floating}
+          onChange={(e) => set({ gradient: e.target.checked })}
+        />
+        {t('Borde en degradado (acento → numeración)')}
+      </label>
+      {select('Transparencia', 'transparency', TRANSPARENCIES)}
+      <label className="theme-range">
+        <span>{t('Opacidad de los paneles')}</span>
+        <input
+          type="range"
+          min={40}
+          max={100}
+          value={Math.round(value.opacity * 100)}
+          disabled={!glass}
+          aria-label={t('Opacidad de los paneles')}
+          onChange={(e) => set({ opacity: Number(e.target.value) / 100 })}
+        />
+        <span className="num faint">{Math.round(value.opacity * 100)} %</span>
+      </label>
+      {range('Desenfoque', 'blur', 40, !glass)}
+      {value.transparency === 'ventana' && (
+        <p className="hint">
+          {t(
+            'Se aplica la próxima vez que abras la app. En Hyprland el desenfoque lo pone el compositor (regla «blur» para la ventana de CRM Mellow); en Windows 11 se usa el efecto acrílico; en otros sistemas se ve el escritorio sin desenfocar.',
+          )}
+        </p>
+      )}
+      {value.transparency === 'cristal' && (
+        <p className="hint">
+          {t(
+            'Con una imagen o un vídeo de fondo (abajo) se ve detrás de los paneles; si no, un degradado con los colores del tema.',
+          )}
+        </p>
+      )}
+      {select('Animaciones', 'motion', MOTIONS)}
+      {select('Títulos', 'titles', TITLES)}
+    </fieldset>
+  )
+}
+
 function ColorRow({
   label,
   value,
@@ -330,6 +447,7 @@ export function ThemeEditor({
             <span className="num faint">{draft.radius} px</span>
           </label>
         </fieldset>
+        <StyleEditor value={draft.style} onChange={(style) => setDraft({ ...draft, style })} />
         <BackgroundEditor
           value={draft.background}
           onChange={(background) => setDraft({ ...draft, background })}

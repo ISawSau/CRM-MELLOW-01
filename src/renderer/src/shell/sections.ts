@@ -87,6 +87,7 @@ export const SECTION_GROUPS: SectionGroup[] = [
         entity: 'factura',
       },
       { id: 'gastos', label: 'Gastos', letter: 'G', phase: null, summary: '', entity: 'gasto' },
+      { id: 'horas', label: 'Horas', letter: 'R', phase: null, summary: '', entity: 'hora' },
       { id: 'informes', label: 'Informes', letter: 'N', phase: null, summary: '' },
       {
         id: 'documentos',

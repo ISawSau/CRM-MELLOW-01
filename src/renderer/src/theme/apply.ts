@@ -8,6 +8,11 @@ export function applyAppearance(theme: Theme, density: string, root = document.d
   root.dataset['theme'] = theme.id
   root.dataset['scheme'] = theme.scheme
   root.dataset['density'] = density
+  root.dataset['layout'] = theme.style.layout
+  root.dataset['transparency'] = theme.style.transparency
+  root.dataset['motion'] = theme.style.motion
+  root.dataset['titles'] = theme.style.titles
+  root.dataset['gradient'] = String(theme.style.gradient)
   // Con fondo de imagen o vídeo, el fondo de la página se vuelve transparente.
   if (theme.background) root.dataset['bg'] = theme.background.kind
   else delete root.dataset['bg']

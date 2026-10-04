@@ -333,6 +333,7 @@ El negocio actual es ecommerce y no usa formularios de leads. Si en el futuro se
 - Beneficio por cliente combinando cobros, gastos asociados y fees.
 - **Nota legal:** en España el software que emite facturas debe cumplir requisitos específicos (normativa Verifactu). En la v1 el CRM registra facturas emitidas con una herramienta que cumpla la normativa; no las emite. **Verificar** antes de ampliar este módulo.
 - *Implementación (fase 9):* entidades Facturas y Gastos, acuerdo por cliente (fee, porcentaje, proyecto) y sección Facturación con lo facturado, cobrado, pendiente, vencido, gastos, inversión en Meta, lo previsto por el acuerdo y el beneficio por cliente en el periodo, más la lista de facturas vencidas. Verifactu es obligatorio desde 2027 (D-071).
+- *Registro de horas (0.14, D-099):* sección Horas con cronómetro en la barra inferior; Facturación muestra las horas de cada cliente y lo facturado por hora.
 
 ### 7.10 Informes para clientes
 
@@ -357,6 +358,7 @@ El negocio actual es ecommerce y no usa formularios de leads. Si en el futuro se
 - Conexión mediante el mismo proyecto de Google que Drive.
 - Muestra en la ficha de cada cliente y contacto los hilos asociados a sus direcciones de email.
 - Envío de correos desde el CRM como función opcional posterior.
+- *Plantillas de correo (0.14, D-098):* en Ajustes, con variables. «Escribir correo…» en la ficha de un cliente o contacto las rellena y las abre en Gmail (navegador) o en el programa de correo, sin enviar nada desde la app.
 - *Implementación (fase 10):* Ajustes → Gmail conecta en solo lectura (`gmail.readonly`) con el mismo proyecto de Google que Drive. La ficha de cada cliente (con las direcciones de sus contactos) y de cada contacto muestra sus hilos: asunto, participantes, fecha, extractos y enlace para abrirlos en Gmail. El correo no se guarda en la bóveda (D-078). El envío sigue pendiente.
 
 ### 7.13 Dashboards, comparativas y alertas
@@ -387,6 +389,7 @@ Perfil · bóveda · seguridad (contraseña, autobloqueo, clave de recuperación
 ---
 - **Iconos (D-094):** la barra lateral usa iconos SVG (Lucide). Cada sección trae uno de serie y se puede cambiar en Ajustes → Iconos de las secciones. Su color va en el tema (`icon`, `iconActive`).
 - **Ancho y barras de desplazamiento (D-093):** las páginas ocupan todo el ancho de la ventana y las barras de desplazamiento llevan los colores del tema.
+- **Tema de serie «Mellow» (D-097):** al estilo de los escritorios de Hyprland, con paneles flotantes separados por huecos, esquinas redondeadas, borde en degradado ámbar→naranja en el panel activo, barras en píldoras, títulos sin mayúsculas y animaciones suaves. Sin transparencia de serie. Cada tema define su estilo (disposición clásica o flotante, huecos, borde, transparencia «cristal» o de ventana, opacidad, desenfoque, animaciones y títulos) y todo se cambia en el editor de temas. Los temas anteriores siguen como «Clásico oscuro» y «Clásico claro».
 
 ## 9. Fases de construcción
 

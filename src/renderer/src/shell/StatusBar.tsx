@@ -3,6 +3,7 @@ import { useAppInfo } from '../lib/hooks'
 import { MetaStatusItem } from '../meta/MetaStatusItem'
 import { SyncStatusItem } from './sync'
 import { t } from '@shared/i18n'
+import { TimerItem } from './TimerItem'
 
 export function StatusBar({
   status,
@@ -26,6 +27,7 @@ export function StatusBar({
         {status.path}
       </span>
       <span className="statusbar-spacer" />
+      <TimerItem />
       <MetaStatusItem onOpen={onMeta} />
       <SyncStatusItem onSettings={onSettings} />
       {status.autoLockMinutes !== null && (

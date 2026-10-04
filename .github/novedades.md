@@ -1,8 +1,13 @@
-## Novedades de la 0.13.4 · Perfil, iconos y animaciones
+## Novedades de la 0.14.0 · Tema Mellow, plantillas de correo y horas
 
-- **Perfil como en GitHub.** La primera vez te pide configurarlo (o «Saltar por ahora»). Después ves tu página:
-  - a la izquierda, foto, nombre, cargo, bio, ubicación, email, web y tus redes (Instagram, TikTok, X, LinkedIn, YouTube, GitHub, Behance, WhatsApp y más);
-  - a la derecha, cifras clave (clientes activos, inversión y ROAS del mes, facturado en el año), hasta 6 clientes destacados y el mapa de actividad del último año.
-  - Se edita en la pestaña **Editar**.
-- **Iconos en la barra lateral** en lugar de letras. Cada sección trae uno y lo puedes cambiar en **Ajustes → Iconos de las secciones**. El color de los iconos va en el tema.
-- **Animación en la pantalla de contraseña:** la de gravedad de yellowmellow.cc, el ojo o la cerradura de la bóveda, que reaccionan a lo que escribes. Se elige en **Ajustes → Apariencia** («Una distinta cada vez» o «Ninguna» también valen).
+- **Tema nuevo de serie: Mellow.** Al estilo de los escritorios de Hyprland:
+  - paneles flotantes con huecos y esquinas redondeadas, y borde en degradado ámbar→naranja en el panel activo;
+  - barras con módulos en píldora, títulos sin mayúsculas y animaciones suaves.
+  - El estilo anterior sigue en **Ajustes → Apariencia** como «Clásico oscuro» y «Clásico claro».
+- **Todo el estilo se configura** en el editor de temas: disposición (flotante o clásica), huecos, borde, transparencia, opacidad, desenfoque, animaciones y títulos.
+  - Transparencia «cristal»: fondo dentro de la app y paneles desenfocados.
+  - Transparencia «ventana»: se ve el escritorio; en Hyprland lo desenfoca el compositor y en Windows 11 se usa el efecto acrílico. Se aplica al reabrir la app.
+  - De serie, sin transparencia.
+- **Plantillas de correo.** En **Ajustes → Plantillas de correo**, con variables como `{nombre}`, `{cliente}` o `{mes}`. En la ficha de un cliente o contacto, «Escribir correo…» la rellena y la abre en Gmail o en tu programa de correo. La app no envía nada.
+- **Registro de horas.** Nueva sección **Horas** y un cronómetro en la barra inferior: escribe en qué trabajas, elige el cliente y páralo al acabar. Facturación muestra las horas de cada cliente y lo facturado por hora.
+- **Arreglado:** la animación de gravedad de la pantalla de contraseña podía dar un error interno en el primer fotograma (no se veía nada raro, pero quedaba registrado).

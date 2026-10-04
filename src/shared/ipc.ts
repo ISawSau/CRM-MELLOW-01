@@ -1,4 +1,6 @@
 import { z } from 'zod'
+import { timerStartSchema, type RunningTimer } from './timer'
+import { mailTemplatesSchema, type MailTemplate } from './mail-templates'
 import { lockAnimationSchema, type LockAnimation } from './lock-animation'
 import {
   decodeHeicSchema,
@@ -186,6 +188,7 @@ export const ipcSchemas = {
   'app:locale': z.void(),
   'app:setLocale': z.object({ locale: localeSchema }),
   'app:lockAnimation': z.void(),
+  'app:windowTransparent': z.object({ value: z.boolean() }),
   'app:setLockAnimation': z.object({ value: lockAnimationSchema }),
   'vault:status': z.void(),
   'vault:pickFolder': z.object({ purpose: z.enum(['create', 'open']) }),
@@ -316,6 +319,12 @@ export const ipcSchemas = {
   'profile:get': z.void(),
   'profile:set': profileSchema,
   'profile:activity': z.void(),
+  'mail:templates': z.void(),
+  'timer:get': z.void(),
+  'timer:start': timerStartSchema,
+  'timer:stop': z.object({ discard: z.boolean().default(false) }),
+  'mail:setTemplates': z.object({ templates: mailTemplatesSchema }),
+  'mail:addresses': z.object({ recordId: z.string().regex(/^[A-Za-z0-9_-]{1,64}$/) }),
   'data:update': z.object({ id: idSchema, patch: values }),
   'data:setLinks': z.object({
     fieldId: idSchema,
@@ -396,6 +405,8 @@ export interface IpcOutputs {
   'app:locale': Locale
   'app:setLocale': void
   'app:lockAnimation': LockAnimation
+  /** Si la ventana ya es transparente (se decide al abrir la app). */
+  'app:windowTransparent': { active: boolean }
   'app:setLockAnimation': void
   'vault:status': VaultStatus
   'vault:pickFolder': string | null
@@ -461,6 +472,12 @@ export interface IpcOutputs {
   'profile:get': Profile
   'profile:set': Profile
   'profile:activity': { date: string; count: number }[]
+  'mail:templates': MailTemplate[]
+  'timer:get': RunningTimer | null
+  'timer:start': RunningTimer
+  'timer:stop': RecordRow | null
+  'mail:setTemplates': MailTemplate[]
+  'mail:addresses': string[]
   'data:update': RecordRow
   'data:setLinks': RecordRow
   'data:duplicate': RecordRow

@@ -725,3 +725,35 @@ El usuario no quiere escribir comandos de desarrollo para usar la app. Los insta
   - En Ajustes → Apariencia también se puede elegir «Una distinta cada vez» o «Ninguna».
 - **Dónde se guarda:** en la configuración mínima de fuera de la bóveda, como el idioma. Hace falta antes de desbloquear y no es un dato del usuario.
 - **Coste:** 30 fotogramas por segundo como máximo. Se para con la ventana oculta y, si el sistema pide menos movimiento, se queda en un fotograma fijo. Sin dependencias. Las escenas son funciones puras (`ascii-scenes.ts`) que rellenan un búfer de brillo.
+
+### D-097 · Tema «Mellow» de serie, al estilo de Hyprland, con el estilo configurable
+
+- **Por qué:** al usuario la interfaz le parecía saturada y de estilo antiguo. Pidió un tema principal ambientado en los escritorios «aesthetic» de Hyprland (HyDE, sh1zicus), con el estilo de antes disponible en Ajustes.
+- **Mellow** (nuevo, de serie):
+  - Colores: oscuro casi negro, con el ámbar y el naranja del logo. Pasa AA.
+  - Paneles flotantes separados por huecos de 10 px, esquinas de 10 px (14 px en los paneles).
+  - Borde de 2 px en degradado ámbar→naranja en el panel activo, como la ventana con foco en Hyprland.
+  - Barra lateral con elementos en píldora; barra inferior con módulos en píldora, como Waybar.
+  - Títulos sin mayúsculas, sin transparencia y con animaciones suaves.
+  - Los temas de antes se llaman ahora «Clásico oscuro» y «Clásico claro». Quien ya los tenía elegidos los conserva; las bóvedas sin elección pasan a Mellow.
+- **Estilo dentro del tema** (`style`, editable en el editor de temas): disposición (clásica o flotante), huecos, grosor del borde activo, degradado, transparencia, opacidad de paneles, desenfoque, animaciones (ninguna, suaves, marcadas) y títulos (normales o en mayúsculas). Se aplica con atributos en `<html>` y variables CSS (`styles/hypr.css`). Los temas guardados antes reciben el estilo clásico, así que no cambian.
+- **Transparencia:**
+  - **cristal:** fondo dentro de la app (el del tema o un degradado con sus colores) y paneles con `backdrop-filter`. Igual en Windows y Linux.
+  - **ventana:** ventana transparente. En Linux con `transparent: true` (el desenfoque lo pone el compositor; en Hyprland con una regla «blur»). En Windows 11 con el material acrílico.
+  - Como se decide al crear la ventana, se guarda en la configuración mínima de fuera de la bóveda (`windowTransparent`) y se aplica al reabrir la app. Por defecto no hay transparencia, como pidió el usuario.
+- **Animaciones:**
+  - Las páginas entran con un leve desplazamiento; los diálogos, la paleta y el fondo oscuro aparecen con una transición.
+  - Al abrir la bóveda, los paneles entran como ventanas, solo esa vez (`data-intro`).
+  - Se respeta «reducir movimiento» del sistema.
+
+### D-098 · Plantillas de correo sin enviar desde la app
+
+- **Qué:** plantillas de asunto y texto con variables (`{nombre}`, `{cliente}`, `{mi_nombre}`, `{empresa}`, `{fecha}`, `{mes}`). Se gestionan en Ajustes → Plantillas de correo. La ficha de un cliente o contacto tiene «Escribir correo…»: elige plantilla, rellena las variables y los destinatarios (los emails del registro y, en un cliente, los de sus contactos), y deja editarlo antes de abrirlo.
+- **Cómo sale:** se abre en la ventana de redactar de Gmail en el navegador (`mail.google.com/mail/?view=cm…`) o en el programa de correo del equipo (`mailto:`), o se copia. La app no envía nada, así que Gmail sigue en solo lectura (`gmail.readonly`) sin pedir más permisos. Funciona aunque Gmail no esté conectado.
+- **Datos:** en la bóveda (ajuste `mail.templates`, hasta 50). Sin guardar, se ven tres de serie en el idioma de la app: seguimiento de propuesta, informe mensual y recordatorio de factura.
+
+### D-099 · Registro de horas con cronómetro y rentabilidad por cliente
+
+- **Qué:** una entidad nueva del motor de datos, **Horas** (`hora`), en el grupo Negocio, con descripción, cliente, fecha, horas, facturable y notas. Los clientes ganan el campo inverso «Horas» (siembra 5), así que la ficha del cliente lista sus horas. Como toda entidad del motor, admite campos propios, vistas, filtros, exportación y papelera.
+- **Cronómetro:** en la barra inferior. Se arranca con una descripción y, si se quiere, un cliente. Al pararlo se crea el registro con las horas transcurridas (dos decimales, mínimo 0,01) y la fecha de hoy; también se puede descartar. Solo hay uno a la vez. Se guarda en la bóveda (ajuste `timer.running`), así que sigue contando aunque se cierre la app o se bloquee la bóveda.
+- **Rentabilidad:** Facturación suma las horas del periodo por cliente y muestra lo facturado por hora (facturado ÷ horas).
