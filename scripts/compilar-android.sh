@@ -56,7 +56,7 @@ for ABI in arm64-v8a x86_64; do
   OUT=$LIBNODE/jniLibs/$ABI
   mkdir -p "$OUT"
   cp "$PKG/android/libnode/bin/$ABI/libnode.so" "$OUT/libnode.so"
-  CACHE=$WORK/sqlite-$SQLITE_VERSION-$ABI.so
+  CACHE=$WORK/sqlite-$SQLITE_VERSION-$ABI-libnode.so
   if [ ! -f "$CACHE" ]; then
     BUILD=$WORK/build-$ABI
     rm -rf "$BUILD"
@@ -67,6 +67,7 @@ for ABI in arm64-v8a x86_64; do
       rm -rf build prebuilds
       env npm_config_node_engine=v8 npm_config_nodedir="$PKG/android/libnode" \
         npm_config_arch=$ARCH npm_config_platform=android npm_config_format=make-android \
+        LDFLAGS="-L$PKG/android/libnode/bin/$ABI -lnode" \
         AR="$TC/bin/llvm-ar" RANLIB="$TC/bin/llvm-ranlib" \
         CC="$TC/bin/$PREFIX$API-clang" CXX="$TC/bin/$PREFIX$API-clang++" LINK="$TC/bin/$PREFIX$API-clang++" \
         GYP_DEFINES="target_arch=$ARCH v8_target_arch=$ARCH android_target_arch=$ARCH host_os=linux OS=android" \
@@ -75,6 +76,10 @@ for ABI in arm64-v8a x86_64; do
     )
     "$TC/bin/llvm-strip" --strip-unneeded -o "$CACHE" "$BUILD/better-sqlite3/build/Release/better_sqlite3.node"
   fi
+  # Enlazado con libnode.so: en Android un módulo cargado con dlopen no ve los símbolos de V8
+  # de las librerías que ya están cargadas si no las declara.
+  "$TC/bin/llvm-readelf" -d "$CACHE" | grep -q 'NEEDED.*\[libnode.so\]' \
+    || { echo "libbetter_sqlite3.so ($ABI) no está enlazado con libnode.so"; exit 1; }
   cp "$CACHE" "$OUT/libbetter_sqlite3.so"
 done
 
