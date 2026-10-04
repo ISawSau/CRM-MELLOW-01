@@ -56,6 +56,12 @@ final class NodeRunner {
         logPreviousStart(new File(datos, "arranque.txt"));
         final File stderr = new File(datos, "errores-motor.txt");
         logPreviousStart(stderr);
+        // Como hace nodejs-mobile: el temporal de Node (os.tmpdir) es la caché de la app.
+        try {
+            android.system.Os.setenv("TMPDIR", app.getCacheDir().getAbsolutePath(), true);
+        } catch (Exception e) {
+            Log.w(TAG, "No se ha podido fijar TMPDIR");
+        }
         port = freePort();
         token = randomToken();
         java.util.List<String> list = new java.util.ArrayList<>(java.util.Arrays.asList(

@@ -3,17 +3,18 @@
 # del motor y comprueba en el registro que el motor funciona y que la interfaz ha cargado.
 # Deja el registro completo en registro-android/ (el CI lo guarda si algo falla).
 # Uso: bash scripts/probar-android-emulador.sh release/CRM-Mellow-<versión>-android-x86_64.apk
-set -eu
+set -u
+# Sin «set -e»: si adb falla a mitad (la app se cae), el diagnóstico tiene que salir igual.
 APK=$1
 OUT=registro-android
 mkdir -p "$OUT"
 LOG=$OUT/logcat.txt
-adb install -r "$APK"
-adb logcat -c
+adb install -r "$APK" || { echo "No se ha podido instalar el APK"; exit 1; }
+adb logcat -c || true
 adb logcat -b crash -c || true
-adb shell am start -n cc.yellowmellow.crm/.MainActivity --ez autoprueba true
+adb shell am start -n cc.yellowmellow.crm/.MainActivity --ez autoprueba true || true
 for _ in $(seq 1 90); do
-  adb logcat -d > "$LOG"
+  adb logcat -d > "$LOG" 2>&1 || echo "(adb logcat ha fallado: $?)"
   if grep -q "interfaz conectada" "$LOG" || grep -q "AUTOPRUEBA FALLIDA" "$LOG" \
     || grep -q "no se ha podido arrancar" "$LOG" || grep -q "Fatal signal" "$LOG"; then
     sleep 2
@@ -21,7 +22,7 @@ for _ in $(seq 1 90); do
   fi
   sleep 2
 done
-adb logcat -d -v threadtime > "$LOG"
+adb logcat -d -v threadtime > "$LOG" 2>&1 || echo "(adb logcat ha fallado: $?)"
 adb logcat -d -b crash -v threadtime > "$OUT/crash.txt" || true
 PID=$(adb shell pidof cc.yellowmellow.crm || true)
 if ! grep -q "interfaz conectada" "$LOG"; then
