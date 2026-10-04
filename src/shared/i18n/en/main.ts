@@ -421,4 +421,38 @@ export const main: Record<string, string> = {
   'Meta no devolvió el informe': 'Meta did not return the report',
   'No se ha podido leer la foto HEIC: puede que esté dañada.':
     'Couldn’t read the HEIC photo: it may be damaged.',
+  'Escribir correo…': 'Write email…',
+  'Escribir correo': 'Write email',
+  'La app no envía correos: se abre en Gmail o en tu programa de correo para que lo revises y lo envíes desde allí.':
+    'The app doesn’t send emails: it opens in Gmail or your email app so you can review and send it from there.',
+  'Sin plantilla': 'No template',
+  Para: 'To',
+  'correo@ejemplo.com': 'email@example.com',
+  Asunto: 'Subject',
+  'Abrir en mi programa de correo': 'Open in my email app',
+  'Correo copiado.': 'Email copied.',
+  Copiar: 'Copy',
+  'Plantillas de correo': 'Email templates',
+  'Textos que usas a menudo. En la ficha de un cliente o contacto, «Escribir correo…» los rellena con sus datos y los abre en Gmail o en tu programa de correo.':
+    'Texts you use often. On a client or contact record, “Write email…” fills them in with their details and opens them in Gmail or your email app.',
+  'Plantilla borrada.': 'Template deleted.',
+  'Plantilla guardada.': 'Template saved.',
+  'Variables:': 'Variables:',
+  'Nombre del contacto (o del cliente)': 'Contact name (or client name)',
+  'Nombre del cliente': 'Client name',
+  'Tu nombre (Perfil)': 'Your name (Profile)',
+  'Tu empresa (Perfil)': 'Your company (Profile)',
+  'Fecha de hoy': 'Today’s date',
+  'Mes actual': 'Current month',
+  'Seguimiento de propuesta': 'Proposal follow-up',
+  'Propuesta de publicidad para {cliente}': 'Advertising proposal for {cliente}',
+  'Hola, {nombre}:\n\nTe escribo para saber si has podido revisar la propuesta que os envié. Si te parece, podemos hablarlo esta semana y resolver cualquier duda.\n\nUn saludo,\n{mi_nombre}\n{empresa}':
+    'Hi {nombre},\n\nI’m writing to see whether you’ve had a chance to look at the proposal I sent you. If you like, we can talk it through this week and answer any questions.\n\nBest regards,\n{mi_nombre}\n{empresa}',
+  'Informe de resultados de {mes} · {cliente}': '{mes} performance report · {cliente}',
+  'Hola, {nombre}:\n\nTe adjunto el informe de resultados de {mes}. En resumen: [qué ha ido bien, qué cambiamos y próximos pasos].\n\nCualquier cosa, me dices.\n\nUn saludo,\n{mi_nombre}':
+    'Hi {nombre},\n\nPlease find attached the {mes} performance report. In short: [what went well, what we changed and next steps].\n\nLet me know if you have any questions.\n\nBest regards,\n{mi_nombre}',
+  'Recordatorio de factura': 'Invoice reminder',
+  'Recordatorio: factura pendiente · {empresa}': 'Reminder: outstanding invoice · {empresa}',
+  'Hola, {nombre}:\n\nTe recuerdo que tenemos pendiente la factura [número] con vencimiento [fecha]. Si ya está pagada, ignora este mensaje.\n\nGracias,\n{mi_nombre}':
+    'Hi {nombre},\n\nJust a reminder that invoice [number], due on [date], is still outstanding. If it has already been paid, please ignore this message.\n\nThanks,\n{mi_nombre}',
 }

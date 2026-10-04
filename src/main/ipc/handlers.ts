@@ -225,6 +225,6 @@ export function createHandlers({
     ...createMetaHandlers(meta),
     ...createAnalysisHandlers(analysis),
     ...createToolsHandlers(tools, reports),
-    ...createGmailHandlers(gmail),
+    ...createGmailHandlers(gmail, vault),
   }
 }

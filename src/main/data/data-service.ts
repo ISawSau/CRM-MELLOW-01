@@ -69,6 +69,11 @@ import { DEFAULT_TIME_ZONE } from '@shared/format'
 import { mimeFromName, safeFileName } from '@shared/files'
 import { DEFAULT_HOME_LAYOUT, homeLayoutSchema, type HomeLayout } from '@shared/home'
 import { DEFAULT_PROFILE, profileSchema, type Profile } from '@shared/profile'
+import {
+  DEFAULT_MAIL_TEMPLATES,
+  mailTemplatesSchema,
+  type MailTemplate,
+} from '@shared/mail-templates'
 import { AppError } from '@shared/errors'
 import { t, tn } from '@shared/i18n'
 import type { EntityInfo, FileInfo, VersionEntry } from '@shared/ipc'
@@ -138,6 +143,7 @@ const TRASH_DAYS_KEY = 'data.trashDays'
 const PROFILE_KEY = 'profile'
 const BRIEF_TEMPLATES_KEY = 'briefs.templates'
 const HOME_LAYOUT_KEY = 'home.layout'
+const MAIL_TEMPLATES_KEY = 'mail.templates'
 const COLLECTIONS_KEY = 'data.collections'
 export const DEFAULT_TRASH_DAYS = 30
 const CHUNK = 500
@@ -390,6 +396,24 @@ export class DataService {
   }
 
   /** Tarjetas y widgets de Inicio (fase 12). */
+  /** Plantillas de correo (D-098). Sin guardar, las de serie en el idioma de la app. */
+  getMailTemplates(): MailTemplate[] {
+    const r = mailTemplatesSchema.safeParse(this.getSetting(MAIL_TEMPLATES_KEY))
+    if (r.success) return r.data
+    return DEFAULT_MAIL_TEMPLATES.map((m) => ({
+      ...m,
+      name: t(m.name),
+      subject: t(m.subject),
+      body: t(m.body),
+    }))
+  }
+
+  setMailTemplates(list: MailTemplate[]): MailTemplate[] {
+    this.putSetting(MAIL_TEMPLATES_KEY, mailTemplatesSchema.parse(list))
+    this.emit(null)
+    return this.getMailTemplates()
+  }
+
   getHomeLayout(): HomeLayout {
     const r = homeLayoutSchema.safeParse(this.getSetting(HOME_LAYOUT_KEY))
     return r.success ? r.data : DEFAULT_HOME_LAYOUT

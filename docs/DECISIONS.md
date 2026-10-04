@@ -745,3 +745,9 @@ El usuario no quiere escribir comandos de desarrollo para usar la app. Los insta
   - Las páginas entran con un leve desplazamiento; los diálogos, la paleta y el fondo oscuro aparecen con una transición.
   - Al abrir la bóveda, los paneles entran como ventanas, solo esa vez (`data-intro`).
   - Se respeta «reducir movimiento» del sistema.
+
+### D-098 · Plantillas de correo sin enviar desde la app
+
+- **Qué:** plantillas de asunto y texto con variables (`{nombre}`, `{cliente}`, `{mi_nombre}`, `{empresa}`, `{fecha}`, `{mes}`). Se gestionan en Ajustes → Plantillas de correo. La ficha de un cliente o contacto tiene «Escribir correo…»: elige plantilla, rellena las variables y los destinatarios (los emails del registro y, en un cliente, los de sus contactos), y deja editarlo antes de abrirlo.
+- **Cómo sale:** se abre en la ventana de redactar de Gmail en el navegador (`mail.google.com/mail/?view=cm…`) o en el programa de correo del equipo (`mailto:`), o se copia. La app no envía nada, así que Gmail sigue en solo lectura (`gmail.readonly`) sin pedir más permisos. Funciona aunque Gmail no esté conectado.
+- **Datos:** en la bóveda (ajuste `mail.templates`, hasta 50). Sin guardar, se ven tres de serie en el idioma de la app: seguimiento de propuesta, informe mensual y recordatorio de factura.
