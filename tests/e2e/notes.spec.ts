@@ -153,8 +153,13 @@ test('kanban: arrastrar una tarjeta cambia su tipo', async () => {
 })
 
 test('calendario y galería', async () => {
-  await page.getByTestId('view-tab').filter({ hasText: 'Calendario' }).click()
-  await expect(page.getByTestId('calendar')).toBeVisible()
+  // Al soltar una tarjeta, dnd-kit descarta los clics de los 50 ms siguientes (para que la
+  // tarjeta soltada no se abra): si el clic cae ahí, se vuelve a pulsar la pestaña.
+  const calendario = page.getByTestId('view-tab').filter({ hasText: 'Calendario' })
+  await expect(async () => {
+    await calendario.click()
+    await expect(page.getByTestId('calendar')).toBeVisible({ timeout: 1000 })
+  }).toPass({ timeout: 10_000 })
   const event = page.getByTestId('cal-event')
   await expect(event).toHaveCount(1)
   await expect(page.locator(`[data-day="${todayMadrid()}"]`)).toContainText('Campaña de Navidad')

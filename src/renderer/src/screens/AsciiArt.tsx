@@ -3,10 +3,17 @@ import type { LockScene } from '@shared/lock-animation'
 import { SCENES } from './ascii-scenes'
 
 /** Del más oscuro al más brillante; el espacio no se dibuja. */
-const RAMP = ' .:-=+*#%@'
-const FONT_PX = 12
-const LINE_PX = 14
+const RAMP = " .'`,:;-~=+*xoXO#%@"
+/** Celdas pequeñas: más resolución y más detalle (D-096). */
+const FONT_PX = 9
+const LINE_PX = 10
 const FPS = 30
+/** Tres intensidades del color: lo tenue se ve más lejos y da profundidad. */
+const LAYERS = [
+  { max: 0.34, alpha: 0.5 },
+  { max: 0.67, alpha: 0.8 },
+  { max: 1.01, alpha: 1 },
+] as const
 
 /**
  * Animación ASCII de la pantalla de contraseña (D-096), en un canvas. Reacciona a las
@@ -47,6 +54,7 @@ export function AsciiArt({
     let rows = 0
     let cell = 7
     let buf = new Float32Array(0)
+    let glyphs = new Uint16Array(0)
 
     const resize = () => {
       const dpr = Math.min(window.devicePixelRatio || 1, 2)
@@ -60,33 +68,56 @@ export function AsciiArt({
       cols = Math.max(10, Math.floor(w / cell))
       rows = Math.max(6, Math.floor(h / LINE_PX))
       buf = new Float32Array(cols * rows)
+      glyphs = new Uint16Array(cols * rows)
     }
 
     const start = performance.now()
     const draw = (now: number) => {
       const s = state.current
-      scene(buf, {
-        // El primer fotograma puede traer una marca anterior al inicio: nunca tiempo negativo.
-        t: Math.max(0, now - start) / 1000,
-        cols,
-        rows,
-        aspect: cell / LINE_PX,
-        pulse: Math.max(0, 1 - (now - s.pulseAt) / 450),
-        shake: Math.max(0, 1 - (now - s.shakeAt) / 600),
-        keys: s.keys,
-      })
+      glyphs.fill(0)
+      scene(
+        buf,
+        {
+          // El primer fotograma puede traer una marca anterior al inicio: nunca tiempo negativo.
+          t: Math.max(0, now - start) / 1000,
+          cols,
+          rows,
+          aspect: cell / LINE_PX,
+          pulse: Math.max(0, 1 - (now - s.pulseAt) / 450),
+          shake: Math.max(0, 1 - (now - s.shakeAt) / 600),
+          keys: s.keys,
+        },
+        glyphs,
+      )
       ctx.clearRect(0, 0, canvas.clientWidth, canvas.clientHeight)
       ctx.font = font
       ctx.textBaseline = 'top'
       ctx.fillStyle = color
-      for (let r = 0; r < rows; r++) {
-        let line = ''
-        for (let c = 0; c < cols; c++) {
-          const v = buf[r * cols + c]!
-          line += RAMP[Math.min(RAMP.length - 1, Math.floor(v * RAMP.length))]
+      // Una línea por fila y capa de intensidad: pocas llamadas a fillText aunque haya detalle.
+      let lo = 0
+      for (const layer of LAYERS) {
+        ctx.globalAlpha = layer.alpha
+        for (let r = 0; r < rows; r++) {
+          let line = ''
+          let any = false
+          for (let c = 0; c < cols; c++) {
+            const i = r * cols + c
+            const v = buf[i]!
+            if (v < lo || v >= layer.max || v <= 0) {
+              line += ' '
+              continue
+            }
+            const g = glyphs[i]!
+            line += g
+              ? String.fromCharCode(g)
+              : RAMP[Math.min(RAMP.length - 1, Math.floor(v * RAMP.length))]
+            any = true
+          }
+          if (any) ctx.fillText(line, 0, r * LINE_PX)
         }
-        if (line.trim()) ctx.fillText(line, 0, r * LINE_PX)
+        lo = layer.max
       }
+      ctx.globalAlpha = 1
     }
 
     resize()

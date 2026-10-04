@@ -1,6 +1,8 @@
 # Tests en cada pull request y en cada push a main; instaladores de Windows y
 # Linux (Arch) en cada push a main o al lanzarlo a mano desde la pestaña Actions.
-# Los instaladores se descargan desde la ejecución correspondiente en Actions.
+# Al subir la versión, los instaladores se publican en Releases (D-100). En Actions se
+# guardan solo un día y sin bloquear nada: el almacenamiento gratuito de artefactos es
+# pequeño y cada ejecución genera unos 400 MB.
 name: CI
 
 on:
@@ -59,16 +61,60 @@ jobs:
 
       - name: Informe de Playwright
         if: failure()
+        continue-on-error: true
         uses: actions/upload-artifact@v7
         with:
           name: informe-playwright
           path: playwright-report/
-          retention-days: 5
+          retention-days: 2
+
+  # Al subir la versión en main: crea la versión en Releases como borrador, para que cada
+  # instalador se suba a ella directamente (sin pasar por el almacenamiento de artefactos).
+  version:
+    name: Preparar versión
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+      nueva: ${{ steps.v.outputs.nueva }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Comprobar la versión y crear el borrador
+        id: v
+        run: |
+          v="$(node -p "require('./package.json').version")"
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+          draft="$(gh release view "v$v" --json isDraft -q .isDraft 2>/dev/null || echo none)"
+          if [ "$draft" = "false" ]; then
+            echo "nueva=false" >> "$GITHUB_OUTPUT"
+            echo "La versión v$v ya está publicada: no se hace nada."
+            exit 0
+          fi
+          echo "nueva=true" >> "$GITHUB_OUTPUT"
+          if [ "$draft" = "none" ]; then
+            gh release create "v$v" --draft --target "$GITHUB_SHA" --title "CRM Mellow $v" --notes "En preparación."
+          fi
+          echo "Se publicará la versión v$v."
 
   instaladores:
     name: Instalador ${{ matrix.nombre }}
-    needs: calidad
-    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    needs: [calidad, version]
+    # «version» solo corre en main: si se salta, los instaladores se generan igual.
+    if: >-
+      always() && needs.calidad.result == 'success' &&
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      VERSION: ${{ needs.version.outputs.version }}
+      PUBLICAR: ${{ needs.version.outputs.nueva }}
     strategy:
       fail-fast: false
       matrix:
@@ -78,7 +124,7 @@ jobs:
           - nombre: Linux
             os: ubuntu-latest
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v6
 
@@ -143,119 +189,87 @@ jobs:
           sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
           xvfb-run -a release/linux-unpacked/crm-mellow --autoprueba
 
-      - name: Subir instalador de Windows
-        if: runner.os == 'Windows'
+      # Arch Linux real en un contenedor: el script de instalación desde cero, el paquete
+      # pacman instalado como lo haría el usuario, la autoprueba, el AppImage y desinstalar.
+      - name: Prueba en Arch Linux (contenedor)
+        if: runner.os == 'Linux'
+        run: |
+          docker run --rm --cap-add SYS_ADMIN --security-opt seccomp=unconfined \
+            -v "$PWD:/repo:ro" archlinux:latest bash -euxc '
+              pacman -Syu --noconfirm --needed git sudo xorg-server-xvfb xorg-xauth
+              useradd -m dev
+              echo "dev ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/dev
+              git config --global --add safe.directory "*"
+              git clone -q /repo /home/dev/repo
+              chown -R dev:dev /home/dev/repo
+              su dev -c "cd /home/dev/repo && bash scripts/instalar-arch.sh --sin-preguntas"
+              pacman -U --noconfirm /repo/release/*.pacman
+              su dev -c "xvfb-run -a crm-mellow --autoprueba"
+              cp /repo/release/*.AppImage /home/dev/crm.AppImage
+              chown dev /home/dev/crm.AppImage
+              chmod +x /home/dev/crm.AppImage
+              su dev -c "APPIMAGE_EXTRACT_AND_RUN=1 xvfb-run -a /home/dev/crm.AppImage --autoprueba > /dev/null 2>&1"
+              echo "AppImage: autoprueba correcta"
+              pacman -R --noconfirm crm-mellow
+            '
+
+      - name: Subir a la versión (Releases)
+        if: env.PUBLICAR == 'true'
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            gh release upload "v$VERSION" release/*.exe --clobber
+          else
+            gh release upload "v$VERSION" release/*.pacman release/*.AppImage --clobber
+          fi
+
+      # Copia en Actions, solo al lanzarlo a mano y un día: si el almacenamiento gratuito de
+      # artefactos está lleno, no falla la ejecución (los instaladores ya están probados).
+      - name: Guardar en Actions (Windows)
+        if: runner.os == 'Windows' && github.event_name == 'workflow_dispatch'
+        continue-on-error: true
         uses: actions/upload-artifact@v7
         with:
           name: CRM-Mellow-windows
           path: release/*.exe
-          if-no-files-found: error
-          retention-days: 5
+          retention-days: 1
           compression-level: 0
 
-      - name: Subir paquetes de Linux
-        if: runner.os == 'Linux'
+      - name: Guardar en Actions (Linux)
+        if: runner.os == 'Linux' && github.event_name == 'workflow_dispatch'
+        continue-on-error: true
         uses: actions/upload-artifact@v7
         with:
           name: CRM-Mellow-linux
           path: |
             release/*.pacman
             release/*.AppImage
-          if-no-files-found: error
-          retention-days: 5
+          retention-days: 1
           compression-level: 0
-
-  arch:
-    name: Prueba en Arch Linux
-    needs: instaladores
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    container:
-      image: archlinux:latest
-      # El sandbox de Chromium crea namespaces; dentro de Docker hace falta permitirlo.
-      options: --cap-add SYS_ADMIN --security-opt seccomp=unconfined
-    steps:
-      - name: Preparar Arch (git, sudo y un usuario normal)
-        run: |
-          pacman -Syu --noconfirm --needed git sudo
-          useradd -m dev
-          echo 'dev ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/dev
-
-      - uses: actions/checkout@v6
-
-      - name: Script de instalación de Arch
-        run: |
-          chown -R dev:dev "$GITHUB_WORKSPACE"
-          su dev -c "cd '$GITHUB_WORKSPACE' && bash scripts/instalar-arch.sh --sin-preguntas"
-
-      - uses: actions/download-artifact@v8
-        with:
-          name: CRM-Mellow-linux
-          path: paquetes
-
-      - name: Instalar el paquete pacman y lanzar la autoprueba
-        run: |
-          pacman -S --noconfirm --needed xorg-server-xvfb xorg-xauth
-          pacman -U --noconfirm paquetes/*.pacman
-          su dev -c 'xvfb-run -a crm-mellow --autoprueba'
-
-      - name: Autoprueba del AppImage
-        run: |
-          cp paquetes/*.AppImage /home/dev/crm.AppImage
-          chown dev /home/dev/crm.AppImage
-          chmod +x /home/dev/crm.AppImage
-          su dev -c 'APPIMAGE_EXTRACT_AND_RUN=1 xvfb-run -a /home/dev/crm.AppImage --autoprueba > /dev/null 2>&1 || exit 1; echo "AppImage: autoprueba correcta"'
-
-      - name: Desinstalar
-        run: pacman -R --noconfirm crm-mellow
 
   publicar:
     name: Publicar versión
-    needs: [instaladores, arch]
-    # Solo en main y solo si package.json tiene una versión que aún no está publicada
-    # (la versión se sube al cerrar cada fase).
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [version, instaladores]
+    if: needs.version.outputs.nueva == 'true' && needs.instaladores.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
       contents: write
     env:
       GH_TOKEN: ${{ github.token }}
+      VERSION: ${{ needs.version.outputs.version }}
     steps:
       - uses: actions/checkout@v6
 
-      - name: Comprobar si la versión ya está publicada
-        id: version
+      - name: Sumas de comprobación, notas y publicar
         run: |
-          v="$(node -p "require('./package.json').version")"
-          echo "version=$v" >> "$GITHUB_OUTPUT"
-          if gh release view "v$v" > /dev/null 2>&1; then
-            echo "nueva=false" >> "$GITHUB_OUTPUT"
-            echo "La versión v$v ya está publicada: no se hace nada."
-          else
-            echo "nueva=true" >> "$GITHUB_OUTPUT"
-            echo "Se publicará la versión v$v."
-          fi
-
-      - uses: actions/download-artifact@v8
-        if: steps.version.outputs.nueva == 'true'
-        with:
-          pattern: CRM-Mellow-*
-          path: paquetes
-          merge-multiple: true
-
-      - name: Crear la página de descarga
-        if: steps.version.outputs.nueva == 'true'
-        env:
-          VERSION: ${{ steps.version.outputs.version }}
-        run: |
+          mkdir paquetes
+          gh release download "v$VERSION" -D paquetes --pattern "*.exe" --pattern "*.pacman" --pattern "*.AppImage"
           ls -la paquetes
           (cd paquetes && sha256sum * > SHA256SUMS.txt && cat SHA256SUMS.txt)
+          gh release upload "v$VERSION" paquetes/SHA256SUMS.txt --clobber
           {
             if [ -f .github/novedades.md ]; then cat .github/novedades.md; echo; fi
             sed "s/{{VERSION}}/$VERSION/g" .github/notas-version.md
           } > notas.md
-          gh release create "v$VERSION" paquetes/* \
-            --target "$GITHUB_SHA" \
-            --title "CRM Mellow $VERSION" \
-            --notes-file notas.md
+          gh release edit "v$VERSION" --notes-file notas.md --draft=false --latest

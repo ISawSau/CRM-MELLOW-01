@@ -19,7 +19,11 @@ export interface SceneInput {
   keys: number
 }
 
-export type Scene = (out: Float32Array, input: SceneInput) => void
+/**
+ * Rellena `out` con el brillo de cada celda. Si una celda necesita un carácter concreto
+ * (los números de la cerradura), lo pone en `glyphs` como código de carácter.
+ */
+export type Scene = (out: Float32Array, input: SceneInput, glyphs: Uint16Array) => void
 
 const TAU = Math.PI * 2
 const clamp = (x: number) => (x < 0 ? 0 : x > 1 ? 1 : x)
@@ -31,7 +35,7 @@ const ease = (x: number) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 
 // acreción, girando en los tres ejes. Cada forma es función de los mismos (u, v), así que
 // el punto i de una forma se convierte suavemente en el punto i de la siguiente.
 
-const N = 26_000
+const N = 70_000
 const HOLD = 2.4
 const MORPH = 3.2
 
@@ -189,18 +193,33 @@ export const gravity: Scene = (out, { t, cols, rows, aspect, pulse, keys }) => {
 
 // --- El ojo: el iris del logo ---------------------------------------------------------
 //
-// Anillos concéntricos que giran despacio, con marcas radiales como las del logo. La pupila
-// se dilata con cada tecla, el ojo parpadea de vez en cuando y tiembla si fallas.
+// Solo el iris, como en el logo (sin párpado ni blanco del ojo): borde oscuro, banda
+// naranja, cuerpo amarillo con fibras radiales y criptas, collarete en zigzag, aro rojo,
+// pupila y el reflejo de luz abajo. Las fibras giran despacio; la pupila se dilata al
+// teclear y se cierra de golpe si fallas.
+
+/** Ruido determinista 0–1 a partir de dos enteros. */
+const hash = (a: number, b: number) => {
+  const h = Math.sin(a * 127.1 + b * 311.7) * 43758.5453
+  return h - Math.floor(h)
+}
+
+/** Fibras del iris: hebras radiales irregulares que dependen del ángulo. */
+const fibre = (a: number, r: number) => {
+  const f1 = Math.sin(a * 64 + Math.sin(r * 9) * 1.4)
+  const f2 = Math.sin(a * 23 + r * 5.5 + 1.3)
+  const f3 = Math.sin(a * 131 + r * 2)
+  return 0.5 + 0.28 * f1 + 0.14 * f2 + 0.08 * f3
+}
 
 export const eye: Scene = (out, { t, cols, rows, aspect, pulse, shake, keys }) => {
-  const hx = cols / 2 + Math.sin(t * 60) * shake * 2.5
+  const hx = cols / 2 + Math.sin(t * 60) * shake * 2
   const hy = rows / 2
-  const R = Math.min(cols * aspect, rows) * 0.46
-  // Parpadeo: cada ~6 s se cierra 0,25 s.
-  const phase = (t % 6.2) / 0.25
-  const blink = phase < 1 ? Math.sin(phase * Math.PI) : 0
-  const pupil = 0.16 + Math.min(keys, 24) * 0.006 + pulse * 0.05
-  const spin = t * 0.12
+  const R = Math.min(cols * aspect, rows) * 0.47
+  // La pupila respira, se dilata con cada tecla y se contrae al fallar.
+  const pupil =
+    0.15 + 0.012 * Math.sin(t * 1.3) + Math.min(keys, 30) * 0.005 + pulse * 0.04 - shake * 0.07
+  const spin = t * 0.06
   for (let row = 0; row < rows; row++) {
     const dy = (row + 0.5 - hy) / R
     for (let col = 0; col < cols; col++) {
@@ -208,18 +227,46 @@ export const eye: Scene = (out, { t, cols, rows, aspect, pulse, shake, keys }) =
       const r = Math.hypot(dx, dy)
       let v = 0
       if (r <= 1) {
-        const a = Math.atan2(dy, dx) + spin
-        // Borde oscuro del iris, anillos naranja y amarillo, aro rojo y pupila.
-        const rim = r > 0.93 ? 0.95 : 0
-        const outer = Math.abs(r - 0.78) < 0.045 ? 0.8 : 0
-        const inner = Math.abs(r - 0.47) < 0.035 ? 0.75 : 0
-        const ticks = r > 0.55 && r < 0.88 && (a * 24) % TAU < 0.45 ? 0.5 : 0
-        const body = r > 0.5 ? 0.06 + 0.06 * Math.sin(a * 6 + r * 9) : 0.14
-        v = r < pupil ? 1 : Math.max(rim, outer, inner, ticks, body)
-        // Brillo: el reflejo de luz abajo, como en el logo.
-        if (dy > 0.45 && dy < 0.78 && Math.abs(dx) < 0.32) v = Math.max(v, 0.92)
-        // Párpado: sombra arriba y el parpadeo.
-        if (dy < -0.62 + blink * 1.7) v *= 0.15
+        const a0 = Math.atan2(dy, dx)
+        const a = a0 + spin
+        const f = fibre(a, r)
+        // Collarete: frontera en zigzag entre la zona de la pupila y la del iris.
+        const coll = 0.5 + 0.035 * Math.sin(a * 22) + 0.015 * Math.sin(a * 7)
+        if (r < pupil) {
+          // Pupila: densa, con un poco de textura en el borde.
+          v = r > pupil - 0.025 ? 0.8 : 0.97
+        } else if (r < 0.43) {
+          // Zona de la pupila: amarillo claro con fibras finas.
+          v = 0.3 + 0.25 * f
+        } else if (Math.abs(r - 0.455) < 0.03) {
+          // Aro rojo alrededor de la pupila (el anillo interior del logo).
+          v = 0.92
+        } else if (Math.abs(r - coll) < 0.018) {
+          v = 0.78
+        } else if (r < 0.74) {
+          // Cuerpo del iris: fibras radiales y alguna cripta (huecos oscuros).
+          const crypt = hash(Math.floor(a * 9), Math.floor(r * 14)) > 0.86 ? 0.55 : 1
+          v = (0.18 + 0.42 * f * f) * crypt
+          // Marcas cortas del logo, girando con el iris.
+          if (r > 0.6 && r < 0.68 && (((a * 16) % TAU) + TAU) % TAU < 0.28) v = 0.85
+        } else if (Math.abs(r - 0.78) < 0.035) {
+          // Banda naranja.
+          v = 0.86 + 0.1 * f
+        } else if (r < 0.92) {
+          v = 0.22 + 0.3 * f
+        } else {
+          // Borde oscuro del iris (limbo), con su textura.
+          v = 0.5 + 0.2 * Math.sin(a0 * 90)
+        }
+        // Reflejo de luz abajo (fijo, no gira), como en el logo.
+        const hxr = dx / 0.34
+        const hyr = (dy - 0.62) / 0.16
+        if (hxr * hxr + hyr * hyr < 1) v = Math.max(v, 0.96 - 0.25 * Math.abs(hyr))
+        // Brillo pequeño arriba a la izquierda.
+        if (Math.hypot(dx + 0.3, dy + 0.3) < 0.07) v = 1
+      } else if (r < 1.04) {
+        // Halo tenue fuera del iris.
+        v = 0.12
       }
       out[row * cols + col] = clamp(v)
     }
@@ -228,14 +275,17 @@ export const eye: Scene = (out, { t, cols, rows, aspect, pulse, shake, keys }) =
 
 // --- Cerradura de la bóveda ------------------------------------------------------------
 //
-// La rueda de una caja fuerte: marcas cada 10° y cada 30° más largas, y un pomo de tres
-// brazos. Gira un poco con cada tecla y se sacude si fallas.
+// La rueda de una caja fuerte: borde moleteado, 100 marcas (cada 5 más largas y cada 10
+// con su número), un aro de agarre y el pomo con tres brazos y tornillos. Gira con cada
+// tecla y se sacude si fallas. La flecha de arriba es la referencia de la combinación.
 
-export const lock: Scene = (out, { t, cols, rows, aspect, pulse, shake, keys }) => {
+const DIGITS = '0123456789'.split('').map((c) => c.charCodeAt(0))
+
+export const lock: Scene = (out, { t, cols, rows, aspect, pulse, shake, keys }, glyphs) => {
   const hx = cols / 2 + Math.sin(t * 50) * shake * 2
   const hy = rows / 2
   const R = Math.min(cols * aspect, rows) * 0.46
-  const dial = keys * 0.33 + ease(clamp(pulse)) * 0.1 + Math.sin(t * 0.4) * 0.05
+  const dial = keys * 0.33 + ease(clamp(pulse)) * 0.12 + Math.sin(t * 0.4) * 0.04
   for (let row = 0; row < rows; row++) {
     const dy = (row + 0.5 - hy) / R
     for (let col = 0; col < cols; col++) {
@@ -243,23 +293,61 @@ export const lock: Scene = (out, { t, cols, rows, aspect, pulse, shake, keys }) 
       const r = Math.hypot(dx, dy)
       let v = 0
       if (r <= 1) {
-        const a = (((Math.atan2(dy, dx) - dial) % TAU) + TAU) % TAU
-        const tick = (a / TAU) * 36
-        const near = Math.abs(tick - Math.round(tick))
-        const major = Math.round(tick) % 3 === 0
-        if (r > 0.95) v = 0.9
-        else if (r > (major ? 0.72 : 0.8) && r < 0.9 && near < 0.12) v = major ? 1 : 0.7
-        else if (Math.abs(r - 0.66) < 0.03) v = 0.6
-        else if (r < 0.2) v = 0.85 - r
-        else if (r < 0.58) {
-          // Tres brazos del pomo.
+        const a0 = Math.atan2(dy, dx)
+        const a = (((a0 - dial) % TAU) + TAU) % TAU
+        const unit = (a / TAU) * 100
+        const near = Math.abs(unit - Math.round(unit))
+        const n = Math.round(unit) % 100
+        if (r > 0.95) {
+          // Borde moleteado.
+          v = Math.sin(a * 120) > 0 ? 0.95 : 0.55
+        } else if (r > 0.9) {
+          v = 0.08
+        } else if (r > 0.78 && near < 0.18) {
+          const len = n % 10 === 0 ? 0.78 : n % 5 === 0 ? 0.82 : 0.86
+          v = r > len ? (n % 10 === 0 ? 1 : n % 5 === 0 ? 0.8 : 0.55) : 0.05
+        } else if (Math.abs(r - 0.69) < 0.045) {
+          v = 0.06
+        } else if (Math.abs(r - 0.6) < 0.02) {
+          v = 0.7
+        } else if (r > 0.5 && r < 0.6) {
+          // Aro de agarre con estrías.
+          v = Math.sin(a * 48) > 0.2 ? 0.6 : 0.2
+        } else if (r < 0.12) {
+          v = 0.95 - r * 2
+        } else if (r < 0.5) {
+          // Pomo: tres brazos y un tornillo en cada uno.
           const arm = Math.abs(Math.sin(((a * 3) % TAU) / 2))
-          v = arm < 0.14 ? 0.8 : 0.03
+          const armA = Math.round((a * 3) / TAU) * (TAU / 3)
+          const bolt = Math.hypot(
+            dx - Math.cos(armA + dial) * 0.36,
+            dy - Math.sin(armA + dial) * 0.36,
+          )
+          if (bolt < 0.05) v = 1
+          else v = arm < 0.15 ? 0.78 - r * 0.3 : 0.05 + 0.04 * Math.sin(a0 * 30 + r * 40)
         } else v = 0.04
-        // Marca fija arriba: la referencia de la combinación.
-        if (dy < -0.95 && Math.abs(dx) < 0.05) v = 1
-      } else if (r < 1.06 && dy > 0.2) v = 0.35
+        // Flecha fija arriba: la referencia de la combinación.
+        if (dy < -0.9 && dy > -1 && Math.abs(dx) < (dy + 1) * 0.6) v = 1
+      } else if (r < 1.07 && dy > 0.25) v = 0.3
       out[row * cols + col] = clamp(v)
+    }
+  }
+  // Números cada 10 marcas, girando con la rueda.
+  for (let k = 0; k < 10; k++) {
+    const ang = (k / 10) * TAU + dial
+    const rr = 0.72 * R
+    const cx = hx + (Math.cos(ang) * rr) / aspect
+    const cy = hy + Math.sin(ang) * rr
+    const label = String(k * 10)
+    const start = Math.round(cx - label.length / 2)
+    const rowI = Math.round(cy - 0.5)
+    if (rowI < 0 || rowI >= rows) continue
+    for (let j = 0; j < label.length; j++) {
+      const colI = start + j
+      if (colI < 0 || colI >= cols) continue
+      const i = rowI * cols + colI
+      out[i] = 1
+      glyphs[i] = DIGITS[Number(label[j])]!
     }
   }
 }
