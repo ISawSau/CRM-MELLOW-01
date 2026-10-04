@@ -9,6 +9,7 @@ import { GmailService } from './gmail/gmail-service'
 import { createHandlers } from './ipc/handlers'
 import type { IpcHandlers } from './ipc/run'
 import { MetaService } from './meta/meta-service'
+import { Notifier } from './notifier'
 import type { Platform } from './platform'
 import type { ReportFonts } from './reports/report-html'
 import { ReportService } from './reports/report-service'
@@ -62,8 +63,21 @@ export interface Backend {
 export function createBackend(o: BackendOptions): Backend {
   const { platform, config, emit } = o
   const urls = o.testUrls ?? {}
-  const vault = new VaultService({
-    onChange: (status) => emit('vault:changed', status),
+  const vault: VaultService = new VaultService({
+    onChange: (status) => {
+      emit('vault:changed', status)
+      if (status.state === 'unlocked') {
+        notifier.start()
+        // Un poco después de abrir, cuando la interfaz ya está a la vista.
+        setTimeout(() => {
+          try {
+            notifier.checkTasks()
+          } catch {
+            // Un aviso nunca debe romper la app.
+          }
+        }, 5_000).unref?.()
+      } else notifier.stop()
+    },
     data: { onChange: (change) => emit('data:changed', change) },
   })
   const sync = new SyncService(vault, {
@@ -75,7 +89,7 @@ export function createBackend(o: BackendOptions): Backend {
   const meta: MetaService = new MetaService(vault, {
     onChange: (status) => emit('meta:changed', status),
     onData: () => emit('meta:changed', meta.status()),
-    onSynced: () => analysis.evaluate(),
+    onSynced: () => notifier.alerts(analysis.evaluate()),
     ...(urls.graph ? { graphUrl: urls.graph } : {}),
     ...(urls.ecb ? { ecbUrl: urls.ecb } : {}),
     ...(urls.metaPollMs ? { pollMs: Number(urls.metaPollMs) } : {}),
@@ -85,6 +99,7 @@ export function createBackend(o: BackendOptions): Backend {
     tableSettings: () => meta.tableSettings(),
     onChange: () => emit('analysis:changed', null),
   })
+  const notifier: Notifier = new Notifier(vault, platform)
   const saveResult = (name: string) =>
     platform.saveAs({
       title: t('Guardar el resultado'),

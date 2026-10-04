@@ -50,4 +50,16 @@ export const growth: Record<string, string> = {
   'frecuencia {pct}': 'frequency {pct}',
   'coste por conversión {pct}': 'cost per conversion {pct}',
   'Posible fatiga: {ad} ({detail})': 'Possible fatigue: {ad} ({detail})',
+  'Las alertas se comprueban después de cada sincronización con Meta y avisan en la barra lateral, en Inicio y aquí (y con un aviso del sistema si lo tienes activado abajo).':
+    'Alerts are checked after each Meta sync and show in the sidebar, on Home and here (and as a system notification if you turn it on below).',
+  'Avisos del sistema': 'System notifications',
+  'Avisar cuando haya avisos nuevos de Campañas': 'Notify me about new Campaigns alerts',
+  'Recordar una vez al día las tareas para hoy o atrasadas':
+    "Remind me once a day of today's and overdue tasks",
+  'Con la app abierta y la bóveda desbloqueada (también minimizada). El aviso solo dice cuántos hay, nunca nombres de clientes ni anuncios: el sistema guarda los avisos fuera de la bóveda.':
+    'While the app is open and the vault is unlocked (also when minimised). The notification only says how many there are, never client or ad names: the system keeps notifications outside the vault.',
+  'Tienes {n} aviso nuevo en Campañas.': 'You have {n} new alert in Campaigns.',
+  'Tienes {n} avisos nuevos en Campañas.': 'You have {n} new alerts in Campaigns.',
+  'Tienes {n} tarea para hoy o atrasada.': 'You have {n} task due today or overdue.',
+  'Tienes {n} tareas para hoy o atrasadas.': 'You have {n} tasks due today or overdue.',
 }

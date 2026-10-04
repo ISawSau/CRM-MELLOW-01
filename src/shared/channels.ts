@@ -69,6 +69,8 @@ export const IPC_CHANNELS = [
   'tasks:summary',
   'home:layout',
   'home:setLayout',
+  'notify:settings',
+  'notify:setSettings',
   'briefs:templates',
   'briefs:setTemplates',
   'briefs:createFromTemplate',

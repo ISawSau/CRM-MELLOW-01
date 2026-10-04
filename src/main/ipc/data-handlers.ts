@@ -13,6 +13,7 @@ type DataChannel = Extract<
   | `tasks:${string}`
   | `briefs:${string}`
   | `home:${string}`
+  | `notify:${string}`
   | `files:${string}`
   | `timer:${string}`
   | `versions:${string}`
@@ -98,6 +99,8 @@ export function createDataHandlers(vault: VaultService, platform: Platform): Dat
     'tasks:summary': () => vault.data.taskSummary(),
     'home:layout': () => vault.data.getHomeLayout(),
     'home:setLayout': ({ layout }) => vault.data.setHomeLayout(layout),
+    'notify:settings': () => vault.data.getNotifySettings(),
+    'notify:setSettings': (s) => vault.data.setNotifySettings(s),
     'briefs:templates': () => vault.data.getBriefTemplates(),
     'briefs:setTemplates': ({ templates }) => vault.data.setBriefTemplates(templates),
     'briefs:createFromTemplate': ({ templateId, values }) =>

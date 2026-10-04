@@ -3,6 +3,8 @@ import { ONBOARDING_CHECKLIST } from '../../src/shared/data/entities'
 import { analyze } from '../../src/main/analysis/query'
 import { AnalysisService } from '../../src/main/analysis/analysis-service'
 import { pacing } from '../../src/main/analysis/pacing'
+import { Notifier } from '../../src/main/notifier'
+import type { Platform } from '../../src/main/platform'
 import { daysInMonth, fatigueOf, pacingOf } from '../../src/shared/growth'
 import { DEFAULT_HOME_LAYOUT } from '../../src/shared/home'
 import { metaTableSettingsSchema, targetRatio } from '../../src/shared/meta-metrics'
@@ -173,6 +175,50 @@ describe('fatiga creativa (fase 14)', () => {
     expect(analysis.evaluate()).toBe(0)
     analysis.setFatigueEnabled(false)
     expect(analysis.fatigueEnabled()).toBe(false)
+    meta.dispose()
+    vault.dispose()
+  })
+})
+
+describe('avisos del sistema (fase 14)', () => {
+  it('cuenta las tareas para hoy o atrasadas y avisa una vez al día, solo con el número', async () => {
+    const { vault, meta } = await connected()
+    const f = (key: string) => vault.data.listFields('tarea').find((x) => x.key === key)!.id
+    const sent: { title: string; body: string }[] = []
+    const platform = { notify: (title: string, body: string) => sent.push({ title, body }) }
+    let now = new Date('2026-10-03T09:00:00Z')
+    const notifier = new Notifier(vault, platform as unknown as Platform, () => now)
+    notifier.checkTasks()
+    expect(sent).toEqual([]) // sin tareas
+    const today = vault.data.create(
+      'tarea',
+      { [f('fecha_limite')]: '2026-10-03' },
+      { title: 'Hoy' },
+    )
+    vault.data.create('tarea', { [f('fecha_limite')]: '2026-10-01' }, { title: 'Atrasada' })
+    vault.data.create('tarea', { [f('fecha_limite')]: '2026-10-09' }, { title: 'Luego' })
+    vault.data.create(
+      'tarea',
+      { [f('fecha_limite')]: '2026-10-02', [f('estado')]: 'hecha' },
+      { title: 'Hecha' },
+    )
+    expect(vault.data.dueTaskCount()).toBe(2)
+    notifier.checkTasks() // ya se miró hoy: no repite
+    expect(sent).toEqual([])
+    now = new Date('2026-10-04T09:00:00Z')
+    notifier.checkTasks()
+    expect(sent).toEqual([{ title: 'CRM Mellow', body: 'Tienes 2 tareas para hoy o atrasadas.' }])
+    expect(sent[0]!.body).not.toContain('Hoy')
+    // Alertas: solo si hay avisos nuevos y está activado.
+    notifier.alerts(0)
+    notifier.alerts(3)
+    expect(sent.at(-1)!.body).toBe('Tienes 3 avisos nuevos en Campañas.')
+    vault.data.setNotifySettings({ alerts: false, tasks: false })
+    notifier.alerts(1)
+    now = new Date('2026-10-05T09:00:00Z')
+    notifier.checkTasks()
+    expect(sent).toHaveLength(2)
+    expect(today.id).toBeTruthy()
     meta.dispose()
     vault.dispose()
   })

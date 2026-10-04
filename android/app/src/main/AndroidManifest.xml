@@ -1,8 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- Solo red: Meta, Google y el motor local (127.0.0.1). Ningún otro permiso. -->
+    <!-- Red: Meta, Google y el motor local (127.0.0.1). Y avisos del sistema (fase 14): solo
+         cuántos avisos o tareas hay, nunca nombres de clientes ni anuncios. -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
         android:allowBackup="false"

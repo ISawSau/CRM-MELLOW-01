@@ -67,7 +67,7 @@ import {
   type Dashboard,
 } from './analysis'
 import { billingQuerySchema, type BillingSummary } from './billing'
-import type { PacingRow } from './growth'
+import { notifySettingsSchema, type NotifySettings, type PacingRow } from './growth'
 
 /**
  * Contrato IPC entre la interfaz (renderer) y el proceso principal.
@@ -319,6 +319,8 @@ export const ipcSchemas = {
   'tasks:summary': z.void(),
   'home:layout': z.void(),
   'home:setLayout': z.object({ layout: homeLayoutSchema.nullable() }),
+  'notify:settings': z.void(),
+  'notify:setSettings': notifySettingsSchema,
   'briefs:templates': z.void(),
   'briefs:setTemplates': z.object({ templates: briefTemplatesSchema }),
   'briefs:createFromTemplate': z.object({ templateId: idSchema, values: values.default({}) }),
@@ -476,6 +478,8 @@ export interface IpcOutputs {
   'tasks:summary': { today: number; overdue: number }
   'home:layout': HomeLayout
   'home:setLayout': HomeLayout
+  'notify:settings': NotifySettings
+  'notify:setSettings': NotifySettings
   'briefs:templates': BriefTemplate[]
   'briefs:setTemplates': BriefTemplate[]
   'briefs:createFromTemplate': RecordRow

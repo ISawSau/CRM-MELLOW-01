@@ -39,6 +39,11 @@ export interface Platform {
   writeClipboard(text: string, secret: boolean): Promise<void>
   /** Solo https y mailto (comprobado aquí y en cada implementación). */
   openExternal(url: string): void
+  /**
+   * Aviso del sistema (fase 14, D-107). Solo recuentos genéricos: el sistema guarda un
+   * historial de avisos fuera de la bóveda, así que nunca nombres de clientes ni anuncios.
+   */
+  notify(title: string, body: string): void
 }
 
 /** ¿Se puede abrir fuera de la app? Solo https y mailto. */

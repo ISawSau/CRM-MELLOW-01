@@ -1,3 +1,5 @@
+import { z } from 'zod'
+
 /**
  * Fase 14 (D-104 y siguientes): objetivos y ritmo de gasto por cliente, fatiga creativa,
  * registro de tests y rentabilidad. Tipos y cálculos que comparten el motor y la interfaz.
@@ -102,3 +104,13 @@ export function fatigueOf(recent: FatigueWindow, base: FatigueWindow): FatigueSi
     ((frequencyRise !== null && frequencyRise >= 0.2) || (costRise !== null && costRise >= 0.25))
   return tired ? { ctrDrop, frequencyRise, costRise, ctrRecent, ctrBase } : null
 }
+
+// --- Avisos del sistema (D-107) ---------------------------------------------------------
+
+export const notifySettingsSchema = z.object({
+  /** Avisos nuevos de Campañas (alertas y fatiga) tras sincronizar con Meta. */
+  alerts: z.boolean().default(true),
+  /** Una vez al día: tareas para hoy o atrasadas. */
+  tasks: z.boolean().default(true),
+})
+export type NotifySettings = z.infer<typeof notifySettingsSchema>

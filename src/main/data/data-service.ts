@@ -75,6 +75,7 @@ import {
   type HomeLayout,
 } from '@shared/home'
 import { z } from 'zod'
+import { notifySettingsSchema, type NotifySettings } from '@shared/growth'
 import { DEFAULT_PROFILE, profileSchema, type Profile } from '@shared/profile'
 import {
   elapsedHours,
@@ -158,6 +159,7 @@ const PROFILE_KEY = 'profile'
 const BRIEF_TEMPLATES_KEY = 'briefs.templates'
 const HOME_LAYOUT_KEY = 'home.layout'
 const HOME_CARDS_SEEN_KEY = 'home.cardsSeen'
+const NOTIFY_KEY = 'notify.settings'
 const MAIL_TEMPLATES_KEY = 'mail.templates'
 const TIMER_KEY = 'timer.running'
 const COLLECTIONS_KEY = 'data.collections'
@@ -486,6 +488,39 @@ export class DataService {
     else this.putSetting(HOME_LAYOUT_KEY, homeLayoutSchema.parse(layout))
     this.emit(null)
     return this.getHomeLayout()
+  }
+
+  /** Avisos del sistema (fase 14, D-107). */
+  getNotifySettings(): NotifySettings {
+    const r = notifySettingsSchema.safeParse(this.getSetting(NOTIFY_KEY) ?? {})
+    return r.success ? r.data : notifySettingsSchema.parse({})
+  }
+
+  setNotifySettings(s: NotifySettings): NotifySettings {
+    this.putSetting(NOTIFY_KEY, notifySettingsSchema.parse(s))
+    this.emit(null)
+    return this.getNotifySettings()
+  }
+
+  /** Tareas sin hacer con fecha límite hoy o ya pasada. */
+  dueTaskCount(): number {
+    const fields = this.listFields('tarea')
+    const due = fields.find((f) => f.key === 'fecha_limite')
+    if (!due) return 0
+    const estado = fields.find((f) => f.key === 'estado')
+    const doneIds =
+      estado?.type === 'select'
+        ? parseFieldConfig('select', estado.config)
+            .options.filter((o) => o.done)
+            .map((o) => o.id)
+        : []
+    const notDone: Filter[] =
+      estado && doneIds.length ? [{ fieldId: estado.id, op: 'none_of', value: doneIds }] : []
+    return (['today', 'before_today'] as const).reduce(
+      (n, op) =>
+        n + this.query('tarea', { filters: [{ fieldId: due.id, op, value: null }, ...notDone] }).length,
+      0,
+    )
   }
 
   getProfile(): Profile {
