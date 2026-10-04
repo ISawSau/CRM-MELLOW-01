@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { timerStartSchema, type RunningTimer } from './timer'
 import { mailTemplatesSchema, type MailTemplate } from './mail-templates'
 import { lockAnimationSchema, type LockAnimation } from './lock-animation'
 import {
@@ -319,6 +320,9 @@ export const ipcSchemas = {
   'profile:set': profileSchema,
   'profile:activity': z.void(),
   'mail:templates': z.void(),
+  'timer:get': z.void(),
+  'timer:start': timerStartSchema,
+  'timer:stop': z.object({ discard: z.boolean().default(false) }),
   'mail:setTemplates': z.object({ templates: mailTemplatesSchema }),
   'mail:addresses': z.object({ recordId: z.string().regex(/^[A-Za-z0-9_-]{1,64}$/) }),
   'data:update': z.object({ id: idSchema, patch: values }),
@@ -469,6 +473,9 @@ export interface IpcOutputs {
   'profile:set': Profile
   'profile:activity': { date: string; count: number }[]
   'mail:templates': MailTemplate[]
+  'timer:get': RunningTimer | null
+  'timer:start': RunningTimer
+  'timer:stop': RecordRow | null
   'mail:setTemplates': MailTemplate[]
   'mail:addresses': string[]
   'data:update': RecordRow

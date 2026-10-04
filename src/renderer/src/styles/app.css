@@ -1326,3 +1326,36 @@ kbd {
 .theme-group-wide .hint {
   margin: 0;
 }
+
+/* --- Cronómetro de la barra inferior (D-099) ------------------------------------- */
+
+.timer-item {
+  position: relative;
+  display: inline-flex;
+}
+
+.timer-item [data-running='true'] {
+  color: var(--accent-text);
+}
+
+.timer-popover {
+  position: fixed;
+  z-index: 45;
+  right: calc(var(--gap, 0px) + 16px);
+  bottom: calc(var(--gap, 0px) * 2 + 40px);
+  display: grid;
+  gap: var(--space-3);
+  width: 300px;
+  padding: var(--space-4);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-panel, var(--radius));
+  background: var(--bg-raised);
+  box-shadow: 0 10px 30px -8px var(--shadow);
+  font-size: var(--text-sm);
+  color: var(--text);
+  white-space: normal;
+}
+
+.timer-popover p {
+  margin: 0;
+}

@@ -455,4 +455,16 @@ export const main: Record<string, string> = {
   'Recordatorio: factura pendiente · {empresa}': 'Reminder: outstanding invoice · {empresa}',
   'Hola, {nombre}:\n\nTe recuerdo que tenemos pendiente la factura [número] con vencimiento [fecha]. Si ya está pagada, ignora este mensaje.\n\nGracias,\n{mi_nombre}':
     'Hi {nombre},\n\nJust a reminder that invoice [number], due on [date], is still outstanding. If it has already been paid, please ignore this message.\n\nThanks,\n{mi_nombre}',
+  'Ya hay un cronómetro en marcha.': 'A timer is already running.',
+  Horas: 'Hours',
+  'Facturado por hora': 'Invoiced per hour',
+  'Guardado en Horas: «{name}».': 'Saved in Hours: “{name}”.',
+  cronómetro: 'timer',
+  Cronómetro: 'Timer',
+  'Parar y guardar': 'Stop and save',
+  Descartar: 'Discard',
+  '¿En qué trabajas?': 'What are you working on?',
+  Empezar: 'Start',
+  'registro de horas': 'time entry',
+  Facturable: 'Billable',
 }

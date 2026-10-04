@@ -751,3 +751,9 @@ El usuario no quiere escribir comandos de desarrollo para usar la app. Los insta
 - **Qué:** plantillas de asunto y texto con variables (`{nombre}`, `{cliente}`, `{mi_nombre}`, `{empresa}`, `{fecha}`, `{mes}`). Se gestionan en Ajustes → Plantillas de correo. La ficha de un cliente o contacto tiene «Escribir correo…»: elige plantilla, rellena las variables y los destinatarios (los emails del registro y, en un cliente, los de sus contactos), y deja editarlo antes de abrirlo.
 - **Cómo sale:** se abre en la ventana de redactar de Gmail en el navegador (`mail.google.com/mail/?view=cm…`) o en el programa de correo del equipo (`mailto:`), o se copia. La app no envía nada, así que Gmail sigue en solo lectura (`gmail.readonly`) sin pedir más permisos. Funciona aunque Gmail no esté conectado.
 - **Datos:** en la bóveda (ajuste `mail.templates`, hasta 50). Sin guardar, se ven tres de serie en el idioma de la app: seguimiento de propuesta, informe mensual y recordatorio de factura.
+
+### D-099 · Registro de horas con cronómetro y rentabilidad por cliente
+
+- **Qué:** una entidad nueva del motor de datos, **Horas** (`hora`), en el grupo Negocio, con descripción, cliente, fecha, horas, facturable y notas. Los clientes ganan el campo inverso «Horas» (siembra 5), así que la ficha del cliente lista sus horas. Como toda entidad del motor, admite campos propios, vistas, filtros, exportación y papelera.
+- **Cronómetro:** en la barra inferior. Se arranca con una descripción y, si se quiere, un cliente. Al pararlo se crea el registro con las horas transcurridas (dos decimales, mínimo 0,01) y la fecha de hoy; también se puede descartar. Solo hay uno a la vez. Se guarda en la bóveda (ajuste `timer.running`), así que sigue contando aunque se cierre la app o se bloquee la bóveda.
+- **Rentabilidad:** Facturación suma las horas del periodo por cliente y muestra lo facturado por hora (facturado ÷ horas).

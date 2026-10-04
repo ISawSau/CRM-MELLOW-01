@@ -333,6 +333,7 @@ El negocio actual es ecommerce y no usa formularios de leads. Si en el futuro se
 - Beneficio por cliente combinando cobros, gastos asociados y fees.
 - **Nota legal:** en España el software que emite facturas debe cumplir requisitos específicos (normativa Verifactu). En la v1 el CRM registra facturas emitidas con una herramienta que cumpla la normativa; no las emite. **Verificar** antes de ampliar este módulo.
 - *Implementación (fase 9):* entidades Facturas y Gastos, acuerdo por cliente (fee, porcentaje, proyecto) y sección Facturación con lo facturado, cobrado, pendiente, vencido, gastos, inversión en Meta, lo previsto por el acuerdo y el beneficio por cliente en el periodo, más la lista de facturas vencidas. Verifactu es obligatorio desde 2027 (D-071).
+- *Registro de horas (0.14, D-099):* sección Horas con cronómetro en la barra inferior; Facturación muestra las horas de cada cliente y lo facturado por hora.
 
 ### 7.10 Informes para clientes
 

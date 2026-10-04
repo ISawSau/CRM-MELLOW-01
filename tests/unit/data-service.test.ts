@@ -247,6 +247,26 @@ describe('perfil', () => {
     )
   })
 
+  it('cronómetro: uno a la vez, y al pararlo crea el registro de horas del cliente', () => {
+    let now = new Date('2026-06-15T08:00:00Z')
+    const { svc } = setup({ now: () => now })
+    const acme = svc.create('cliente', {}, { title: 'Acme' })
+    expect(svc.getTimer()).toBeNull()
+    svc.startTimer({ description: 'Optimizar campañas', clientId: acme.id })
+    expect(() => svc.startTimer({ description: 'Otra', clientId: null })).toThrow(/en marcha/)
+    now = new Date('2026-06-15T09:30:00Z')
+    const rec = svc.stopTimer()!
+    expect(rec.title).toBe('Optimizar campañas')
+    const f = (k: string) => svc.listFields('hora').find((x) => x.key === k)!.id
+    expect(rec.values[f('horas')]).toBe(1.5)
+    expect(rec.values[f('fecha')]).toBe('2026-06-15')
+    expect(rec.values[f('cliente')]).toEqual([{ id: acme.id, title: 'Acme' }])
+    expect(svc.getTimer()).toBeNull()
+    svc.startTimer({ description: 'Descartar', clientId: null })
+    expect(svc.stopTimer(true)).toBeNull()
+    expect(svc.query('hora')).toHaveLength(1)
+  })
+
   it('crea un registro con título directamente', () => {
     const { svc } = setup()
     expect(svc.create('contacto', {}, { title: '  Ana  ' }).title).toBe('Ana')

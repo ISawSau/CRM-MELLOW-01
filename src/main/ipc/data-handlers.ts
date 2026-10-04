@@ -15,6 +15,7 @@ type DataChannel = Extract<
   | `briefs:${string}`
   | `home:${string}`
   | `files:${string}`
+  | `timer:${string}`
   | `versions:${string}`
 >
 export type DataHandlers = Pick<IpcHandlers, DataChannel>
@@ -117,6 +118,9 @@ export function createDataHandlers(
     'profile:get': () => vault.data.getProfile(),
     'profile:set': (profile) => vault.data.setProfile(profile),
     'profile:activity': () => vault.data.activity(),
+    'timer:get': () => vault.data.getTimer(),
+    'timer:start': (input) => vault.data.startTimer(input),
+    'timer:stop': ({ discard }) => vault.data.stopTimer(discard),
     'data:update': ({ id, patch }) => vault.data.update(id, patch),
     'data:setLinks': ({ fieldId, fromId, toIds }) => vault.data.setLinks(fieldId, fromId, toIds),
     'data:duplicate': ({ id }) => vault.data.duplicate(id),

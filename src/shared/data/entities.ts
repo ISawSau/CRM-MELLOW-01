@@ -123,7 +123,7 @@ export const ENTITIES: readonly EntityDef[] = [
     singular: 'cliente',
     gender: 'm',
     titleKey: 'nombre',
-    seedVersion: 4,
+    seedVersion: 5,
     fields: [
       { key: 'nombre', label: 'Nombre', type: 'text', system: true, required: true },
       { key: 'descripcion', label: 'Descripción', type: 'longtext', system: true },
@@ -255,6 +255,14 @@ export const ENTITIES: readonly EntityDef[] = [
         config: { target: 'gasto', multiple: true },
         inverse: { entity: 'gasto', key: 'cliente' },
         since: 4,
+      },
+      {
+        key: 'horas',
+        label: 'Horas',
+        type: 'relation',
+        config: { target: 'hora', multiple: true },
+        inverse: { entity: 'hora', key: 'cliente' },
+        since: 5,
       },
       {
         key: 'documentos',
@@ -740,6 +748,32 @@ export const ENTITIES: readonly EntityDef[] = [
         kind: 'kanban',
         config: { groupBy: 'categoria', cardFields: ['cliente', 'importe'] },
       },
+    ],
+  },
+  {
+    // Registro de horas (0.14, D-099): lo que dedicas a cada cliente, a mano o con el
+    // cronómetro de la barra inferior. Facturación lo suma por cliente.
+    id: 'hora',
+    label: 'Horas',
+    singular: 'registro de horas',
+    gender: 'm',
+    titleKey: 'descripcion',
+    seedVersion: 1,
+    fields: [
+      { key: 'descripcion', label: 'Descripción', type: 'text', system: true, required: true },
+      {
+        key: 'cliente',
+        label: 'Cliente',
+        type: 'relation',
+        config: { target: 'cliente', multiple: false },
+      },
+      { key: 'fecha', label: 'Fecha', type: 'date' },
+      { key: 'horas', label: 'Horas', type: 'number', config: { decimals: 2 } },
+      { key: 'facturable', label: 'Facturable', type: 'checkbox' },
+      { key: 'notas', label: 'Notas', type: 'longtext', system: true },
+    ],
+    views: [
+      { name: 'Todos', kind: 'table', config: { sorts: [{ fieldId: 'fecha', dir: 'desc' }] } },
     ],
   },
   {

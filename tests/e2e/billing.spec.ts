@@ -99,6 +99,24 @@ test('el resumen de facturación suma por cliente y lista las vencidas', async (
   await expect(panel().locator('#panel-title')).toHaveValue('F-002')
 })
 
+test('cronómetro: registrar horas desde la barra inferior y verlas en Facturación', async () => {
+  await page.getByTestId('timer-button').click()
+  const pop = page.getByTestId('timer-popover')
+  await pop.getByLabel('¿En qué trabajas?').fill('Revisar campañas')
+  await pop.getByRole('button', { name: 'Empezar' }).click()
+  await expect(page.getByTestId('timer-button')).toHaveAttribute('data-running', 'true')
+  await expect(page.getByTestId('timer-button')).toContainText(/0:00:0\d/)
+  await page.getByTestId('timer-button').click()
+  await page.getByTestId('timer-popover').getByRole('button', { name: 'Parar y guardar' }).click()
+  await expect(page.getByTestId('toast')).toContainText('Guardado en Horas')
+  await expect(page.getByTestId('timer-button')).not.toHaveAttribute('data-running', 'true')
+  await page.getByTestId('nav-horas').click()
+  await expect(page.getByTestId('table-row')).toHaveCount(1)
+  await expect(page.getByTestId('table-row')).toContainText('Revisar campañas')
+  await page.getByTestId('nav-facturacion').click()
+  await expect(page.getByTestId('billing-table')).toContainText('0,01')
+})
+
 test('sin errores de consola ni de la CSP', () => {
   expect(errors).toEqual([])
 })

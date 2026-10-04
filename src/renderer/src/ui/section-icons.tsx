@@ -300,6 +300,7 @@ export const DEFAULT_SECTION_ICONS: Record<string, string> = {
   facturacion: 'wallet',
   facturas: 'receipt-euro',
   gastos: 'banknote',
+  horas: 'timer',
   informes: 'file-chart-column',
   documentos: 'folder-open',
   herramientas: 'wrench',
