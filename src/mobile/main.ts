@@ -3,12 +3,17 @@ import { join } from 'node:path'
 import { setLocale } from '@shared/i18n'
 import { createBackend } from '../main/backend'
 import { ConfigStore } from '../main/config'
+import { useNativeSqlite } from '../main/db/connection'
 import { androidPlatform } from './android-platform'
+import { runMobileSelfTest } from './self-test'
 import { startMobileServer, type MobileServer } from './server'
 
 /**
  * Arranque del motor en Android (D-101): lo lanza el lado nativo con nodejs-mobile.
- *   main.js --port <n> --token <secreto> --data <carpeta> --cache <carpeta> --version <x.y.z>
+ *   main.js --port <n> --token <secreto> --data <carpeta> --cache <carpeta> --native <carpeta>
+ *           --version <x.y.z>
+ * `--autoprueba` (CI) comprueba el motor antes de arrancar.
+ * `--native` es la carpeta de librerías nativas de la app (ahí está SQLite compilado para Android).
  * Todo lo que guarda va dentro de `--data` (bóvedas y la configuración mínima).
  */
 function arg(name: string): string {
@@ -19,6 +24,9 @@ function arg(name: string): string {
 }
 
 async function main(): Promise<void> {
+  useNativeSqlite(join(arg('native'), 'libbetter_sqlite3.so'))
+  if (process.argv.includes('--autoprueba'))
+    await runMobileSelfTest(arg('cache'), (line) => console.log(`CRM Mellow autoprueba: ${line}`))
   const data = arg('data')
   const config = new ConfigStore(join(data, 'config'))
   setLocale(config.get().locale)

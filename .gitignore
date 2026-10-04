@@ -52,3 +52,4 @@ android/app/libnode/
 *.keystore
 *.apk
 *.aab
+android/.nodejs-mobile/

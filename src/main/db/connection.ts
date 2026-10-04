@@ -20,12 +20,27 @@ function applyKey(db: SqliteDb, key: Buffer, pragma: 'key' | 'rekey'): void {
   db.pragma(`${pragma}="x'${key.toString('hex')}'"`)
 }
 
+/** Módulo nativo cargado a mano (Android, D-101); en escritorio, el de node_modules. */
+let nativeBinding: object | null = null
+
+/**
+ * Android: el módulo nativo de SQLite viene entre las librerías de la app (la única carpeta
+ * desde la que el sistema deja cargar código nativo), con nombre de librería (`lib….so`).
+ */
+export function useNativeSqlite(path: string): void {
+  const m = { exports: {} }
+  process.dlopen(m, path)
+  nativeBinding = m.exports
+}
+
 /**
  * Abre (o crea) la base de datos cifrada. Lanza WRONG_PASSWORD si la clave no
  * descifra el archivo.
  */
 export function openEncryptedDb(path: string, key: Buffer): SqliteDb {
-  const db = new Database(path)
+  const db = nativeBinding
+    ? new Database(path, { nativeBinding } as unknown as Database.Options)
+    : new Database(path)
   try {
     applyKey(db, key, 'key')
     // Primera lectura real: aquí falla con SQLITE_NOTADB si la clave no es la correcta.

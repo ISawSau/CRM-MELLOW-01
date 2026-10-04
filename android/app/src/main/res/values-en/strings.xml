@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="loading">Opening…</string>
+    <string name="start_failed">The app could not start. Close it and open it again.</string>
+</resources>
