@@ -296,6 +296,7 @@ export const DEFAULT_SECTION_ICONS: Record<string, string> = {
   briefs: 'clipboard-list',
   campanas: 'megaphone',
   creatividades: 'images',
+  tests: 'atom',
   analisis: 'chart-line',
   facturacion: 'wallet',
   facturas: 'receipt-euro',

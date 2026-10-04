@@ -114,3 +114,123 @@ export const notifySettingsSchema = z.object({
   tasks: z.boolean().default(true),
 })
 export type NotifySettings = z.infer<typeof notifySettingsSchema>
+
+// --- Tests A/B (D-108) -------------------------------------------------------------------
+
+/** Opción del campo «Métrica que decide» → métrica y si es mejor más baja. */
+export const AB_METRICS: Record<string, { key: string; lowerIsBetter: boolean }> = {
+  cpa: { key: 'cpa', lowerIsBetter: true },
+  'coste-resultado': { key: 'coste_resultado', lowerIsBetter: true },
+  roas: { key: 'roas', lowerIsBetter: false },
+  'ctr-enlace': { key: 'ctr_enlace', lowerIsBetter: false },
+  'hook-rate': { key: 'hook_rate', lowerIsBetter: false },
+  cpm: { key: 'cpm', lowerIsBetter: true },
+}
+
+export interface AbAd {
+  id: string
+  name: string
+  accountName: string
+}
+
+export interface AbVariant {
+  ads: AbAd[]
+  base: Record<string, number>
+}
+
+export interface AbTestResult {
+  currency: string
+  /** Falta algún tipo de cambio: los importes pueden estar incompletos. */
+  partial: boolean
+  since: string
+  until: string
+  /** Opción elegida en «Métrica que decide» (por defecto, cpa). */
+  metric: string
+  a: AbVariant
+  b: AbVariant
+}
+
+export interface AbVerdict {
+  winner: 'a' | 'b' | null
+  /** Cuánto mejor es B que A en la métrica (0,2 = un 20 % mejor; negativo, peor). */
+  lift: number | null
+  /** La diferencia es estadísticamente clara (|z| ≥ 1,96, un 95 %). */
+  significant: boolean
+  z: number | null
+}
+
+/**
+ * Quién gana un test A/B. La significación se calcula con un contraste de proporciones (CTR
+ * del enlace, hook rate) o de tasas de Poisson (conversiones o impresiones por euro gastado,
+ * para CPA, coste por resultado, ROAS y CPM). Sin una diferencia clara no hay ganador.
+ */
+export function abVerdict(
+  metric: string,
+  a: Record<string, number | null>,
+  b: Record<string, number | null>,
+  baseA: Record<string, number>,
+  baseB: Record<string, number>,
+): AbVerdict {
+  const m = AB_METRICS[metric] ?? AB_METRICS['cpa']!
+  const va = a[m.key]
+  const vb = b[m.key]
+  if (va === null || va === undefined || vb === null || vb === undefined || va === 0)
+    return { winner: null, lift: null, significant: false, z: null }
+  const lift = m.lowerIsBetter ? va / vb - 1 : vb / va - 1
+  const z = zScore(m.key, baseA, baseB)
+  const significant = z !== null && Math.abs(z) >= 1.96
+  const winner = significant && lift !== 0 ? (lift > 0 ? 'b' : 'a') : null
+  return { winner, lift, significant, z }
+}
+
+function zScore(key: string, a: Record<string, number>, b: Record<string, number>): number | null {
+  const get = (s: Record<string, number>, k: string) => s[k] ?? 0
+  // Proporciones: éxitos sobre impresiones.
+  const prop = (success: string) => {
+    const na = get(a, 'impresiones')
+    const nb = get(b, 'impresiones')
+    if (na <= 0 || nb <= 0) return null
+    const pa = get(a, success) / na
+    const pb = get(b, success) / nb
+    const p = (get(a, success) + get(b, success)) / (na + nb)
+    const se = Math.sqrt(p * (1 - p) * (1 / na + 1 / nb))
+    return se > 0 ? (pb - pa) / se : null
+  }
+  // Tasas de Poisson: sucesos por euro gastado.
+  const rate = (events: string) => {
+    const ea = get(a, events)
+    const eb = get(b, events)
+    const sa = get(a, 'gasto')
+    const sb = get(b, 'gasto')
+    if (sa <= 0 || sb <= 0 || ea + eb === 0) return null
+    const se = Math.sqrt(ea / (sa * sa) + eb / (sb * sb))
+    return se > 0 ? (eb / sb - ea / sa) / se : null
+  }
+  switch (key) {
+    case 'ctr_enlace':
+      return prop('clics_enlace')
+    case 'hook_rate':
+      return prop('reproducciones_3s')
+    case 'cpa':
+    case 'roas':
+      return rate('compras')
+    case 'coste_resultado':
+      return rate('resultados')
+    case 'cpm':
+      return rate('impresiones')
+  }
+  return null
+}
+
+/** «123,456» → ids de anuncio (sin repetir ni vacíos). */
+export function parseAdIds(raw: unknown): string[] {
+  if (typeof raw !== 'string') return []
+  return [
+    ...new Set(
+      raw
+        .split(',')
+        .map((s) => s.trim())
+        .filter((s) => /^[\w-]{1,40}$/.test(s)),
+    ),
+  ]
+}

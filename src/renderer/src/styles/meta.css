@@ -586,3 +586,49 @@
 .pacing-text {
   font-size: var(--text-xs);
 }
+
+/* Tests A/B (fase 14). */
+.ab-variants {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--space-4);
+}
+
+.ab-variant-title {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-sm);
+  font-weight: 700;
+}
+
+.ab-table {
+  width: 100%;
+  margin-top: var(--space-2);
+  border-collapse: collapse;
+}
+
+.ab-table th,
+.ab-table td {
+  padding: var(--space-1) var(--space-2);
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+}
+
+.ab-table .num {
+  text-align: right;
+}
+
+.ab-table tr[data-decides] {
+  font-weight: 700;
+}
+
+.ab-verdict {
+  margin-top: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.ab-verdict[data-winner='a'],
+.ab-verdict[data-winner='b'] {
+  border-color: var(--success);
+}

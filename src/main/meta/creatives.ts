@@ -218,7 +218,7 @@ export function autoLink(
 // --- Rendimiento ----------------------------------------------------------------------
 
 /** Sumas de varios anuncios (de cuentas con monedas distintas) en la moneda dada. */
-function sumAds(
+export function sumAds(
   db: SqliteDb,
   adIds: string[],
   since: string,

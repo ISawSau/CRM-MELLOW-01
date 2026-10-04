@@ -67,7 +67,12 @@ import {
   type Dashboard,
 } from './analysis'
 import { billingQuerySchema, type BillingSummary } from './billing'
-import { notifySettingsSchema, type NotifySettings, type PacingRow } from './growth'
+import {
+  notifySettingsSchema,
+  type AbTestResult,
+  type NotifySettings,
+  type PacingRow,
+} from './growth'
 
 /**
  * Contrato IPC entre la interfaz (renderer) y el proceso principal.
@@ -381,6 +386,7 @@ export const ipcSchemas = {
     linked: z.boolean(),
   }),
   'meta:creativePerf': creativePerfSchema,
+  'meta:abTest': z.object({ recordId: idSchema }),
   'meta:tagPerf': tagPerfSchema,
   'meta:autoLink': z.void(),
   'analysis:query': analysisQuerySchema,
@@ -527,6 +533,7 @@ export interface IpcOutputs {
   'meta:creativeLinks': CreativeLinkInfo[]
   'meta:setCreativeLink': CreativeLinkInfo[]
   'meta:creativePerf': CreativePerfResult
+  'meta:abTest': AbTestResult
   'meta:tagPerf': TagPerfResult
   'meta:autoLink': number
   'analysis:query': AnalysisResult

@@ -19,6 +19,7 @@ import { ClientAdAccounts } from '../meta/ClientAdAccounts'
 import { ComposeMail } from '../gmail/ComposeMail'
 import { GmailThreads } from '../gmail/GmailThreads'
 import { CreativeAds } from '../meta/CreativeAds'
+import { AbTestPanel } from '../meta/AbTestPanel'
 
 const ACTION_LABELS: Record<HistoryEntry['action'], string> = {
   create: 'Creado',
@@ -246,6 +247,7 @@ export function RecordPanel({
               </>
             )}
             {r.entity === 'creatividad' && <CreativeAds recordId={r.id} />}
+            {r.entity === 'prueba' && <AbTestPanel record={r} />}
             <p className="faint panel-meta">
               {t('Creado el {created} · modificado el {updated}', {
                 created: formatDateTime(new Date(r.createdAt)),

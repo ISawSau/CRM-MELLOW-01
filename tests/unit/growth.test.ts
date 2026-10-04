@@ -5,9 +5,9 @@ import { AnalysisService } from '../../src/main/analysis/analysis-service'
 import { pacing } from '../../src/main/analysis/pacing'
 import { Notifier } from '../../src/main/notifier'
 import type { Platform } from '../../src/main/platform'
-import { daysInMonth, fatigueOf, pacingOf } from '../../src/shared/growth'
+import { abVerdict, daysInMonth, fatigueOf, pacingOf, parseAdIds } from '../../src/shared/growth'
 import { DEFAULT_HOME_LAYOUT } from '../../src/shared/home'
-import { metaTableSettingsSchema, targetRatio } from '../../src/shared/meta-metrics'
+import { computeMetrics, metaTableSettingsSchema, targetRatio } from '../../src/shared/meta-metrics'
 import { GOOD_TOKEN } from './meta-fake'
 import { setup } from './meta-setup'
 
@@ -219,6 +219,59 @@ describe('avisos del sistema (fase 14)', () => {
     notifier.checkTasks()
     expect(sent).toHaveLength(2)
     expect(today.id).toBeTruthy()
+    meta.dispose()
+    vault.dispose()
+  })
+})
+
+describe('tests A/B (fase 14)', () => {
+  const v = (base: Record<string, number>) => computeMetrics(base, null)
+
+  it('gana quien es mejor en la métrica solo si la diferencia es clara', () => {
+    // CTR 1 % frente a 1,5 % con 20 000 impresiones cada una: B gana claramente.
+    const a = { impresiones: 20_000, clics_enlace: 200, gasto: 200 }
+    const b = { impresiones: 20_000, clics_enlace: 300, gasto: 200 }
+    const ctr = abVerdict('ctr-enlace', v(a), v(b), a, b)
+    expect(ctr.winner).toBe('b')
+    expect(ctr.lift).toBeCloseTo(0.5)
+    expect(ctr.significant).toBe(true)
+    // Con 10 veces menos datos, la misma diferencia no es clara.
+    const a2 = { impresiones: 2000, clics_enlace: 20, gasto: 20 }
+    const b2 = { impresiones: 2000, clics_enlace: 30, gasto: 20 }
+    expect(abVerdict('ctr-enlace', v(a2), v(b2), a2, b2)).toMatchObject({
+      winner: null,
+      significant: false,
+    })
+    // CPA: menos es mejor. A: 100 compras con 2000 €; B: 60 con 2000 €.
+    const a3 = { gasto: 2000, compras: 100, impresiones: 50_000 }
+    const b3 = { gasto: 2000, compras: 60, impresiones: 50_000 }
+    const cpa = abVerdict('cpa', v(a3), v(b3), a3, b3)
+    expect(cpa.winner).toBe('a')
+    expect(cpa.lift).toBeLessThan(0)
+    // Sin datos en una variante: nada.
+    expect(abVerdict('cpa', v({}), v(b3), {}, b3).lift).toBeNull()
+  })
+
+  it('lee los anuncios de cada variante y suma sus cifras entre las fechas del test', async () => {
+    expect(parseAdIds(' a1, a2 ,a1,, x y ')).toEqual(['a1', 'a2'])
+    const { vault, meta } = await connected()
+    const f = (key: string) => vault.data.listFields('prueba').find((x) => x.key === key)!.id
+    const rec = vault.data.create(
+      'prueba',
+      {
+        [f('inicio')]: '2026-10-01',
+        [f('fin')]: '2026-10-02',
+        [f('anuncios_a')]: 'a1',
+        [f('metrica')]: 'ctr-enlace',
+      },
+      { title: 'Hook A contra B' },
+    )
+    const r = meta.abTest(rec.id)
+    expect(r).toMatchObject({ since: '2026-10-01', until: '2026-10-02', metric: 'ctr-enlace' })
+    expect(r.a.ads).toEqual([{ id: 'a1', name: 'Vídeo UGC', accountName: 'Tienda Demo' }])
+    expect(r.a.base['impresiones']).toBeGreaterThan(0)
+    expect(r.b.ads).toEqual([])
+    expect(() => meta.abTest(vault.data.create('nota', {}, { title: 'x' }).id)).toThrow()
     meta.dispose()
     vault.dispose()
   })

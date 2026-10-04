@@ -31,6 +31,7 @@ export function createMetaHandlers(meta: MetaService): MetaHandlers {
     'meta:setCreativeLink': ({ recordId, adId, linked }) =>
       meta.setCreativeLink(recordId, adId, linked),
     'meta:creativePerf': ({ recordId, since, until }) => meta.creativePerf(recordId, since, until),
+    'meta:abTest': ({ recordId }) => meta.abTest(recordId),
     'meta:tagPerf': ({ fieldId, since, until, clientId }) =>
       meta.tagPerf(fieldId, since, until, clientId),
     'meta:autoLink': () => meta.runAutoLink(),

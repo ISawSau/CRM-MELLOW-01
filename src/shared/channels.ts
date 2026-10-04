@@ -117,6 +117,7 @@ export const IPC_CHANNELS = [
   'meta:creativeLinks',
   'meta:setCreativeLink',
   'meta:creativePerf',
+  'meta:abTest',
   'meta:tagPerf',
   'meta:autoLink',
   'analysis:query',
