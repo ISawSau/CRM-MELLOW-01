@@ -15,7 +15,7 @@ import {
   type HomeCard,
   type HomeItem,
 } from '@shared/home'
-import { AlertsCard, SpendCard } from '../analysis/HomeCards'
+import { AlertsCard, PacingCard, SpendCard } from '../analysis/HomeCards'
 import { WidgetDialog, WidgetView } from '../analysis/Widget'
 import { call, IpcCallError } from '../lib/ipc'
 import { useToast } from '../ui/Toast'
@@ -218,6 +218,8 @@ function HomeCardView({ id, onNavigate }: { id: HomeCard; onNavigate: (s: string
       return <NotesCard onNavigate={onNavigate} />
     case 'gasto':
       return <SpendCard onNavigate={onNavigate} />
+    case 'ritmo':
+      return <PacingCard onNavigate={onNavigate} />
     case 'tareas':
       return <TasksCard onNavigate={onNavigate} />
     case 'alertas':

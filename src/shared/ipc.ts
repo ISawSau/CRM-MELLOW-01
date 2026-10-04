@@ -67,6 +67,7 @@ import {
   type Dashboard,
 } from './analysis'
 import { billingQuerySchema, type BillingSummary } from './billing'
+import type { PacingRow } from './growth'
 
 /**
  * Contrato IPC entre la interfaz (renderer) y el proceso principal.
@@ -389,6 +390,7 @@ export const ipcSchemas = {
   'analysis:events': z.void(),
   'analysis:unseen': z.void(),
   'analysis:markSeen': z.void(),
+  'analysis:pacing': z.void(),
   'billing:summary': billingQuerySchema,
   'tools:status': z.void(),
   'gmail:status': z.void(),
@@ -530,6 +532,7 @@ export interface IpcOutputs {
   'analysis:events': AlertEvent[]
   'analysis:unseen': number
   'analysis:markSeen': void
+  'analysis:pacing': PacingRow[]
   'billing:summary': BillingSummary
   'tools:status': { ffmpeg: boolean }
   'gmail:status': GmailStatus

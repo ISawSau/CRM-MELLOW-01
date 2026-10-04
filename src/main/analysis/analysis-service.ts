@@ -15,6 +15,8 @@ import type { SqliteDb } from '../db/connection'
 import { CHANGES_KEY } from '../sync/sync-service'
 import type { VaultService } from '../vault/vault-service'
 import { analyze } from './query'
+import { pacing } from './pacing'
+import type { PacingRow } from '@shared/growth'
 import { billingSummary } from '../billing/billing'
 import type { BillingSummary } from '@shared/billing'
 import { t } from '@shared/i18n'
@@ -86,6 +88,11 @@ export class AnalysisService {
 
   query(q: AnalysisQuery): AnalysisResult {
     return analyze(this.db, this.vault.data, q, this.opts.currency())
+  }
+
+  /** Ritmo de gasto del mes por cliente con presupuesto (fase 14, D-105). */
+  pacing(): PacingRow[] {
+    return pacing(this.db, this.vault.data, todayIn(this.timeZone(), this.now()))
   }
 
   /** Facturación y beneficio por cliente (SPEC §7.9). */

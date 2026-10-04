@@ -529,3 +529,60 @@
 .target-swatch[data-tone='over'] {
   background: linear-gradient(90deg, var(--warning), var(--danger));
 }
+
+/* Ritmo de gasto del mes (Inicio, fase 14). */
+.pacing-list {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pacing-item {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.pacing-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.pacing-bar {
+  position: relative;
+  display: block;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--bg-hover);
+}
+
+.pacing-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 4px;
+  background: var(--success);
+}
+
+.pacing-item[data-status='under'] .pacing-fill {
+  background: var(--warning);
+}
+
+.pacing-item[data-status='over'] .pacing-fill {
+  background: var(--danger);
+}
+
+.pacing-mark {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  width: 2px;
+  margin-left: -1px;
+  background: var(--text);
+}
+
+.pacing-text {
+  font-size: var(--text-xs);
+}

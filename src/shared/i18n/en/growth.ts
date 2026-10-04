@@ -30,4 +30,16 @@ export const growth: Record<string, string> = {
     'Yellow to red the further over it goes (fully red at 1.5 times the target).',
   'Usar la plantilla ({n} elemento)': 'Use the template ({n} item)',
   'Usar la plantilla ({n} elementos)': 'Use the template ({n} items)',
+  'Ritmo de gasto del mes': "This month's spend pacing",
+  'A buen ritmo': 'On pace',
+  'Se queda corto': 'Under-spending',
+  'Se pasa': 'Over-spending',
+  'Ver clientes →': 'View clients →',
+  'Pon un presupuesto publicitario mensual en la ficha de tus clientes para ver aquí cómo va el gasto.':
+    "Set a monthly ad budget on your clients' records to see how spend is pacing here.",
+  '{pct} % del presupuesto gastado; hoy tocaría llevar el {expected} %':
+    '{pct}% of the budget spent; by today it should be {expected}%',
+  '{spent} de {budget} · a este ritmo, {projected} a fin de mes':
+    '{spent} of {budget} · at this pace, {projected} by the end of the month',
+  'faltan tipos de cambio': 'exchange rates missing',
 }

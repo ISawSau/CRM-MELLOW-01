@@ -67,7 +67,14 @@ import {
 } from '@shared/data/views'
 import { DEFAULT_TIME_ZONE } from '@shared/format'
 import { mimeFromName, safeFileName } from '@shared/files'
-import { DEFAULT_HOME_LAYOUT, homeLayoutSchema, type HomeLayout } from '@shared/home'
+import {
+  DEFAULT_HOME_LAYOUT,
+  HOME_CARDS,
+  homeLayoutSchema,
+  LEGACY_HOME_CARDS,
+  type HomeLayout,
+} from '@shared/home'
+import { z } from 'zod'
 import { DEFAULT_PROFILE, profileSchema, type Profile } from '@shared/profile'
 import {
   elapsedHours,
@@ -150,6 +157,7 @@ const TRASH_DAYS_KEY = 'data.trashDays'
 const PROFILE_KEY = 'profile'
 const BRIEF_TEMPLATES_KEY = 'briefs.templates'
 const HOME_LAYOUT_KEY = 'home.layout'
+const HOME_CARDS_SEEN_KEY = 'home.cardsSeen'
 const MAIL_TEMPLATES_KEY = 'mail.templates'
 const TIMER_KEY = 'timer.running'
 const COLLECTIONS_KEY = 'data.collections'
@@ -460,10 +468,20 @@ export class DataService {
 
   getHomeLayout(): HomeLayout {
     const r = homeLayoutSchema.safeParse(this.getSetting(HOME_LAYOUT_KEY))
-    return r.success ? r.data : DEFAULT_HOME_LAYOUT
+    if (!r.success) return DEFAULT_HOME_LAYOUT
+    // Las tarjetas nuevas (que el usuario aún no ha visto al personalizar) se añaden al final.
+    const seen = z
+      .array(z.string())
+      .catch([...LEGACY_HOME_CARDS])
+      .parse(this.getSetting(HOME_CARDS_SEEN_KEY) ?? [...LEGACY_HOME_CARDS])
+    const fresh = HOME_CARDS.filter(
+      (c) => !seen.includes(c) && !r.data.items.some((i) => i.kind === 'card' && i.id === c),
+    )
+    return { items: [...r.data.items, ...fresh.map((id) => ({ kind: 'card' as const, id }))] }
   }
 
   setHomeLayout(layout: HomeLayout | null): HomeLayout {
+    this.putSetting(HOME_CARDS_SEEN_KEY, [...HOME_CARDS])
     if (layout === null) this.db.prepare('DELETE FROM settings WHERE key = ?').run(HOME_LAYOUT_KEY)
     else this.putSetting(HOME_LAYOUT_KEY, homeLayoutSchema.parse(layout))
     this.emit(null)
