@@ -27,7 +27,7 @@ final class NodeRunner {
         System.loadLibrary("crmnode");
     }
 
-    private static native int startNode(String[] arguments);
+    private static native int startNode(String[] arguments, String stderrPath);
 
     private static boolean started = false;
     private static int port;
@@ -50,7 +50,12 @@ final class NodeRunner {
         if (started) return;
         Context app = context.getApplicationContext();
         File project = copyProject(app);
-        logPreviousStart(new File(new File(app.getFilesDir(), "datos"), "arranque.txt"));
+        File datos = new File(app.getFilesDir(), "datos");
+        //noinspection ResultOfMethodCallIgnored
+        datos.mkdirs();
+        logPreviousStart(new File(datos, "arranque.txt"));
+        final File stderr = new File(datos, "errores-motor.txt");
+        logPreviousStart(stderr);
         port = freePort();
         token = randomToken();
         java.util.List<String> list = new java.util.ArrayList<>(java.util.Arrays.asList(
@@ -65,7 +70,7 @@ final class NodeRunner {
         if (selfTest) list.add("--autoprueba");
         final String[] args = list.toArray(new String[0]);
         Thread node = new Thread(() -> {
-            int code = startNode(args);
+            int code = startNode(args, stderr.getAbsolutePath());
             Log.e(TAG, "El motor se ha detenido (código " + code + ")");
         }, "node");
         node.setDaemon(true);
@@ -80,7 +85,8 @@ final class NodeRunner {
      */
     private static void logPreviousStart(File file) {
         if (!file.exists()) return;
-        for (String line : read(file).split("\n")) Log.i(TAG + "-Anterior", line);
+        for (String line : read(file).split("\n"))
+            if (!line.isEmpty()) Log.i(TAG + "-Anterior", file.getName() + ": " + line);
         //noinspection ResultOfMethodCallIgnored
         file.delete();
     }
