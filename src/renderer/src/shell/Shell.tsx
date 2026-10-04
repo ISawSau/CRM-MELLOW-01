@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { DEFAULT_APPEARANCE, type Density } from '@shared/appearance'
-import { BUILT_IN_THEMES, findTheme } from '@shared/themes'
+import { sectionIconName } from '../ui/section-icons'
+import { BUILT_IN_THEMES } from '@shared/themes'
 import type { VaultStatus } from '@shared/ipc'
 import { MetaPage } from '../meta/MetaPage'
 import { AnalysisPage } from '../analysis/AnalysisPage'
@@ -71,13 +72,13 @@ function ShellInner({ status }: { status: VaultStatus }) {
   const appearance = status.appearance ?? DEFAULT_APPEARANCE
   // Secciones fijas más las colecciones del usuario; la referencia sirve a openRecord.
   const sections = useSections()
-  // Iconos de sección del tema (si los define): sustituyen a las letras de la barra lateral.
-  const icons = findTheme(appearance.theme, [...BUILT_IN_THEMES, ...(status.themes ?? [])]).icons
+  // Iconos de la barra lateral: los elegidos en Ajustes → Apariencia o los de serie.
+  const icons = appearance.icons
   const groups = useMemo(
     () =>
       sections.groups.map((g) => ({
         ...g,
-        sections: g.sections.map((s) => (icons[s.id] ? { ...s, letter: icons[s.id]! } : s)),
+        sections: g.sections.map((s) => ({ ...s, icon: sectionIconName(s.id, icons) })),
       })),
     [sections.groups, icons],
   )
@@ -172,6 +173,7 @@ function ShellInner({ status }: { status: VaultStatus }) {
           collapsed={collapsed}
           onToggle={() => setCollapsed((c) => !c)}
           onLock={lock}
+          icons={icons}
         />
         <main className="main">
           {current.entity ? (

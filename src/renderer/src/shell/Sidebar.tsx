@@ -2,6 +2,7 @@ import { SETTINGS_SECTION, TRASH_SECTION, type Section, type SectionGroup } from
 import { useQuery } from '@tanstack/react-query'
 import { call } from '../lib/ipc'
 import { BrandEye } from '../ui/BrandEye'
+import { SectionIcon, sectionIconName } from '../ui/section-icons'
 import { useUnseenAlerts } from '../analysis/AnalysisPage'
 import { t } from '@shared/i18n'
 
@@ -25,8 +26,8 @@ function NavItem({
       title={t(section.label)}
       data-testid={`nav-${section.id}`}
     >
-      <span className="nav-letter" aria-hidden="true">
-        {section.letter}
+      <span className="nav-icon" aria-hidden="true">
+        <SectionIcon name={section.icon ?? sectionIconName(section.id, {})} />
       </span>
       <span className="nav-label">{t(section.label)}</span>
       {badge && badge.count > 0 && (
@@ -51,6 +52,7 @@ export function Sidebar({
   collapsed,
   onToggle,
   onLock,
+  icons,
 }: {
   groups: SectionGroup[]
   current: string
@@ -58,6 +60,7 @@ export function Sidebar({
   collapsed: boolean
   onToggle: () => void
   onLock: () => void
+  icons: Record<string, string>
 }) {
   const tasks = useQuery({
     queryKey: ['data', 'tasks-summary'],
@@ -115,8 +118,14 @@ export function Sidebar({
         ))}
       </nav>
       <div className="sidebar-foot">
-        <NavItem section={TRASH_SECTION} current={current} onSelect={onSelect} />
-        <NavItem section={SETTINGS_SECTION} current={current} onSelect={onSelect} />
+        {[TRASH_SECTION, SETTINGS_SECTION].map((s) => (
+          <NavItem
+            key={s.id}
+            section={{ ...s, icon: sectionIconName(s.id, icons) }}
+            current={current}
+            onSelect={onSelect}
+          />
+        ))}
         <button
           type="button"
           className="nav-item"
@@ -124,8 +133,8 @@ export function Sidebar({
           title={t('Bloquear bóveda')}
           data-testid="sidebar-lock"
         >
-          <span className="nav-letter" aria-hidden="true">
-            ▪
+          <span className="nav-icon" aria-hidden="true">
+            <SectionIcon name="lock" />
           </span>
           <span className="nav-label">{t('Bloquear')}</span>
         </button>

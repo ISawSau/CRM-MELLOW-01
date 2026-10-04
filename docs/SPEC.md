@@ -381,6 +381,8 @@ Perfil · bóveda · seguridad (contraseña, autobloqueo, clave de recuperación
 - Textos de interfaz en español, en minúscula inicial, con verbos claros en los botones ("Guardar cambios", no "Enviar"). Los estados vacíos indican qué hacer a continuación.
 
 ---
+- **Iconos (D-094):** la barra lateral usa iconos SVG (Lucide). Cada sección trae uno de serie y se puede cambiar en Ajustes → Iconos de las secciones. Su color va en el tema (`icon`, `iconActive`).
+- **Ancho y barras de desplazamiento (D-093):** las páginas ocupan todo el ancho de la ventana y las barras de desplazamiento llevan los colores del tema.
 
 ## 9. Fases de construcción
 

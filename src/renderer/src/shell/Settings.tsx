@@ -6,6 +6,7 @@ import { useAction } from '../lib/hooks'
 import { RecoveryKeyPanel } from '../screens/RecoveryKey'
 import { BUILT_IN_THEMES, findTheme, type Theme } from '@shared/themes'
 import { CollectionsSettings } from '../data/CollectionsSettings'
+import { SectionIconsSettings } from './SectionIconsSettings'
 import { DataSettings } from '../data/FieldsSettings'
 import { SyncSettings } from './SyncSettings'
 import { Alert } from '../ui/Alert'
@@ -50,7 +51,7 @@ function Appearance({ status }: { status: VaultStatus }) {
     <Block
       title={t('Apariencia')}
       desc={t(
-        'Elige un tema o crea el tuyo: parte de uno existente y cambia colores, esquinas, fondo (imagen o vídeo) e iconos. Los temas se exportan e importan como archivo, y una IA te puede crear uno.',
+        'Elige un tema o crea el tuyo: parte de uno existente y cambia colores, esquinas, fondo (imagen o vídeo) y el color de los iconos. Los temas se exportan e importan como archivo, y una IA te puede crear uno.',
       )}
     >
       <div className="field">
@@ -300,6 +301,7 @@ export function Settings({ status }: { status: VaultStatus }) {
       </div>
       <div>
         <Appearance status={status} />
+        <SectionIconsSettings status={status} />
         <CollectionsSettings />
         <DataSettings />
         <SyncSettings />

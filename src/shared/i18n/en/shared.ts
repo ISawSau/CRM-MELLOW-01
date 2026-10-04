@@ -346,6 +346,4 @@ export const shared: Record<string, string> = {
     '- Minimum contrast of 4.5:1 between each text and its background: text, textMuted, textFaint, accentText, index, success, danger and warning on bg; onAccent on accent; and in "options", text on bg.',
   '- "radius" son píxeles de redondeo de esquinas (0 a 24).':
     '- "radius" is the corner rounding in pixels (0 to 24).',
-  '- "icons" puede quedar vacío o dar 1-2 caracteres (letra o emoji) por sección, con estas claves: perfil, inicio, notas, clientes, contactos, tareas, briefs, campanas, plataformas, creatividades, analisis, facturacion, facturas, gastos, informes, documentos, herramientas.':
-    '- "icons" can be left empty or give 1-2 characters (letter or emoji) per section, with these keys: perfil, inicio, notas, clientes, contactos, tareas, briefs, campanas, plataformas, creatividades, analisis, facturacion, facturas, gastos, informes, documentos, herramientas.',
 }

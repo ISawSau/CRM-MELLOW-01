@@ -89,8 +89,6 @@ export const shell: Record<string, string> = {
   'Subir {label}': 'Move {label} up',
   'Bajar {label}': 'Move {label} down',
   'Quitar {label}': 'Remove {label}',
-  'Elige un tema o crea el tuyo: parte de uno existente y cambia colores, esquinas, fondo (imagen o vídeo) e iconos. Los temas se exportan e importan como archivo, y una IA te puede crear uno.':
-    'Choose a theme or create your own: start from an existing one and change colours, corners, background (image or video) and icons. Themes are exported and imported as a file, and an AI can create one for you.',
   Tema: 'Theme',
   'Nuevo tema a partir de «{name}»': 'New theme based on “{name}”',
   'Editar «{name}»': 'Edit “{name}”',

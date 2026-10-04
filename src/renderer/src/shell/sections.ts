@@ -7,6 +7,8 @@ export interface Section {
   summary: string
   /** Si la sección es una entidad del motor de datos, su id. */
   entity?: string
+  /** Icono de la barra lateral (nombre del catálogo); sin él, el de serie. */
+  icon?: string
 }
 
 export interface SectionGroup {

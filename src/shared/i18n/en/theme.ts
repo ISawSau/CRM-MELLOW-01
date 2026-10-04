@@ -50,10 +50,6 @@ export const theme: Record<string, string> = {
   Forma: 'Shape',
   'Esquinas redondeadas': 'Rounded corners',
   'Redondeo de esquinas': 'Corner rounding',
-  'Iconos de la barra lateral': 'Sidebar icons',
-  'Una o dos letras, una cifra o un emoji por sección. Vacío: la letra de serie.':
-    'One or two letters, a digit or an emoji per section. Empty: the default letter.',
-  'Icono de {section}': '{section} icon',
   'Todo el texto cumple el contraste AA (4,5:1).': 'All text meets AA contrast (4.5:1).',
   'Poco contraste': 'Low contrast',
   '(mínimo 4,5:1, se puede guardar igualmente):': '(minimum 4.5:1, you can save anyway):',
@@ -102,4 +98,19 @@ export const theme: Record<string, string> = {
   'Se comprueba antes de guardarlo: solo colores válidos, y la app avisa si algún texto queda con poco contraste.':
     "It's checked before saving: only valid colours, and the app warns you if any text has low contrast.",
   'Importar y aplicar': 'Import and apply',
+  'Iconos de las secciones': 'Section icons',
+  'Elige el icono de cada sección de la barra lateral. Su color se cambia en el tema (Apariencia → editar tema → Iconos).':
+    'Choose the icon for each sidebar section. Change its colour in the theme (Appearance → edit theme → Icons).',
+  'Cambiar el icono de {section}': 'Change the icon for {section}',
+  'De serie': 'Default',
+  'Iconos para {section}': 'Icons for {section}',
+  'Buscar (en inglés: chart, user, mail…)': 'Search (chart, user, mail…)',
+  'Buscar icono': 'Search icons',
+  'Ningún icono.': 'No icons.',
+  'Elige un tema o crea el tuyo: parte de uno existente y cambia colores, esquinas, fondo (imagen o vídeo) y el color de los iconos. Los temas se exportan e importan como archivo, y una IA te puede crear uno.':
+    'Pick a theme or create your own: start from an existing one and change colours, corners, background (image or video) and icon colour. Themes can be exported and imported as a file, and an AI can create one for you.',
+  '- "icon" e "iconActive" son el color de los iconos de la barra lateral y el del icono de la sección abierta.':
+    '- "icon" and "iconActive" are the colour of the sidebar icons and of the icon of the open section.',
+  Iconos: 'Icons',
+  'Icono de la sección abierta': 'Icon of the open section',
 }

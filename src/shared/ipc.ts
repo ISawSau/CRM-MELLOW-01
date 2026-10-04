@@ -19,7 +19,7 @@ import {
   type ReportResult,
   type ReportTemplate,
 } from './reports'
-import { appearanceSchema, type Appearance } from './appearance'
+import { appearancePatchSchema, type Appearance } from './appearance'
 import { customThemesSchema, type Theme } from './themes'
 import { homeLayoutSchema, type HomeLayout } from './home'
 import { localeSchema, type Locale } from './i18n'
@@ -205,7 +205,7 @@ export const ipcSchemas = {
       .min(1)
       .max(24 * 60),
   }),
-  'settings:setAppearance': appearanceSchema,
+  'settings:setAppearance': appearancePatchSchema,
   'settings:setThemes': z.object({ themes: customThemesSchema }),
   'settings:exportTheme': z.object({
     name: z.string().trim().min(1).max(60),

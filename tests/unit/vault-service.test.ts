@@ -131,16 +131,22 @@ describe('bloquear y desbloquear', () => {
 describe('apariencia', () => {
   it('por defecto: tema oscuro y densidad compacta', async () => {
     const { svc } = await newVault()
-    expect(svc.status().appearance).toEqual({ theme: 'oscuro', density: 'compacta' })
+    expect(svc.status().appearance).toEqual({ theme: 'oscuro', density: 'compacta', icons: {} })
     svc.dispose()
   })
 
   it('se guarda dentro de la bóveda y sobrevive al bloqueo', async () => {
     const { svc } = await newVault()
     svc.setAppearance({ theme: 'claro', density: 'comoda' })
+    // Un cambio parcial (los iconos) no pisa el tema ni la densidad.
+    svc.setAppearance({ icons: { clientes: 'briefcase' } })
     svc.lock()
     expect(svc.status().appearance).toBeNull()
-    expect((await svc.unlock(PASSWORD)).appearance).toEqual({ theme: 'claro', density: 'comoda' })
+    expect((await svc.unlock(PASSWORD)).appearance).toEqual({
+      theme: 'claro',
+      density: 'comoda',
+      icons: { clientes: 'briefcase' },
+    })
     svc.dispose()
   })
 
