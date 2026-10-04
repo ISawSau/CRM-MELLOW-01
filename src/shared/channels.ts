@@ -71,6 +71,7 @@ export const IPC_CHANNELS = [
   'briefs:saveAsTemplate',
   'profile:get',
   'profile:set',
+  'profile:activity',
   'data:update',
   'data:setLinks',
   'data:duplicate',

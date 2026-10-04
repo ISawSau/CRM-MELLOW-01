@@ -30,7 +30,7 @@ const RECENT = {
 
 const byKey = (fields: FieldDef[] | undefined, key: string) => fields?.find((f) => f.key === key)
 
-function Kpi({ label, value, hint }: { label: string; value: string; hint?: string }) {
+export function Kpi({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
     <div className="kpi">
       <span className="kpi-label">{label}</span>
@@ -104,7 +104,7 @@ function TasksCard({ onNavigate }: { onNavigate: (section: string) => void }) {
   )
 }
 
-function useClientStats() {
+export function useClientStats() {
   const cFields = useFields('cliente')
   const clients = useRecords('cliente', ALL)
   const etapa = byKey(cFields.data, 'etapa')

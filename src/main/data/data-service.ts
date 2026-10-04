@@ -407,6 +407,27 @@ export class DataService {
     return r.success ? r.data : DEFAULT_PROFILE
   }
 
+  /**
+   * Actividad por día del último año (mapa de actividad del Perfil, D-095): cuántos
+   * cambios has hecho en tus registros (crear, editar, borrar…), según tu zona horaria.
+   */
+  activity(): { date: string; count: number }[] {
+    const { today, timeZone } = this.ctx()
+    const since = shiftDate(today, -371)
+    const fmt = new Intl.DateTimeFormat('en-CA', { timeZone })
+    const rows = this.db
+      .prepare('SELECT at FROM history WHERE at >= ?')
+      .all(`${shiftDate(since, -1)}T00:00:00`) as { at: string }[]
+    const counts = new Map<string, number>()
+    for (const r of rows) {
+      const day = fmt.format(new Date(r.at))
+      if (day >= since && day <= today) counts.set(day, (counts.get(day) ?? 0) + 1)
+    }
+    return [...counts]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([date, count]) => ({ date, count }))
+  }
+
   setProfile(p: Profile): Profile {
     this.putSetting(PROFILE_KEY, profileSchema.parse(p))
     this.emit(null)

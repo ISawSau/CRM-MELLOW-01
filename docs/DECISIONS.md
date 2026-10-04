@@ -707,3 +707,11 @@ El usuario no quiere escribir comandos de desarrollo para usar la app. Los insta
 - **Dónde se eligen:** en Ajustes → Iconos de las secciones, con un buscador sobre un catálogo cerrado de unos 140 iconos (`src/renderer/src/ui/section-icons.tsx`). Solo se importan esos, así que el resto de Lucide no entra en la app. La elección se guarda en la bóveda dentro de la apariencia (`appearance.icons`). `settings:setAppearance` acepta ahora cambios parciales, así que cambiar el tema no borra los iconos.
 - **Color:** va en el tema, con dos colores nuevos y opcionales: `icon` (los iconos) e `iconActive` (el de la sección abierta y al pasar el ratón). Los temas sin ellos usan el texto tenue y el acento.
 - **Sustituye** a los iconos de 1 o 2 caracteres por tema de D-089. Al importar un tema que los traiga, se ignoran.
+
+### D-095 · Perfil como la página de un usuario de GitHub
+
+- **Primera vez:** si el perfil no está configurado (sin nombre y sin `setupDone`), la pestaña Perfil es un asistente con el mismo formulario y «Saltar por ahora». Al guardar o saltar, `setupDone` pasa a verdadero. Los perfiles de versiones anteriores con nombre cuentan como configurados.
+- **Vista:** a la izquierda, la tarjeta con foto, nombre, cargo y empresa, bio, ubicación, email, web y redes. A la derecha, cifras clave, clientes destacados y mapa de actividad. Las cifras reutilizan lo que ya calculan Inicio (clientes), Análisis (gasto y ROAS del mes) y Facturación (facturado en el año), así que no hay consultas nuevas.
+- **Redes:** se guarda lo que escribe el usuario, el enlace completo o el usuario. `socialUrl()` arma el enlace con la URL de cada red. Solo acepta `http(s)`; un usuario con espacios o un `javascript:` no pasa la validación. Los logos son de Simple Icons (CC0). LinkedIn no está en Simple Icons, así que se dibuja un «in» propio.
+- **Clientes destacados:** hasta 6 ids en el perfil, en el orden elegido. Cada tarjeta muestra la etapa y la inversión del mes.
+- **Actividad:** `profile:activity` cuenta por día, en la zona horaria del perfil, las entradas del historial de cambios (`history`) del último año. Son las «contribuciones»: crear, editar o borrar registros. Los niveles de color van de 0 a 4 respecto al día con más cambios.

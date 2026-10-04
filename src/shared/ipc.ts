@@ -312,6 +312,7 @@ export const ipcSchemas = {
   'briefs:saveAsTemplate': z.object({ recordId: idSchema, name: z.string().trim().min(1).max(80) }),
   'profile:get': z.void(),
   'profile:set': profileSchema,
+  'profile:activity': z.void(),
   'data:update': z.object({ id: idSchema, patch: values }),
   'data:setLinks': z.object({
     fieldId: idSchema,
@@ -454,6 +455,7 @@ export interface IpcOutputs {
   'briefs:saveAsTemplate': BriefTemplate[]
   'profile:get': Profile
   'profile:set': Profile
+  'profile:activity': { date: string; count: number }[]
   'data:update': RecordRow
   'data:setLinks': RecordRow
   'data:duplicate': RecordRow

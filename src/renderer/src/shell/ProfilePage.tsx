@@ -4,10 +4,12 @@ import { GmailSettings } from '../gmail/GmailSettings'
 import { useProfile } from '../data/nav'
 import { useMetaAccounts, useMetaStatus } from '../meta/meta'
 import { ProfileSettings } from './ProfileSettings'
+import { ProfileView } from './ProfileView'
+import { profileReady } from '@shared/profile'
 import { useSyncStatus } from './sync'
 import { t, tc, tn } from '@shared/i18n'
 
-type Tab = 'datos' | 'cuentas'
+type Tab = 'perfil' | 'editar' | 'cuentas'
 
 /** Una cuenta conectada: estado y dónde se gestiona. */
 function AccountCard({
@@ -100,31 +102,27 @@ function Accounts({ onNavigate }: { onNavigate: (section: string) => void }) {
 }
 
 /**
- * Perfil (antes de Inicio): tus datos y los de tu empresa, y las cuentas y servicios
- * conectados, con sus ajustes.
+ * Perfil (antes de Inicio, D-095). La primera vez es un asistente para configurarlo; después
+ * se ve como la página de un usuario de GitHub, con pestañas para editarlo y para las cuentas.
  */
 export function ProfilePage({ onNavigate }: { onNavigate: (section: string) => void }) {
   const profile = useProfile().data
-  const [tab, setTab] = useState<Tab>('datos')
+  const [tab, setTab] = useState<Tab>('perfil')
+  const ready = profile ? profileReady(profile) : true
+  const tabs: [Tab, string][] = ready
+    ? [
+        ['perfil', 'Perfil'],
+        ['editar', 'Editar'],
+        ['cuentas', 'Cuentas conectadas'],
+      ]
+    : [
+        ['perfil', 'Configurar'],
+        ['cuentas', 'Cuentas conectadas'],
+      ]
   return (
     <div className="page page-wide" data-testid="page-perfil">
-      <div className="section-head section-head-profile">
-        {profile?.photo && <img className="profile-photo" src={profile.photo} alt="" />}
-        <div>
-          <span className="eyebrow">
-            <span className="num">00</span> {t('perfil')}
-          </span>
-          <h1 className="title">{profile?.name.trim() || t('Perfil')}</h1>
-          {profile?.company && <p className="muted">{profile.company}</p>}
-        </div>
-      </div>
       <div className="tabs" role="tablist" aria-label={t('Perfil')}>
-        {(
-          [
-            ['datos', 'Datos'],
-            ['cuentas', 'Cuentas conectadas'],
-          ] as const
-        ).map(([id, label]) => (
+        {tabs.map(([id, label]) => (
           <button
             key={id}
             type="button"
@@ -137,7 +135,15 @@ export function ProfilePage({ onNavigate }: { onNavigate: (section: string) => v
           </button>
         ))}
       </div>
-      {tab === 'datos' ? <ProfileSettings /> : <Accounts onNavigate={onNavigate} />}
+      {tab === 'cuentas' ? (
+        <Accounts onNavigate={onNavigate} />
+      ) : tab === 'editar' ? (
+        <ProfileSettings onDone={() => setTab('perfil')} />
+      ) : !profile ? null : ready ? (
+        <ProfileView profile={profile} onEdit={() => setTab('editar')} />
+      ) : (
+        <ProfileSettings setup onDone={() => setTab('perfil')} />
+      )}
     </div>
   )
 }

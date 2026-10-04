@@ -36,11 +36,21 @@ test('perfil: nombre y zona horaria', async () => {
   const form = page.getByTestId('profile-form')
   await form.getByLabel('Tu nombre').fill('Joan Mellow')
   await form.getByLabel('NIF / CIF').fill('B12345678')
+  await form.getByLabel('Cargo o a qué te dedicas').fill('Media buyer')
+  await form.getByLabel('Instagram').fill('@yellowmellow')
+  await form.getByLabel('GitHub').fill('no vale con espacios')
+  await expect(form.getByLabel('GitHub')).toHaveAttribute('aria-invalid', 'true')
+  await form.getByLabel('GitHub').fill('')
   await expect(form.getByLabel('Zona horaria')).toHaveValue('Europe/Madrid')
   await form.getByRole('button', { name: 'Guardar perfil' }).click()
   await expect(page.getByTestId('toast')).toContainText('Perfil guardado')
-  await expect(page.getByTestId('page-perfil').getByRole('heading', { level: 1 })).toHaveText(
-    'Joan Mellow',
+  // Tras la primera configuración, el perfil se ve como una página de GitHub.
+  const view = page.getByTestId('profile-view')
+  await expect(view.getByRole('heading', { level: 1 })).toHaveText('Joan Mellow')
+  await expect(view).toContainText('Media buyer')
+  await expect(view.getByRole('link', { name: 'Instagram' })).toHaveAttribute(
+    'href',
+    'https://www.instagram.com/yellowmellow',
   )
   await shot('10-perfil')
 })
@@ -119,6 +129,23 @@ test('pipeline: mover un cliente de etapa y crear un pipeline nuevo', async () =
   )
   await expect(cols.filter({ hasText: 'Propuesta' })).toHaveCount(1)
   await expect(cols.filter({ hasText: 'Sin valor' }).getByTestId('kanban-card')).toHaveCount(1)
+})
+
+test('perfil: destacar un cliente y ver la actividad', async () => {
+  await page.getByTestId('nav-perfil').click()
+  const pinned = page.getByTestId('profile-pinned')
+  await pinned.getByRole('button', { name: 'Personalizar' }).click()
+  const dialog = page.getByRole('dialog', { name: 'Clientes destacados' })
+  await dialog.getByLabel('Acme Moda').check()
+  await dialog.getByRole('button', { name: 'Guardar' }).click()
+  await expect(pinned.getByRole('button', { name: 'Acme Moda' })).toBeVisible()
+  await expect(page.getByTestId('profile-activity')).toContainText(/\d+ cambios en el último año/)
+  await expect(
+    page.getByTestId('profile-activity').locator('[data-level="4"]').first(),
+  ).toBeVisible()
+  await shot('11-perfil-github')
+  await pinned.getByRole('button', { name: 'Acme Moda' }).click()
+  await expect(page.getByTestId('record-panel')).toBeVisible()
 })
 
 test('sin errores de consola ni de la CSP', () => {
