@@ -51,4 +51,4 @@ Para probar una rama que aún no está en `main`: `git checkout <rama>` antes de
 
 ## Builds intermedios
 
-Cada push a `main` genera también los instaladores en GitHub Actions (pestaña **Actions** → la ejecución → **Artifacts**, se guardan 5 días). Para comprobar una instalación: `crm-mellow --autoprueba`.
+Cada push a `main` genera y prueba los instaladores en GitHub Actions; cuando sube la versión, se publican en **Releases** con sus notas y sumas SHA-256. Al lanzar el CI a mano también quedan un día en **Actions** → la ejecución → **Artifacts**, si cabe en el almacenamiento gratuito. Para comprobar una instalación: `crm-mellow --autoprueba`.

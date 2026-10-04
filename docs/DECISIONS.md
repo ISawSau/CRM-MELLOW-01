@@ -761,3 +761,12 @@ El usuario no quiere escribir comandos de desarrollo para usar la app. Los insta
   - Celdas más pequeñas (9 px), una rampa de 18 caracteres y tres intensidades del color para dar profundidad. La gravedad pasa a 70.000 puntos.
   - El ojo es solo el iris, como el logo: sin párpado ni parpadeo. Tiene borde oscuro, banda naranja, fibras radiales con criptas, collarete en zigzag, aro rojo, pupila que respira (se dilata al teclear y se cierra al fallar) y el reflejo de luz.
   - La cerradura lleva 100 marcas con números cada 10, borde moleteado, aro de agarre, pomo con tornillos y la flecha de referencia. Las escenas pueden fijar caracteres concretos (`glyphs`) para los números.
+
+### D-100 · Instaladores directos a Releases, sin depender del almacenamiento de artefactos
+
+- **Qué pasó:** con muchas ejecuciones en un día se llenó la cuota gratuita de almacenamiento de artefactos de GitHub Actions. Cada ejecución subía unos 400 MB de instaladores, guardados 5 días. Los instaladores se generaban bien, pero fallaba el paso de subirlos, y con él la prueba en Arch y la publicación, que los descargaban de ahí.
+- **Ahora:**
+  - En `main`, si la versión es nueva, un trabajo crea la versión en Releases como borrador. Cada instalador se sube directamente a ella; el almacenamiento de Releases no cuenta para esa cuota.
+  - El último trabajo calcula las sumas SHA-256, pone las notas y la publica. Si algo falla, el borrador se reutiliza en la siguiente ejecución.
+  - La prueba en Arch Linux pasa a un contenedor dentro del mismo trabajo de Linux: script de instalación, paquete pacman, autoprueba, AppImage y desinstalar. Ya no necesita artefactos.
+  - En Actions solo se guarda una copia al lanzar el CI a mano, durante un día y sin hacer fallar la ejecución si no cabe. Lo mismo para el informe de Playwright.
