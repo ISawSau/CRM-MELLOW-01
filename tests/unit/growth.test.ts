@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import { ONBOARDING_CHECKLIST } from '../../src/shared/data/entities'
 import { analyze } from '../../src/main/analysis/query'
+import { AnalysisService } from '../../src/main/analysis/analysis-service'
 import { pacing } from '../../src/main/analysis/pacing'
-import { daysInMonth, pacingOf } from '../../src/shared/growth'
+import { daysInMonth, fatigueOf, pacingOf } from '../../src/shared/growth'
 import { DEFAULT_HOME_LAYOUT } from '../../src/shared/home'
-import { targetRatio } from '../../src/shared/meta-metrics'
+import { metaTableSettingsSchema, targetRatio } from '../../src/shared/meta-metrics'
 import { GOOD_TOKEN } from './meta-fake'
 import { setup } from './meta-setup'
 
@@ -111,6 +112,67 @@ describe('ritmo de gasto (fase 14)', () => {
     expect(ids()).toContain('ritmo')
     vault.data.setHomeLayout({ items: old })
     expect(ids()).not.toContain('ritmo')
+    meta.dispose()
+    vault.dispose()
+  })
+})
+
+describe('fatiga creativa (fase 14)', () => {
+  const w = (impressions: number, linkClicks: number, dailyReach: number, purchases = 0) => ({
+    impressions,
+    linkClicks,
+    spend: impressions / 100,
+    purchases,
+    results: 0,
+    dailyReach,
+  })
+
+  it('cae el CTR y sube la frecuencia o el coste: fatiga; si no, nada', () => {
+    const base = w(7000, 140, 7000 / 1.2) // CTR 2 %, frecuencia 1,2
+    const tired = fatigueOf(w(3000, 36, 3000 / 1.6), base) // CTR 1,2 %, frecuencia 1,6
+    expect(tired?.ctrDrop).toBeCloseTo(0.4)
+    expect(tired?.frequencyRise).toBeCloseTo(1.6 / 1.2 - 1)
+    // CTR igual: no hay fatiga aunque suba la frecuencia.
+    expect(fatigueOf(w(3000, 60, 3000 / 1.6), base)).toBeNull()
+    // CTR cae pero ni frecuencia ni coste suben.
+    expect(fatigueOf(w(3000, 36, 3000 / 1.2), base)).toBeNull()
+    // Coste por compra sube un 50 %: también es fatiga.
+    expect(
+      fatigueOf(w(3000, 36, 3000 / 1.2, 2), w(7000, 140, 7000 / 1.2, 7))?.costRise,
+    ).toBeCloseTo(0.5)
+    // Pocas impresiones: no se juzga.
+    expect(fatigueOf(w(500, 2, 400), base)).toBeNull()
+  })
+
+  it('avisa una vez por anuncio y semana, y se puede apagar', async () => {
+    const { vault, meta } = await connected()
+    const ins = vault.sqlite.prepare(
+      `INSERT OR REPLACE INTO ad_insights_daily
+         (level, entity_id, date, account_id, campaign_id, adset_id, spend, impressions, reach,
+          link_clicks, fetched_at)
+       VALUES ('ad', 'a1', ?, 'act_111', 'c1', 's1', 10, 1000, ?, ?, '2026-10-03T00:00:00Z')`,
+    )
+    // Del 23 al 29 de septiembre: CTR 2 %, frecuencia 1,2. Del 30 al 2: CTR 1 %, frecuencia 1,6.
+    for (let d = 23; d <= 29; d++) ins.run(`2026-09-${d}`, 833, 20)
+    for (const day of ['2026-09-30', '2026-10-01', '2026-10-02']) ins.run(day, 625, 10)
+    let now = new Date('2026-10-03T10:00:00Z')
+    const analysis = new AnalysisService(vault, {
+      currency: () => 'EUR',
+      tableSettings: () => metaTableSettingsSchema.parse({}),
+      now: () => now,
+    })
+    expect(analysis.fatigueEnabled()).toBe(true)
+    expect(analysis.evaluate()).toBe(1)
+    const [e] = analysis.events()
+    expect(e!.name).toContain('Vídeo UGC')
+    expect(e!.value).toBeCloseTo(1)
+    expect(e!.threshold).toBeCloseTo(2)
+    // Al día siguiente sigue cansado, pero no se repite el aviso hasta pasada una semana.
+    now = new Date('2026-10-04T10:00:00Z')
+    ins.run('2026-10-03', 625, 10)
+    expect(analysis.evaluate()).toBe(0)
+    analysis.setFatigueEnabled(false)
+    expect(analysis.fatigueEnabled()).toBe(false)
     meta.dispose()
     vault.dispose()
   })

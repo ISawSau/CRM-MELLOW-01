@@ -186,6 +186,10 @@ export function Alerts() {
     queryKey: ['data', 'analysis', 'events'],
     queryFn: () => call('analysis:events'),
   })
+  const fatigue = useQuery({
+    queryKey: ['data', 'analysis', 'fatigue'],
+    queryFn: () => call('analysis:fatigue'),
+  })
   const [editing, setEditing] = useState<Alert | 'new' | null>(null)
   const list = alerts.data ?? []
   const unseen = (events.data ?? []).some((e) => !e.seen)
@@ -264,6 +268,35 @@ export function Alerts() {
           {t('+ Alerta')}
         </button>
       </div>
+
+      <h3 className="panel-subtitle">{t('Fatiga creativa')}</h3>
+      <label className="check">
+        <input
+          type="checkbox"
+          data-testid="fatigue-toggle"
+          checked={fatigue.data ?? true}
+          disabled={fatigue.data === undefined}
+          onChange={(e) =>
+            void call('analysis:setFatigue', { enabled: e.target.checked })
+              .then((v) => {
+                qc.setQueryData(['data', 'analysis', 'fatigue'], v)
+                return qc.invalidateQueries({ queryKey: ['data', 'analysis'] })
+              })
+              .catch((err: unknown) =>
+                toast.show(
+                  err instanceof IpcCallError ? err.message : t('No se pudo guardar.'),
+                  'error',
+                ),
+              )
+          }
+        />
+        <span>{t('Avisar de posible fatiga creativa')}</span>
+      </label>
+      <p className="hint">
+        {t(
+          'Compara los últimos 3 días de cada anuncio activo con la semana anterior. Avisa si el CTR del enlace cae un 25 % o más y además sube la frecuencia (un 20 %) o el coste por conversión (un 25 %). Como mucho, un aviso por anuncio a la semana.',
+        )}
+      </p>
 
       <h3 className="panel-subtitle">{t('Avisos')}</h3>
       <ul className="event-list" data-testid="alert-events">

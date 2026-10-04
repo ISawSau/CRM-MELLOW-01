@@ -42,4 +42,12 @@ export const growth: Record<string, string> = {
   '{spent} de {budget} · a este ritmo, {projected} a fin de mes':
     '{spent} of {budget} · at this pace, {projected} by the end of the month',
   'faltan tipos de cambio': 'exchange rates missing',
+  'Fatiga creativa': 'Creative fatigue',
+  'Avisar de posible fatiga creativa': 'Warn about possible creative fatigue',
+  'Compara los últimos 3 días de cada anuncio activo con la semana anterior. Avisa si el CTR del enlace cae un 25 % o más y además sube la frecuencia (un 20 %) o el coste por conversión (un 25 %). Como mucho, un aviso por anuncio a la semana.':
+    'Compares the last 3 days of each active ad with the week before. It warns if link CTR drops by 25% or more and frequency (by 20%) or cost per conversion (by 25%) also rises. At most one warning per ad per week.',
+  'CTR del enlace {pct}': 'link CTR {pct}',
+  'frecuencia {pct}': 'frequency {pct}',
+  'coste por conversión {pct}': 'cost per conversion {pct}',
+  'Posible fatiga: {ad} ({detail})': 'Possible fatigue: {ad} ({detail})',
 }

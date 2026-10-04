@@ -391,6 +391,8 @@ export const ipcSchemas = {
   'analysis:unseen': z.void(),
   'analysis:markSeen': z.void(),
   'analysis:pacing': z.void(),
+  'analysis:fatigue': z.void(),
+  'analysis:setFatigue': z.object({ enabled: z.boolean() }),
   'billing:summary': billingQuerySchema,
   'tools:status': z.void(),
   'gmail:status': z.void(),
@@ -533,6 +535,8 @@ export interface IpcOutputs {
   'analysis:unseen': number
   'analysis:markSeen': void
   'analysis:pacing': PacingRow[]
+  'analysis:fatigue': boolean
+  'analysis:setFatigue': boolean
   'billing:summary': BillingSummary
   'tools:status': { ffmpeg: boolean }
   'gmail:status': GmailStatus

@@ -127,6 +127,8 @@ export const IPC_CHANNELS = [
   'analysis:unseen',
   'analysis:markSeen',
   'analysis:pacing',
+  'analysis:fatigue',
+  'analysis:setFatigue',
   'billing:summary',
   'tools:status',
   'gmail:status',

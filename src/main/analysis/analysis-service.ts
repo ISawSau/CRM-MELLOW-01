@@ -16,6 +16,7 @@ import { CHANGES_KEY } from '../sync/sync-service'
 import type { VaultService } from '../vault/vault-service'
 import { analyze } from './query'
 import { pacing } from './pacing'
+import { fatiguedAds } from './fatigue'
 import type { PacingRow } from '@shared/growth'
 import { billingSummary } from '../billing/billing'
 import type { BillingSummary } from '@shared/billing'
@@ -29,6 +30,9 @@ import { t } from '@shared/i18n'
 
 const DASHBOARDS_KEY = 'analysis.dashboards'
 const ALERTS_KEY = 'analysis.alerts'
+const FATIGUE_KEY = 'analysis.fatigue'
+/** Un aviso de fatiga por anuncio como mucho cada tantos días. */
+const FATIGUE_REPEAT_DAYS = 7
 
 export interface AnalysisServiceOptions {
   /** Moneda de visualización y métricas propias (de los ajustes de Meta). */
@@ -47,6 +51,12 @@ interface EventRow {
   snapshot: string
   created_at: string
   seen_at: string | null
+}
+
+/** «+25 %» / «−32 %» (con signo y sin decimales). */
+function signedPct(ratio: number): string {
+  const n = Math.round(ratio * 100)
+  return `${n > 0 ? '+' : n < 0 ? '−' : ''}${Math.abs(n)} %`
 }
 
 export class AnalysisService {
@@ -163,7 +173,63 @@ export class AnalysisService {
       if (!hit) continue
       n += ins.run(a.id, since, until, value, JSON.stringify(a), this.now().toISOString()).changes
     }
+    if (this.fatigueEnabled()) n += this.evaluateFatigue(today)
     if (n) this.opts.onChange?.()
+    return n
+  }
+
+  /** Detección de fatiga creativa (fase 14, D-106): activada salvo que se apague. */
+  fatigueEnabled(): boolean {
+    return this.read(FATIGUE_KEY) !== false
+  }
+
+  setFatigueEnabled(enabled: boolean): boolean {
+    this.write(FATIGUE_KEY, enabled)
+    if (enabled) this.evaluate()
+    return this.fatigueEnabled()
+  }
+
+  /** Avisa de los anuncios con señales de fatiga (uno por anuncio y semana como mucho). */
+  private evaluateFatigue(today: string): number {
+    const recent = this.db.prepare(
+      'SELECT 1 FROM alert_events WHERE alert_id = ? AND until >= ? LIMIT 1',
+    )
+    const ins = this.db.prepare(
+      `INSERT OR IGNORE INTO alert_events (alert_id, since, until, value, snapshot, created_at)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+    )
+    let n = 0
+    for (const ad of fatiguedAds(this.db, today)) {
+      const id = `fatiga-${ad.adId}`
+      if (recent.get(id, shiftDate(today, -FATIGUE_REPEAT_DAYS))) continue
+      const s = ad.signal
+      const parts = [t('CTR del enlace {pct}', { pct: signedPct(-s.ctrDrop) })]
+      if (s.frequencyRise !== null)
+        parts.push(t('frecuencia {pct}', { pct: signedPct(s.frequencyRise) }))
+      if (s.costRise !== null)
+        parts.push(t('coste por conversión {pct}', { pct: signedPct(s.costRise) }))
+      const snapshot = {
+        id,
+        kind: 'fatiga',
+        adId: ad.adId,
+        accountId: ad.accountId,
+        name: t('Posible fatiga: {ad} ({detail})', { ad: ad.name, detail: parts.join(', ') }),
+        scope: { type: 'account', id: ad.accountId },
+        metric: 'ctr_enlace',
+        op: 'lt',
+        threshold: s.ctrBase * 100,
+        windowDays: 3,
+        enabled: true,
+      }
+      n += ins.run(
+        id,
+        ad.since,
+        ad.until,
+        s.ctrRecent * 100,
+        JSON.stringify(snapshot),
+        this.now().toISOString(),
+      ).changes
+    }
     return n
   }
 
