@@ -218,6 +218,8 @@ export interface TableRow {
   attribution: string | null
   rankings: { quality: string | null; engagement: string | null; conversion: string | null }
   thumbFileId: string | null
+  /** Anuncios: su vista previa pública en Meta (se abre en el navegador). */
+  previewUrl: string | null
   creatives: { id: string; title: string }[]
   base: BaseSums
   range: RangeStats | null
@@ -255,6 +257,8 @@ export interface AdSearchHit {
   campaignName: string | null
   thumbFileId: string | null
   effectiveStatus: string | null
+  /** Vista previa pública del anuncio en Meta. */
+  previewUrl: string | null
 }
 
 export interface CreativeLinkInfo extends AdSearchHit {

@@ -287,6 +287,7 @@ Tabla genérica de vínculos (campo de relación, id de origen, id de destino, p
 - Alcance, frecuencia y únicos del periodo pedidos a Meta (D-061). Desgloses activables por cuenta y nivel (D-062).
 - Última edición significativa con el historial de actividad (D-063). Moneda por cliente (D-065).
 - Vínculo creatividad-anuncio manual y automático (código o convención de nombres), rendimiento por creatividad y ranking por etiqueta (D-064).
+- Clic en un anuncio (tabla y anuncios vinculados de una creatividad): abre su vista previa pública de Meta en el navegador (D-103).
 
 ### 7.4 X y LinkedIn (retirado)
 

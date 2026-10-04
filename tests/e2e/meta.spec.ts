@@ -102,6 +102,11 @@ test('rendimiento: KPIs, tabla con totales y navegación hasta el anuncio', asyn
   await expect(table.getByTestId('meta-row')).toContainText('Broad ES')
   await table.getByRole('button', { name: 'Broad ES' }).click()
   await expect(table.getByTestId('meta-row')).toContainText('Vídeo UGC')
+  // Clic en el anuncio: se abre su vista previa en Meta (en el navegador).
+  await expect(table.getByTestId('meta-ad-preview')).toHaveAttribute(
+    'href',
+    'https://fb.me/adspreview/a1',
+  )
   // La miniatura se descargó, se guardó cifrada y se ve por vault://.
   const thumb = table.locator('img.meta-thumb')
   await expect(thumb).toHaveCount(1)

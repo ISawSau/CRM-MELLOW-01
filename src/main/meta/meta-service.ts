@@ -113,7 +113,7 @@ const CAMPAIGN_FIELDS =
 const ADSET_FIELDS =
   'id,name,campaign_id,status,configured_status,effective_status,optimization_goal,billing_event,bid_strategy,daily_budget,lifetime_budget,budget_remaining,start_time,end_time,attribution_spec,destination_type,updated_time'
 const AD_FIELDS =
-  'id,name,campaign_id,adset_id,status,configured_status,effective_status,creative,created_time,updated_time'
+  'id,name,campaign_id,adset_id,status,configured_status,effective_status,creative,created_time,updated_time,preview_shareable_link'
 const CREATIVE_FIELDS =
   'id,name,title,body,thumbnail_url,image_url,video_id,object_type,call_to_action_type,link_url'
 

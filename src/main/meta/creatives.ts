@@ -12,6 +12,7 @@ import type {
 } from '@shared/meta'
 import type { SqliteDb } from '../db/connection'
 import type { DataService } from '../data/data-service'
+import { externalUrl } from '../platform'
 import { addDaily, moneyConverter, type DailyRow } from './sums'
 import { t } from '@shared/i18n'
 
@@ -24,11 +25,18 @@ import { t } from '@shared/i18n'
 const ENTITY = 'creatividad'
 
 const HIT_SQL = `SELECT o.id, o.name, o.account_id AS accountId, a.name AS accountName,
-       c.name AS campaignName, cr.thumb_file_id AS thumbFileId, o.effective_status AS effectiveStatus
+       c.name AS campaignName, cr.thumb_file_id AS thumbFileId, o.effective_status AS effectiveStatus,
+       json_extract(o.raw, '$.preview_shareable_link') AS previewUrl
   FROM ad_objects o
   JOIN ad_accounts a ON a.id = o.account_id
   LEFT JOIN ad_objects c ON c.id = o.campaign_id
   LEFT JOIN ad_creatives cr ON cr.id = o.creative_id`
+
+/** La vista previa solo si es un enlace https (viene de Meta, pero se abre en el navegador). */
+const safeHit = <T extends AdSearchHit>(h: T): T => ({
+  ...h,
+  previewUrl: typeof h.previewUrl === 'string' ? externalUrl(h.previewUrl) : null,
+})
 
 export function searchAds(db: SqliteDb, text: string, limit = 30): AdSearchHit[] {
   const words = normalizeText(text).split(/\s+/).filter(Boolean)
@@ -41,16 +49,19 @@ export function searchAds(db: SqliteDb, text: string, limit = 30): AdSearchHit[]
       return words.every((w) => hay.includes(w))
     })
     .slice(0, limit)
+    .map(safeHit)
 }
 
 export function linksFor(db: SqliteDb, recordId: string): CreativeLinkInfo[] {
-  return db
-    .prepare(
-      `${HIT_SQL.replace('SELECT ', 'SELECT l.source, ')}
+  return (
+    db
+      .prepare(
+        `${HIT_SQL.replace('SELECT ', 'SELECT l.source, ')}
        JOIN creative_links l ON l.ad_id = o.id
        WHERE l.record_id = ? AND l.source != 'off' ORDER BY l.created_at`,
-    )
-    .all(recordId) as CreativeLinkInfo[]
+      )
+      .all(recordId) as CreativeLinkInfo[]
+  ).map(safeHit)
 }
 
 export function setLink(

@@ -292,4 +292,5 @@ export const meta: Record<string, string> = {
   'Vincular ahora': 'Link now',
   '{n} vínculo nuevo.': '{n} new link.',
   '{n} vínculos nuevos.': '{n} new links.',
+  'Ver el anuncio en Meta': 'View the ad on Meta',
 }

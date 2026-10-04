@@ -798,3 +798,9 @@ El usuario no quiere escribir comandos de desarrollo para usar la app. Los insta
 - **Por qué:** lo pidió el usuario («hold rate standard 15s»). Junto con el hook rate (reproducciones de 3 s / impresiones) separa las dos preguntas: si el inicio engancha y si el vídeo retiene.
 - **Datos existentes:** quien tenía guardada la fórmula de antes sin cambiarla pasa al estándar al leer los ajustes; una fórmula propia distinta se respeta. No hay migración de la base de datos.
 - **Otras cuestiones abiertas (SPEC §10):** la lista de monedas actual queda como definitiva; los briefs siguen con las plantillas de serie; la convención de nombres de anuncios es opcional (por defecto se vincula por el código de la creatividad).
+
+### D-103 · Clic en un anuncio: su vista previa de Meta
+
+- **Qué:** el nombre de cada anuncio (en la tabla de Campañas al nivel de anuncio y en los anuncios vinculados de una creatividad) es un enlace a su vista previa pública de Meta, que se abre en el navegador del sistema. Ahí se ve el anuncio como lo ve la gente: imagen o vídeo, texto y botón.
+- **Cómo:** se pide a Meta el campo `preview_shareable_link` del anuncio (objeto Ad, Marketing API v25, de solo lectura; comprobado en la referencia oficial) junto con el resto de la estructura. Se guarda en el JSON del anuncio que ya existía, así que no hay migración. Solo se enlaza si es `https`.
+- **Datos existentes:** los anuncios ya guardados reciben el enlace en la siguiente sincronización con Meta; hasta entonces el nombre se ve sin enlace.
