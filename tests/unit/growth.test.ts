@@ -5,7 +5,14 @@ import { AnalysisService } from '../../src/main/analysis/analysis-service'
 import { pacing } from '../../src/main/analysis/pacing'
 import { Notifier } from '../../src/main/notifier'
 import type { Platform } from '../../src/main/platform'
-import { abVerdict, daysInMonth, fatigueOf, pacingOf, parseAdIds } from '../../src/shared/growth'
+import {
+  abVerdict,
+  daysInMonth,
+  fatigueOf,
+  pacingOf,
+  parseAdIds,
+  weeklySummaryText,
+} from '../../src/shared/growth'
 import { DEFAULT_HOME_LAYOUT } from '../../src/shared/home'
 import { computeMetrics, metaTableSettingsSchema, targetRatio } from '../../src/shared/meta-metrics'
 import { GOOD_TOKEN } from './meta-fake'
@@ -274,5 +281,51 @@ describe('tests A/B (fase 14)', () => {
     expect(() => meta.abTest(vault.data.create('nota', {}, { title: 'x' }).id)).toThrow()
     meta.dispose()
     vault.dispose()
+  })
+})
+
+describe('resumen semanal (fase 14)', () => {
+  it('texto con inversión, cambios frente a la semana anterior, objetivo, campañas y ritmo', () => {
+    const now = computeMetrics(
+      { gasto: 1100, compras: 44, valor_compras: 3300, impresiones: 50_000, clics_enlace: 700 },
+      null,
+    )
+    const prev = computeMetrics(
+      { gasto: 1000, compras: 50, valor_compras: 3000, impresiones: 50_000, clics_enlace: 600 },
+      null,
+    )
+    const raw = weeklySummaryText({
+      client: 'Acme',
+      since: '2026-09-27',
+      until: '2026-10-03',
+      currency: 'EUR',
+      now,
+      prev,
+      targetCpa: 22,
+      targetRoas: null,
+      campaigns: [{ name: 'Prospecting', values: now }],
+      pacing: {
+        clientId: 'x',
+        client: 'Acme',
+        currency: 'EUR',
+        budget: 5000,
+        spent: 1000,
+        projected: 4500,
+        day: 4,
+        days: 31,
+        status: 'ok',
+        partial: false,
+      },
+    })
+    // Los importes llevan un espacio duro antes del símbolo.
+    const text = raw.replace(/\u00a0/g, ' ')
+    expect(text).toContain('Resumen semanal · Acme (27/09/2026 – 03/10/2026)')
+    expect(text).toContain('Inversión: 1.100,00 € (+10 % frente a la semana anterior)')
+    expect(text).toContain('Compras: 44 (−12 % frente a la semana anterior)')
+    expect(text).toContain('CPA: 25,00 € (+25 % frente a la semana anterior) · objetivo 22,00 €')
+    expect(text).toContain('• Prospecting: 1.100,00 € · CPA 25,00 € · ROAS 3,00')
+    expect(text).toContain(
+      'Ritmo del mes: 1.000,00 € de 5.000,00 €; a este ritmo, 4.500,00 € a fin de mes.',
+    )
   })
 })

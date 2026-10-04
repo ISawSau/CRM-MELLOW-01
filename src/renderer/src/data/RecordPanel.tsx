@@ -20,6 +20,7 @@ import { ComposeMail } from '../gmail/ComposeMail'
 import { GmailThreads } from '../gmail/GmailThreads'
 import { CreativeAds } from '../meta/CreativeAds'
 import { AbTestPanel } from '../meta/AbTestPanel'
+import { WeeklySummary } from '../analysis/WeeklySummary'
 
 const ACTION_LABELS: Record<HistoryEntry['action'], string> = {
   create: 'Creado',
@@ -238,6 +239,7 @@ export function RecordPanel({
               </section>
             ))}
             {r.entity === 'cliente' && <ClientAdAccounts clientId={r.id} />}
+            {r.entity === 'cliente' && <WeeklySummary record={r} />}
             {(r.entity === 'cliente' || r.entity === 'contacto') && (
               <>
                 <div className="form-actions">

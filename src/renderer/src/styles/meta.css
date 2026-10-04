@@ -632,3 +632,10 @@
 .ab-verdict[data-winner='b'] {
   border-color: var(--success);
 }
+
+.weekly-summary-text {
+  width: 100%;
+  font-family: var(--font-mono, monospace);
+  font-size: var(--text-sm);
+  white-space: pre-wrap;
+}

@@ -50,20 +50,28 @@ const COLUMNS = [
   ['porcentajePrevisto', '% del gasto previsto'],
 ] as const
 
-/** Horas del periodo y lo facturado por cada hora (rentabilidad, D-099). */
+/**
+ * Horas del periodo, lo facturado por cada hora (D-099) y el beneficio por hora: lo cobrado
+ * menos los gastos, entre las horas (rentabilidad real, fase 14).
+ */
 function HoursCells({
   horas,
   facturado,
+  beneficio,
   money,
 }: {
   horas: number
   facturado: number
+  beneficio: number
   money: (n: number) => string
 }) {
   return (
     <>
       <td className="num">{horas ? formatNumber(horas, 2) : '—'}</td>
       <td className="num">{horas ? money(facturado / horas) : '—'}</td>
+      <td className="num" data-color={horas && beneficio < 0 ? 'vino' : undefined}>
+        {horas ? money(beneficio / horas) : '—'}
+      </td>
     </>
   )
 }
@@ -160,6 +168,7 @@ export function BillingPage({ num, onNavigate }: { num: string; onNavigate: (s: 
                   ))}
                   <th className="num">{t('Horas')}</th>
                   <th className="num">{t('Facturado por hora')}</th>
+                  <th className="num">{t('Beneficio por hora')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -187,12 +196,17 @@ export function BillingPage({ num, onNavigate }: { num: string; onNavigate: (s: 
                         {money(r[k])}
                       </td>
                     ))}
-                    <HoursCells horas={r.horas} facturado={r.facturado} money={money} />
+                    <HoursCells
+                      horas={r.horas}
+                      facturado={r.facturado}
+                      beneficio={r.beneficio}
+                      money={money}
+                    />
                   </tr>
                 ))}
                 {s.rows.length === 0 && (
                   <tr>
-                    <td colSpan={COLUMNS.length + 3} className="faint">
+                    <td colSpan={COLUMNS.length + 4} className="faint">
                       {t('Nada en este periodo. Registra facturas y gastos en sus secciones.')}
                     </td>
                   </tr>
@@ -210,6 +224,7 @@ export function BillingPage({ num, onNavigate }: { num: string; onNavigate: (s: 
                     <HoursCells
                       horas={s.totals.horas}
                       facturado={s.totals.facturado}
+                      beneficio={s.totals.beneficio}
                       money={money}
                     />
                   </tr>

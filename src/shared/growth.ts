@@ -1,4 +1,6 @@
 import { z } from 'zod'
+import { formatCurrency, formatNumber } from './format'
+import { t } from './i18n'
 
 /**
  * Fase 14 (D-104 y siguientes): objetivos y ritmo de gasto por cliente, fatiga creativa,
@@ -233,4 +235,97 @@ export function parseAdIds(raw: unknown): string[] {
         .filter((s) => /^[\w-]{1,40}$/.test(s)),
     ),
   ]
+}
+
+// --- Resumen semanal en texto (D-109) ---------------------------------------------------
+
+/** «2026-10-04» → fecha corta en el formato del idioma (04/10/2026). */
+function formatIsoDate(iso: string): string {
+  const [y, m, d] = iso.split('-')
+  return `${d}/${m}/${y}`
+}
+
+export interface WeeklySummaryInput {
+  client: string
+  since: string
+  until: string
+  currency: string
+  /** Métricas de la semana y de la anterior (ya calculadas). */
+  now: Record<string, number | null>
+  prev: Record<string, number | null> | null
+  targetCpa: number | null
+  targetRoas: number | null
+  campaigns: { name: string; values: Record<string, number | null> }[]
+  pacing: PacingRow | null
+}
+
+/**
+ * Resumen de la semana de un cliente en texto plano, listo para pegar en un correo o en
+ * WhatsApp: inversión, resultados frente a la semana anterior, objetivo, campañas que más
+ * gastan y ritmo del mes.
+ */
+export function weeklySummaryText(i: WeeklySummaryInput): string {
+  const money = (v: number | null | undefined) =>
+    v === null || v === undefined ? '—' : formatCurrency(v, i.currency)
+  const num = (v: number | null | undefined, d = 0) =>
+    v === null || v === undefined ? '—' : formatNumber(v, d)
+  const change = (k: string) => {
+    const a = i.now[k]
+    const b = i.prev?.[k]
+    if (a === null || a === undefined || b === null || b === undefined || b === 0) return ''
+    const pct = Math.round((a / b - 1) * 100)
+    return ` (${pct > 0 ? '+' : pct < 0 ? '−' : ''}${Math.abs(pct)} % ${t('frente a la semana anterior')})`
+  }
+  const lines = [
+    t('Resumen semanal · {client} ({since} – {until})', {
+      client: i.client,
+      since: formatIsoDate(i.since),
+      until: formatIsoDate(i.until),
+    }),
+    '',
+    `• ${t('Inversión')}: ${money(i.now['gasto'])}${change('gasto')}`,
+  ]
+  if ((i.now['compras'] ?? 0) > 0 || (i.prev?.['compras'] ?? 0) > 0) {
+    lines.push(`• ${t('Compras')}: ${num(i.now['compras'])}${change('compras')}`)
+    lines.push(
+      `• ${t('CPA')}: ${money(i.now['cpa'])}${change('cpa')}` +
+        (i.targetCpa ? ` · ${t('objetivo')} ${money(i.targetCpa)}` : ''),
+    )
+    lines.push(
+      `• ${t('ROAS')}: ${num(i.now['roas'], 2)}${change('roas')}` +
+        (i.targetRoas ? ` · ${t('objetivo')} ${num(i.targetRoas, 2)}` : ''),
+    )
+  } else if ((i.now['resultados'] ?? 0) > 0) {
+    lines.push(`• ${t('Resultados')}: ${num(i.now['resultados'])}${change('resultados')}`)
+    lines.push(
+      `• ${t('Coste por resultado')}: ${money(i.now['coste_resultado'])}${change('coste_resultado')}` +
+        (i.targetCpa ? ` · ${t('objetivo')} ${money(i.targetCpa)}` : ''),
+    )
+  }
+  const ctr = i.now['ctr_enlace']
+  lines.push(
+    `• ${t('CTR del enlace')}: ${ctr === null || ctr === undefined ? '—' : `${formatNumber(ctr, 2)} %`}${change('ctr_enlace')}`,
+  )
+  if (i.campaigns.length) {
+    lines.push('', t('Campañas con más inversión:'))
+    for (const c of i.campaigns)
+      lines.push(
+        `• ${c.name}: ${money(c.values['gasto'])}` +
+          ((c.values['compras'] ?? 0) > 0
+            ? ` · ${t('CPA')} ${money(c.values['cpa'])} · ${t('ROAS')} ${num(c.values['roas'], 2)}`
+            : ''),
+      )
+  }
+  if (i.pacing) {
+    const p = i.pacing
+    lines.push(
+      '',
+      t('Ritmo del mes: {spent} de {budget}; a este ritmo, {projected} a fin de mes.', {
+        spent: formatCurrency(p.spent, p.currency),
+        budget: formatCurrency(p.budget, p.currency),
+        projected: formatCurrency(p.projected, p.currency),
+      }),
+    )
+  }
+  return lines.join('\n')
 }
