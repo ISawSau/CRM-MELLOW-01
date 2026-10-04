@@ -1,6 +1,6 @@
 # CRM personal de media buying
 
-App de escritorio personal (un solo usuario) para gestionar clientes, media buying en Meta, tareas, briefs, creatividades, facturación e informes. Local-first, 100 % gratuita, funciona igual en Windows y Linux, y guarda todos los datos en una única carpeta portable ("bóveda").
+App personal (un solo usuario) de escritorio y Android para gestionar clientes, media buying en Meta, tareas, briefs, creatividades, facturación e informes. Local-first, 100 % gratuita, funciona igual en Windows y Linux, y guarda todos los datos en una única carpeta portable ("bóveda").
 
 La especificación completa está en `docs/SPEC.md`. Léela antes de cualquier tarea y respétala. Si algo de lo que te pido la contradice, avísame antes de hacerlo.
 
@@ -28,7 +28,7 @@ La especificación completa está en `docs/SPEC.md`. Léela antes de cualquier t
 ## Entorno de trabajo (Claude Code en la nube)
 
 - Trabajas en una máquina Linux en la nube, sin pantalla. No puedes ver la ventana de la app, así que verifica con tests (Vitest y, si el entorno lo permite, Playwright con Electron en modo sin pantalla). En cada entrega dime los comandos exactos para probarla en mi ordenador con Windows y con Linux, y qué debería ver.
-- En la fase 0 crea un workflow de GitHub Actions que ejecute los tests y genere los instaladores en Windows y Linux reales en cada push a main. Los instaladores se descargan desde la pestaña Actions. Además, al cerrar cada fase se sube la versión en `package.json` (fase 0 → 0.1.0, fase 1 → 0.2.0…) y el CI publica la versión en Releases con los instaladores y las instrucciones (`.github/notas-version.md`).
+- El workflow de GitHub Actions ejecuta los tests y genera los instaladores de Windows y Linux y el APK de Android (probado en el emulador) en cada push a main. Los instaladores se descargan desde Releases (en Actions solo quedan un día al lanzar el CI a mano, D-100). Además, al cerrar cada fase se sube la versión en `package.json` (fase 0 → 0.1.0, fase 1 → 0.2.0…) y el CI publica la versión en Releases con los instaladores y las instrucciones (`.github/notas-version.md`).
 - El repositorio nunca contiene datos reales: añade a `.gitignore` cualquier bóveda, base de datos, archivo `.env`, credenciales y carpetas de build. Ningún token ni credencial en el repositorio ni en las variables del entorno de la nube.
 - Si una tarea necesita un dominio bloqueado por la red del entorno, dime cuál para que lo añada en lugar de buscar rodeos.
 - Al terminar una fase, resumen de cambios y pull request hacia main.
@@ -44,10 +44,12 @@ La especificación completa está en `docs/SPEC.md`. Léela antes de cualquier t
 | Lint, tipos, formato | `npm run lint` · `npm run typecheck` · `npx prettier --check .` |
 | Tests unitarios | `npm test` |
 | Tests de interfaz | `npm run test:e2e` (en un Linux sin pantalla: `xvfb-run -a npm run test:e2e`) |
+| Tests de interfaz móvil | `npm run test:e2e:movil` (Chromium con pantalla de móvil, D-101) |
 | Generar migración | `npm run db:generate` (tras cambiar `src/main/db/schema.ts`) |
 | Descargar FFmpeg (vídeo) | `node scripts/descargar-ffmpeg.mjs` (lo hacen ya los scripts de instalación) |
 | Build Windows | `npm run dist:win` → `release/*.exe` |
 | Build Linux | `npm run dist:linux` → `release/*.pacman` y `release/*.AppImage` (necesita `bsdtar`) |
-| Autoprueba de una instalación | `crm-mellow --autoprueba` |
+| APK de Android | `bash scripts/compilar-android.sh` → `release/*-android-arm64.apk` (Android SDK + NDK 28.2.13676358, Gradle 9.6+) |
+| Autoprueba de una instalación | `crm-mellow --autoprueba` (Android: `adb shell am start -n cc.yellowmellow.crm/.MainActivity --ez autoprueba true`) |
 
 En la nube los tests de interfaz no se pueden ejecutar como root (Chromium no admite el sandbox como root): hay que usar un usuario normal, nunca `--no-sandbox`.

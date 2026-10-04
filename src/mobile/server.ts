@@ -215,7 +215,11 @@ export function startMobileServer(o: MobileServerOptions): Promise<MobileServer>
       return send(res, 403, '', 'text/plain')
 
     if (req.method === 'GET') {
-      if (path === '/api/events') return openStream(res, uiClients)
+      if (path === '/api/events') {
+        // Señal de que la interfaz ha cargado y habla con el motor (la mira la prueba del CI).
+        if (uiClients.size === 0) console.log('CRM Mellow: interfaz conectada')
+        return openStream(res, uiClients)
+      }
       if (path === '/native/events') return openStream(res, nativeClients)
       if (path.startsWith('/vault/')) return serveVault(req, res, path)
       if (path.startsWith('/api/') || path.startsWith('/native/')) return notFound(res)

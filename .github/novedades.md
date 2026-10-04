@@ -1,6 +1,6 @@
-## Novedades de la 0.14.1 · Animaciones con más detalle
+## Novedades de la 0.15.0 · App de Android
 
-- Las animaciones de la pantalla de contraseña tienen el doble de resolución, más tonos y profundidad.
-- **El ojo** es solo el iris, como el logo: sin párpado. Tiene fibras, aro rojo, reflejo de luz y una pupila que respira, se abre al escribir y se cierra si fallas.
-- **La cerradura** tiene sus números, 100 marcas, borde moleteado y un pomo con tornillos.
-- **La gravedad** tiene muchos más puntos.
+- **CRM Mellow en el móvil (Android, pensado para GrapheneOS):** la misma app, con el mismo motor y los mismos datos cifrados, adaptada a pantalla táctil: barra superior con menú, búsqueda, cronómetro y bloqueo; barra inferior con Inicio, Clientes, Tareas y Campañas; fichas a pantalla completa y botón «atrás».
+- **Traer desde Google Drive:** en el móvil (o en un ordenador nuevo) bajas tu bóveda sincronizada y la abres con tu contraseña de siempre. A partir de ahí se sincroniza como un ordenador más.
+- En el móvil se bloquea al apagar la pantalla, no deja hacer capturas y no entra en las copias de Android. Las herramientas de vídeo y PDF y los informes en PDF siguen siendo solo de escritorio.
+- En escritorio, con la ventana muy estrecha, la app también usa la disposición del móvil.

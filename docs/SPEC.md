@@ -1,6 +1,6 @@
 # Especificación del CRM personal
 
-Versión 0.3 · 3 de octubre de 2026
+Versión 0.4 · 4 de octubre de 2026
 
 Este documento recoge todas las decisiones de diseño tomadas antes de escribir código. Es la referencia para construir el proyecto fase a fase. Lo que aparece marcado como **verificar** depende de APIs o normativa externa que cambian con el tiempo y debe comprobarse en la documentación oficial antes de implementarlo.
 
@@ -29,7 +29,7 @@ Principios que guían cualquier decisión:
 - Otras plataformas de anuncios (X, LinkedIn): retiradas en la 0.13.3 (D-091).
 - Detección de leads duplicados y valor económico de oportunidades (no aplica de momento).
 - Notificaciones fuera de la app: los avisos se ven al abrirla.
-- App móvil, hasta que la versión de escritorio esté completa (fase 13).
+- En el móvil (fase 13): las herramientas de vídeo y PDF y la generación de informes PDF (D-101).
 
 ---
 
@@ -38,7 +38,8 @@ Principios que guían cualquier decisión:
 | Capa | Elección | Motivo |
 |---|---|---|
 | Contenedor de escritorio | Electron + electron-builder | Usa el mismo Chromium en Windows y Linux, así que la app se ve y se comporta igual en ambos. Todo el proyecto en un solo lenguaje. |
-| Instaladores | NSIS (Windows); paquete pacman y AppImage (Linux, el sistema del usuario es Arch) | Formatos estándar, gratuitos. El paquete pacman se instala con `sudo pacman -U`; el AppImage funciona sin instalar. |
+| Instaladores | NSIS (Windows); paquete pacman y AppImage (Linux, el sistema del usuario es Arch); APK firmado (Android) | Formatos estándar, gratuitos. El paquete pacman se instala con `sudo pacman -U`; el AppImage funciona sin instalar; el APK se instala desde Releases. |
+| Móvil (Android, GrapheneOS) | WebView con la misma interfaz + el mismo motor en Node con nodejs-mobile, servidor local con secreto de sesión | Reutiliza todo el código de escritorio en lugar de reescribirlo; mismo cifrado de la base de datos (D-101). |
 | Interfaz | React + TypeScript + Vite (electron-vite) | Ecosistema enorme y bien documentado. |
 | Tablas | Tabla propia + TanStack Virtual (solo se pintan las filas visibles) | Tablas tipo Ads Manager con miles de filas y columnas configurables. Filtros y orden los hace el motor de datos (D-028). |
 | Estado de datos en la UI | TanStack Query sobre IPC | Caché y recarga sencillas. |
@@ -89,6 +90,7 @@ Comportamiento:
 - Los archivos se guardan por hash: si subes la misma imagen dos veces, ocupa una sola vez.
 - `vault.json` guarda la versión de esquema. Una versión antigua de la app se niega a abrir una bóveda con esquema más nuevo, para evitar corrupción.
 - Pasar la carpeta a un USB o disco externo funciona siempre como método manual, aunque no haya sincronización con Drive.
+- En un equipo o móvil nuevo, «Traer desde Google Drive» baja la bóveda sincronizada (cifrada) y se desbloquea con la contraseña de siempre. En Android la bóveda vive en la carpeta privada de la app y no se copia en las copias de seguridad de Android (D-101).
 
 ---
 
@@ -410,7 +412,7 @@ Cada fase termina con algo que funciona, tests y build verificado en Windows y L
 | 10. Gmail | Hilos por cliente y contacto. |
 | 11. X y LinkedIn | Conectores por API si son gratuitos; si no, importación de CSV con mapeo guardado. Retirado en la 0.13.3 (D-091). |
 | 12. Personalización avanzada | Colecciones personalizadas, plantillas de brief definitivas, widgets de inicio configurables, editor de temas (crear y modificar temas desde la app). |
-| 13. Móvil | Se decide el enfoque cuando el escritorio esté completo. |
+| 13. Móvil | App de Android con el mismo motor e interfaz adaptada a pantalla táctil; la bóveda se trae y sincroniza con Google Drive (D-101). |
 
 Hasta la fase 5, el traslado entre ordenadores se hace copiando la carpeta de la bóveda manualmente.
 
@@ -422,4 +424,3 @@ Hasta la fase 5, el traslado entre ordenadores se hace copiando la carpeta de la
 - Definición exacta de hold rate (configurable desde la fase 7).
 - Convención de nombres de anuncios para el vínculo automático (configurable desde la fase 7; falta fijar la del usuario).
 - Lista final de monedas.
-- Enfoque de la versión móvil.

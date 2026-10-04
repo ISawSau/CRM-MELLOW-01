@@ -1,5 +1,6 @@
 # Tests en cada pull request y en cada push a main; instaladores de Windows y
-# Linux (Arch) en cada push a main o al lanzarlo a mano desde la pestaña Actions.
+# Linux (Arch) y el APK de Android (D-101) en cada push a main o al lanzarlo a mano desde
+# la pestaña Actions.
 # Al subir la versión, los instaladores se publican en Releases (D-100). En Actions se
 # guardan solo un día y sin bloquear nada: el almacenamiento gratuito de artefactos es
 # pequeño y cada ejecución genera unos 400 MB.
@@ -58,6 +59,11 @@ jobs:
 
       - name: Tests de interfaz (Playwright + Electron)
         run: xvfb-run -a npm run test:e2e
+
+      - name: Tests de la interfaz móvil (Chromium con pantalla de móvil)
+        run: |
+          npx playwright install chromium
+          npm run test:e2e:movil
 
       - name: Informe de Playwright
         if: failure()
@@ -247,10 +253,102 @@ jobs:
           retention-days: 1
           compression-level: 0
 
+  # App de Android (D-101): el APK se compila aquí, se prueba en el emulador (autoprueba del
+  # motor e interfaz cargada) y, con la clave de firma guardada como secreto, se publica.
+  android:
+    name: App de Android
+    needs: [calidad, version]
+    if: >-
+      always() && needs.calidad.result == 'success' &&
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      VERSION: ${{ needs.version.outputs.version }}
+      PUBLICAR: ${{ needs.version.outputs.nueva }}
+      GRADLE_VERSION: 9.8.0
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Herramientas de Android (SDK, NDK, CMake, Gradle y JDK 21)
+        run: |
+          echo "JAVA_HOME=$JAVA_HOME_21_X64" >> "$GITHUB_ENV"
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" \
+            "platforms;android-36" "build-tools;36.0.0" "ndk;28.2.13676358" "cmake;3.31.6" > /dev/null
+          curl -sSLo "$RUNNER_TEMP/gradle.zip" "https://services.gradle.org/distributions/gradle-$GRADLE_VERSION-bin.zip"
+          unzip -q "$RUNNER_TEMP/gradle.zip" -d "$RUNNER_TEMP"
+          echo "GRADLE=$RUNNER_TEMP/gradle-$GRADLE_VERSION/bin/gradle" >> "$GITHUB_ENV"
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      # La clave de firma solo existe como secreto del repositorio (nunca en el código).
+      # Sin ella, el APK se firma con una clave de prueba y no se publica.
+      - name: Clave de firma
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+        run: |
+          if [ -n "$KEYSTORE_B64" ]; then
+            echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/crm.jks"
+            echo "ANDROID_KEYSTORE_FILE=$RUNNER_TEMP/crm.jks" >> "$GITHUB_ENV"
+            echo "FIRMADO=true" >> "$GITHUB_ENV"
+          else
+            echo "::warning::Falta el secreto ANDROID_KEYSTORE_B64: el APK no se publicará (README → App de Android)."
+            echo "FIRMADO=false" >> "$GITHUB_ENV"
+          fi
+
+      - name: Compilar el APK
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: bash scripts/compilar-android.sh release
+
+      - name: Permitir el emulador (KVM)
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Probar el APK en el emulador
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          target: google_apis
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
+          script: bash scripts/probar-android-emulador.sh release/CRM-Mellow-*-android-x86_64.apk
+
+      - name: Subir a la versión (Releases)
+        if: env.PUBLICAR == 'true' && env.FIRMADO == 'true'
+        run: gh release upload "v$VERSION" release/*-android-arm64.apk --clobber
+
+      - name: Guardar en Actions
+        if: github.event_name == 'workflow_dispatch'
+        continue-on-error: true
+        uses: actions/upload-artifact@v7
+        with:
+          name: CRM-Mellow-android
+          path: release/*-android-arm64.apk
+          retention-days: 1
+          compression-level: 0
+
   publicar:
     name: Publicar versión
-    needs: [version, instaladores]
-    if: needs.version.outputs.nueva == 'true' && needs.instaladores.result == 'success'
+    needs: [version, instaladores, android]
+    if: >-
+      needs.version.outputs.nueva == 'true' && needs.instaladores.result == 'success' &&
+      needs.android.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -264,12 +362,16 @@ jobs:
       - name: Sumas de comprobación, notas y publicar
         run: |
           mkdir paquetes
-          gh release download "v$VERSION" -D paquetes --pattern "*.exe" --pattern "*.pacman" --pattern "*.AppImage"
+          gh release download "v$VERSION" -D paquetes --pattern "*.exe" --pattern "*.pacman" --pattern "*.AppImage" --pattern "*.apk"
           ls -la paquetes
           (cd paquetes && sha256sum * > SHA256SUMS.txt && cat SHA256SUMS.txt)
           gh release upload "v$VERSION" paquetes/SHA256SUMS.txt --clobber
           {
             if [ -f .github/novedades.md ]; then cat .github/novedades.md; echo; fi
             sed "s/{{VERSION}}/$VERSION/g" .github/notas-version.md
+            # La app de Android solo aparece si se ha publicado su APK (hace falta la clave).
+            if ls paquetes/*.apk > /dev/null 2>&1; then
+              sed "s/{{VERSION}}/$VERSION/g" .github/notas-android.md
+            fi
           } > notas.md
           gh release edit "v$VERSION" --notes-file notas.md --draft=false --latest
