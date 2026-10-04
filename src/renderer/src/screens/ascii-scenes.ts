@@ -141,7 +141,7 @@ export const gravity: Scene = (out, { t, cols, rows, aspect, pulse, keys }) => {
   zbuf.fill(0)
   out.fill(0)
   const cycle = HOLD + MORPH
-  const step = Math.floor(t / cycle)
+  const step = Math.max(0, Math.floor(t / cycle))
   const local = t % cycle
   const s0 = step % SHAPES.length
   const s1 = (step + 1) % SHAPES.length

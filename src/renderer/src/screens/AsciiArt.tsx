@@ -66,7 +66,8 @@ export function AsciiArt({
     const draw = (now: number) => {
       const s = state.current
       scene(buf, {
-        t: (now - start) / 1000,
+        // El primer fotograma puede traer una marca anterior al inicio: nunca tiempo negativo.
+        t: Math.max(0, now - start) / 1000,
         cols,
         rows,
         aspect: cell / LINE_PX,

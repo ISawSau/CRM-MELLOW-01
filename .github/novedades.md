@@ -10,3 +10,4 @@
   - De serie, sin transparencia.
 - **Plantillas de correo.** En **Ajustes → Plantillas de correo**, con variables como `{nombre}`, `{cliente}` o `{mes}`. En la ficha de un cliente o contacto, «Escribir correo…» la rellena y la abre en Gmail o en tu programa de correo. La app no envía nada.
 - **Registro de horas.** Nueva sección **Horas** y un cronómetro en la barra inferior: escribe en qué trabajas, elige el cliente y páralo al acabar. Facturación muestra las horas de cada cliente y lo facturado por hora.
+- **Arreglado:** la animación de gravedad de la pantalla de contraseña podía dar un error interno en el primer fotograma (no se veía nada raro, pero quedaba registrado).
