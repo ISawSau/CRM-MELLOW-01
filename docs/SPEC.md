@@ -1,6 +1,6 @@
 # Especificación del CRM personal
 
-Versión 0.4 · 4 de octubre de 2026
+Versión 0.4.1 · 4 de octubre de 2026
 
 Este documento recoge todas las decisiones de diseño tomadas antes de escribir código. Es la referencia para construir el proyecto fase a fase. Lo que aparece marcado como **verificar** depende de APIs o normativa externa que cambian con el tiempo y debe comprobarse en la documentación oficial antes de implementarlo.
 
@@ -246,7 +246,7 @@ Tabla genérica de vínculos (campo de relación, id de origen, id de destino, p
 | Clasificación de calidad, de tasa de interacción y de tasa de conversión | Insights a nivel de anuncio | Solo existen a nivel de anuncio y con un mínimo de impresiones. |
 | AOV | Calculada | Valor de compras / compras. |
 | Hook rate | Calculada | Reproducciones de 3 segundos / impresiones. |
-| Hold rate | Calculada | La definición varía según el media buyer; dejarla configurable (p. ej. ThruPlays / impresiones o reproducciones de 15 s / reproducciones de 3 s). |
+| Hold rate | Calculada | Por defecto el estándar: reproducciones de 15 s (ThruPlays) / reproducciones de 3 s. Configurable, porque cada media buyer lo define a su manera (D-102). |
 
 **Almacenamiento.**
 - Métricas diarias por nivel (campaña, ad set, anuncio), entidad y fecha.
@@ -420,7 +420,7 @@ Hasta la fase 5, el traslado entre ordenadores se hace copiando la carpeta de la
 
 ## 10. Cuestiones abiertas
 
-- Estructura de los briefs (cuando el usuario la defina).
-- Definición exacta de hold rate (configurable desde la fase 7).
-- Convención de nombres de anuncios para el vínculo automático (configurable desde la fase 7; falta fijar la del usuario).
-- Lista final de monedas.
+- Estructura de los briefs: de momento se quedan las plantillas de serie (fase 12), editables desde la app.
+- Convención de nombres de anuncios para el vínculo automático: opcional. Por defecto el vínculo se hace por el código de la creatividad dentro del nombre del anuncio; la convención se puede fijar en Ajustes si algún día se usa una.
+
+Resueltas en la 0.15.1 (D-102): el hold rate por defecto es el estándar de 15 s y la lista de monedas actual es la definitiva.

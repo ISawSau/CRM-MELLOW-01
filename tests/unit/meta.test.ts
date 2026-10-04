@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { computeMetrics } from '../../src/shared/meta-metrics'
+import {
+  computeMetrics,
+  DEFAULT_HOLD_RATE,
+  metaTableSettingsSchema,
+} from '../../src/shared/meta-metrics'
 import { createConverter, parseEcbXml, storeRates } from '../../src/main/meta/fx'
 import { GraphClient, GraphError, parseUsage } from '../../src/main/meta/graph'
 import {
@@ -361,7 +365,12 @@ describe('sincronización con Meta', () => {
     expect(r.totals['thruplays']).toBe(200)
     const m = computeMetrics(r.totals, null)
     expect(m['roas']).toBeCloseTo(r.totals['valor_compras']! / r.totals['gasto']!)
-    expect(m['hold_rate']).toBeCloseTo((200 / r.totals['impresiones']!) * 100)
+    // Hold rate por defecto (estándar): ThruPlays (15 s) / reproducciones de 3 s.
+    expect(m['hold_rate']).toBeCloseTo((200 / r.totals['reproducciones_3s']!) * 100)
+    // Quien tenía el de antes (ThruPlays / impresiones) sin cambiar pasa al estándar.
+    expect(
+      metaTableSettingsSchema.parse({ holdRate: 'thruplays / impresiones * 100' }).holdRate,
+    ).toBe(DEFAULT_HOLD_RATE)
     // Periodo anterior de la misma duración (29 y 30 de septiembre).
     expect(r.previous['impresiones']).toBeGreaterThan(0)
     expect(row.previous).toBeNull()

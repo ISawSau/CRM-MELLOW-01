@@ -278,8 +278,8 @@ export const meta: Record<string, string> = {
   'Aún no hay métricas propias.': 'No custom metrics yet.',
   '+ Métrica': '+ Metric',
   'Hold rate': 'Hold rate',
-  'Cada media buyer lo define a su manera. Por defecto:':
-    'Every media buyer defines it their own way. Default:',
+  'Por defecto, el estándar: de quienes ven 3 s, cuántos llegan a 15 s.':
+    'By default, the standard: of those who watch 3 s, how many reach 15 s.',
   'Otra opción:': 'Another option:',
   'Vincular anuncios y creatividades': 'Link ads and creatives',
   'Si el nombre del anuncio contiene el código de una creatividad':

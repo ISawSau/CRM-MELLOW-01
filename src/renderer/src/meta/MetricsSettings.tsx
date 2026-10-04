@@ -220,9 +220,9 @@ export function MetricsSettings() {
           <p className="hint danger-text">{holdProblem}</p>
         ) : (
           <p className="hint">
-            {t('Cada media buyer lo define a su manera. Por defecto:')}{' '}
+            {t('Por defecto, el estándar: de quienes ven 3 s, cuántos llegan a 15 s.')}{' '}
             <code>{DEFAULT_HOLD_RATE}</code>. {t('Otra opción:')}{' '}
-            <code>p25 / reproducciones_3s * 100</code>.
+            <code>thruplays / impresiones * 100</code>.
           </p>
         )}
       </div>

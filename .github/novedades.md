@@ -1,3 +1,7 @@
+## Novedades de la 0.15.1
+
+- **Hold rate estándar:** por defecto ahora es el de 15 s: de quienes ven 3 segundos del vídeo, qué porcentaje llega a 15 (ThruPlays / reproducciones de 3 s). Si habías puesto tu propia fórmula, se mantiene. Se cambia en los ajustes de Campañas.
+
 ## Novedades de la 0.15.0 · App de Android
 
 - **CRM Mellow en el móvil (Android, pensado para GrapheneOS):** la misma app, con el mismo motor y los mismos datos cifrados, adaptada a pantalla táctil: barra superior con menú, búsqueda, cronómetro y bloqueo; barra inferior con Inicio, Clientes, Tareas y Campañas; fichas a pantalla completa y botón «atrás».
