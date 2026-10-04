@@ -682,3 +682,9 @@ El usuario no quiere escribir comandos de desarrollo para usar la app. Los insta
 - **Formatos:** `en-GB` (1,234.56, dd/mm/aaaa, semana desde el lunes). Los números que escribe el usuario se leen según el idioma.
 - **Dónde se guarda:** en la configuración mínima de fuera de la bóveda, junto a la ruta de la última bóveda. Hace falta antes de desbloquear y no es un dato del usuario. Al cambiar de idioma la ventana se recarga y vuelve a la misma sección. El proceso principal usa el idioma para sus mensajes y para el `--lang` de Chromium.
 - **Cobertura:** un test recorre `src` y falla si un texto pasado a `t()`/`tn()`/`tc()` no tiene traducción o usa `${}`, que debe ir como variable. Ahora hay unos 1.800 textos traducidos. Las fórmulas siguen con sus funciones en español (SI, Y, O…), porque son la sintaxis de los datos.
+
+### D-091 · Se quitan X y LinkedIn
+
+- **Qué:** fuera la sección «LinkedIn y X», la conexión con la API de LinkedIn, la importación de CSV de X Ads y Campaign Manager, sus canales IPC, sus textos y sus tests. La app trabaja solo con Meta. El campo «LinkedIn» de los contactos (la URL de su perfil) se queda: no tiene que ver con la publicidad.
+- **Por qué:** el usuario no las usa y ocupaban sitio en la barra lateral, en Perfil y en Ajustes.
+- **Datos:** la migración `0007_quitar_x_linkedin` borra las cuentas de otras plataformas (`platform <> 'meta'`), sus métricas, objetos, acciones, desgloses y trabajos pendientes, y los ajustes `linkedin.*` y `platforms.mappings`, donde estaba el token de LinkedIn. Como toda migración sobre una bóveda con datos, antes se hace una copia de seguridad automática, así que se puede recuperar. No cambia el esquema: la columna `platform` de `ad_accounts` se queda por si algún día vuelve otra plataforma.

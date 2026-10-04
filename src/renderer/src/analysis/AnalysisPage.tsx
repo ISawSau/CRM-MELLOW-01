@@ -2,8 +2,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { t } from '@shared/i18n'
 import { call, subscribe } from '../lib/ipc'
-import { useMetaStatus } from '../meta/meta'
-import { useHasAdData } from '../platforms/platforms'
+import { useHasAdData, useMetaStatus } from '../meta/meta'
 import { Alerts } from './Alerts'
 import { Compare } from './Compare'
 import { Dashboards } from './Dashboards'
@@ -42,7 +41,7 @@ export function AnalysisPage({ num, onMeta }: { num: string; onMeta: () => void 
         <h1 className="title">{t('Análisis')}</h1>
         <p className="muted">
           {t(
-            'Dashboards, comparativas y alertas sobre las métricas de las cuentas activadas de Meta, LinkedIn y X. Importes en {currency}; fechas de cada cuenta.',
+            'Dashboards, comparativas y alertas sobre las métricas de las cuentas activadas de Meta. Importes en {currency}; fechas de cada cuenta.',
             { currency: status?.settings.displayCurrency ?? 'EUR' },
           )}
         </p>
@@ -52,7 +51,7 @@ export function AnalysisPage({ num, onMeta }: { num: string; onMeta: () => void 
           <h2>{t('Sin datos publicitarios')}</h2>
           <p className="muted">
             {t(
-              'Conecta Meta en Campañas o activa una cuenta de LinkedIn o X para ver dashboards y alertas.',
+              'Conecta Meta en Campañas para ver dashboards y alertas.',
             )}
           </p>
           <button type="button" className="btn btn-primary" onClick={onMeta}>

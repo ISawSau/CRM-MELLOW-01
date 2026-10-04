@@ -88,7 +88,6 @@ export const meta: Record<string, string> = {
   ' · datos hasta el {date}': ' · data up to {date}',
   ' · sincronizando': ' · syncing',
   ' · sin sincronizar': ' · not synced',
-  ' · sin usar': ' · not in use',
 
   // --- MetaAccounts.tsx ---
   Conjuntos: 'Ad sets',

@@ -27,22 +27,8 @@ export const main: Record<string, string> = {
   'Google ha retirado el acceso: vuelve a conectar {service} en Ajustes.':
     'Google has revoked access: reconnect {service} in Settings.',
   'No se pudo renovar el acceso a {service}.': 'Could not renew access to {service}.',
-  'Sin conexión con LinkedIn.': 'Cannot connect to LinkedIn.',
-  'LinkedIn ha rechazado el token (caducado o retirado): vuelve a conectar.':
-    'LinkedIn rejected the token (expired or revoked): reconnect.',
-  'LinkedIn no da acceso: la app necesita la API de publicidad aprobada y tu usuario un rol en la cuenta.':
-    'LinkedIn denies access: the app needs approved Advertising API access and your user needs a role on the account.',
-  'LinkedIn pide esperar (límite de datos en 5 minutos). Se reintentará más tarde.':
-    'LinkedIn asks you to wait (5-minute data limit). It will retry later.',
-  'Se agotó el tiempo para conectar con LinkedIn.': 'Timed out while connecting to LinkedIn.',
-  'Conectado con LinkedIn. Ya puedes volver a CRM Mellow.':
-    'Connected to LinkedIn. You can now go back to CRM Mellow.',
   'No se ha conectado. Vuelve a CRM Mellow e inténtalo de nuevo.':
     'Not connected. Go back to CRM Mellow and try again.',
-  'Respuesta de LinkedIn no válida.': 'Invalid response from LinkedIn.',
-  'LinkedIn no ha dado acceso.': 'LinkedIn did not grant access.',
-  'LinkedIn ha respondido con un error ({status}){detail}.':
-    'LinkedIn returned an error ({status}){detail}.',
   'El puerto {port} está ocupado: cierra lo que lo use e inténtalo otra vez.':
     'Port {port} is in use: close whatever is using it and try again.',
   'Esa plantilla no existe.': 'That template does not exist.',
@@ -148,11 +134,6 @@ export const main: Record<string, string> = {
   'Hay otra operación en curso.': 'Another operation is in progress.',
   'Esa cuenta no existe.': 'That account does not exist.',
   'Ese cliente no existe.': 'That client does not exist.',
-  'El acceso a LinkedIn ha caducado: vuelve a conectar.': 'LinkedIn access has expired: reconnect.',
-  'Activa LinkedIn en Ajustes antes de conectarlo.':
-    'Enable LinkedIn in Settings before connecting it.',
-  'Escribe el id y el secreto de tu app de LinkedIn.':
-    'Enter the ID and secret of your LinkedIn app.',
   'Campaña {id}': 'Campaign {id}',
   'Esa cuenta no existe en esta plataforma.': 'That account does not exist on this platform.',
   'Elige una cuenta o crea una nueva.': 'Choose an account or create a new one.',

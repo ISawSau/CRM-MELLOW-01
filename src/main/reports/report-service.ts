@@ -5,7 +5,6 @@ import { AppError } from '@shared/errors'
 import { safeFileName } from '@shared/files'
 import { computeMetrics, type MetaTableSettings } from '@shared/meta-metrics'
 import { metricDefs } from '@shared/metric-format'
-import { PLATFORMS, type Platform } from '@shared/platforms'
 import {
   DEFAULT_TEMPLATE,
   reportTemplatesSchema,
@@ -111,10 +110,8 @@ export class ReportService {
         platform: string
       }[]
     )
-      .map((r) => r.platform)
-      .filter((p): p is Platform => p in PLATFORMS)
-      .sort((a, b) => Object.keys(PLATFORMS).indexOf(a) - Object.keys(PLATFORMS).indexOf(b))
-      .map((p) => `${PLATFORMS[p]} Ads`)
+      .filter((r) => r.platform === 'meta')
+      .map(() => 'Meta Ads')
     const html = buildReportHtml({
       template,
       since: input.since,

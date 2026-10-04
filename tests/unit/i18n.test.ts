@@ -57,7 +57,7 @@ describe('traducciones', () => {
 
   it('cada texto de t() tiene su traducción y ninguno usa ${} (van como variables)', () => {
     const found = keys()
-    expect(found.length).toBeGreaterThan(1500)
+    expect(found.length).toBeGreaterThan(1300)
     const dynamic = found.filter((k) => k.key.includes('${'))
     expect(dynamic.map((k) => `${k.file}: ${k.key}`)).toEqual([])
     const missing = [

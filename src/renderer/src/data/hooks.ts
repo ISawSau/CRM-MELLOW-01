@@ -115,17 +115,10 @@ export const byId = (fields: FieldDef[] | undefined) =>
 /** Secciones de la barra lateral, con las colecciones del usuario. */
 export function useSections() {
   const entities = useEntities().data
-  const linkedin = useQuery({
-    queryKey: ['data', 'platforms', 'linkedin'],
-    queryFn: () => call('linkedin:status'),
-  }).data?.enabled
   return useMemo(
     () =>
-      withCollections(
-        (entities ?? []).filter((e) => e.custom),
-        { linkedin: !!linkedin },
-      ),
-    [entities, linkedin],
+withCollections((entities ?? []).filter((e) => e.custom)),
+    [entities],
   )
 }
 

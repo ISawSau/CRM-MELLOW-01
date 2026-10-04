@@ -26,7 +26,5 @@ export const fixes: Record<string, string> = {
   Entrega: 'Delivery',
   Beneficio: 'Benefit',
   'facturacion|Beneficio': 'Profit',
-  // Sin plural en español: en inglés se redacta para que valga con 1.
-  'Importados {rows} días de {campaigns} campañas, del {since} al {until}':
-    'Imported — days: {rows}, campaigns: {campaigns}, from {since} to {until}',
+  'No se pudo.': 'That didn’t work.',
 }
