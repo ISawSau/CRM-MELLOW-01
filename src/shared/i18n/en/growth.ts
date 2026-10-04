@@ -28,4 +28,6 @@ export const growth: Record<string, string> = {
   'Dentro del objetivo del cliente: {goal}.': "Within the client's target: {goal}.",
   'De amarillo a rojo, cuanto más se pasa (rojo del todo a 1,5 veces el objetivo).':
     'Yellow to red the further over it goes (fully red at 1.5 times the target).',
+  'Usar la plantilla ({n} elemento)': 'Use the template ({n} item)',
+  'Usar la plantilla ({n} elementos)': 'Use the template ({n} items)',
 }

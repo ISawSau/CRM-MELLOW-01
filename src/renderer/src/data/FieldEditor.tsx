@@ -11,7 +11,7 @@ import {
 import type { LinkRef } from '@shared/data/records'
 import { norm } from '@shared/data/text'
 import { parseNumberEs } from '@shared/format'
-import { getLocale, t } from '@shared/i18n'
+import { getLocale, t, tn } from '@shared/i18n'
 import { call } from '../lib/ipc'
 import { FieldValue, OptionChip } from './FieldValue'
 import { FilesEditor } from './files'
@@ -286,6 +286,7 @@ function ChecklistEditor({ field, value, onCommit }: EditorProps) {
   const items = (value as ChecklistItem[] | undefined) ?? []
   const [text, setText] = useState('')
   const save = (next: ChecklistItem[]) => onCommit(next.length ? next : null)
+  const template = parseFieldConfig('checklist', field.config).template ?? []
   const add = () => {
     const s = text.trim()
     if (!s) return
@@ -323,6 +324,19 @@ function ChecklistEditor({ field, value, onCommit }: EditorProps) {
           </button>
         </div>
       ))}
+      {items.length === 0 && template.length > 0 && (
+        <button
+          type="button"
+          className="btn"
+          onClick={() => save(template.map((s) => ({ id: newItemId(), text: t(s), done: false })))}
+        >
+          {tn(
+            template.length,
+            'Usar la plantilla ({n} elemento)',
+            'Usar la plantilla ({n} elementos)',
+          )}
+        </button>
+      )}
       <input
         className="input"
         placeholder={t('Añadir elemento y pulsar Intro')}
