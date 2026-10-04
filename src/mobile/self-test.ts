@@ -1,5 +1,7 @@
 import { mkdtempSync, readdirSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
+import { argon2id } from 'hash-wasm'
+import { sqliteVersion } from '../main/db/connection'
 import { VaultService } from '../main/vault/vault-service'
 
 /**
@@ -14,6 +16,18 @@ export async function runMobileSelfTest(
   const parent = mkdtempSync(join(cacheDir, 'autoprueba-'))
   const vault = new VaultService()
   try {
+    log(`ok  SQLite ${sqliteVersion()}`)
+    const t1 = Date.now()
+    await argon2id({
+      password: 'prueba',
+      salt: new Uint8Array(16),
+      parallelism: 1,
+      iterations: 1,
+      memorySize: 1024,
+      hashLength: 32,
+      outputType: 'hex',
+    })
+    log(`ok  Argon2id (${Date.now() - t1} ms)`)
     const password = 'autoprueba-' + Date.now()
     const t0 = Date.now()
     const { status } = await vault.create(parent, 'boveda', password)

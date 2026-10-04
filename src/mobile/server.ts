@@ -1,3 +1,4 @@
+import { trace } from './trace'
 import { randomUUID, timingSafeEqual } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
@@ -217,7 +218,7 @@ export function startMobileServer(o: MobileServerOptions): Promise<MobileServer>
     if (req.method === 'GET') {
       if (path === '/api/events') {
         // Señal de que la interfaz ha cargado y habla con el motor (la mira la prueba del CI).
-        if (uiClients.size === 0) console.log('CRM Mellow: interfaz conectada')
+        if (uiClients.size === 0) trace('interfaz conectada')
         return openStream(res, uiClients)
       }
       if (path === '/native/events') return openStream(res, nativeClients)

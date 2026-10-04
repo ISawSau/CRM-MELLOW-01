@@ -33,6 +33,18 @@ export function useNativeSqlite(path: string): void {
   nativeBinding = m.exports
 }
 
+/** Versión de SQLite (autoprueba del móvil: el módulo nativo carga y funciona). */
+export function sqliteVersion(): string {
+  const db = nativeBinding
+    ? new Database(':memory:', { nativeBinding } as unknown as Database.Options)
+    : new Database(':memory:')
+  try {
+    return (db.prepare('SELECT sqlite_version() AS v').get() as { v: string }).v
+  } finally {
+    db.close()
+  }
+}
+
 /**
  * Abre (o crea) la base de datos cifrada. Lanza WRONG_PASSWORD si la clave no
  * descifra el archivo.

@@ -1,3 +1,4 @@
+import { trace } from './trace'
 import { hostname } from 'node:os'
 import { join } from 'node:path'
 import { setLocale } from '@shared/i18n'
@@ -25,10 +26,13 @@ function arg(name: string): string {
 
 async function main(): Promise<void> {
   // Sin --native (tests de interfaz en el PC) se usa el SQLite de node_modules.
-  if (process.argv.includes('--native'))
+  trace('módulos cargados')
+  if (process.argv.includes('--native')) {
     useNativeSqlite(join(arg('native'), 'libbetter_sqlite3.so'))
+    trace('SQLite cargado')
+  }
   if (process.argv.includes('--autoprueba'))
-    await runMobileSelfTest(arg('cache'), (line) => console.log(`CRM Mellow autoprueba: ${line}`))
+    await runMobileSelfTest(arg('cache'), (line) => trace(`autoprueba: ${line}`))
   const data = arg('data')
   const config = new ConfigStore(join(data, 'config'))
   setLocale(config.get().locale)
@@ -67,7 +71,7 @@ async function main(): Promise<void> {
         void backend.sync.sync().catch(() => {})
     },
   })
-  console.log(`CRM Mellow: motor listo en 127.0.0.1:${server.port}`)
+  trace(`motor listo en 127.0.0.1:${server.port}`)
 }
 
 main().catch((e: unknown) => {

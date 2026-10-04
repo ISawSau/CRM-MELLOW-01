@@ -340,6 +340,15 @@ jobs:
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
           script: bash scripts/probar-android-emulador.sh release/CRM-Mellow-*-android-x86_64.apk
 
+      - name: Registro del emulador
+        if: failure()
+        continue-on-error: true
+        uses: actions/upload-artifact@v7
+        with:
+          name: registro-android
+          path: registro-android/
+          retention-days: 3
+
       - name: Subir a la versión (Releases)
         if: env.PUBLICAR == 'true' && env.FIRMADO == 'true'
         run: gh release upload "v$VERSION" release/*-android-arm64.apk --clobber

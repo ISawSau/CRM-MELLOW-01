@@ -53,3 +53,4 @@ android/app/libnode/
 *.apk
 *.aab
 android/.nodejs-mobile/
+registro-android/

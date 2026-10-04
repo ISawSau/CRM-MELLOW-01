@@ -1,21 +1,34 @@
 #!/usr/bin/env bash
 # Prueba el APK en el emulador de Android (CI, D-101): lo instala, lo abre con la autoprueba
 # del motor y comprueba en el registro que el motor funciona y que la interfaz ha cargado.
+# Deja el registro completo en registro-android/ (el CI lo guarda si algo falla).
 # Uso: bash scripts/probar-android-emulador.sh release/CRM-Mellow-<versión>-android-x86_64.apk
 set -eu
 APK=$1
-LOG=$(mktemp)
+OUT=registro-android
+mkdir -p "$OUT"
+LOG=$OUT/logcat.txt
 adb install -r "$APK"
 adb logcat -c
+adb logcat -b crash -c || true
 adb shell am start -n cc.yellowmellow.crm/.MainActivity --ez autoprueba true
 for _ in $(seq 1 90); do
   adb logcat -d > "$LOG"
-  if grep -q "interfaz conectada" "$LOG" || grep -q "AUTOPRUEBA FALLIDA" "$LOG"; then break; fi
+  if grep -q "interfaz conectada" "$LOG" || grep -q "AUTOPRUEBA FALLIDA" "$LOG" \
+    || grep -q "no se ha podido arrancar" "$LOG" || grep -q "Fatal signal" "$LOG"; then
+    sleep 2
+    break
+  fi
   sleep 2
 done
-adb logcat -d > "$LOG"
-grep -E "CRM-Mellow|AndroidRuntime" "$LOG" | tail -60 || true
+adb logcat -d -v threadtime > "$LOG"
+adb logcat -d -b crash -v threadtime > "$OUT/crash.txt" || true
+PID=$(adb shell pidof cc.yellowmellow.crm || true)
+echo "--- Registro de la app (pid ${PID:-ninguno}) ---"
+grep -E "CRM-Mellow|CRM Mellow|AndroidRuntime|DEBUG|libc|chromium" "$LOG" | tail -150 || true
+echo "--- Cierres ---"
+tail -120 "$OUT/crash.txt" || true
 grep -q "AUTOPRUEBA CORRECTA" "$LOG" || { echo "La autoprueba del motor no ha pasado"; exit 1; }
 grep -q "interfaz conectada" "$LOG" || { echo "La interfaz no ha llegado a conectarse al motor"; exit 1; }
-if grep -q "FATAL EXCEPTION" "$LOG"; then echo "La app se ha cerrado con un error"; exit 1; fi
+if grep -q "FATAL EXCEPTION\|Fatal signal" "$LOG"; then echo "La app se ha cerrado con un error"; exit 1; fi
 echo "APK: autoprueba correcta e interfaz conectada"
