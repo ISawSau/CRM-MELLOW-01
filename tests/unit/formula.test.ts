@@ -5,6 +5,7 @@ import {
   runFormula,
   type FormulaValue,
 } from '../../src/shared/data/formula'
+import { words } from '../../src/shared/data/text'
 
 const ctx = (fields: Record<string, FormulaValue> = {}) => ({
   fields: new Map(Object.entries(fields)),
@@ -143,5 +144,18 @@ describe('referencias', () => {
   it('lista los campos que usa la fórmula', () => {
     const refs = formulaReferences(parseFormula('SI(a > 0; b * c; a)'))
     expect([...refs].sort()).toEqual(['a', 'b', 'c'])
+  })
+})
+
+describe('nombres de campo con letras de cualquier idioma', () => {
+  // Sin `\p{L}` en las expresiones regulares: el Node de Android no las entiende (D-101).
+  it('admite tildes, eñes, guiones bajos y cifras', () => {
+    expect(value('campaña_2 + Δx + _ñu', { campaña_2: 1, Δx: 2, _ñu: 3 })).toBe(6)
+    const refs = formulaReferences(parseFormula('año1 * 名前'))
+    expect([...refs].sort()).toEqual(['año1', '名前'])
+  })
+
+  it('separa las palabras de un texto para buscar', () => {
+    expect(words('hola, Ñandú 2026-10 «café»')).toEqual(['hola', 'Ñandú', '2026', '10', 'café'])
   })
 })

@@ -18,6 +18,7 @@
  */
 
 import { t } from '../i18n'
+import { isDigit, isLetter } from './text'
 
 export type FormulaValue = number | string | boolean | null
 
@@ -83,10 +84,11 @@ function tokenize(src: string): Token[] {
         i++
       }
       out.push({ t: 'str', v: s })
-    } else if (/[\p{L}_]/u.test(c)) {
-      const m = /^[\p{L}_][\p{L}\p{N}_]*/u.exec(src.slice(i))!
-      out.push({ t: 'id', v: m[0] })
-      i += m[0].length
+    } else if (c === '_' || isLetter(c)) {
+      let j = i + 1
+      while (j < src.length && (src[j] === '_' || isLetter(src[j]!) || isDigit(src[j]!))) j++
+      out.push({ t: 'id', v: src.slice(i, j) })
+      i = j
     } else if (c === '(') {
       out.push({ t: '(', v: '(' })
       i++
