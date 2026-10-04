@@ -88,7 +88,7 @@ describe('temas', () => {
       id: 'propio-x',
       name: 'Marca',
       radius: 8,
-      icons: { inicio: '🏠', clientes: 'CL' },
+      colors: { ...findTheme('claro').colors, icon: '#123456' },
       background: {
         fileId: 'a'.repeat(64),
         kind: 'image' as const,
@@ -106,28 +106,31 @@ describe('temas', () => {
       name: 'Marca',
       radius: 8,
       background: null,
-      icons: { inicio: '🏠', clientes: 'CL' },
     })
+    expect(r.ok && r.theme.colors.icon).toBe('#123456')
     // Lo que responde una IA: solo el objeto del tema y dentro de un bloque de código.
     const solo = JSON.parse(json).tema
     expect(importTheme('```json\n' + JSON.stringify(solo) + '\n```', 'p2').ok).toBe(true)
-    // Un color que no lo es, o un icono con marcas, se rechazan con un mensaje claro.
+    // Un color que no lo es se rechaza con un mensaje claro.
     const malo = importTheme(
       JSON.stringify({ ...solo, colors: { ...solo.colors, bg: 'red' } }),
       'p3',
     )
     expect(malo.ok ? '' : malo.error).toMatch(/colors\.bg/)
-    expect(importTheme(JSON.stringify({ ...solo, icons: { inicio: '<b>' } }), 'p4').ok).toBe(false)
+    // Los iconos de sección de los temas de la 0.13.1 y 0.13.2 (letras) se ignoran.
+    const conLetras = importTheme(JSON.stringify({ ...solo, icons: { inicio: 'I' } }), 'p4')
+    expect(conLetras.ok && 'icons' in conLetras.theme).toBe(false)
     expect(importTheme('esto no es json', 'p5')).toEqual({
       ok: false,
       error: 'No es un JSON válido.',
     })
-    // Los temas guardados antes de esta versión siguen valiendo (sin radio, fondo ni iconos).
+    // Los temas guardados antes siguen valiendo (sin radio, fondo ni color de iconos).
     const viejo = { ...findTheme('oscuro'), id: 'propio-viejo' } as Record<string, unknown>
     delete viejo['radius']
     delete viejo['background']
-    delete viejo['icons']
-    expect(themeSchema.parse(viejo)).toMatchObject({ radius: 0, background: null, icons: {} })
+    viejo['colors'] = { ...findTheme('oscuro').colors, icon: undefined, iconActive: undefined }
+    expect(themeSchema.parse(viejo)).toMatchObject({ radius: 0, background: null })
+    expect(themeToCssVars(themeSchema.parse(viejo))).not.toHaveProperty('--icon')
     expect(themeToCssVars(t)['--radius']).toBe('8px')
   })
 

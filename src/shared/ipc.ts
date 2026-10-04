@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { lockAnimationSchema, type LockAnimation } from './lock-animation'
 import {
   decodeHeicSchema,
   saveResultSchema,
@@ -19,7 +20,7 @@ import {
   type ReportResult,
   type ReportTemplate,
 } from './reports'
-import { appearanceSchema, type Appearance } from './appearance'
+import { appearancePatchSchema, type Appearance } from './appearance'
 import { customThemesSchema, type Theme } from './themes'
 import { homeLayoutSchema, type HomeLayout } from './home'
 import { localeSchema, type Locale } from './i18n'
@@ -184,6 +185,8 @@ export const ipcSchemas = {
   'app:activity': z.void(),
   'app:locale': z.void(),
   'app:setLocale': z.object({ locale: localeSchema }),
+  'app:lockAnimation': z.void(),
+  'app:setLockAnimation': z.object({ value: lockAnimationSchema }),
   'vault:status': z.void(),
   'vault:pickFolder': z.object({ purpose: z.enum(['create', 'open']) }),
   'vault:create': z.object({ parentPath: absolutePath, name: vaultNameSchema, password }),
@@ -205,7 +208,7 @@ export const ipcSchemas = {
       .min(1)
       .max(24 * 60),
   }),
-  'settings:setAppearance': appearanceSchema,
+  'settings:setAppearance': appearancePatchSchema,
   'settings:setThemes': z.object({ themes: customThemesSchema }),
   'settings:exportTheme': z.object({
     name: z.string().trim().min(1).max(60),
@@ -312,6 +315,7 @@ export const ipcSchemas = {
   'briefs:saveAsTemplate': z.object({ recordId: idSchema, name: z.string().trim().min(1).max(80) }),
   'profile:get': z.void(),
   'profile:set': profileSchema,
+  'profile:activity': z.void(),
   'data:update': z.object({ id: idSchema, patch: values }),
   'data:setLinks': z.object({
     fieldId: idSchema,
@@ -391,6 +395,8 @@ export interface IpcOutputs {
   'app:activity': void
   'app:locale': Locale
   'app:setLocale': void
+  'app:lockAnimation': LockAnimation
+  'app:setLockAnimation': void
   'vault:status': VaultStatus
   'vault:pickFolder': string | null
   'vault:create': { status: VaultStatus; recoveryKey: string }
@@ -454,6 +460,7 @@ export interface IpcOutputs {
   'briefs:saveAsTemplate': BriefTemplate[]
   'profile:get': Profile
   'profile:set': Profile
+  'profile:activity': { date: string; count: number }[]
   'data:update': RecordRow
   'data:setLinks': RecordRow
   'data:duplicate': RecordRow

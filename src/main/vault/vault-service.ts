@@ -12,7 +12,12 @@ import { basename, join, resolve } from 'node:path'
 import { eq } from 'drizzle-orm'
 import { AppError } from '@shared/errors'
 import type { VaultStatus } from '@shared/ipc'
-import { appearanceSchema, DEFAULT_APPEARANCE, type Appearance } from '@shared/appearance'
+import {
+  appearanceSchema,
+  DEFAULT_APPEARANCE,
+  type Appearance,
+  type AppearancePatch,
+} from '@shared/appearance'
 import { BUILT_IN_THEMES, customThemesSchema, type Theme } from '@shared/themes'
 import { DataService, type DataServiceOptions } from '../data/data-service'
 import { FileStore, loadOrCreateFilesKey } from '../files/file-store'
@@ -541,8 +546,9 @@ export class VaultService {
     return parsed.success ? parsed.data : DEFAULT_APPEARANCE
   }
 
-  setAppearance(appearance: Appearance): VaultStatus {
-    this.putSetting(APPEARANCE_KEY, appearanceSchema.parse(appearance))
+  setAppearance(patch: AppearancePatch): VaultStatus {
+    const next = { ...this.getAppearance(), ...patch }
+    this.putSetting(APPEARANCE_KEY, appearanceSchema.parse(next))
     return this.emit()
   }
 

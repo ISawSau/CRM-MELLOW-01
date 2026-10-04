@@ -35,6 +35,9 @@ export const themeColorsSchema = z.object({
   warning: color,
   focus: color,
   shadow: color,
+  /** Iconos de las secciones; si no se dan, texto tenue y acento (temas anteriores). */
+  icon: color.optional(),
+  iconActive: color.optional(),
 })
 export type ThemeColors = z.infer<typeof themeColorsSchema>
 
@@ -61,14 +64,6 @@ export const themeBackgroundSchema = z.object({
 })
 export type ThemeBackground = z.infer<typeof themeBackgroundSchema>
 
-/** Icono de una sección: una o dos letras, una cifra o un emoji (sin controles). */
-const iconSchema = z
-  .string()
-  .trim()
-  .min(1)
-  .max(8)
-  .refine((s) => [...s].length <= 2 && !/[\p{Cc}<>]/u.test(s), 'Icono no válido')
-
 export const themeSchema = z.object({
   id: themeIdSchema,
   name: z.string().min(1).max(60),
@@ -78,8 +73,6 @@ export const themeSchema = z.object({
   /** Redondeo de esquinas de botones, campos, tarjetas y ventanas (px). */
   radius: z.number().int().min(0).max(24).default(0),
   background: themeBackgroundSchema.nullable().default(null),
-  /** Iconos de la barra lateral por sección (id de sección → icono). */
-  icons: z.record(z.string().regex(/^[a-z0-9-]{1,48}$/), iconSchema).default({}),
 })
 export type Theme = z.infer<typeof themeSchema>
 export type ThemeInput = z.input<typeof themeSchema>
@@ -128,10 +121,11 @@ export const BUILT_IN_THEMES: readonly Theme[] = [
       warning: PALETTE.warn,
       focus: PALETTE.peach,
       shadow: 'rgba(0, 0, 0, 0.35)',
+      icon: PALETTE.terracotta,
+      iconActive: PALETTE.peach,
     },
     radius: 0,
     background: null,
-    icons: {},
     options: {
       gris: { bg: '#2a2422', text: '#d9cec7' },
       melocoton: { bg: '#3a2619', text: '#f0c3a3' },
@@ -166,10 +160,11 @@ export const BUILT_IN_THEMES: readonly Theme[] = [
       warning: PALETTE.warnDeep,
       focus: PALETTE.wine,
       shadow: 'rgba(13, 9, 8, 0.12)',
+      icon: PALETTE.terracottaDeep,
+      iconActive: PALETTE.wine,
     },
     radius: 0,
     background: null,
-    icons: {},
     options: {
       gris: { bg: '#ece4dc', text: '#4a3f39' },
       melocoton: { bg: '#f7dcc7', text: '#7a3f1c' },
@@ -195,7 +190,9 @@ const kebab = (k: string) => k.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`)
 export function themeToCssVars(theme: Theme): Record<string, string> {
   return Object.fromEntries([
     ['--radius', `${theme.radius ?? 0}px`],
-    ...Object.entries(theme.colors).map(([k, v]) => [`--${kebab(k)}`, v]),
+    ...Object.entries(theme.colors)
+      .filter((e): e is [string, string] => e[1] !== undefined)
+      .map(([k, v]) => [`--${kebab(k)}`, v]),
     ...Object.entries(theme.options).flatMap(([k, v]) => [
       [`--opt-${k}-bg`, v.bg],
       [`--opt-${k}-text`, v.text],
@@ -360,7 +357,7 @@ export function aiThemePrompt(example: Theme, wish: string): string {
     ),
     t('- "radius" son píxeles de redondeo de esquinas (0 a 24).'),
     t(
-      '- "icons" puede quedar vacío o dar 1-2 caracteres (letra o emoji) por sección, con estas claves: perfil, inicio, notas, clientes, contactos, tareas, briefs, campanas, plataformas, creatividades, analisis, facturacion, facturas, gastos, informes, documentos, herramientas.',
+      '- "icon" e "iconActive" son el color de los iconos de la barra lateral y el del icono de la sección abierta.',
     ),
   ]
     .filter(Boolean)

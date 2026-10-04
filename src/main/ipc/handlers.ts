@@ -180,6 +180,8 @@ export function createHandlers({
       config.setLocale(locale)
       setLocale(locale)
     },
+    'app:lockAnimation': () => config.get().lockAnimation,
+    'app:setLockAnimation': ({ value }) => config.setLockAnimation(value),
 
     // Exportar un tema es una acción explícita: el archivo va donde elija el usuario.
     'settings:exportTheme': async ({ name, json }) => {

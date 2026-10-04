@@ -15,7 +15,6 @@ import {
 } from '@shared/themes'
 import { call, IpcCallError } from '../lib/ipc'
 import { Alert } from '../ui/Alert'
-import { SECTION_GROUPS } from '../shell/sections'
 import { applyAppearance } from './apply'
 import { ThemeBackground } from './ThemeBackground'
 import { t } from '@shared/i18n'
@@ -49,6 +48,13 @@ const GROUPS: { title: string; keys: [ColorKey, string][] }[] = [
       ['index', 'Numeración de secciones'],
       ['marker', 'Marcas y selección'],
       ['focus', 'Borde de foco'],
+    ],
+  },
+  {
+    title: 'Iconos',
+    keys: [
+      ['icon', 'Iconos de las secciones'],
+      ['iconActive', 'Icono de la sección abierta'],
     ],
   },
   {
@@ -278,7 +284,10 @@ export function ThemeEditor({
               <ColorRow
                 key={k}
                 label={t(label)}
-                value={draft.colors[k]}
+                value={
+                  draft.colors[k] ??
+                  (k === 'iconActive' ? draft.colors.accent : draft.colors.textFaint)
+                }
                 onChange={(v) => setColor(k, v)}
               />
             ))}
@@ -325,33 +334,6 @@ export function ThemeEditor({
           value={draft.background}
           onChange={(background) => setDraft({ ...draft, background })}
         />
-        <fieldset className="theme-group theme-group-wide">
-          <legend>{t('Iconos de la barra lateral')}</legend>
-          <p className="hint">
-            {t('Una o dos letras, una cifra o un emoji por sección. Vacío: la letra de serie.')}
-          </p>
-          <div className="theme-icons">
-            {SECTION_GROUPS.flatMap((g) => g.sections).map((sec) => (
-              <label key={sec.id} className="theme-icon">
-                <input
-                  className="input"
-                  aria-label={t('Icono de {section}', { section: t(sec.label) })}
-                  placeholder={sec.letter}
-                  maxLength={8}
-                  value={draft.icons[sec.id] ?? ''}
-                  onChange={(e) => {
-                    const icons = { ...draft.icons }
-                    const v = e.target.value.trim()
-                    if (v && [...v].length <= 2) icons[sec.id] = v
-                    else delete icons[sec.id]
-                    setDraft({ ...draft, icons })
-                  }}
-                />
-                <span>{t(sec.label)}</span>
-              </label>
-            ))}
-          </div>
-        </fieldset>
       </div>
 
       <div className="theme-contrast" data-testid="theme-contrast">

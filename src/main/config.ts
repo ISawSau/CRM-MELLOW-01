@@ -2,17 +2,19 @@ import { existsSync, mkdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { z } from 'zod'
 import { localeSchema, type Locale } from '@shared/i18n'
+import { lockAnimationSchema, type LockAnimation } from '@shared/lock-animation'
 import { writeFileAtomic } from './fs-utils'
 
 /**
  * Única información que la app guarda fuera de la bóveda (CLAUDE.md): qué bóveda
- * abrir al arrancar y en qué idioma mostrar la pantalla de contraseña (hace falta antes
- * de abrir la bóveda; no es un dato del usuario, D-090). Vive en la carpeta de datos de la
+ * abrir al arrancar, en qué idioma mostrar la pantalla de contraseña y qué animación
+ * poner en ella (hacen falta antes de abrir la bóveda; no son datos del usuario, D-090, D-096). Vive en la carpeta de datos de la
  * app del sistema (Linux: ~/.config/CRM-Mellow, Windows: %APPDATA%\CRM-Mellow).
  */
 const configSchema = z.object({
   lastVaultPath: z.string().nullable().default(null),
   locale: localeSchema.default('es'),
+  lockAnimation: lockAnimationSchema.default('gravedad'),
 })
 export type AppConfig = z.infer<typeof configSchema>
 
@@ -35,7 +37,7 @@ export class ConfigStore {
     } catch {
       // Sin archivo o ilegible: se empieza de cero.
     }
-    return { lastVaultPath: null, locale: 'es' }
+    return { lastVaultPath: null, locale: 'es', lockAnimation: 'gravedad' }
   }
 
   get(): AppConfig {
@@ -49,6 +51,11 @@ export class ConfigStore {
 
   setLocale(locale: Locale): void {
     this.data = { ...this.data, locale }
+    writeFileAtomic(this.file, JSON.stringify(this.data, null, 2) + '\n')
+  }
+
+  setLockAnimation(lockAnimation: LockAnimation): void {
+    this.data = { ...this.data, lockAnimation }
     writeFileAtomic(this.file, JSON.stringify(this.data, null, 2) + '\n')
   }
 }

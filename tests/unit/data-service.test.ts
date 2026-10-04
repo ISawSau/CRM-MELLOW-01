@@ -8,6 +8,7 @@ import { DataService } from '../../src/main/data/data-service'
 import { FileStore } from '../../src/main/files/file-store'
 import { matchesFilter } from '../../src/main/data/query'
 import { briefDocFromTemplate } from '../../src/shared/data/brief-templates'
+import { socialUrl } from '../../src/shared/profile'
 import { shiftDate } from '../../src/shared/data/dates'
 import type { FieldDef } from '../../src/shared/data/fields'
 import type { ComputedValue, DataChange, RecordRow } from '../../src/shared/data/records'
@@ -200,6 +201,33 @@ describe('perfil', () => {
     expect(() =>
       svc.setProfile({ ...svc.getProfile(), photo: 'data:text/html;base64,PHNjcmlwdD4=' }),
     ).toThrow()
+  })
+
+  it('redes del perfil, clientes destacados y actividad por día', () => {
+    const { svc } = setup()
+    const p = svc.setProfile({
+      ...svc.getProfile(),
+      role: 'Media buyer',
+      socials: { instagram: '@yellowmellow', whatsapp: '+34 600 11 22 33', x: '' },
+      pinned: ['c1', 'c2'],
+      setupDone: true,
+    })
+    expect(p).toMatchObject({ role: 'Media buyer', pinned: ['c1', 'c2'], setupDone: true })
+    expect(socialUrl('instagram', '@yellowmellow')).toBe('https://www.instagram.com/yellowmellow')
+    expect(socialUrl('whatsapp', '+34 600 11 22 33')).toBe('https://wa.me/34600112233')
+    expect(socialUrl('discord', 'mellow')).toBeNull()
+    expect(socialUrl('discord', 'https://discord.gg/abc')).toBe('https://discord.gg/abc')
+    expect(socialUrl('x', 'javascript:alert(1)')).toBeNull()
+    expect(() =>
+      svc.setProfile({ ...svc.getProfile(), socials: { github: 'no vale con espacios' } }),
+    ).toThrow()
+    expect(() =>
+      svc.setProfile({ ...svc.getProfile(), pinned: ['a', 'b', 'c', 'd', 'e', 'f', 'g'] }),
+    ).toThrow()
+    // Cada cambio en un registro cuenta en el día (hora de Madrid).
+    svc.create('nota', {}, { title: 'Una' })
+    svc.create('nota', {}, { title: 'Otra' })
+    expect(svc.activity()).toEqual([{ date: '2026-06-15', count: 2 }])
   })
 
   it('crea un registro con título directamente', () => {

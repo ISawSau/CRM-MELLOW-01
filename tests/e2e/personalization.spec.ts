@@ -77,12 +77,13 @@ test('cancelar la edición deshace la vista previa; la paleta lista los temas pr
   await expect.poll(() => cssVar('--accent')).toBe('#f5d000')
 })
 
-test('el tema propio redondea esquinas, cambia iconos y pone una imagen de fondo', async () => {
+test('el tema propio redondea esquinas, colorea los iconos y pone una imagen de fondo', async () => {
   await page.getByRole('button', { name: 'Editar «Marca»' }).click()
   const ed = page.getByTestId('theme-editor')
   await ed.getByLabel('Redondeo de esquinas').fill('10')
   await expect.poll(() => cssVar('--radius')).toBe('10px')
-  await ed.getByLabel('Icono de Inicio').fill('🏠')
+  await ed.getByLabel('Iconos de las secciones', { exact: true }).fill('#00ff88')
+  await expect.poll(() => cssVar('--icon')).toBe('#00ff88')
   await ctx.app.evaluate(({ dialog }, file) => {
     dialog.showOpenDialog = (async () => ({ canceled: false, filePaths: [file] })) as never
   }, resolve('build/icon.png'))
@@ -91,7 +92,6 @@ test('el tema propio redondea esquinas, cambia iconos y pone una imagen de fondo
   await ed.getByLabel('Velo del fondo').fill('40')
   await ed.getByRole('button', { name: 'Guardar tema' }).click()
   await expect(ed).toBeHidden()
-  await expect(page.getByTestId('nav-inicio')).toContainText('🏠')
   const bg = page.getByTestId('theme-background').locator('img')
   await expect(bg).toHaveCount(1)
   await expect.poll(() => bg.evaluate((i: HTMLImageElement) => i.naturalWidth)).toBe(512)
@@ -144,6 +144,19 @@ test('borrar el tema en uso vuelve al oscuro', async () => {
   await expect(page.getByRole('button', { name: 'Marca', exact: true })).toHaveCount(0)
   await expect(page.getByTestId('theme-oscuro')).toHaveAttribute('aria-pressed', 'true')
   await expect.poll(() => cssVar('--accent')).toBe('#e0a47c')
+})
+
+test('los iconos de las secciones son SVG y se eligen en Ajustes', async () => {
+  await page.getByTestId('nav-ajustes').click()
+  const nav = page.getByTestId('nav-clientes')
+  await expect(nav.locator('svg.lucide-users')).toHaveCount(1)
+  const block = page.getByTestId('section-icons-settings')
+  await block.getByTestId('section-icon-clientes').click()
+  await block.getByLabel('Buscar icono').fill('brief')
+  await block.getByTestId('icon-briefcase').click()
+  await expect(nav.locator('svg.lucide-briefcase')).toHaveCount(1)
+  await block.getByRole('button', { name: 'De serie' }).click()
+  await expect(nav.locator('svg.lucide-users')).toHaveCount(1)
 })
 
 test('Inicio configurable: quitar, reordenar, añadir un widget y restablecer', async () => {

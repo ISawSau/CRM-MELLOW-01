@@ -116,6 +116,7 @@ export function createDataHandlers(
     'briefs:saveAsTemplate': ({ recordId, name }) => vault.data.saveBriefAsTemplate(recordId, name),
     'profile:get': () => vault.data.getProfile(),
     'profile:set': (profile) => vault.data.setProfile(profile),
+    'profile:activity': () => vault.data.activity(),
     'data:update': ({ id, patch }) => vault.data.update(id, patch),
     'data:setLinks': ({ fieldId, fromId, toIds }) => vault.data.setLinks(fieldId, fromId, toIds),
     'data:duplicate': ({ id }) => vault.data.duplicate(id),

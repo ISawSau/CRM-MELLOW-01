@@ -16,10 +16,24 @@ export const themeIdSchema = z
   .max(40)
   .regex(/^[a-z0-9-]+$/)
 
+/** Iconos elegidos por sección (id de sección → nombre del icono). Vacío: los de serie. */
+const sectionIconsSchema = z
+  .record(z.string().regex(/^[a-z0-9-]{1,64}$/), z.string().regex(/^[a-z0-9-]{1,48}$/))
+  .refine((r) => Object.keys(r).length <= 200, 'Demasiados iconos.')
+
 export const appearanceSchema = z.object({
   theme: themeIdSchema,
   density: z.enum(DENSITIES),
+  icons: sectionIconsSchema.default({}),
 })
 export type Appearance = z.infer<typeof appearanceSchema>
 
-export const DEFAULT_APPEARANCE: Appearance = { theme: 'oscuro', density: 'compacta' }
+/** Cambios de apariencia: lo que no llega se queda como estaba. */
+export const appearancePatchSchema = z.object({
+  theme: themeIdSchema.optional(),
+  density: z.enum(DENSITIES).optional(),
+  icons: sectionIconsSchema.optional(),
+})
+export type AppearancePatch = z.infer<typeof appearancePatchSchema>
+
+export const DEFAULT_APPEARANCE: Appearance = { theme: 'oscuro', density: 'compacta', icons: {} }
