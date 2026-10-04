@@ -1,3 +1,7 @@
+## Novedades de la 0.16.1
+
+- **App de Android publicada:** desde esta versión el APK firmado (`CRM-Mellow-0.16.1-android-arm64.apk`) está aquí, en Assets, junto a los instaladores de escritorio. Mira las instrucciones de Android más abajo.
+
 ## Novedades de la 0.16.0 · Rendimiento y negocio
 
 - **Colores según el objetivo:** pon en la ficha del cliente su CPA objetivo (o ROAS objetivo) y, en Campañas, activa «Colores según el objetivo»: cada campaña, conjunto y anuncio sale en verde si lo cumple y de amarillo a rojo cuanto más se pasa.
