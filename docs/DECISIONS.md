@@ -791,3 +791,16 @@ El usuario no quiere escribir comandos de desarrollo para usar la app. Los insta
 - **Pruebas:** los tests de la interfaz móvil corren en Chromium con pantalla de Pixel 7 contra el mismo servidor local (`npm run test:e2e:movil`). En el CI, el APK x86_64 se instala en el emulador de Android, se arranca con la autoprueba del motor (crear bóveda, bloquear, desbloquear, datos) y se comprueba que la interfaz carga y se conecta.
 - **Firma y publicación:** el CI genera un APK por arquitectura; en Releases se publica el de arm64. Se firma con una clave que solo existe como secreto del repositorio (`ANDROID_KEYSTORE_B64` y sus contraseñas); sin ella el APK no se publica, porque cada clave de prueba sería distinta y Android no dejaría actualizar. Versión de Android: `versionCode = mayor·10000 + menor·100 + parche`.
 - **Riesgos aceptados:** Node 18 ya no recibe parches oficiales, pero solo habla con Meta y Google por HTTPS y con la propia app; la WebView (Chromium del sistema, actualizada por GrapheneOS) es la que interpreta contenido. Se cambiará cuando nodejs-mobile publique una versión mayor. Sin emulador en la máquina de desarrollo: la app real solo se prueba en el CI y en el móvil del usuario.
+
+### D-102 · Hold rate estándar de 15 s y cuestiones abiertas cerradas
+
+- **Qué:** el hold rate por defecto pasa a ser el estándar del sector: `thruplays / reproducciones_3s * 100`, de quienes ven 3 s, cuántos llegan a 15 s (ThruPlays son las reproducciones de al menos 15 s, o completas si el vídeo es más corto). Antes era ThruPlays / impresiones.
+- **Por qué:** lo pidió el usuario («hold rate standard 15s»). Junto con el hook rate (reproducciones de 3 s / impresiones) separa las dos preguntas: si el inicio engancha y si el vídeo retiene.
+- **Datos existentes:** quien tenía guardada la fórmula de antes sin cambiarla pasa al estándar al leer los ajustes; una fórmula propia distinta se respeta. No hay migración de la base de datos.
+- **Otras cuestiones abiertas (SPEC §10):** la lista de monedas actual queda como definitiva; los briefs siguen con las plantillas de serie; la convención de nombres de anuncios es opcional (por defecto se vincula por el código de la creatividad).
+
+### D-103 · Clic en un anuncio: su vista previa de Meta
+
+- **Qué:** el nombre de cada anuncio (en la tabla de Campañas al nivel de anuncio y en los anuncios vinculados de una creatividad) es un enlace a su vista previa pública de Meta, que se abre en el navegador del sistema. Ahí se ve el anuncio como lo ve la gente: imagen o vídeo, texto y botón.
+- **Cómo:** se pide a Meta el campo `preview_shareable_link` del anuncio (objeto Ad, Marketing API v25, de solo lectura; comprobado en la referencia oficial) junto con el resto de la estructura. Se guarda en el JSON del anuncio que ya existía, así que no hay migración. Solo se enlaza si es `https`.
+- **Datos existentes:** los anuncios ya guardados reciben el enlace en la siguiente sincronización con Meta; hasta entonces el nombre se ve sin enlace.

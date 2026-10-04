@@ -107,7 +107,18 @@ export function CreativeAds({ recordId }: { recordId: string }) {
               <span className="meta-thumb" aria-hidden="true" />
             )}
             <span className="linked-ad-name">
-              <strong>{l.name}</strong>
+              {l.previewUrl ? (
+                <a
+                  href={l.previewUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  title={t('Ver el anuncio en Meta')}
+                >
+                  <strong>{l.name}</strong>
+                </a>
+              ) : (
+                <strong>{l.name}</strong>
+              )}
               <span className="faint">
                 {l.accountName}
                 {l.campaignName && ` · ${l.campaignName}`}

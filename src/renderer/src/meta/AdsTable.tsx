@@ -323,7 +323,18 @@ export function AdsTable({
                       ) : (
                         <span className="meta-thumb" aria-hidden="true" />
                       ))}
-                    {onOpen ? (
+                    {row.previewUrl ? (
+                      <a
+                        className="btn-link"
+                        href={row.previewUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        title={t('Ver el anuncio en Meta')}
+                        data-testid="meta-ad-preview"
+                      >
+                        {row.name}
+                      </a>
+                    ) : onOpen ? (
                       <button type="button" className="btn-link" onClick={() => onOpen(row)}>
                         {row.name}
                       </button>

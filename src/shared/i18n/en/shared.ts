@@ -255,7 +255,8 @@ export const shared: Record<string, string> = {
   'Hook rate': 'Hook rate',
   'Reproducciones de 3 s / impresiones.': '3-second video plays / impressions.',
   'Hold rate': 'Hold rate',
-  'Fórmula configurable en Ajustes.': 'Formula configurable in Settings.',
+  'Reproducciones de 15 s (ThruPlays) / reproducciones de 3 s. Fórmula configurable en Ajustes.':
+    '15-second plays (ThruPlays) / 3-second plays. Formula configurable in Settings.',
   Entrega: 'Delivery',
   Presupuesto: 'Budget',
   'Estrategia de puja': 'Bid strategy',

@@ -256,7 +256,8 @@ export const DERIVED_METRICS: readonly MetricDef[] = [
     format: 'percent',
     group: 'Vídeo',
     higherIsBetter: true,
-    description: 'Fórmula configurable en Ajustes.',
+    description:
+      'Reproducciones de 15 s (ThruPlays) / reproducciones de 3 s. Fórmula configurable en Ajustes.',
   },
 ]
 
@@ -277,7 +278,10 @@ export const CONFIG_COLUMNS: readonly { key: string; label: string; levels?: str
 ]
 export const CONFIG_KEYS = new Set(CONFIG_COLUMNS.map((c) => c.key))
 
-export const DEFAULT_HOLD_RATE = 'thruplays / impresiones * 100'
+/** Hold rate estándar: de quienes ven 3 s, cuántos llegan a 15 s (ThruPlays). */
+export const DEFAULT_HOLD_RATE = 'thruplays / reproducciones_3s * 100'
+/** El de antes de la 0.15.1: quien no lo había cambiado pasa al estándar. */
+const LEGACY_HOLD_RATE = 'thruplays / impresiones * 100'
 
 /** «offsite_conversion.fb_pixel_purchase» → «offsite_conversion_fb_pixel_purchase» */
 export function actionKey(type: string): string {
@@ -398,7 +402,13 @@ export const BUILT_IN_PRESETS: readonly ColumnPreset[] = [
 export const metaTableSettingsSchema = z.object({
   presets: z.array(presetSchema).max(50).default([]),
   metrics: z.array(customMetricSchema).max(100).default([]),
-  holdRate: z.string().trim().min(1).max(2000).default(DEFAULT_HOLD_RATE),
+  holdRate: z
+    .string()
+    .trim()
+    .min(1)
+    .max(2000)
+    .default(DEFAULT_HOLD_RATE)
+    .transform((f) => (f === LEGACY_HOLD_RATE ? DEFAULT_HOLD_RATE : f)),
   /** Vínculo automático entre anuncios y creatividades (SPEC §7.8). */
   naming: z
     .object({

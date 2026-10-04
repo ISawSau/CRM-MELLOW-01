@@ -111,6 +111,7 @@ export class FakeMeta {
       effective_status: 'ACTIVE',
       creative: { id: 'cr1' },
       updated_time: '2026-09-01T10:00:00-0400',
+      preview_shareable_link: 'https://fb.me/adspreview/a1',
     },
   ]
   creatives: Record<string, Json> = {

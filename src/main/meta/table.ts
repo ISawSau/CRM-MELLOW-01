@@ -12,6 +12,7 @@ import {
   type TableRow,
 } from '@shared/meta'
 import type { SqliteDb } from '../db/connection'
+import { externalUrl } from '../platform'
 import { addDaily, clientCurrency, moneyConverter, type DailyRow } from './sums'
 import { t, tn } from '@shared/i18n'
 
@@ -38,6 +39,16 @@ interface ObjectRow {
 }
 
 const PARENT_LEVEL = { campaign: 'account', adset: 'campaign', ad: 'adset' } as const
+
+/** Vista previa pública del anuncio en Meta (preview_shareable_link), solo si es https. */
+export function previewLink(raw: string): string | null {
+  try {
+    const link = (JSON.parse(raw) as { preview_shareable_link?: unknown }).preview_shareable_link
+    return typeof link === 'string' ? externalUrl(link) : null
+  } catch {
+    return null
+  }
+}
 
 /** «7 días tras hacer clic, 1 día tras ver» a partir de attribution_spec del conjunto. */
 export function attributionText(raw: string): string | null {
@@ -255,6 +266,7 @@ export function table(db: SqliteDb, input: TableQuery, displayCurrency: string):
       attribution: o && q.level === 'adset' ? attributionText(o.raw) : null,
       rankings: rankings.get(id) ?? { quality: null, engagement: null, conversion: null },
       thumbFileId: o?.thumb_file_id ?? null,
+      previewUrl: o && q.level === 'ad' ? previewLink(o.raw) : null,
       creatives: creativesOf.get(id) ?? [],
       base: base ?? {},
       range: rangeOf.get(id) ?? null,

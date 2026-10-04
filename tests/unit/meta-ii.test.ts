@@ -9,7 +9,7 @@ import {
   ruleColor,
 } from '../../src/shared/meta-metrics'
 import { compilePattern, parseAdName } from '../../src/main/meta/creatives'
-import { attributionText } from '../../src/main/meta/table'
+import { attributionText, previewLink } from '../../src/main/meta/table'
 import { dayMetrics, GOOD_TOKEN } from './meta-fake'
 import { setup } from './meta-setup'
 
@@ -267,6 +267,9 @@ describe('creatividades y anuncios', () => {
     ])
     const ads = meta.table({ ...Q, level: 'ad' })
     expect(ads.rows[0]!.creatives).toEqual([{ id: ugc.id, title: 'UGC verano' }])
+    // Clic en el anuncio: su vista previa pública en Meta.
+    expect(ads.rows[0]!.previewUrl).toBe('https://fb.me/adspreview/a1')
+    expect(meta.table({ ...Q, level: 'campaign' }).rows[0]!.previewUrl).toBeNull()
 
     // Buscar y vincular a mano.
     expect(meta.searchAds('vídeo ugc').map((h) => h.id)).toEqual(['a1'])
@@ -318,5 +321,15 @@ describe('creatividades y anuncios', () => {
     expect(() => meta.tagPerf(fieldId('nombre'), Q.since, Q.until, null)).toThrow(/selección/)
     meta.dispose()
     vault.dispose()
+  })
+})
+
+describe('vista previa del anuncio', () => {
+  it('solo enlaces https', () => {
+    expect(previewLink('{"preview_shareable_link":"https://fb.me/x"}')).toBe('https://fb.me/x')
+    expect(previewLink('{"preview_shareable_link":"javascript:alert(1)"}')).toBeNull()
+    expect(previewLink('{"preview_shareable_link":"http://fb.me/x"}')).toBeNull()
+    expect(previewLink('{}')).toBeNull()
+    expect(previewLink('no es json')).toBeNull()
   })
 })
