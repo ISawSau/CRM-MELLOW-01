@@ -39,61 +39,80 @@ export function parseRange(
   return { start, end }
 }
 
+/**
+ * Respuesta con un archivo de la bóveda descifrado al vuelo. La usan el protocolo
+ * `vault://` del escritorio y el servidor local de Android (`/vault/file/<id>`, D-101).
+ */
+export function vaultFileResponse(
+  data: DataService | null,
+  kind: 'files' | 'thumbs' | null,
+  id: string,
+  rangeHeader: string | null,
+  extraHeaders: Record<string, string> = {},
+): Response {
+  const notFound = () => new Response('No encontrado', { status: 404 })
+  if (!data || !kind || !isFileId(id)) return notFound()
+  const info = data.fileInfo(id)
+  if (!info || !data.files.exists(id, kind)) return notFound()
+
+  const size = data.files.size(id, kind)
+  const headers: Record<string, string> = {
+    'Content-Type': kind === 'thumbs' ? 'image/jpeg' : servedType(info.mime),
+    'Accept-Ranges': 'bytes',
+    'Cache-Control': 'no-store',
+    'X-Content-Type-Options': 'nosniff',
+    'Content-Security-Policy': "default-src 'none'; sandbox",
+    ...extraHeaders,
+  }
+  const range = parseRange(rangeHeader, size)
+  if (range === 'invalid')
+    return new Response(null, {
+      status: 416,
+      headers: { ...headers, 'Content-Range': `bytes */${size}` },
+    })
+  const start = range?.start ?? 0
+  const end = range?.end ?? size - 1
+  const chunks = size === 0 ? null : data.files.readRange(id, start, end, kind)
+  const body = new ReadableStream<Uint8Array>({
+    pull(controller) {
+      try {
+        const next = chunks?.next()
+        if (!next || next.done) controller.close()
+        else controller.enqueue(new Uint8Array(next.value))
+      } catch (e) {
+        controller.error(e)
+      }
+    },
+    cancel() {
+      chunks?.return(undefined)
+    },
+  })
+  headers['Content-Length'] = String(size === 0 ? 0 : end - start + 1)
+  if (range) headers['Content-Range'] = `bytes ${start}-${end}/${size}`
+  return new Response(body, { status: range ? 206 : 200, headers })
+}
+
 export function registerVaultProtocol(
   ses: Session,
   getData: () => DataService | null,
   allowedOrigin: string,
 ): void {
   ses.protocol.handle(VAULT_SCHEME, (request) => {
-    const notFound = () => new Response('No encontrado', { status: 404 })
-    const data = getData()
-    if (!data) return notFound()
     let url: URL
     try {
       url = new URL(request.url)
     } catch {
-      return notFound()
+      return new Response('No encontrado', { status: 404 })
     }
     const kind = url.host === 'thumb' ? 'thumbs' : url.host === 'file' ? 'files' : null
-    const id = url.pathname.replace(/^\//, '')
-    if (!kind || !isFileId(id)) return notFound()
-    const info = data.fileInfo(id)
-    if (!info || !data.files.exists(id, kind)) return notFound()
-
-    const size = data.files.size(id, kind)
-    const headers: Record<string, string> = {
-      'Content-Type': kind === 'thumbs' ? 'image/jpeg' : servedType(info.mime),
-      'Accept-Ranges': 'bytes',
-      'Cache-Control': 'no-store',
-      'X-Content-Type-Options': 'nosniff',
-      'Content-Security-Policy': "default-src 'none'; sandbox",
-      'Access-Control-Allow-Origin': allowedOrigin,
-    }
-    const range = parseRange(request.headers.get('range'), size)
-    if (range === 'invalid')
-      return new Response(null, {
-        status: 416,
-        headers: { ...headers, 'Content-Range': `bytes */${size}` },
-      })
-    const start = range?.start ?? 0
-    const end = range?.end ?? size - 1
-    const chunks = size === 0 ? null : data.files.readRange(id, start, end, kind)
-    const body = new ReadableStream<Uint8Array>({
-      pull(controller) {
-        try {
-          const next = chunks?.next()
-          if (!next || next.done) controller.close()
-          else controller.enqueue(new Uint8Array(next.value))
-        } catch (e) {
-          controller.error(e)
-        }
+    return vaultFileResponse(
+      getData(),
+      kind,
+      url.pathname.replace(/^\//, ''),
+      request.headers.get('range'),
+      {
+        'Access-Control-Allow-Origin': allowedOrigin,
       },
-      cancel() {
-        chunks?.return(undefined)
-      },
-    })
-    headers['Content-Length'] = String(size === 0 ? 0 : end - start + 1)
-    if (range) headers['Content-Range'] = `bytes ${start}-${end}/${size}`
-    return new Response(body, { status: range ? 206 : 200, headers })
+    )
   })
 }

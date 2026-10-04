@@ -1,9 +1,8 @@
-import { app, dialog, type BrowserWindow } from 'electron'
 import { closeSync, openSync, writeFileSync, writeSync } from 'node:fs'
 import { safeFileName } from '@shared/files'
-import { join } from 'node:path'
 import { t } from '@shared/i18n'
 import { uiField, uiView } from '../data/data-service'
+import type { Platform } from '../platform'
 import type { VaultService } from '../vault/vault-service'
 import type { IpcHandlers } from './register'
 
@@ -24,10 +23,7 @@ export type DataHandlers = Pick<IpcHandlers, DataChannel>
  * Canales del motor de datos. Todos pasan por `vault.data`, que lanza
  * VAULT_IS_LOCKED si la bóveda está bloqueada.
  */
-export function createDataHandlers(
-  vault: VaultService,
-  getWindow: () => BrowserWindow | null,
-): DataHandlers {
+export function createDataHandlers(vault: VaultService, platform: Platform): DataHandlers {
   const trashList = () => ({ items: vault.data.listTrash(), days: vault.data.trashDays() })
 
   return {
@@ -69,16 +65,11 @@ export function createDataHandlers(
       uiField(vault.data.createInverseField(fieldId, label, multiple)),
     // Archivos: se eligen en el diálogo del sistema (la interfaz no puede pedir rutas).
     'files:pick': async () => {
-      const win = getWindow()
-      const options: Electron.OpenDialogOptions = {
+      const paths = await platform.pickFiles({
         title: t('Añadir archivos a la bóveda'),
         buttonLabel: t('Añadir'),
-        properties: ['openFile', 'multiSelections'],
-      }
-      const r = win
-        ? await dialog.showOpenDialog(win, options)
-        : await dialog.showOpenDialog(options)
-      return r.canceled ? [] : vault.data.importFiles(r.filePaths)
+      })
+      return paths.length ? vault.data.importFiles(paths) : []
     },
     'files:upload': ({ name, data }) => vault.data.importBuffer(name, data),
     'files:info': ({ id }) => vault.data.fileInfo(id),
@@ -86,23 +77,20 @@ export function createDataHandlers(
     // Exportar es una acción explícita: el archivo descifrado va donde el usuario elija.
     'files:export': async ({ id, name }) => {
       if (!vault.data.fileInfo(id)) return null
-      const win = getWindow()
-      const options: Electron.SaveDialogOptions = {
+      const path = await platform.saveAs({
         title: t('Guardar una copia del archivo'),
-        defaultPath: join(app.getPath('downloads'), safeFileName(name)),
+        defaultName: safeFileName(name),
+        folder: 'downloads',
         buttonLabel: t('Guardar'),
-      }
-      const r = win
-        ? await dialog.showSaveDialog(win, options)
-        : await dialog.showSaveDialog(options)
-      if (r.canceled || !r.filePath) return null
-      const fd = openSync(r.filePath, 'w')
+      })
+      if (!path) return null
+      const fd = openSync(path, 'w')
       try {
         for (const chunk of vault.data.files.readRange(id)) writeSync(fd, chunk)
       } finally {
         closeSync(fd)
       }
-      return r.filePath
+      return platform.delivered(path)
     },
     'versions:list': ({ recordId }) => vault.data.listVersions(recordId),
     'versions:create': ({ recordId, note }) => vault.data.createVersion(recordId, note),
@@ -144,19 +132,16 @@ export function createDataHandlers(
     // Exportar es una acción explícita del usuario: el archivo va donde él elija.
     'data:exportCsv': async ({ viewId }) => {
       const { csv, filename } = vault.data.exportCsv(viewId)
-      const win = getWindow()
-      const options: Electron.SaveDialogOptions = {
+      const path = await platform.saveAs({
         title: t('Exportar a CSV'),
-        defaultPath: join(app.getPath('documents'), filename),
+        defaultName: filename,
+        folder: 'documents',
         buttonLabel: t('Exportar'),
         filters: [{ name: 'CSV (Excel)', extensions: ['csv'] }],
-      }
-      const result = win
-        ? await dialog.showSaveDialog(win, options)
-        : await dialog.showSaveDialog(options)
-      if (result.canceled || !result.filePath) return null
-      writeFileSync(result.filePath, csv, 'utf8')
-      return result.filePath
+      })
+      if (!path) return null
+      writeFileSync(path, csv, 'utf8')
+      return platform.delivered(path)
     },
   }
 }
