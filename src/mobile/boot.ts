@@ -19,4 +19,4 @@ process.exit = ((code?: number) => {
   trace(`process.exit(${code ?? ''}) ignorado: el motor no puede salir en Android`)
 }) as typeof process.exit
 
-trace(`motor arrancando (Node ${process.version}, ${process.arch})`)
+trace(`motor arrancando (Node ${process.version}, ${process.arch}, Intl: ${typeof Intl})`)

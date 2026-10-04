@@ -1,4 +1,5 @@
 import './boot'
+import './intl'
 import { trace } from './trace'
 import { hostname } from 'node:os'
 import { join } from 'node:path'

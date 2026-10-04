@@ -24,4 +24,17 @@ process.argv = [
   '--version',
   '0.0.0-e2e',
 ]
+// Como en Android: Node sin ICU (sin `Intl`, normalize y localeCompare sin idioma). El motor
+// lo completa con JavaScript (src/mobile/intl.ts); aquí se comprueba que la app funciona así.
+delete globalThis.Intl
+const FORMS = ['NFC', 'NFD', 'NFKC', 'NFKD']
+String.prototype.normalize = function normalize(form = 'NFC') {
+  if (!FORMS.includes(form)) throw new RangeError(`Invalid normalization form: ${form}`)
+  return String(this)
+}
+String.prototype.localeCompare = function localeCompare(that) {
+  const a = String(this)
+  const b = String(that)
+  return a < b ? -1 : a > b ? 1 : 0
+}
 createRequire(import.meta.url)(join(root, 'out/mobile-test/backend/main.js'))

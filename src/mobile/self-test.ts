@@ -1,8 +1,28 @@
 import { mkdtempSync, readdirSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { argon2id } from 'hash-wasm'
+import { collator, norm } from '@shared/data/text'
+import { formatDate, formatNumber } from '@shared/format'
 import { sqliteVersion } from '../main/db/connection'
 import { VaultService } from '../main/vault/vault-service'
+
+function expect(what: string, got: string, want: string): void {
+  if (got !== want) throw new Error(`${what}: «${got}» en vez de «${want}»`)
+}
+
+/** Fechas por zona horaria, números, orden y búsqueda sin tildes (sin ICU, ver intl.ts). */
+function checkIntl(): void {
+  const when = Date.UTC(2026, 6, 1, 22, 30)
+  expect('fecha en Madrid', formatDate(when, 'Europe/Madrid'), '02/07/2026')
+  expect('fecha en Nueva York', formatDate(when, 'America/New_York'), '01/07/2026')
+  expect('número', formatNumber(1234.56, 2), '1.234,56')
+  expect(
+    'orden',
+    ['zeta', 'Ñu', 'oso', 'nube', 'Árbol'].sort(collator.compare).join(' '),
+    'Árbol nube Ñu oso zeta',
+  )
+  expect('sin tildes', norm('Campaña José'), 'campana jose')
+}
 
 /**
  * Autoprueba del motor en el móvil (D-101): cifrado, SQLite compilado para Android,
@@ -17,6 +37,8 @@ export async function runMobileSelfTest(
   const vault = new VaultService()
   try {
     log(`ok  SQLite ${sqliteVersion()}`)
+    checkIntl()
+    log('ok  fechas, zonas horarias, números y orden')
     const t1 = Date.now()
     await argon2id({
       password: 'prueba',
