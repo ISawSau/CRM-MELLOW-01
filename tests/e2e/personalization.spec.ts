@@ -38,9 +38,9 @@ const cssVar = (name: string) =>
 
 test('crear un tema propio con vista previa en directo y aviso de contraste', async () => {
   await page.getByTestId('nav-ajustes').click()
-  await page.getByRole('button', { name: 'Nuevo tema a partir de «Oscuro»' }).click()
+  await page.getByRole('button', { name: 'Nuevo tema a partir de «Mellow»' }).click()
   const ed = page.getByTestId('theme-editor')
-  await expect(ed.getByLabel('Nombre del tema')).toHaveValue('Oscuro (copia)')
+  await expect(ed.getByLabel('Nombre del tema')).toHaveValue('Mellow (copia)')
   await ed.getByLabel('Nombre del tema').fill('Marca')
   await ed.getByLabel('Botón principal (código)', { exact: true }).fill('#f5d000')
   await expect.poll(() => cssVar('--accent')).toBe('#f5d000')
@@ -49,7 +49,7 @@ test('crear un tema propio con vista previa en directo y aviso de contraste', as
   await expect(ed.getByTestId('theme-contrast')).toContainText('Texto de acento sobre el fondo')
   await ed.getByLabel('Texto y enlaces de acento (código)', { exact: true }).fill('#f5d000')
   await ed.getByLabel('Opacidad de separadores', { exact: true }).fill('40')
-  await expect.poll(() => cssVar('--line')).toBe('rgba(224, 164, 124, 0.4)')
+  await expect.poll(() => cssVar('--line')).toBe('rgba(242, 166, 90, 0.4)')
   if (shots) await page.screenshot({ path: join(shots, '80-editor-temas.png'), fullPage: true })
   await ed.getByRole('button', { name: 'Guardar tema' }).click()
   await expect(ed).toBeHidden()
@@ -67,7 +67,7 @@ test('cancelar la edición deshace la vista previa; la paleta lista los temas pr
   await ed.getByLabel('Fondo (código)', { exact: true }).fill('#202060')
   await expect.poll(() => cssVar('--bg')).toBe('#202060')
   await ed.getByRole('button', { name: 'Cancelar' }).click()
-  await expect.poll(() => cssVar('--bg')).toBe('#0d0908')
+  await expect.poll(() => cssVar('--bg')).toBe('#0b0807')
 
   await page.getByTestId('theme-oscuro').click()
   await expect.poll(() => cssVar('--accent')).toBe('#e0a47c')
@@ -136,14 +136,38 @@ test('exportar el tema a un archivo e importarlo (como haría con lo que da una 
   )
 })
 
-test('borrar el tema en uso vuelve al oscuro', async () => {
+test('borrar el tema en uso vuelve al de serie (Mellow)', async () => {
   await page.getByRole('button', { name: 'Editar «Marca»' }).click()
   const ed = page.getByTestId('theme-editor')
   await ed.getByRole('button', { name: 'Borrar tema' }).click()
   await ed.getByRole('button', { name: 'Sí, borrar «Marca»' }).click()
   await expect(page.getByRole('button', { name: 'Marca', exact: true })).toHaveCount(0)
-  await expect(page.getByTestId('theme-oscuro')).toHaveAttribute('aria-pressed', 'true')
-  await expect.poll(() => cssVar('--accent')).toBe('#e0a47c')
+  await expect(page.getByTestId('theme-mellow')).toHaveAttribute('aria-pressed', 'true')
+  await expect.poll(() => cssVar('--accent')).toBe('#f2a65a')
+})
+
+test('estilo del tema: clásico o flotante, transparencia y animaciones', async () => {
+  const attr = (n: string) => page.evaluate((k) => document.documentElement.dataset[k], n)
+  // Mellow (de serie) es flotante, sin transparencia y con títulos normales.
+  await expect.poll(() => attr('layout')).toBe('flotante')
+  await expect.poll(() => attr('transparency')).toBe('solido')
+  await page.getByTestId('theme-oscuro').click()
+  await expect.poll(() => attr('layout')).toBe('clasica')
+  await page.getByTestId('theme-mellow').click()
+  await page.getByRole('button', { name: 'Nuevo tema a partir de «Mellow»' }).click()
+  const ed = page.getByTestId('theme-editor')
+  const style = ed.getByTestId('theme-style')
+  await style.getByLabel('Transparencia').selectOption('cristal')
+  await expect.poll(() => attr('transparency')).toBe('cristal')
+  await style.getByLabel('Desenfoque').fill('24')
+  await expect.poll(() => cssVar('--panel-blur')).toBe('24px')
+  await style.getByLabel('Animaciones').selectOption('ninguno')
+  await expect.poll(() => attr('motion')).toBe('ninguno')
+  await style.getByLabel('Disposición').selectOption('clasica')
+  await expect.poll(() => cssVar('--gap')).toBe('0px')
+  await ed.getByRole('button', { name: 'Cancelar' }).click()
+  await expect.poll(() => attr('transparency')).toBe('solido')
+  if (shots) await page.screenshot({ path: join(shots, '86-tema-mellow.png') })
 })
 
 test('los iconos de las secciones son SVG y se eligen en Ajustes', async () => {

@@ -67,6 +67,12 @@ function ShellInner({ status }: { status: VaultStatus }) {
   useDataEvents()
   const [collapsed, setCollapsed] = useState(false)
   const [paletteOpen, setPaletteOpen] = useState(false)
+  // Al abrir la bóveda los paneles entran como ventanas; después ya no se repite.
+  const [intro, setIntro] = useState(true)
+  useEffect(() => {
+    const timer = setTimeout(() => setIntro(false), 900)
+    return () => clearTimeout(timer)
+  }, [])
   useActivityPing()
 
   const appearance = status.appearance ?? DEFAULT_APPEARANCE
@@ -165,7 +171,12 @@ function ShellInner({ status }: { status: VaultStatus }) {
 
   return (
     <NavContext.Provider value={nav}>
-      <div className="shell" data-collapsed={collapsed} data-testid="shell">
+      <div
+        className="shell"
+        data-collapsed={collapsed}
+        data-intro={intro || undefined}
+        data-testid="shell"
+      >
         <Sidebar
           groups={groups}
           current={section}

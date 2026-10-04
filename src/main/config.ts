@@ -15,6 +15,8 @@ const configSchema = z.object({
   lastVaultPath: z.string().nullable().default(null),
   locale: localeSchema.default('es'),
   lockAnimation: lockAnimationSchema.default('gravedad'),
+  /** El tema en uso pide ventana transparente (D-097); se aplica al crear la ventana. */
+  windowTransparent: z.boolean().default(false),
 })
 export type AppConfig = z.infer<typeof configSchema>
 
@@ -37,7 +39,7 @@ export class ConfigStore {
     } catch {
       // Sin archivo o ilegible: se empieza de cero.
     }
-    return { lastVaultPath: null, locale: 'es', lockAnimation: 'gravedad' }
+    return configSchema.parse({})
   }
 
   get(): AppConfig {
@@ -56,6 +58,12 @@ export class ConfigStore {
 
   setLockAnimation(lockAnimation: LockAnimation): void {
     this.data = { ...this.data, lockAnimation }
+    writeFileAtomic(this.file, JSON.stringify(this.data, null, 2) + '\n')
+  }
+
+  setWindowTransparent(windowTransparent: boolean): void {
+    if (this.data.windowTransparent === windowTransparent) return
+    this.data = { ...this.data, windowTransparent }
     writeFileAtomic(this.file, JSON.stringify(this.data, null, 2) + '\n')
   }
 }

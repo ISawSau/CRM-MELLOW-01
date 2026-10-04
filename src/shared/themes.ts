@@ -64,6 +64,31 @@ export const themeBackgroundSchema = z.object({
 })
 export type ThemeBackground = z.infer<typeof themeBackgroundSchema>
 
+/**
+ * Estilo del tema (D-097): cómo se colocan y se mueven los paneles. «flotante» es el estilo
+ * de Hyprland: paneles separados por huecos, esquinas redondeadas y borde de color en el
+ * panel activo. La transparencia «cristal» deja ver un fondo dentro de la app con los
+ * paneles desenfocados; «ventana» hace transparente la propia ventana (se aplica al reiniciar).
+ */
+export const themeStyleSchema = z.object({
+  layout: z.enum(['clasica', 'flotante']).default('clasica'),
+  /** Huecos entre paneles (px, solo en «flotante»). */
+  gap: z.number().int().min(0).max(32).default(10),
+  /** Grosor del borde del panel activo (px, solo en «flotante»). */
+  border: z.number().int().min(0).max(4).default(2),
+  /** Borde en degradado del acento a la numeración (si no, liso). */
+  gradient: z.boolean().default(true),
+  transparency: z.enum(['solido', 'cristal', 'ventana']).default('solido'),
+  /** Opacidad de los paneles con transparencia (0,4 a 1). */
+  opacity: z.number().min(0.4).max(1).default(0.82),
+  /** Desenfoque de lo que hay detrás de los paneles (px). */
+  blur: z.number().int().min(0).max(40).default(16),
+  motion: z.enum(['ninguno', 'suave', 'vivo']).default('suave'),
+  titles: z.enum(['mayusculas', 'normal']).default('mayusculas'),
+})
+export type ThemeStyle = z.infer<typeof themeStyleSchema>
+export const CLASSIC_STYLE: ThemeStyle = themeStyleSchema.parse({})
+
 export const themeSchema = z.object({
   id: themeIdSchema,
   name: z.string().min(1).max(60),
@@ -73,6 +98,7 @@ export const themeSchema = z.object({
   /** Redondeo de esquinas de botones, campos, tarjetas y ventanas (px). */
   radius: z.number().int().min(0).max(24).default(0),
   background: themeBackgroundSchema.nullable().default(null),
+  style: themeStyleSchema.default(CLASSIC_STYLE),
 })
 export type Theme = z.infer<typeof themeSchema>
 export type ThemeInput = z.input<typeof themeSchema>
@@ -99,8 +125,60 @@ const PALETTE = {
 
 export const BUILT_IN_THEMES: readonly Theme[] = [
   {
+    // Tema de serie desde la 0.14 (D-097): oscuro con el ámbar y el naranja del ojo, al estilo
+    // de los escritorios de Hyprland (HyDE, sh1zicus): paneles flotantes y redondeados.
+    id: 'mellow',
+    name: 'Mellow',
+    scheme: 'dark',
+    colors: {
+      bg: '#0b0807',
+      bgRaised: '#15100e',
+      bgHover: '#211814',
+      text: '#f7ede3',
+      textMuted: '#c9b9ad',
+      textFaint: '#a39083',
+      line: 'rgba(242, 166, 90, 0.14)',
+      lineStrong: 'rgba(242, 166, 90, 0.34)',
+      accent: '#f2a65a',
+      onAccent: '#140d08',
+      accentText: '#f5b574',
+      index: '#e8794a',
+      marker: '#e8794a',
+      success: '#a8c784',
+      danger: '#ef8a76',
+      warning: '#f2c66f',
+      focus: '#f2a65a',
+      shadow: 'rgba(0, 0, 0, 0.5)',
+      icon: '#c48a62',
+      iconActive: '#f2a65a',
+    },
+    radius: 10,
+    background: null,
+    style: {
+      layout: 'flotante',
+      gap: 10,
+      border: 2,
+      gradient: true,
+      transparency: 'solido',
+      opacity: 0.82,
+      blur: 16,
+      motion: 'suave',
+      titles: 'normal',
+    },
+    options: {
+      gris: { bg: '#2a2422', text: '#d9cec7' },
+      melocoton: { bg: '#3a2619', text: '#f0c3a3' },
+      terracota: { bg: '#3d1f15', text: '#eb9c7d' },
+      vino: { bg: '#3a1614', text: '#f0a39b' },
+      ambar: { bg: '#3a2e12', text: '#ecd08a' },
+      verde: { bg: '#1f2c17', text: '#b9d69a' },
+      azul: { bg: '#16253a', text: '#9fc2ea' },
+      lila: { bg: '#2b1d3a', text: '#cfb2ee' },
+    },
+  },
+  {
     id: 'oscuro',
-    name: 'Oscuro',
+    name: 'Clásico oscuro',
     scheme: 'dark',
     colors: {
       bg: PALETTE.ink,
@@ -126,6 +204,7 @@ export const BUILT_IN_THEMES: readonly Theme[] = [
     },
     radius: 0,
     background: null,
+    style: CLASSIC_STYLE,
     options: {
       gris: { bg: '#2a2422', text: '#d9cec7' },
       melocoton: { bg: '#3a2619', text: '#f0c3a3' },
@@ -139,7 +218,7 @@ export const BUILT_IN_THEMES: readonly Theme[] = [
   },
   {
     id: 'claro',
-    name: 'Claro',
+    name: 'Clásico claro',
     scheme: 'light',
     colors: {
       bg: PALETTE.paper,
@@ -165,6 +244,7 @@ export const BUILT_IN_THEMES: readonly Theme[] = [
     },
     radius: 0,
     background: null,
+    style: CLASSIC_STYLE,
     options: {
       gris: { bg: '#ece4dc', text: '#4a3f39' },
       melocoton: { bg: '#f7dcc7', text: '#7a3f1c' },
@@ -188,8 +268,16 @@ const kebab = (k: string) => k.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`)
 
 /** Variables CSS de un tema: { '--bg': '#0d0908', … } */
 export function themeToCssVars(theme: Theme): Record<string, string> {
+  const st = theme.style
+  const floating = st.layout === 'flotante'
   return Object.fromEntries([
     ['--radius', `${theme.radius ?? 0}px`],
+    // Los paneles flotantes redondean un poco más que los botones, como las ventanas.
+    ['--radius-panel', `${floating ? (theme.radius ?? 0) + 4 : 0}px`],
+    ['--gap', `${floating ? st.gap : 0}px`],
+    ['--panel-border', `${floating ? st.border : 0}px`],
+    ['--panel-opacity', `${st.transparency === 'solido' ? 100 : Math.round(st.opacity * 100)}%`],
+    ['--panel-blur', `${st.transparency === 'solido' ? 0 : st.blur}px`],
     ...Object.entries(theme.colors)
       .filter((e): e is [string, string] => e[1] !== undefined)
       .map(([k, v]) => [`--${kebab(k)}`, v]),

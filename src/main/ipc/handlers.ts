@@ -73,6 +73,8 @@ export function createHandlers({
   const allowedPaths = new Set<string>()
   const allow = (p: string) => allowedPaths.add(resolve(p))
   const lastPath = config.get().lastVaultPath
+  // La transparencia de la ventana se decide al crearla: lo que valía al arrancar.
+  const windowTransparentAtStart = config.get().windowTransparent
   if (lastPath) allow(lastPath)
   const requireAllowed = (p: string) => {
     if (!allowedPaths.has(resolve(p))) throw new AppError('PATH_NOT_ALLOWED')
@@ -181,6 +183,11 @@ export function createHandlers({
       setLocale(locale)
     },
     'app:lockAnimation': () => config.get().lockAnimation,
+    // El tema pide (o deja de pedir) ventana transparente: vale para la próxima vez que se abra.
+    'app:windowTransparent': ({ value }) => {
+      config.setWindowTransparent(value)
+      return { active: windowTransparentAtStart }
+    },
     'app:setLockAnimation': ({ value }) => config.setLockAnimation(value),
 
     // Exportar un tema es una acción explícita: el archivo va donde elija el usuario.

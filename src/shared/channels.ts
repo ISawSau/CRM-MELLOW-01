@@ -9,6 +9,7 @@ export const IPC_CHANNELS = [
   'app:locale',
   'app:setLocale',
   'app:lockAnimation',
+  'app:windowTransparent',
   'app:setLockAnimation',
   'vault:status',
   'vault:pickFolder',

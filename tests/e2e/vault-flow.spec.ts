@@ -43,7 +43,7 @@ test('crear, usar, bloquear, recuperar y reabrir una bóveda', async () => {
   await expect(page.getByTestId('shell')).toBeVisible()
   await expect(page.getByTestId('statusbar')).toContainText('CRM-Boveda')
   await expect(page.getByTestId('page-inicio')).toBeVisible()
-  expect(await page.evaluate(() => document.documentElement.dataset['theme'])).toBe('oscuro')
+  expect(await page.evaluate(() => document.documentElement.dataset['theme'])).toBe('mellow')
   expect(await page.evaluate(() => document.documentElement.dataset['density'])).toBe('compacta')
   for (const f of ['vault.json', 'crm.db', 'files', 'thumbs', 'backups', '.lock']) {
     expect(existsSync(join(vaultPath, f)), f).toBe(true)
@@ -80,7 +80,7 @@ test('crear, usar, bloquear, recuperar y reabrir una bóveda', async () => {
   await expect(page.getByTestId('unlock-name')).toHaveText('CRM-Boveda')
   expect(existsSync(join(vaultPath, '.lock'))).toBe(false)
   // Bloqueada: se vuelve a la apariencia por defecto.
-  expect(await page.evaluate(() => document.documentElement.dataset['theme'])).toBe('oscuro')
+  expect(await page.evaluate(() => document.documentElement.dataset['theme'])).toBe('mellow')
 
   await page.getByTestId('unlock-password').fill('contraseña equivocada')
   await page.getByTestId('unlock-submit').click()

@@ -129,9 +129,9 @@ describe('bloquear y desbloquear', () => {
 })
 
 describe('apariencia', () => {
-  it('por defecto: tema oscuro y densidad compacta', async () => {
+  it('por defecto: tema Mellow y densidad compacta', async () => {
     const { svc } = await newVault()
-    expect(svc.status().appearance).toEqual({ theme: 'oscuro', density: 'compacta', icons: {} })
+    expect(svc.status().appearance).toEqual({ theme: 'mellow', density: 'compacta', icons: {} })
     svc.dispose()
   })
 
@@ -150,7 +150,7 @@ describe('apariencia', () => {
     svc.dispose()
   })
 
-  it('temas propios: se guardan validados y, si se borra el que está en uso, vuelve el oscuro', async () => {
+  it('temas propios: se guardan validados y, si se borra el que está en uso, vuelve el de serie', async () => {
     const { svc } = await newVault()
     expect(svc.status().themes).toEqual([])
     const mio = { ...BUILT_IN_THEMES[1]!, id: 'propio-marca', name: 'Marca' }
@@ -163,7 +163,7 @@ describe('apariencia', () => {
     expect(() => svc.setThemes([{ ...mio, id: 'claro' }])).toThrow()
     expect(() => svc.setThemes([mio, mio])).toThrow()
     expect(() => svc.setThemes([{ ...mio, colors: { ...mio.colors, bg: 'url(x)' } }])).toThrow()
-    expect(svc.setThemes([]).appearance?.theme).toBe('oscuro')
+    expect(svc.setThemes([]).appearance?.theme).toBe('mellow')
     svc.dispose()
   })
 })

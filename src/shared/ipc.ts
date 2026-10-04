@@ -186,6 +186,7 @@ export const ipcSchemas = {
   'app:locale': z.void(),
   'app:setLocale': z.object({ locale: localeSchema }),
   'app:lockAnimation': z.void(),
+  'app:windowTransparent': z.object({ value: z.boolean() }),
   'app:setLockAnimation': z.object({ value: lockAnimationSchema }),
   'vault:status': z.void(),
   'vault:pickFolder': z.object({ purpose: z.enum(['create', 'open']) }),
@@ -396,6 +397,8 @@ export interface IpcOutputs {
   'app:locale': Locale
   'app:setLocale': void
   'app:lockAnimation': LockAnimation
+  /** Si la ventana ya es transparente (se decide al abrir la app). */
+  'app:windowTransparent': { active: boolean }
   'app:setLockAnimation': void
   'vault:status': VaultStatus
   'vault:pickFolder': string | null

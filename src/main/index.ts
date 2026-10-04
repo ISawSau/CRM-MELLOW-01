@@ -257,5 +257,6 @@ function createWindowFor(ses: Electron.Session): BrowserWindow {
     session: ses,
     preload: join(__dirname, '../preload/index.js'),
     url: devServerUrl ?? `${APP_ORIGIN}/index.html`,
+    transparent: config.get().windowTransparent,
   })
 }

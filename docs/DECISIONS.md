@@ -725,3 +725,23 @@ El usuario no quiere escribir comandos de desarrollo para usar la app. Los insta
   - En Ajustes → Apariencia también se puede elegir «Una distinta cada vez» o «Ninguna».
 - **Dónde se guarda:** en la configuración mínima de fuera de la bóveda, como el idioma. Hace falta antes de desbloquear y no es un dato del usuario.
 - **Coste:** 30 fotogramas por segundo como máximo. Se para con la ventana oculta y, si el sistema pide menos movimiento, se queda en un fotograma fijo. Sin dependencias. Las escenas son funciones puras (`ascii-scenes.ts`) que rellenan un búfer de brillo.
+
+### D-097 · Tema «Mellow» de serie, al estilo de Hyprland, con el estilo configurable
+
+- **Por qué:** al usuario la interfaz le parecía saturada y de estilo antiguo. Pidió un tema principal ambientado en los escritorios «aesthetic» de Hyprland (HyDE, sh1zicus), con el estilo de antes disponible en Ajustes.
+- **Mellow** (nuevo, de serie):
+  - Colores: oscuro casi negro, con el ámbar y el naranja del logo. Pasa AA.
+  - Paneles flotantes separados por huecos de 10 px, esquinas de 10 px (14 px en los paneles).
+  - Borde de 2 px en degradado ámbar→naranja en el panel activo, como la ventana con foco en Hyprland.
+  - Barra lateral con elementos en píldora; barra inferior con módulos en píldora, como Waybar.
+  - Títulos sin mayúsculas, sin transparencia y con animaciones suaves.
+  - Los temas de antes se llaman ahora «Clásico oscuro» y «Clásico claro». Quien ya los tenía elegidos los conserva; las bóvedas sin elección pasan a Mellow.
+- **Estilo dentro del tema** (`style`, editable en el editor de temas): disposición (clásica o flotante), huecos, grosor del borde activo, degradado, transparencia, opacidad de paneles, desenfoque, animaciones (ninguna, suaves, marcadas) y títulos (normales o en mayúsculas). Se aplica con atributos en `<html>` y variables CSS (`styles/hypr.css`). Los temas guardados antes reciben el estilo clásico, así que no cambian.
+- **Transparencia:**
+  - **cristal:** fondo dentro de la app (el del tema o un degradado con sus colores) y paneles con `backdrop-filter`. Igual en Windows y Linux.
+  - **ventana:** ventana transparente. En Linux con `transparent: true` (el desenfoque lo pone el compositor; en Hyprland con una regla «blur»). En Windows 11 con el material acrílico.
+  - Como se decide al crear la ventana, se guarda en la configuración mínima de fuera de la bóveda (`windowTransparent`) y se aplica al reabrir la app. Por defecto no hay transparencia, como pidió el usuario.
+- **Animaciones:**
+  - Las páginas entran con un leve desplazamiento; los diálogos, la paleta y el fondo oscuro aparecen con una transición.
+  - Al abrir la bóveda, los paneles entran como ventanas, solo esa vez (`data-intro`).
+  - Se respeta «reducir movimiento» del sistema.

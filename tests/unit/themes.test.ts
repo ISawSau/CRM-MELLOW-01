@@ -32,9 +32,16 @@ describe('temas', () => {
     expect(new Set(BUILT_IN_THEMES.map((t) => t.id)).size).toBe(BUILT_IN_THEMES.length)
   })
 
-  it('el tema por defecto es el oscuro y un id desconocido vuelve a él', () => {
-    expect(BUILT_IN_THEMES[0]!.id).toBe('oscuro')
-    expect(findTheme('no-existe').id).toBe('oscuro')
+  it('el tema por defecto es Mellow y un id desconocido vuelve a él', () => {
+    expect(BUILT_IN_THEMES[0]!.id).toBe('mellow')
+    expect(findTheme('no-existe').id).toBe('mellow')
+    // Mellow es flotante (estilo Hyprland); los clásicos siguen como antes.
+    const m = themeToCssVars(findTheme('mellow'))
+    expect(m).toMatchObject({ '--gap': '10px', '--radius-panel': '14px', '--panel-border': '2px' })
+    expect(themeToCssVars(findTheme('oscuro'))).toMatchObject({
+      '--gap': '0px',
+      '--panel-blur': '0px',
+    })
   })
 
   it('genera las variables CSS de DESIGN.md', () => {
@@ -73,6 +80,7 @@ describe('temas', () => {
   it('contraste con opacidad y avisos de un tema propio', () => {
     expect(contrastIssues(findTheme('oscuro'))).toEqual([])
     expect(contrastIssues(findTheme('claro'))).toEqual([])
+    expect(contrastIssues(findTheme('mellow'))).toEqual([])
     // Un amarillo de marca como texto sobre blanco no llega a AA.
     const t = findTheme('claro')
     const amarillo = { ...t, colors: { ...t.colors, bg: '#ffffff', accentText: '#f5d000' } }

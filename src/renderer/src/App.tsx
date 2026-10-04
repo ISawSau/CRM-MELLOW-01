@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { DEFAULT_APPEARANCE } from '@shared/appearance'
 import { useVaultStatus } from './lib/hooks'
+import { call } from './lib/ipc'
 import { CreateVault } from './screens/CreateVault'
 import { Gate } from './screens/Gate'
 import { RecoveryKeyPanel } from './screens/RecoveryKey'
@@ -18,7 +19,7 @@ export function App() {
   /** Clave de recuperación recién creada: se muestra antes de entrar. */
   const [newRecoveryKey, setNewRecoveryKey] = useState<string | null>(null)
 
-  // Antes de desbloquear se usa la apariencia por defecto (tema oscuro, densidad compacta).
+  // Antes de desbloquear se usa la apariencia por defecto (tema Mellow, densidad compacta).
   const appearance = status.data?.appearance ?? DEFAULT_APPEARANCE
   const themes = status.data?.themes
   useEffect(() => {
@@ -27,6 +28,16 @@ export function App() {
       appearance.density,
     )
   }, [appearance.theme, appearance.density, themes])
+
+  // Ventana transparente (D-097): se recuerda fuera de la bóveda y se aplica al reabrir la app.
+  const wantsWindow =
+    status.data?.state === 'unlocked' &&
+    findTheme(appearance.theme, [...BUILT_IN_THEMES, ...(themes ?? [])]).style.transparency ===
+      'ventana'
+  const unlocked = status.data?.state === 'unlocked'
+  useEffect(() => {
+    if (unlocked) void call('app:windowTransparent', { value: wantsWindow }).catch(() => {})
+  }, [unlocked, wantsWindow])
 
   if (!status.data) return null
   const s = status.data

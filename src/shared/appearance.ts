@@ -4,8 +4,8 @@ import { z } from 'zod'
  * Preferencias de apariencia. Se guardan dentro de la bóveda (son datos del usuario);
  * antes de desbloquear se usan los valores por defecto.
  *
- * `theme` es el id de un tema. Hoy existen los predefinidos ("oscuro", "claro");
- * más adelante el usuario podrá crear los suyos desde la app (SPEC §7.14).
+ * `theme` es el id de un tema: los predefinidos ("mellow", el de serie, y los clásicos
+ * "oscuro" y "claro") o uno creado por el usuario (SPEC §7.14).
  */
 export const DENSITIES = ['compacta', 'comoda'] as const
 export type Density = (typeof DENSITIES)[number]
@@ -36,4 +36,4 @@ export const appearancePatchSchema = z.object({
 })
 export type AppearancePatch = z.infer<typeof appearancePatchSchema>
 
-export const DEFAULT_APPEARANCE: Appearance = { theme: 'oscuro', density: 'compacta', icons: {} }
+export const DEFAULT_APPEARANCE: Appearance = { theme: 'mellow', density: 'compacta', icons: {} }

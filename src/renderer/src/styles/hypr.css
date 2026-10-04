@@ -1,0 +1,273 @@
+/*
+ * Estilo del tema (D-097): disposición flotante al estilo de Hyprland, transparencia,
+ * animaciones y títulos. Todo depende de atributos en <html> que pone el tema
+ * (data-layout, data-transparency, data-motion, data-titles, data-gradient) y de las
+ * variables --gap, --radius-panel, --panel-border, --panel-opacity y --panel-blur.
+ */
+
+:root {
+  --panel-bg: color-mix(in srgb, var(--bg-raised) var(--panel-opacity, 100%), transparent);
+  --border-grad: var(--line-strong);
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --motion-dur: 220ms;
+  --motion-shift: 8px;
+}
+
+:root[data-gradient='true'] {
+  --border-grad: linear-gradient(135deg, var(--accent), var(--index) 55%, var(--accent));
+}
+
+/* --- Disposición flotante: paneles separados como ventanas de Hyprland -------- */
+
+:root[data-layout='flotante'] .shell {
+  padding: var(--gap);
+  gap: var(--gap);
+  grid-template-rows: 1fr 30px;
+  background: transparent;
+}
+
+:root[data-layout='flotante'] .sidebar,
+:root[data-layout='flotante'] .main,
+:root[data-layout='flotante'] .statusbar {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+  background: var(--panel-bg);
+  box-shadow: 0 10px 30px -12px var(--shadow);
+}
+
+:root[data-layout='flotante'] .sidebar {
+  overflow: hidden;
+}
+
+/* El panel activo (el contenido) lleva el borde de color, como la ventana con foco. */
+:root[data-layout='flotante'] .main {
+  position: relative;
+  border: var(--panel-border) solid transparent;
+  background:
+    linear-gradient(var(--panel-bg), var(--panel-bg)) padding-box,
+    var(--border-grad) border-box;
+}
+
+:root[data-layout='flotante'][data-transparency='solido'] .main {
+  background:
+    linear-gradient(var(--bg-raised), var(--bg-raised)) padding-box,
+    var(--border-grad) border-box;
+}
+
+:root[data-layout='flotante'] .sidebar-head,
+:root[data-layout='flotante'] .sidebar-foot {
+  border-color: var(--line);
+}
+
+/* Elementos de la barra lateral como píldoras. */
+:root[data-layout='flotante'] .nav,
+:root[data-layout='flotante'] .sidebar-foot {
+  padding-left: var(--space-2);
+  padding-right: var(--space-2);
+}
+
+:root[data-layout='flotante'] .nav-item {
+  border-radius: var(--radius);
+  padding: 0 var(--space-3);
+}
+
+:root[data-layout='flotante'] .nav-group-title {
+  padding-left: var(--space-3);
+}
+
+:root[data-layout='flotante'] .nav-item[aria-current='page'] {
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+}
+
+:root[data-layout='flotante'] .nav-item[aria-current='page']::before {
+  display: none;
+}
+
+:root[data-layout='flotante'] .shell[data-collapsed='true'] .nav-item {
+  padding: 0;
+}
+
+/* Barra inferior como la de Waybar: módulos en píldoras. */
+:root[data-layout='flotante'] .statusbar {
+  gap: var(--space-2);
+  padding: 0 var(--space-2);
+}
+
+:root[data-layout='flotante'] .statusbar-item {
+  padding: 2px var(--space-3);
+  border-radius: 999px;
+  background: var(--bg-hover);
+}
+
+/* Diálogos y paleta como ventanas flotantes. */
+:root[data-layout='flotante'] .dialog,
+:root[data-layout='flotante'] .palette,
+:root[data-layout='flotante'] .panel {
+  border-radius: var(--radius-panel);
+}
+
+:root[data-layout='flotante'] .overlay {
+  backdrop-filter: blur(3px);
+}
+
+/* --- Transparencia ------------------------------------------------------------ */
+
+/* Cristal: un fondo dentro de la app (el del tema o uno de serie) y paneles desenfocados. */
+:root[data-transparency='cristal'] body {
+  background:
+    radial-gradient(
+      60vw 60vh at 85% 15%,
+      color-mix(in srgb, var(--accent) 28%, transparent),
+      transparent 70%
+    ),
+    radial-gradient(
+      50vw 55vh at 10% 90%,
+      color-mix(in srgb, var(--index) 26%, transparent),
+      transparent 70%
+    ),
+    var(--bg);
+}
+
+:root[data-transparency='cristal'][data-bg] body {
+  background: transparent;
+}
+
+/* Ventana: la ventana es transparente (Hyprland la desenfoca; Windows 11, efecto acrílico). */
+:root[data-transparency='ventana'],
+:root[data-transparency='ventana'] body {
+  background: transparent;
+}
+
+:root[data-transparency='ventana'] .shell {
+  background: color-mix(in srgb, var(--bg) 35%, transparent);
+}
+
+:root:is([data-transparency='cristal'], [data-transparency='ventana']) .sidebar,
+:root:is([data-transparency='cristal'], [data-transparency='ventana']) .main,
+:root:is([data-transparency='cristal'], [data-transparency='ventana']) .statusbar,
+:root:is([data-transparency='cristal'], [data-transparency='ventana']) .dialog,
+:root:is([data-transparency='cristal'], [data-transparency='ventana']) .palette {
+  backdrop-filter: blur(var(--panel-blur)) saturate(1.2);
+}
+
+:root:is([data-transparency='cristal'], [data-transparency='ventana']) .sidebar,
+:root:is([data-transparency='cristal'], [data-transparency='ventana']) .statusbar {
+  background: var(--panel-bg);
+}
+
+/* --- Títulos ------------------------------------------------------------------ */
+
+:root[data-titles='normal'] .title,
+:root[data-titles='normal'] .title-hero,
+:root[data-titles='normal'] .empty h2 {
+  text-transform: none;
+  letter-spacing: -0.02em;
+  font-weight: 700;
+}
+
+:root[data-titles='normal'] .nav-group-title {
+  letter-spacing: 0.08em;
+}
+
+/* --- Animaciones ---------------------------------------------------------------- */
+
+:root[data-motion='vivo'] {
+  --motion-dur: 360ms;
+  --motion-shift: 14px;
+}
+
+@keyframes motion-page-in {
+  from {
+    opacity: 0;
+    transform: translateY(var(--motion-shift));
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes motion-pop-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) scale(1);
+  }
+}
+
+@keyframes motion-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes motion-window-in {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+:root:not([data-motion='ninguno']) .page {
+  animation: motion-page-in var(--motion-dur) var(--ease-out) backwards;
+}
+
+:root:not([data-motion='ninguno']) .dialog,
+:root:not([data-motion='ninguno']) .palette {
+  animation: motion-pop-in var(--motion-dur) var(--ease-out) both;
+}
+
+:root:not([data-motion='ninguno']) .overlay {
+  animation: motion-fade-in var(--motion-dur) ease-out both;
+}
+
+/* Al abrir la bóveda, los paneles aparecen como ventanas que se abren. */
+:root[data-layout='flotante']:not([data-motion='ninguno']) .shell[data-intro] .sidebar,
+:root[data-layout='flotante']:not([data-motion='ninguno']) .shell[data-intro] .main,
+:root[data-layout='flotante']:not([data-motion='ninguno']) .shell[data-intro] .statusbar {
+  animation: motion-window-in calc(var(--motion-dur) * 1.4) var(--ease-out) backwards;
+}
+
+:root[data-layout='flotante']:not([data-motion='ninguno']) .shell[data-intro] .main {
+  animation-delay: 60ms;
+}
+
+:root[data-layout='flotante']:not([data-motion='ninguno']) .shell[data-intro] .statusbar {
+  animation-delay: 120ms;
+}
+
+:root:not([data-motion='ninguno']) .nav-item,
+:root:not([data-motion='ninguno']) .btn,
+:root:not([data-motion='ninguno']) .home-card {
+  transition:
+    background-color var(--motion-dur) var(--ease-out),
+    color var(--motion-dur) var(--ease-out),
+    border-color var(--motion-dur) var(--ease-out),
+    transform var(--motion-dur) var(--ease-out);
+}
+
+:root[data-motion='vivo'] .btn:active {
+  transform: scale(0.97);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root .page,
+  :root .dialog,
+  :root .palette,
+  :root .overlay,
+  :root .sidebar,
+  :root .main,
+  :root .statusbar {
+    animation: none !important;
+  }
+}

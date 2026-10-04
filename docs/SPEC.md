@@ -387,6 +387,7 @@ Perfil · bóveda · seguridad (contraseña, autobloqueo, clave de recuperación
 ---
 - **Iconos (D-094):** la barra lateral usa iconos SVG (Lucide). Cada sección trae uno de serie y se puede cambiar en Ajustes → Iconos de las secciones. Su color va en el tema (`icon`, `iconActive`).
 - **Ancho y barras de desplazamiento (D-093):** las páginas ocupan todo el ancho de la ventana y las barras de desplazamiento llevan los colores del tema.
+- **Tema de serie «Mellow» (D-097):** al estilo de los escritorios de Hyprland, con paneles flotantes separados por huecos, esquinas redondeadas, borde en degradado ámbar→naranja en el panel activo, barras en píldoras, títulos sin mayúsculas y animaciones suaves. Sin transparencia de serie. Cada tema define su estilo (disposición clásica o flotante, huecos, borde, transparencia «cristal» o de ventana, opacidad, desenfoque, animaciones y títulos) y todo se cambia en el editor de temas. Los temas anteriores siguen como «Clásico oscuro» y «Clásico claro».
 
 ## 9. Fases de construcción
 
