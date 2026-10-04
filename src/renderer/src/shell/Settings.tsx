@@ -1,5 +1,7 @@
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState, type FormEvent } from 'react'
 import { DEFAULT_APPEARANCE, type Density } from '@shared/appearance'
+import { LOCK_ANIMATION_LABELS, LOCK_ANIMATIONS, type LockAnimation } from '@shared/lock-animation'
 import { MIN_PASSWORD_LENGTH, type VaultStatus } from '@shared/ipc'
 import { call } from '../lib/ipc'
 import { useAction } from '../lib/hooks'
@@ -132,8 +134,44 @@ function Appearance({ status }: { status: VaultStatus }) {
           ))}
         </div>
       </div>
+      <LockAnimationField />
       {save.error && <Alert>{save.error.message}</Alert>}
     </Block>
+  )
+}
+
+/** Animación de la pantalla de contraseña: se guarda fuera de la bóveda (D-096). */
+function LockAnimationField() {
+  const qc = useQueryClient()
+  const q = useQuery({
+    queryKey: ['app', 'lockAnimation'],
+    queryFn: () => call('app:lockAnimation'),
+  })
+  return (
+    <div className="field">
+      <label htmlFor="lock-animation">{t('Animación de la pantalla de contraseña')}</label>
+      <select
+        id="lock-animation"
+        className="input"
+        value={q.data ?? 'gravedad'}
+        onChange={(e) => {
+          const value = e.target.value as LockAnimation
+          void call('app:setLockAnimation', { value }).then(() =>
+            qc.setQueryData(['app', 'lockAnimation'], value),
+          )
+        }}
+        data-testid="lock-animation"
+      >
+        {LOCK_ANIMATIONS.map((a) => (
+          <option key={a} value={a}>
+            {t(LOCK_ANIMATION_LABELS[a])}
+          </option>
+        ))}
+      </select>
+      <span className="hint">
+        {t('Se ve a la derecha al desbloquear la bóveda y reacciona a lo que escribes.')}
+      </span>
+    </div>
   )
 }
 

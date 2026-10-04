@@ -291,4 +291,12 @@ export const shell: Record<string, string> = {
   'Enlace o usuario no válido': 'Invalid link or username',
   'perfil|Editar': 'Edit',
   'perfil|Configurar': 'Set up',
+  'Gravedad (la de yellowmellow.cc)': 'Gravity (the one from yellowmellow.cc)',
+  'El ojo': 'The eye',
+  'Cerradura de la bóveda': 'Vault lock',
+  'Una distinta cada vez': 'A different one each time',
+  Ninguna: 'None',
+  'Animación de la pantalla de contraseña': 'Password screen animation',
+  'Se ve a la derecha al desbloquear la bóveda y reacciona a lo que escribes.':
+    'It appears on the right when you unlock the vault and reacts as you type.',
 }

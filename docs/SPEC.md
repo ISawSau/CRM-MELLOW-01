@@ -197,7 +197,7 @@ Tabla genérica de vínculos (campo de relación, id de origen, id de destino, p
 
 ### 7.1 Desbloqueo, perfil e inicio
 
-- Pantalla de contraseña.
+- Pantalla de contraseña. Desde la 0.13.4, con una animación ASCII a la derecha (gravedad como en yellowmellow.cc, el ojo o la cerradura; elegible en Ajustes, D-096).
 - Perfil: nombre, foto, datos fiscales y de empresa, moneda y zona horaria por defecto.
 - *Arreglos tras la 0.13:* Perfil es una sección propia antes de Inicio, con Datos y Cuentas conectadas (Meta, sincronización y Gmail) (D-087). X y LinkedIn se quitaron después (D-091).
 - *Perfil tipo GitHub (0.14, D-095):* la primera vez, un asistente para configurarlo (o «Saltar por ahora»). Después se ve como la página de un usuario de GitHub:

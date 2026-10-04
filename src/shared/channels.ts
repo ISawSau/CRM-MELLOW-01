@@ -8,6 +8,8 @@ export const IPC_CHANNELS = [
   'app:activity',
   'app:locale',
   'app:setLocale',
+  'app:lockAnimation',
+  'app:setLockAnimation',
   'vault:status',
   'vault:pickFolder',
   'vault:create',

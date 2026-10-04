@@ -1251,3 +1251,61 @@ kbd {
 .social-input[data-invalid] .input {
   border-color: var(--danger);
 }
+
+/* --- Animación ASCII de la pantalla de contraseña (D-096) ---------------------- */
+
+.gate-body-art {
+  position: relative;
+  overflow: hidden;
+}
+
+.gate-body-art > .gate-inner {
+  position: relative;
+  z-index: 1;
+}
+
+.gate-art {
+  position: absolute;
+  z-index: 0;
+  top: 50%;
+  right: 3vw;
+  width: min(48vw, 76vh, 760px);
+  aspect-ratio: 1;
+  transform: translateY(-50%);
+  pointer-events: none;
+  opacity: 0;
+  animation: gate-art-in 1.6s var(--ease) 0.3s forwards;
+}
+
+@keyframes gate-art-in {
+  from {
+    opacity: 0;
+    transform: translateY(-50%) scale(0.96);
+  }
+  to {
+    opacity: 0.55;
+    transform: translateY(-50%) scale(1);
+  }
+}
+
+.ascii-art {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+@media (max-width: 1100px) {
+  @keyframes gate-art-in {
+    to {
+      opacity: 0.25;
+      transform: translateY(-50%) scale(1);
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gate-art {
+    animation: none;
+    opacity: 0.55;
+  }
+}

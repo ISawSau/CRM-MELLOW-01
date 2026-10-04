@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { lockAnimationSchema, type LockAnimation } from './lock-animation'
 import {
   decodeHeicSchema,
   saveResultSchema,
@@ -184,6 +185,8 @@ export const ipcSchemas = {
   'app:activity': z.void(),
   'app:locale': z.void(),
   'app:setLocale': z.object({ locale: localeSchema }),
+  'app:lockAnimation': z.void(),
+  'app:setLockAnimation': z.object({ value: lockAnimationSchema }),
   'vault:status': z.void(),
   'vault:pickFolder': z.object({ purpose: z.enum(['create', 'open']) }),
   'vault:create': z.object({ parentPath: absolutePath, name: vaultNameSchema, password }),
@@ -392,6 +395,8 @@ export interface IpcOutputs {
   'app:activity': void
   'app:locale': Locale
   'app:setLocale': void
+  'app:lockAnimation': LockAnimation
+  'app:setLockAnimation': void
   'vault:status': VaultStatus
   'vault:pickFolder': string | null
   'vault:create': { status: VaultStatus; recoveryKey: string }

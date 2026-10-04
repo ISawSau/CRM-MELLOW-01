@@ -1,4 +1,7 @@
-import { useState, type FormEvent } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { useCallback, useEffect, useState, type FormEvent } from 'react'
+import type { LockScene } from '@shared/lock-animation'
+import { AsciiArt } from './AsciiArt'
 import { formatDateTime } from '@shared/format'
 import { MIN_PASSWORD_LENGTH, type VaultStatus } from '@shared/ipc'
 import { call, type IpcCallError } from '../lib/ipc'
@@ -54,9 +57,23 @@ function LockedElsewhere({
   )
 }
 
-function UnlockForm({ status, onForgot }: { status: VaultStatus; onForgot: () => void }) {
+function UnlockForm({
+  status,
+  onForgot,
+  onKey,
+  onError,
+}: {
+  status: VaultStatus
+  onForgot: () => void
+  onKey: () => void
+  onError: () => void
+}) {
   const [password, setPassword] = useState('')
   const unlock = useAction((force: boolean) => call('vault:unlock', { password, force }))
+  const failed = unlock.error
+  useEffect(() => {
+    if (failed && failed.code !== 'VAULT_LOCKED_ELSEWHERE') onError()
+  }, [failed, onError])
   const close = useAction(() => call('vault:close'))
 
   const submit = (e: FormEvent) => {
@@ -80,7 +97,10 @@ function UnlockForm({ status, onForgot }: { status: VaultStatus; onForgot: () =>
         <PasswordField
           label={t('Contraseña')}
           value={password}
-          onChange={setPassword}
+          onChange={(v) => {
+            setPassword(v)
+            onKey()
+          }}
           autoFocus
           large
           testId="unlock-password"
@@ -214,12 +234,38 @@ function RecoverForm({ onBack }: { onBack: () => void }) {
   )
 }
 
+/** Animación elegida en Ajustes; «aleatoria» se sortea una vez al abrir la pantalla. */
+function useLockScene(): LockScene | null {
+  const q = useQuery({
+    queryKey: ['app', 'lockAnimation'],
+    queryFn: () => call('app:lockAnimation'),
+  })
+  const [random] = useState<LockScene>(
+    () => (['gravedad', 'ojo', 'cerradura'] as const)[Math.floor(Math.random() * 3)]!,
+  )
+  if (!q.data || q.data === 'ninguna') return null
+  return q.data === 'aleatoria' ? random : q.data
+}
+
 export function Unlock({ status }: { status: VaultStatus }) {
   const [mode, setMode] = useState<'unlock' | 'recover'>('unlock')
+  const scene = useLockScene()
+  const [keys, setKeys] = useState(0)
+  const [errors, setErrors] = useState(0)
+  const onKey = useCallback(() => setKeys((k) => k + 1), [])
+  const onError = useCallback(() => setErrors((e) => e + 1), [])
   return (
-    <Gate step={mode === 'unlock' ? t('desbloquear') : t('recuperar acceso')}>
+    <Gate
+      step={mode === 'unlock' ? t('desbloquear') : t('recuperar acceso')}
+      art={scene && <AsciiArt kind={scene} keys={keys} errors={errors} />}
+    >
       {mode === 'unlock' ? (
-        <UnlockForm status={status} onForgot={() => setMode('recover')} />
+        <UnlockForm
+          status={status}
+          onForgot={() => setMode('recover')}
+          onKey={onKey}
+          onError={onError}
+        />
       ) : (
         <RecoverForm onBack={() => setMode('unlock')} />
       )}

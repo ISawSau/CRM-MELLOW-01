@@ -715,3 +715,13 @@ El usuario no quiere escribir comandos de desarrollo para usar la app. Los insta
 - **Redes:** se guarda lo que escribe el usuario, el enlace completo o el usuario. `socialUrl()` arma el enlace con la URL de cada red. Solo acepta `http(s)`; un usuario con espacios o un `javascript:` no pasa la validación. Los logos son de Simple Icons (CC0). LinkedIn no está en Simple Icons, así que se dibuja un «in» propio.
 - **Clientes destacados:** hasta 6 ids en el perfil, en el orden elegido. Cada tarjeta muestra la etapa y la inversión del mes.
 - **Actividad:** `profile:activity` cuenta por día, en la zona horaria del perfil, las entradas del historial de cambios (`history`) del último año. Son las «contribuciones»: crear, editar o borrar registros. Los niveles de color van de 0 a 4 respecto al día con más cambios.
+
+### D-096 · Animaciones ASCII en la pantalla de contraseña
+
+- **Qué:** tres animaciones a la derecha de la pantalla de contraseña, dibujadas con caracteres (` .:-=+*#%@`) en un canvas con el color de acento:
+  - **Gravedad:** la de yellowmellow.cc. Una nube de 26.000 puntos que pasa de planeta a pozo de gravedad, agujero de gusano y disco de acreción, girando en los tres ejes, con luz y profundidad.
+  - **El ojo:** el iris del logo, con anillos que giran, una pupila que se dilata al teclear, parpadeo y temblor al fallar.
+  - **Cerradura:** la rueda de una caja fuerte, que gira con cada tecla y se sacude al fallar.
+  - En Ajustes → Apariencia también se puede elegir «Una distinta cada vez» o «Ninguna».
+- **Dónde se guarda:** en la configuración mínima de fuera de la bóveda, como el idioma. Hace falta antes de desbloquear y no es un dato del usuario.
+- **Coste:** 30 fotogramas por segundo como máximo. Se para con la ventana oculta y, si el sistema pide menos movimiento, se queda en un fotograma fijo. Sin dependencias. Las escenas son funciones puras (`ascii-scenes.ts`) que rellenan un búfer de brillo.
