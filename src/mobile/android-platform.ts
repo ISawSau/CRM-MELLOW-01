@@ -47,5 +47,8 @@ export function androidPlatform(o: AndroidPlatformOptions): Platform {
       const url = externalUrl(raw)
       if (url) void o.native({ kind: 'open', url })
     },
+    notify(title, body) {
+      void o.native({ kind: 'notify', title, body })
+    },
   }
 }

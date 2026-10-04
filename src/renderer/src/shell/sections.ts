@@ -65,6 +65,14 @@ export const SECTION_GROUPS: SectionGroup[] = [
         entity: 'creatividad',
       },
       {
+        id: 'tests',
+        label: 'Tests A/B',
+        letter: 'X',
+        phase: null,
+        summary: '',
+        entity: 'prueba',
+      },
+      {
         id: 'analisis',
         label: 'Análisis',
         letter: 'A',

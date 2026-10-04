@@ -67,7 +67,15 @@ import {
 } from '@shared/data/views'
 import { DEFAULT_TIME_ZONE } from '@shared/format'
 import { mimeFromName, safeFileName } from '@shared/files'
-import { DEFAULT_HOME_LAYOUT, homeLayoutSchema, type HomeLayout } from '@shared/home'
+import {
+  DEFAULT_HOME_LAYOUT,
+  HOME_CARDS,
+  homeLayoutSchema,
+  LEGACY_HOME_CARDS,
+  type HomeLayout,
+} from '@shared/home'
+import { z } from 'zod'
+import { notifySettingsSchema, type NotifySettings } from '@shared/growth'
 import { DEFAULT_PROFILE, profileSchema, type Profile } from '@shared/profile'
 import {
   elapsedHours,
@@ -150,6 +158,8 @@ const TRASH_DAYS_KEY = 'data.trashDays'
 const PROFILE_KEY = 'profile'
 const BRIEF_TEMPLATES_KEY = 'briefs.templates'
 const HOME_LAYOUT_KEY = 'home.layout'
+const HOME_CARDS_SEEN_KEY = 'home.cardsSeen'
+const NOTIFY_KEY = 'notify.settings'
 const MAIL_TEMPLATES_KEY = 'mail.templates'
 const TIMER_KEY = 'timer.running'
 const COLLECTIONS_KEY = 'data.collections'
@@ -460,14 +470,58 @@ export class DataService {
 
   getHomeLayout(): HomeLayout {
     const r = homeLayoutSchema.safeParse(this.getSetting(HOME_LAYOUT_KEY))
-    return r.success ? r.data : DEFAULT_HOME_LAYOUT
+    if (!r.success) return DEFAULT_HOME_LAYOUT
+    // Las tarjetas nuevas (que el usuario aún no ha visto al personalizar) se añaden al final.
+    const seen = z
+      .array(z.string())
+      .catch([...LEGACY_HOME_CARDS])
+      .parse(this.getSetting(HOME_CARDS_SEEN_KEY) ?? [...LEGACY_HOME_CARDS])
+    const fresh = HOME_CARDS.filter(
+      (c) => !seen.includes(c) && !r.data.items.some((i) => i.kind === 'card' && i.id === c),
+    )
+    return { items: [...r.data.items, ...fresh.map((id) => ({ kind: 'card' as const, id }))] }
   }
 
   setHomeLayout(layout: HomeLayout | null): HomeLayout {
+    this.putSetting(HOME_CARDS_SEEN_KEY, [...HOME_CARDS])
     if (layout === null) this.db.prepare('DELETE FROM settings WHERE key = ?').run(HOME_LAYOUT_KEY)
     else this.putSetting(HOME_LAYOUT_KEY, homeLayoutSchema.parse(layout))
     this.emit(null)
     return this.getHomeLayout()
+  }
+
+  /** Avisos del sistema (fase 14, D-107). */
+  getNotifySettings(): NotifySettings {
+    const r = notifySettingsSchema.safeParse(this.getSetting(NOTIFY_KEY) ?? {})
+    return r.success ? r.data : notifySettingsSchema.parse({})
+  }
+
+  setNotifySettings(s: NotifySettings): NotifySettings {
+    this.putSetting(NOTIFY_KEY, notifySettingsSchema.parse(s))
+    this.emit(null)
+    return this.getNotifySettings()
+  }
+
+  /** Tareas sin hacer con fecha límite hoy o ya pasada. */
+  dueTaskCount(): number {
+    const fields = this.listFields('tarea')
+    const due = fields.find((f) => f.key === 'fecha_limite')
+    if (!due) return 0
+    const estado = fields.find((f) => f.key === 'estado')
+    const doneIds =
+      estado?.type === 'select'
+        ? parseFieldConfig('select', estado.config)
+            .options.filter((o) => o.done)
+            .map((o) => o.id)
+        : []
+    const notDone: Filter[] =
+      estado && doneIds.length ? [{ fieldId: estado.id, op: 'none_of', value: doneIds }] : []
+    return (['today', 'before_today'] as const).reduce(
+      (n, op) =>
+        n +
+        this.query('tarea', { filters: [{ fieldId: due.id, op, value: null }, ...notDone] }).length,
+      0,
+    )
   }
 
   getProfile(): Profile {
@@ -1608,11 +1662,18 @@ export class DataService {
     const titleId = this.titleFieldId(entity)
     const withTitle = { ...values }
     if (titleId && opts.title?.trim()) withTitle[titleId] = opts.title.trim()
-    // Los pipelines (estado de una tarea, etapa de un cliente…) empiezan en su primera etapa.
+    // Los pipelines (estado de una tarea, etapa de un cliente…) empiezan en su primera etapa
+    // y las listas con plantilla (lista de arranque de un cliente), con sus elementos.
     for (const f of this.listFields(entity)) {
-      if (f.type !== 'select' || withTitle[f.id] !== undefined) continue
-      const c = parseFieldConfig('select', f.config)
-      if (c.pipeline && c.options[0]) withTitle[f.id] = c.options[0].id
+      if (withTitle[f.id] !== undefined) continue
+      if (f.type === 'select') {
+        const c = parseFieldConfig('select', f.config)
+        if (c.pipeline && c.options[0]) withTitle[f.id] = c.options[0].id
+      } else if (f.type === 'checklist') {
+        const items = parseFieldConfig('checklist', f.config).template ?? []
+        if (items.length)
+          withTitle[f.id] = items.map((text) => ({ id: newId(), text: t(text), done: false }))
+      }
     }
     if (
       titleId &&

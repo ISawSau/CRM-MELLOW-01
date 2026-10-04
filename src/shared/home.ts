@@ -5,13 +5,31 @@ import { widgetSchema } from './analysis'
  * Inicio configurable (SPEC §7.1, fase 12): qué tarjetas se ven y en qué orden, más
  * widgets de Análisis (cifras, gráficas, tablas y rankings de todas las cuentas).
  */
-export const HOME_CARDS = ['kpis', 'etapas', 'notas', 'gasto', 'tareas', 'alertas'] as const
+export const HOME_CARDS = [
+  'kpis',
+  'etapas',
+  'notas',
+  'gasto',
+  'ritmo',
+  'tareas',
+  'alertas',
+] as const
+/** Las que había antes de la fase 14: las nuevas se añaden solas a un Inicio ya personalizado. */
+export const LEGACY_HOME_CARDS: readonly HomeCard[] = [
+  'kpis',
+  'etapas',
+  'notas',
+  'gasto',
+  'tareas',
+  'alertas',
+]
 export type HomeCard = (typeof HOME_CARDS)[number]
 export const HOME_CARD_LABELS: Record<HomeCard, string> = {
   kpis: 'Cifras clave (clientes, fees, contactos y notas)',
   etapas: 'Clientes por etapa',
   notas: 'Notas recientes y fijadas',
   gasto: 'Gasto y ROAS',
+  ritmo: 'Ritmo de gasto del mes',
   tareas: 'Tareas de hoy y atrasadas',
   alertas: 'Alertas',
 }

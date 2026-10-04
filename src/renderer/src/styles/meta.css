@@ -490,3 +490,152 @@
   background: var(--accent);
   transition: width var(--dur) var(--ease);
 }
+
+/* Colores según el objetivo del cliente (fase 14, D-104): verde si lo cumple; de amarillo a
+   rojo cuanto más se pasa. Con los colores del tema. */
+.meta-table tr[data-target='ok'] > td {
+  background: color-mix(in srgb, var(--success) var(--target-alpha, 18%), transparent);
+}
+
+.meta-table tr[data-target='over'] > td {
+  background: color-mix(
+    in srgb,
+    color-mix(in oklab, var(--danger) var(--target-red, 100%), var(--warning)) 24%,
+    transparent
+  );
+}
+
+.meta-table tr[data-target] > td:first-child {
+  box-shadow: inset 3px 0 0 var(--target-edge);
+}
+
+.meta-table tr[data-target='ok'] {
+  --target-edge: var(--success);
+}
+
+.meta-table tr[data-target='over'] {
+  --target-edge: color-mix(in oklab, var(--danger) var(--target-red, 100%), var(--warning));
+}
+
+.target-swatch {
+  display: inline-block;
+  width: 0.8em;
+  height: 0.8em;
+  border-radius: 2px;
+  vertical-align: -0.05em;
+  background: var(--success);
+}
+
+.target-swatch[data-tone='over'] {
+  background: linear-gradient(90deg, var(--warning), var(--danger));
+}
+
+/* Ritmo de gasto del mes (Inicio, fase 14). */
+.pacing-list {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pacing-item {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.pacing-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.pacing-bar {
+  position: relative;
+  display: block;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--bg-hover);
+}
+
+.pacing-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 4px;
+  background: var(--success);
+}
+
+.pacing-item[data-status='under'] .pacing-fill {
+  background: var(--warning);
+}
+
+.pacing-item[data-status='over'] .pacing-fill {
+  background: var(--danger);
+}
+
+.pacing-mark {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  width: 2px;
+  margin-left: -1px;
+  background: var(--text);
+}
+
+.pacing-text {
+  font-size: var(--text-xs);
+}
+
+/* Tests A/B (fase 14). */
+.ab-variants {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--space-4);
+}
+
+.ab-variant-title {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-sm);
+  font-weight: 700;
+}
+
+.ab-table {
+  width: 100%;
+  margin-top: var(--space-2);
+  border-collapse: collapse;
+}
+
+.ab-table th,
+.ab-table td {
+  padding: var(--space-1) var(--space-2);
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+}
+
+.ab-table .num {
+  text-align: right;
+}
+
+.ab-table tr[data-decides] {
+  font-weight: 700;
+}
+
+.ab-verdict {
+  margin-top: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.ab-verdict[data-winner='a'],
+.ab-verdict[data-winner='b'] {
+  border-color: var(--success);
+}
+
+.weekly-summary-text {
+  width: 100%;
+  font-family: var(--font-mono, monospace);
+  font-size: var(--text-sm);
+  white-space: pre-wrap;
+}

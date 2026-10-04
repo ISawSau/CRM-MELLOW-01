@@ -16,6 +16,9 @@ export function createAnalysisHandlers(analysis: AnalysisService): AnalysisHandl
     'analysis:events': () => analysis.events(),
     'analysis:unseen': () => analysis.unseen(),
     'analysis:markSeen': () => analysis.markSeen(),
+    'analysis:pacing': () => analysis.pacing(),
+    'analysis:fatigue': () => analysis.fatigueEnabled(),
+    'analysis:setFatigue': ({ enabled }) => analysis.setFatigueEnabled(enabled),
     'billing:summary': ({ since, until }) => analysis.billing(since, until),
   }
 }

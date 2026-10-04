@@ -1,7 +1,9 @@
 import { useQuery } from '@tanstack/react-query'
 import { rangeFor } from '@shared/analysis'
-import { formatDateTime } from '@shared/format'
+import { formatCurrency, formatDateTime } from '@shared/format'
+import type { PacingStatus } from '@shared/growth'
 import { t } from '@shared/i18n'
+import { useNav } from '../data/nav'
 import { call } from '../lib/ipc'
 import { useHasAdData, useMetaStatus } from '../meta/meta'
 import { formatMetric } from '../meta/metrics'
@@ -100,6 +102,88 @@ export function AlertsCard({ onNavigate }: { onNavigate: (s: string) => void }) 
               <span className="faint num">{formatDateTime(new Date(e.createdAt))}</span>
             </li>
           ))}
+        </ul>
+      )}
+    </section>
+  )
+}
+
+const PACING_LABELS: Record<PacingStatus, { label: string; color: string }> = {
+  ok: { label: 'A buen ritmo', color: 'verde' },
+  under: { label: 'Se queda corto', color: 'ambar' },
+  over: { label: 'Se pasa', color: 'vino' },
+}
+
+/**
+ * Inicio: ritmo de gasto del mes de los clientes con presupuesto publicitario mensual
+ * (fase 14, D-105). La raya marca lo que tocaría llevar gastado hoy.
+ */
+export function PacingCard({ onNavigate }: { onNavigate: (s: string) => void }) {
+  const nav = useNav()
+  const q = useQuery({
+    queryKey: ['data', 'analysis', 'pacing'],
+    queryFn: () => call('analysis:pacing'),
+  })
+  const rows = q.data ?? []
+  return (
+    <section className="home-card" data-testid="home-pacing">
+      <div className="home-card-head">
+        <h2 className="home-card-title">{t('Ritmo de gasto del mes')}</h2>
+        <button type="button" className="btn-link" onClick={() => onNavigate('clientes')}>
+          {t('Ver clientes →')}
+        </button>
+      </div>
+      {rows.length === 0 ? (
+        <p className="faint">
+          {t(
+            'Pon un presupuesto publicitario mensual en la ficha de tus clientes para ver aquí cómo va el gasto.',
+          )}
+        </p>
+      ) : (
+        <ul className="pacing-list">
+          {rows.map((r) => {
+            const s = PACING_LABELS[r.status]
+            const pct = Math.min(100, (r.spent / r.budget) * 100)
+            const expected = Math.min(100, (r.day / r.days) * 100)
+            return (
+              <li key={r.clientId} className="pacing-item" data-status={r.status}>
+                <div className="pacing-head">
+                  <button
+                    type="button"
+                    className="btn-link"
+                    onClick={() => nav.openRecord('cliente', r.clientId)}
+                  >
+                    {r.client}
+                  </button>
+                  <span className="chip" data-color={s.color}>
+                    {t(s.label)}
+                  </span>
+                </div>
+                <span
+                  className="pacing-bar"
+                  role="img"
+                  aria-label={t(
+                    '{pct} % del presupuesto gastado; hoy tocaría llevar el {expected} %',
+                    {
+                      pct: Math.round(pct),
+                      expected: Math.round(expected),
+                    },
+                  )}
+                >
+                  <span className="pacing-fill" style={{ width: `${pct}%` }} />
+                  <span className="pacing-mark" style={{ left: `${expected}%` }} />
+                </span>
+                <span className="faint num pacing-text">
+                  {t('{spent} de {budget} · a este ritmo, {projected} a fin de mes', {
+                    spent: formatCurrency(r.spent, r.currency),
+                    budget: formatCurrency(r.budget, r.currency),
+                    projected: formatCurrency(r.projected, r.currency),
+                  })}
+                  {r.partial && ` · ${t('faltan tipos de cambio')}`}
+                </span>
+              </li>
+            )
+          })}
         </ul>
       )}
     </section>

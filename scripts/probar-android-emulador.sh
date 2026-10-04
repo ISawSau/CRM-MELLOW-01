@@ -12,8 +12,33 @@ LOG=$OUT/logcat.txt
 # Con root (las imágenes google_apis del emulador lo permiten) se pueden leer los informes de
 # cierre de Android, con la pila de llamadas nativa de cada hilo.
 adb root > /dev/null 2>&1 && sleep 3 && adb wait-for-device
+
+# Espera a que el emulador responda de verdad: tras arrancar o tras «adb root» (que reinicia
+# adbd) puede salir un momento como «offline» aunque ya haya terminado de arrancar.
+ready() {
+  for _ in $(seq 1 60); do
+    if [ "$(adb shell getprop sys.boot_completed 2> /dev/null | tr -d '\r')" = "1" ] \
+      && adb shell pm path android > /dev/null 2>&1; then
+      return 0
+    fi
+    sleep 2
+  done
+  return 1
+}
+ready || echo "(el emulador no responde todavía; se intenta igualmente)"
 adb shell 'rm -f /data/tombstones/*' > /dev/null 2>&1 || true
-adb install -r "$APK" || { echo "No se ha podido instalar el APK"; exit 1; }
+installed=0
+for attempt in 1 2 3; do
+  if adb install -r "$APK"; then
+    installed=1
+    break
+  fi
+  echo "Intento $attempt de instalar el APK fallido; se reintenta"
+  sleep 5
+  adb wait-for-device
+  ready || true
+done
+[ "$installed" = 1 ] || { echo "No se ha podido instalar el APK"; exit 1; }
 adb logcat -c || true
 adb logcat -b crash -c || true
 adb shell am start -n cc.yellowmellow.crm/.MainActivity --ez autoprueba true || true

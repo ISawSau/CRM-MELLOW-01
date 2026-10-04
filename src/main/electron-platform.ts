@@ -1,4 +1,4 @@
-import { app, clipboard, dialog, shell, type BrowserWindow } from 'electron'
+import { app, clipboard, dialog, Notification, shell, type BrowserWindow } from 'electron'
 import { join } from 'node:path'
 import { externalUrl, type Platform } from './platform'
 
@@ -49,6 +49,18 @@ export function electronPlatform(getWindow: () => BrowserWindow | null): Platfor
     openExternal(raw) {
       const url = externalUrl(raw)
       if (url) void shell.openExternal(url)
+    },
+    notify(title, body) {
+      if (!Notification.isSupported()) return
+      const n = new Notification({ title, body, silent: false })
+      n.on('click', () => {
+        const win = getWindow()
+        if (!win) return
+        if (win.isMinimized()) win.restore()
+        win.show()
+        win.focus()
+      })
+      n.show()
     },
   }
 }

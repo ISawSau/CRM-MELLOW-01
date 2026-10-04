@@ -29,6 +29,8 @@ import type { VaultService } from '../vault/vault-service'
 import { updateRates } from './fx'
 import { GraphClient, GraphError, graphErrorText } from './graph'
 import { autoLink, creativePerf, linksFor, searchAds, setLink, tagPerf } from './creatives'
+import { abTestResult } from './ab-tests'
+import type { AbTestResult } from '@shared/growth'
 import { table } from './table'
 import {
   INSIGHT_LEVELS,
@@ -572,6 +574,12 @@ export class MetaService {
     this.touched()
     this.dataChanged(true)
     return linksFor(this.db, recordId)
+  }
+
+  /** Test A/B (fase 14, D-108): sumas de los anuncios de cada variante. */
+  abTest(recordId: string): AbTestResult {
+    const today = todayIn(this.vault.data.getProfile().timeZone, this.now())
+    return abTestResult(this.db, this.vault.data, recordId, this.settings().displayCurrency, today)
   }
 
   creativePerf(recordId: string, since: string, until: string): CreativePerfResult {

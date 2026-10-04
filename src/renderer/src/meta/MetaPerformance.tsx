@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { todayIn } from '@shared/data/dates'
+import { formatCurrency, formatNumber } from '@shared/format'
 import { t } from '@shared/i18n'
 import {
   BREAKDOWNS,
@@ -8,6 +9,7 @@ import {
   type BreakdownKey,
   type PerfLevel,
   type TableResult,
+  type TableTarget,
 } from '@shared/meta'
 import {
   BUILT_IN_PRESETS,
@@ -77,6 +79,26 @@ function useRange(account: AdAccountInfo | undefined) {
   return { preset, setPreset, range, setCustom }
 }
 
+/** Qué significan los colores de la tabla cuando se colorea según el objetivo. */
+function TargetLegend({ target, currency }: { target: TableTarget; currency: string }) {
+  const goal =
+    target.metric === 'roas'
+      ? t('ROAS de {value} o más', { value: formatNumber(target.value, 2) })
+      : target.metric === 'cpa'
+        ? t('CPA de {value} o menos', { value: formatCurrency(target.value, currency) })
+        : t('Coste por resultado de {value} o menos', {
+            value: formatCurrency(target.value, currency),
+          })
+  return (
+    <p className="hint target-legend" data-testid="target-legend">
+      <span className="target-swatch" data-tone="ok" aria-hidden="true" />{' '}
+      {t('Dentro del objetivo del cliente: {goal}.', { goal })}{' '}
+      <span className="target-swatch" data-tone="over" aria-hidden="true" />{' '}
+      {t('De amarillo a rojo, cuanto más se pasa (rojo del todo a 1,5 veces el objetivo).')}
+    </p>
+  )
+}
+
 export function MetaPerformance({ onAccounts }: { onAccounts: () => void }) {
   const qc = useQueryClient()
   const accounts = useMetaAccounts()
@@ -111,6 +133,7 @@ export function MetaPerformance({ onAccounts }: { onAccounts: () => void }) {
     actionTypes: actionTypes.data ?? [],
     defs,
     compare,
+    target: null,
   }
   const availableBreakdowns = account?.breakdowns[crumb.level] ?? []
   const activeBreakdown = breakdown && availableBreakdowns.includes(breakdown) ? breakdown : null
@@ -131,6 +154,7 @@ export function MetaPerformance({ onAccounts }: { onAccounts: () => void }) {
     enabled: !!account,
     placeholderData: (prev) => prev,
   })
+  const targetOn = !!settings.data?.targetColors && !!table.data?.target
 
   // Alcance y frecuencia del periodo: se piden a Meta si alguna columna los usa.
   const wantsRange = current.columns.some((c) => RANGE_KEYS.has(c))
@@ -311,6 +335,23 @@ export function MetaPerformance({ onAccounts }: { onAccounts: () => void }) {
           <input type="checkbox" checked={compare} onChange={(e) => setCompare(e.target.checked)} />
           <span>{t('Comparar con el periodo anterior')}</span>
         </label>
+        <label
+          className="check meta-compare"
+          title={
+            table.data && !table.data.target
+              ? t('Pon un CPA o ROAS objetivo en la ficha del cliente de esta cuenta.')
+              : undefined
+          }
+        >
+          <input
+            type="checkbox"
+            data-testid="target-colors"
+            checked={!!settings.data?.targetColors && !!table.data?.target}
+            disabled={!settings.data || !table.data?.target}
+            onChange={(e) => void saveSettings({ targetColors: e.target.checked })}
+          />
+          <span>{t('Colores según el objetivo')}</span>
+        </label>
       </div>
 
       <nav className="crumbs" aria-label={t('Nivel')}>
@@ -348,10 +389,11 @@ export function MetaPerformance({ onAccounts }: { onAccounts: () => void }) {
               <p className="hint">{t('Pidiendo a Meta el alcance y la frecuencia del periodo…')}</p>
             ))}
           <Kpis r={table.data} o={options} />
+          {targetOn && <TargetLegend target={table.data.target!} currency={table.data.currency} />}
           <AdsTable
             r={table.data}
             level={crumb.level}
-            o={options}
+            o={targetOn ? { ...options, target: table.data.target } : options}
             onOpen={
               NEXT[crumb.level]
                 ? (row) =>

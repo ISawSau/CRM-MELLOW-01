@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { FormulaError, evaluate, parseFormula, formulaReferences, type Node } from './data/formula'
 import { OPTION_COLORS } from './data/fields'
 import { t } from './i18n'
+import type { TableTarget } from './meta'
 
 /**
  * Métricas de Meta para la tabla tipo Ads Manager (SPEC §7.3, fase 7).
@@ -402,6 +403,8 @@ export const BUILT_IN_PRESETS: readonly ColumnPreset[] = [
 export const metaTableSettingsSchema = z.object({
   presets: z.array(presetSchema).max(50).default([]),
   metrics: z.array(customMetricSchema).max(100).default([]),
+  /** Colorear la tabla de verde a rojo según el objetivo del cliente (fase 14). */
+  targetColors: z.boolean().default(false),
   holdRate: z
     .string()
     .trim()
@@ -555,4 +558,21 @@ export function ruleColor(
       return r.color
   }
   return null
+}
+
+/**
+ * Lo lejos que está una fila del objetivo de su cliente (fase 14, D-104): 1 es justo el
+ * objetivo, menos lo cumple y más se pasa. Sin compras (o resultados), cuenta como fuera de
+ * objetivo si ya ha gastado al menos un CPA objetivo; si no, todavía no se sabe (null).
+ */
+export function targetRatio(target: TableTarget, values: MetricValues): number | null {
+  const spend = values['gasto'] ?? 0
+  if (target.metric === 'roas') {
+    if (spend <= 0) return null
+    const roas = values['roas'] ?? 0
+    return roas > 0 ? target.value / roas : Infinity
+  }
+  const cost = values[target.metric]
+  if (cost === null || cost === undefined) return spend >= target.value ? Infinity : null
+  return cost / target.value
 }

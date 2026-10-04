@@ -69,7 +69,7 @@ export const MOBILE_CSP = [
 ].join('; ')
 
 export interface NativeRequest {
-  kind: 'save' | 'clipboard' | 'open'
+  kind: 'save' | 'clipboard' | 'open' | 'notify'
   [key: string]: unknown
 }
 

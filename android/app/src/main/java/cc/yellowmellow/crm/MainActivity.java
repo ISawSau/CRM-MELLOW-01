@@ -1,6 +1,11 @@
 package cc.yellowmellow.crm;
 
+import android.Manifest;
 import android.app.Activity;
+import android.app.Notification;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
 import android.content.ClipData;
 import android.content.ClipDescription;
@@ -8,6 +13,7 @@ import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.graphics.Color;
 import android.net.Uri;
@@ -52,6 +58,10 @@ public class MainActivity extends Activity implements NativeChannel.Handler {
     private static final int REQ_FILES = 1;
     private static final int REQ_SAVE = 2;
     private static final long CLIPBOARD_CLEAR_MS = 60_000;
+    private static final int REQ_NOTIFY = 3;
+    private static final String NOTIFY_CHANNEL = "avisos";
+    private boolean askedNotify = false;
+    private int nextNotifyId = 1;
 
     private final Handler ui = new Handler(Looper.getMainLooper());
     private FrameLayout root;
@@ -192,10 +202,46 @@ public class MainActivity extends Activity implements NativeChannel.Handler {
                 case "save":
                     save(id, req.optString("path"), req.optString("name"));
                     break;
+                case "notify":
+                    notifyUser(req.optString("title"), req.optString("body"));
+                    background(() -> NativeChannel.reply(id, true));
+                    break;
                 default:
                     background(() -> NativeChannel.reply(id, null));
             }
         });
+    }
+
+    /**
+     * Aviso del sistema (fase 14): el motor solo manda recuentos («2 avisos nuevos»), así que
+     * no se guarda en el sistema nada de la bóveda. En Android 13 o posterior se pide permiso
+     * la primera vez; si no se da, no se avisa.
+     */
+    private void notifyUser(String title, String body) {
+        if (Build.VERSION.SDK_INT >= 33
+                && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)
+                != PackageManager.PERMISSION_GRANTED) {
+            if (!askedNotify) {
+                askedNotify = true;
+                requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, REQ_NOTIFY);
+            }
+            return;
+        }
+        NotificationManager nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+        nm.createNotificationChannel(new NotificationChannel(
+                NOTIFY_CHANNEL, getString(R.string.notify_channel),
+                NotificationManager.IMPORTANCE_DEFAULT));
+        PendingIntent open = PendingIntent.getActivity(this, 0,
+                new Intent(this, MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP),
+                PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
+        Notification n = new Notification.Builder(this, NOTIFY_CHANNEL)
+                .setSmallIcon(R.drawable.ic_aviso)
+                .setContentTitle(title)
+                .setContentText(body)
+                .setContentIntent(open)
+                .setAutoCancel(true)
+                .build();
+        nm.notify(nextNotifyId++, n);
     }
 
     private static void background(Runnable r) {

@@ -239,6 +239,66 @@ test('vincular una creatividad por su código y ver su rendimiento', async () =>
   await panel().getByRole('button', { name: 'Cerrar ficha' }).click()
 })
 
+test('objetivos del cliente: colores de verde a rojo, ritmo de gasto y resumen semanal', async () => {
+  await page.getByTestId('nav-clientes').click()
+  await page.getByTestId('table-row').filter({ hasText: 'Acme Moda' }).locator('.grid-open').click()
+  await panel().getByRole('textbox', { name: 'ROAS objetivo' }).fill('1')
+  await panel().getByRole('textbox', { name: 'ROAS objetivo' }).press('Enter')
+  await panel().getByRole('textbox', { name: 'Presupuesto publicitario mensual' }).fill('1000')
+  await panel().getByRole('textbox', { name: 'Presupuesto publicitario mensual' }).press('Enter')
+  // Resumen de la semana para copiar.
+  const summary = panel().getByTestId('weekly-summary')
+  await summary.getByRole('button', { name: 'Preparar el resumen de la última semana' }).click()
+  await expect(summary.getByTestId('weekly-summary-text')).toHaveValue(
+    /Resumen semanal · Acme Moda/,
+  )
+  await shot('39-resumen-semanal')
+  await panel().getByRole('button', { name: 'Cerrar ficha' }).click()
+
+  // Campañas: colorear según el objetivo (ROAS > 1 lo cumple).
+  await page.getByTestId('nav-campanas').click()
+  await page.getByTestId('meta-tab-rendimiento').click()
+  const toggle = page.getByTestId('target-colors')
+  await expect(toggle).toBeEnabled()
+  // Se guarda en los ajustes y se marca un instante después.
+  await toggle.click()
+  await expect(toggle).toBeChecked()
+  await expect(page.getByTestId('target-legend')).toContainText('ROAS de 1,00 o más')
+  await expect(page.getByTestId('meta-table').locator('tr[data-target="ok"]')).toHaveCount(1)
+  await shot('40-colores-objetivo')
+  await toggle.click()
+  await expect(toggle).not.toBeChecked()
+  await expect(page.getByTestId('meta-table').locator('tr[data-target]')).toHaveCount(0)
+
+  // Inicio: ritmo de gasto del mes.
+  await page.getByTestId('nav-inicio').click()
+  await expect(page.getByTestId('home-pacing')).toContainText('Acme Moda')
+  await shot('41-ritmo-gasto')
+})
+
+test('tests A/B: variantes con anuncios de Meta y resultado', async () => {
+  await page.getByTestId('nav-tests').click()
+  await page.getByTestId('new-record').click()
+  await panel().locator('#panel-title').fill('Hook nuevo contra el de siempre')
+  await panel().locator('#panel-title').press('Enter')
+  const ab = panel().getByTestId('ab-test')
+  await ab.getByLabel('Buscar un anuncio para Variante A').fill('vídeo')
+  await ab.getByRole('button', { name: '+ Vídeo UGC' }).click()
+  await expect(ab.locator('.ab-variant').first()).toContainText('Vídeo UGC')
+  await expect(ab.getByTestId('ab-verdict')).toContainText('Aún no hay datos suficientes')
+  await shot('42-test-ab')
+  await panel().getByRole('button', { name: 'Cerrar ficha' }).click()
+})
+
+test('alertas: fatiga creativa y avisos del sistema, activados de serie', async () => {
+  await page.getByTestId('nav-analisis').click()
+  await page.getByTestId('analysis-tab-alertas').click()
+  await expect(page.getByTestId('fatigue-toggle')).toBeChecked()
+  await expect(page.getByTestId('notify-alerts')).toBeChecked()
+  await page.getByTestId('notify-tasks').click()
+  await expect(page.getByTestId('notify-tasks')).not.toBeChecked()
+})
+
 test('sin errores de consola ni de la CSP', () => {
   expect(errors).toEqual([])
 })

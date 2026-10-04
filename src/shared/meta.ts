@@ -227,6 +227,14 @@ export interface TableRow {
   breakdown: { value: string; base: BaseSums }[] | null
 }
 
+/** Objetivo del cliente con el que se colorea la tabla (fase 14, D-104). */
+export interface TableTarget {
+  /** cpa (compras), coste_resultado (resultados) o roas. */
+  metric: 'cpa' | 'coste_resultado' | 'roas'
+  /** En la moneda de la tabla (CPA) o como número (ROAS). */
+  value: number
+}
+
 export interface TableResult {
   currency: string
   accountCurrency: string
@@ -239,6 +247,8 @@ export interface TableResult {
   rangeMissing: boolean
   /** Desgloses activados para esta cuenta y nivel. */
   breakdowns: BreakdownKey[]
+  /** Objetivo de CPA o ROAS del cliente de la cuenta, si lo tiene. */
+  target: TableTarget | null
 }
 
 export const rangeFetchSchema = z.object({

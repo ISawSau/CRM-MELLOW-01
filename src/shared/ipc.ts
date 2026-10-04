@@ -67,6 +67,12 @@ import {
   type Dashboard,
 } from './analysis'
 import { billingQuerySchema, type BillingSummary } from './billing'
+import {
+  notifySettingsSchema,
+  type AbTestResult,
+  type NotifySettings,
+  type PacingRow,
+} from './growth'
 
 /**
  * Contrato IPC entre la interfaz (renderer) y el proceso principal.
@@ -318,6 +324,8 @@ export const ipcSchemas = {
   'tasks:summary': z.void(),
   'home:layout': z.void(),
   'home:setLayout': z.object({ layout: homeLayoutSchema.nullable() }),
+  'notify:settings': z.void(),
+  'notify:setSettings': notifySettingsSchema,
   'briefs:templates': z.void(),
   'briefs:setTemplates': z.object({ templates: briefTemplatesSchema }),
   'briefs:createFromTemplate': z.object({ templateId: idSchema, values: values.default({}) }),
@@ -378,6 +386,7 @@ export const ipcSchemas = {
     linked: z.boolean(),
   }),
   'meta:creativePerf': creativePerfSchema,
+  'meta:abTest': z.object({ recordId: idSchema }),
   'meta:tagPerf': tagPerfSchema,
   'meta:autoLink': z.void(),
   'analysis:query': analysisQuerySchema,
@@ -389,6 +398,9 @@ export const ipcSchemas = {
   'analysis:events': z.void(),
   'analysis:unseen': z.void(),
   'analysis:markSeen': z.void(),
+  'analysis:pacing': z.void(),
+  'analysis:fatigue': z.void(),
+  'analysis:setFatigue': z.object({ enabled: z.boolean() }),
   'billing:summary': billingQuerySchema,
   'tools:status': z.void(),
   'gmail:status': z.void(),
@@ -472,6 +484,8 @@ export interface IpcOutputs {
   'tasks:summary': { today: number; overdue: number }
   'home:layout': HomeLayout
   'home:setLayout': HomeLayout
+  'notify:settings': NotifySettings
+  'notify:setSettings': NotifySettings
   'briefs:templates': BriefTemplate[]
   'briefs:setTemplates': BriefTemplate[]
   'briefs:createFromTemplate': RecordRow
@@ -519,6 +533,7 @@ export interface IpcOutputs {
   'meta:creativeLinks': CreativeLinkInfo[]
   'meta:setCreativeLink': CreativeLinkInfo[]
   'meta:creativePerf': CreativePerfResult
+  'meta:abTest': AbTestResult
   'meta:tagPerf': TagPerfResult
   'meta:autoLink': number
   'analysis:query': AnalysisResult
@@ -530,6 +545,9 @@ export interface IpcOutputs {
   'analysis:events': AlertEvent[]
   'analysis:unseen': number
   'analysis:markSeen': void
+  'analysis:pacing': PacingRow[]
+  'analysis:fatigue': boolean
+  'analysis:setFatigue': boolean
   'billing:summary': BillingSummary
   'tools:status': { ffmpeg: boolean }
   'gmail:status': GmailStatus

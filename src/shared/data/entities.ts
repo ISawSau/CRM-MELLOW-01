@@ -1,6 +1,19 @@
 import type { FieldType, SelectOption } from './fields'
 import type { ViewConfig, ViewKind } from './views'
 
+/** Lo que hay que dejar listo al empezar con un cliente (lista de arranque, fase 14). */
+export const ONBOARDING_CHECKLIST = [
+  'Acceso a la cuenta publicitaria y al Business Manager',
+  'Píxel instalado y comprobado',
+  'API de conversiones configurada',
+  'Dominio verificado',
+  'Eventos de conversión configurados',
+  'Catálogo de productos conectado',
+  'Acceso a la página de Facebook y a la cuenta de Instagram',
+  'Método de pago de la cuenta publicitaria',
+  'Objetivos acordados (CPA o ROAS y presupuesto)',
+]
+
 /**
  * Entidades del motor. Cada fase activa las suyas sobre el mismo motor: Notas (fase 1),
  * Clientes y Contactos (fase 2)…
@@ -123,7 +136,7 @@ export const ENTITIES: readonly EntityDef[] = [
     singular: 'cliente',
     gender: 'm',
     titleKey: 'nombre',
-    seedVersion: 5,
+    seedVersion: 6,
     fields: [
       { key: 'nombre', label: 'Nombre', type: 'text', system: true, required: true },
       { key: 'descripcion', label: 'Descripción', type: 'longtext', system: true },
@@ -271,6 +284,50 @@ export const ENTITIES: readonly EntityDef[] = [
         config: { target: 'documento', multiple: true },
         inverse: { entity: 'documento', key: 'cliente' },
         since: 4,
+      },
+      // Fase 14: objetivos, presupuesto y lista de arranque (D-104).
+      { key: 'cpa_objetivo', label: 'CPA objetivo', type: 'currency', since: 6 },
+      {
+        key: 'cpa_medida',
+        label: 'El CPA se mide en',
+        type: 'select',
+        visible: false,
+        config: {
+          options: [
+            opt('compras', 'Compras', 'verde'),
+            opt('resultados', 'Resultados de la campaña', 'azul'),
+          ],
+        },
+        since: 6,
+      },
+      { key: 'roas_objetivo', label: 'ROAS objetivo', type: 'number', since: 6 },
+      {
+        key: 'roas_equilibrio',
+        label: 'ROAS de equilibrio',
+        type: 'number',
+        visible: false,
+        since: 6,
+      },
+      {
+        key: 'presupuesto_mensual',
+        label: 'Presupuesto publicitario mensual',
+        type: 'currency',
+        since: 6,
+      },
+      {
+        key: 'arranque',
+        label: 'Lista de arranque',
+        type: 'checklist',
+        config: { template: ONBOARDING_CHECKLIST },
+        since: 6,
+      },
+      {
+        key: 'tests',
+        label: 'Tests A/B',
+        type: 'relation',
+        config: { target: 'prueba', multiple: true },
+        inverse: { entity: 'prueba', key: 'cliente' },
+        since: 6,
       },
     ],
     views: [
@@ -824,6 +881,97 @@ export const ENTITIES: readonly EntityDef[] = [
         name: 'Por tipo',
         kind: 'kanban',
         config: { groupBy: 'tipo', cardFields: ['cliente', 'fecha'] },
+      },
+    ],
+  },
+  {
+    // Registro de tests A/B (fase 14, D-108): qué se prueba, con qué anuncios y qué salió. El
+    // resultado se calcula con las métricas de Meta de los anuncios de cada variante.
+    id: 'prueba',
+    label: 'Tests A/B',
+    singular: 'test',
+    gender: 'm',
+    titleKey: 'titulo',
+    seedVersion: 1,
+    fields: [
+      { key: 'titulo', label: 'Título', type: 'text', system: true, required: true },
+      { key: 'hipotesis', label: 'Hipótesis', type: 'longtext', system: true },
+      {
+        key: 'cliente',
+        label: 'Cliente',
+        type: 'relation',
+        config: { target: 'cliente', multiple: false },
+      },
+      {
+        key: 'estado',
+        label: 'Estado',
+        type: 'select',
+        config: {
+          pipeline: true,
+          options: [
+            opt('idea', 'Idea', 'gris'),
+            opt('en-marcha', 'En marcha', 'azul'),
+            { ...opt('terminado', 'Terminado', 'verde'), done: true },
+          ],
+        },
+      },
+      {
+        key: 'variable',
+        label: 'Qué se prueba',
+        type: 'select',
+        config: {
+          options: [
+            opt('creatividad', 'Creatividad', 'lila'),
+            opt('hook', 'Hook', 'melocoton'),
+            opt('copy', 'Copy', 'azul'),
+            opt('oferta', 'Oferta', 'terracota'),
+            opt('audiencia', 'Audiencia', 'verde'),
+            opt('landing', 'Landing', 'ambar'),
+            opt('formato', 'Formato', 'vino'),
+            opt('puja', 'Puja o presupuesto', 'gris'),
+          ],
+        },
+      },
+      {
+        key: 'metrica',
+        label: 'Métrica que decide',
+        type: 'select',
+        config: {
+          options: [
+            opt('cpa', 'CPA', 'verde'),
+            opt('coste-resultado', 'Coste por resultado', 'verde'),
+            opt('roas', 'ROAS', 'azul'),
+            opt('ctr-enlace', 'CTR del enlace', 'lila'),
+            opt('hook-rate', 'Hook rate', 'melocoton'),
+            opt('cpm', 'CPM', 'gris'),
+          ],
+        },
+      },
+      { key: 'inicio', label: 'Inicio', type: 'date' },
+      { key: 'fin', label: 'Fin', type: 'date' },
+      // Anuncios de cada variante: ids de Meta separados por comas (se eligen desde la ficha).
+      { key: 'anuncios_a', label: 'Anuncios A', type: 'text', visible: false },
+      { key: 'anuncios_b', label: 'Anuncios B', type: 'text', visible: false },
+      {
+        key: 'ganador',
+        label: 'Ganador',
+        type: 'select',
+        config: {
+          options: [
+            opt('a', 'A', 'azul'),
+            opt('b', 'B', 'lila'),
+            opt('empate', 'Sin diferencia clara', 'gris'),
+          ],
+        },
+      },
+      { key: 'conclusion', label: 'Conclusión', type: 'longtext' },
+    ],
+    views: [
+      { name: 'Todos', kind: 'table', config: { sorts: [{ fieldId: 'inicio', dir: 'desc' }] } },
+      {
+        name: 'Por estado',
+        kind: 'kanban',
+        config: { groupBy: 'estado', cardFields: ['cliente', 'variable', 'ganador'] },
       },
     ],
   },

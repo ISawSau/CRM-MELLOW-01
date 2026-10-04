@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import type { Alert, AnalysisFilter } from '@shared/analysis'
+import type { NotifySettings } from '@shared/growth'
 import { formatDateTime, formatNumber, parseNumberEs } from '@shared/format'
 import { t, tn } from '@shared/i18n'
 import { call, IpcCallError } from '../lib/ipc'
@@ -186,6 +187,20 @@ export function Alerts() {
     queryKey: ['data', 'analysis', 'events'],
     queryFn: () => call('analysis:events'),
   })
+  const fatigue = useQuery({
+    queryKey: ['data', 'analysis', 'fatigue'],
+    queryFn: () => call('analysis:fatigue'),
+  })
+  const notify = useQuery({
+    queryKey: ['data', 'notify'],
+    queryFn: () => call('notify:settings'),
+  })
+  const saveNotify = (next: NotifySettings) =>
+    void call('notify:setSettings', next)
+      .then((v) => qc.setQueryData(['data', 'notify'], v))
+      .catch((err: unknown) =>
+        toast.show(err instanceof IpcCallError ? err.message : t('No se pudo guardar.'), 'error'),
+      )
   const [editing, setEditing] = useState<Alert | 'new' | null>(null)
   const list = alerts.data ?? []
   const unseen = (events.data ?? []).some((e) => !e.seen)
@@ -209,7 +224,7 @@ export function Alerts() {
     <div className="meta-perf" data-testid="alerts">
       <p className="muted">
         {t(
-          'Las alertas se comprueban después de cada sincronización con Meta, y solo avisan dentro de la app: en la barra lateral, en Inicio y aquí.',
+          'Las alertas se comprueban después de cada sincronización con Meta y avisan en la barra lateral, en Inicio y aquí (y con un aviso del sistema si lo tienes activado abajo).',
         )}
       </p>
       <ul className="alert-list" data-testid="alert-list">
@@ -264,6 +279,64 @@ export function Alerts() {
           {t('+ Alerta')}
         </button>
       </div>
+
+      <h3 className="panel-subtitle">{t('Fatiga creativa')}</h3>
+      <label className="check">
+        <input
+          type="checkbox"
+          data-testid="fatigue-toggle"
+          checked={fatigue.data ?? true}
+          disabled={fatigue.data === undefined}
+          onChange={(e) =>
+            void call('analysis:setFatigue', { enabled: e.target.checked })
+              .then((v) => {
+                qc.setQueryData(['data', 'analysis', 'fatigue'], v)
+                return qc.invalidateQueries({ queryKey: ['data', 'analysis'] })
+              })
+              .catch((err: unknown) =>
+                toast.show(
+                  err instanceof IpcCallError ? err.message : t('No se pudo guardar.'),
+                  'error',
+                ),
+              )
+          }
+        />
+        <span>{t('Avisar de posible fatiga creativa')}</span>
+      </label>
+      <p className="hint">
+        {t(
+          'Compara los últimos 3 días de cada anuncio activo con la semana anterior. Avisa si el CTR del enlace cae un 25 % o más y además sube la frecuencia (un 20 %) o el coste por conversión (un 25 %). Como mucho, un aviso por anuncio a la semana.',
+        )}
+      </p>
+
+      <h3 className="panel-subtitle">{t('Avisos del sistema')}</h3>
+      {notify.data && (
+        <>
+          <label className="check">
+            <input
+              type="checkbox"
+              data-testid="notify-alerts"
+              checked={notify.data.alerts}
+              onChange={(e) => saveNotify({ ...notify.data!, alerts: e.target.checked })}
+            />
+            <span>{t('Avisar cuando haya avisos nuevos de Campañas')}</span>
+          </label>
+          <label className="check">
+            <input
+              type="checkbox"
+              data-testid="notify-tasks"
+              checked={notify.data.tasks}
+              onChange={(e) => saveNotify({ ...notify.data!, tasks: e.target.checked })}
+            />
+            <span>{t('Recordar una vez al día las tareas para hoy o atrasadas')}</span>
+          </label>
+          <p className="hint">
+            {t(
+              'Con la app abierta y la bóveda desbloqueada (también minimizada). El aviso solo dice cuántos hay, nunca nombres de clientes ni anuncios: el sistema guarda los avisos fuera de la bóveda.',
+            )}
+          </p>
+        </>
+      )}
 
       <h3 className="panel-subtitle">{t('Avisos')}</h3>
       <ul className="event-list" data-testid="alert-events">
