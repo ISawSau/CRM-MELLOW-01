@@ -68,9 +68,13 @@ export function CloneFromDrive({ onDone }: { onDone: () => void }) {
         <div className="field">
           <label htmlFor="clone-id">{t('Id de cliente de Google')}</label>
           <input
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
             id="clone-id"
-            className="input"
+            className="input mono"
             autoComplete="off"
+            placeholder="1234…apps.googleusercontent.com"
             value={clientId}
             onChange={(e) => setClientId(e.target.value)}
             data-testid="clone-client-id"
@@ -79,6 +83,9 @@ export function CloneFromDrive({ onDone }: { onDone: () => void }) {
         <div className="field">
           <label htmlFor="clone-secret">{t('Secreto del cliente')}</label>
           <input
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
             id="clone-secret"
             className="input"
             type="password"

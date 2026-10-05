@@ -76,6 +76,9 @@ function GoogleForm({ onDone }: { onDone: () => void }) {
       <div className="field">
         <label htmlFor="g-id">{t('ID de cliente')}</label>
         <input
+          autoCapitalize="none"
+          autoCorrect="off"
+          spellCheck={false}
           id="g-id"
           className="input mono"
           value={clientId}
@@ -86,6 +89,9 @@ function GoogleForm({ onDone }: { onDone: () => void }) {
       <div className="field">
         <label htmlFor="g-secret">{t('Secreto de cliente')}</label>
         <input
+          autoCapitalize="none"
+          autoCorrect="off"
+          spellCheck={false}
           id="g-secret"
           className="input mono"
           type="password"

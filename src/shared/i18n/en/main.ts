@@ -16,6 +16,8 @@ export const main: Record<string, string> = {
     'Gmail has refused access: reconnect Gmail in Settings.',
   'Gmail ha respondido con un error ({status}).': 'Gmail returned an error ({status}).',
   'Se agotó el tiempo para conectar con Google.': 'Timed out while connecting to Google.',
+  'El id de cliente de Google no es válido: tiene que terminar en .apps.googleusercontent.com. Cópialo otra vez desde Google Cloud → Credenciales, del cliente de tipo «Aplicación de escritorio».':
+    'The Google client ID is not valid: it must end in .apps.googleusercontent.com. Copy it again from Google Cloud → Credentials, from the “Desktop app” client.',
   'No se ha conectado': 'Not connected',
   'Vuelve a CRM Mellow e inténtalo de nuevo.': 'Go back to CRM Mellow and try again.',
   'Has cancelado la conexión.': 'You cancelled the connection.',

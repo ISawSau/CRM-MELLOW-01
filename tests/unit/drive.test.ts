@@ -2,7 +2,7 @@ import { createHash, randomBytes } from 'node:crypto'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { connectGoogle, refreshAccess } from '../../src/main/sync/google-auth'
+import { cleanGoogleClient, connectGoogle, refreshAccess } from '../../src/main/sync/google-auth'
 import { DriveRemote, type FetchLike } from '../../src/main/sync/remote'
 import { cloneFromDrive } from '../../src/main/sync/clone'
 import { SyncService } from '../../src/main/sync/sync-service'
@@ -212,9 +212,25 @@ describe('conexión con Google (OAuth para escritorio)', () => {
     expect(challenge).toBe(u.searchParams.get('code_challenge'))
   })
 
+  it('limpia los espacios del id y rechaza un id que no es de Google antes de abrir el navegador', async () => {
+    expect(
+      cleanGoogleClient({
+        clientId: ' 123-abc.apps.google usercontent.com ',
+        clientSecret: 'GOCSPX- x ',
+      }),
+    ).toEqual({ clientId: '123-abc.apps.googleusercontent.com', clientSecret: 'GOCSPX-x' })
+    let opened = false
+    await expect(
+      connectGoogle({ clientId: 'GOCSPX-secreto', clientSecret: '' }, () => {
+        opened = true
+      }),
+    ).rejects.toThrow(/apps\.googleusercontent\.com/)
+    expect(opened).toBe(false)
+  })
+
   it('rechaza una respuesta con otro state y explica un acceso retirado', async () => {
     await expect(
-      connectGoogle({ clientId: 'c', clientSecret: '' }, (u) => {
+      connectGoogle({ clientId: 'c.apps.googleusercontent.com', clientSecret: '' }, (u) => {
         const redirect = new URL(u).searchParams.get('redirect_uri')!
         void fetch(`${redirect}/?code=x&state=otro`)
       }),
