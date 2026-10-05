@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 import { UpdateService } from '../../src/main/updates'
 import { VaultService } from '../../src/main/vault/vault-service'
 import {
@@ -37,9 +37,13 @@ describe('versiones', () => {
   })
 })
 
+// En Windows no se puede borrar la carpeta temporal con la base de datos abierta.
+const vaults: VaultService[] = []
+
 async function setup(tag = 'v0.17.0') {
   const vault = new VaultService({ kdf: TEST_KDF, hostname: 'equipo' })
   await vault.create(tempDir(), 'Boveda', 'contraseña de prueba')
+  vaults.push(vault)
   let now = Date.parse('2026-10-05T10:00:00Z')
   const calls: { url: string; init?: RequestInit }[] = []
   let fail = false
@@ -63,6 +67,10 @@ async function setup(tag = 'v0.17.0') {
 }
 
 describe('aviso de versión nueva (D-114)', () => {
+  afterEach(() => {
+    for (const v of vaults.splice(0)) v.dispose()
+  })
+
   it('consulta GitHub sin token y avisa de una versión posterior', async () => {
     const { updates, calls } = await setup()
     expect(updates.status().show).toBe(false)
