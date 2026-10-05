@@ -73,6 +73,7 @@ import {
   type NotifySettings,
   type PacingRow,
 } from './growth'
+import { updateSettingsSchema, type UpdateSettings, type UpdateStatus } from './updates'
 
 /**
  * Contrato IPC entre la interfaz (renderer) y el proceso principal.
@@ -326,6 +327,10 @@ export const ipcSchemas = {
   'home:setLayout': z.object({ layout: homeLayoutSchema.nullable() }),
   'notify:settings': z.void(),
   'notify:setSettings': notifySettingsSchema,
+  'updates:status': z.void(),
+  'updates:settings': z.void(),
+  'updates:setSettings': updateSettingsSchema,
+  'updates:dismiss': z.object({ version: z.string().trim().min(1).max(32) }),
   'briefs:templates': z.void(),
   'briefs:setTemplates': z.object({ templates: briefTemplatesSchema }),
   'briefs:createFromTemplate': z.object({ templateId: idSchema, values: values.default({}) }),
@@ -486,6 +491,10 @@ export interface IpcOutputs {
   'home:setLayout': HomeLayout
   'notify:settings': NotifySettings
   'notify:setSettings': NotifySettings
+  'updates:status': UpdateStatus
+  'updates:settings': UpdateSettings
+  'updates:setSettings': UpdateSettings
+  'updates:dismiss': UpdateStatus
   'briefs:templates': BriefTemplate[]
   'briefs:setTemplates': BriefTemplate[]
   'briefs:createFromTemplate': RecordRow
@@ -578,6 +587,8 @@ export interface IpcEvents {
   /** Hay avisos de alertas nuevos o se han marcado como vistos. */
   'analysis:changed': null
   'gmail:changed': GmailStatus
+  /** La consulta de versión nueva tiene resultado (D-114). */
+  'updates:changed': null
   /** Avance de una conversión de vídeo. */
   'tools:progress': ToolsProgress
 }

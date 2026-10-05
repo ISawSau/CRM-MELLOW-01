@@ -1,3 +1,8 @@
+## Novedades de la 0.16.5
+
+- **Aviso de versión nueva:** cuando sale una versión, la app te lo dice con un aviso y un botón para descargarla. Lo consulta una vez al día en GitHub, sin enviar ningún dato tuyo, y se apaga en Ajustes → Actualizaciones.
+- **Código abierto:** el repositorio es público, con licencia MIT, y el README está en inglés y en español.
+
 ## Novedades de la 0.16.4
 
 - **Conectar con Google sin errores de copia:** la app limpia los espacios que el teclado del móvil puede meter en el id y el secreto de cliente, y si el id no es de Google (tiene que terminar en `.apps.googleusercontent.com`) te avisa antes de abrir el navegador. Los campos ya no se autocorrigen.

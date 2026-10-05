@@ -36,7 +36,7 @@ extraResources:
   - from: build/licencias
     to: licencias
 
-# Sin autoactualización: los instaladores se descargan a mano desde Actions.
+# Sin autoactualización: la app avisa de la versión nueva (D-114) y se instala a mano desde Releases.
 publish: null
 
 asar: true

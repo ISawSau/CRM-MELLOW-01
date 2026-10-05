@@ -1,6 +1,10 @@
 Licencias de los programas que se instalan junto con CRM Mellow
 ===============================================================
 
+CRM Mellow
+  La propia app. Licencia: MIT (texto completo en CRM-Mellow-MIT.txt).
+  Código fuente: https://github.com/ISawSau/CRM-MELLOW-01
+
 FFmpeg (resources/ffmpeg/)
   Programa independiente que la app ejecuta para comprimir y convertir vídeo.
   Licencia: GNU GPL versión 3 (texto completo en ffmpeg-GPL-3.0.txt).

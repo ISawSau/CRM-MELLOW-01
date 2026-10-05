@@ -73,6 +73,8 @@ if (process.argv.includes('--autoprueba')) {
       metaPollMs: testUrl('CRM_TEST_META_POLL_MS'),
       google: testUrl('CRM_TEST_GOOGLE_URL'),
     },
+    // La app instalada consulta GitHub; sin empaquetar, solo un servidor falso de los tests.
+    ...(app.isPackaged ? {} : { releasesUrl: testUrl('CRM_TEST_RELEASES_URL') ?? null }),
     ffmpeg: ffmpegPath,
     decodeHeic,
     print: htmlToPdf,

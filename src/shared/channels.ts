@@ -71,6 +71,10 @@ export const IPC_CHANNELS = [
   'home:setLayout',
   'notify:settings',
   'notify:setSettings',
+  'updates:status',
+  'updates:settings',
+  'updates:setSettings',
+  'updates:dismiss',
   'briefs:templates',
   'briefs:setTemplates',
   'briefs:createFromTemplate',
@@ -156,4 +160,5 @@ export const IPC_EVENTS = [
   'analysis:changed',
   'tools:progress',
   'gmail:changed',
+  'updates:changed',
 ] as const

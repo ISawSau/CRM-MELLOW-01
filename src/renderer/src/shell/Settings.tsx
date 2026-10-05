@@ -310,6 +310,50 @@ function RotateKey() {
   )
 }
 
+function UpdatesBlock() {
+  const qc = useQueryClient()
+  const settings = useQuery({
+    queryKey: ['data', 'updates', 'settings'],
+    queryFn: () => call('updates:settings'),
+  })
+  const status = useQuery({
+    queryKey: ['data', 'updates', 'status'],
+    queryFn: () => call('updates:status'),
+  })
+  const save = useAction(async (check: boolean) => {
+    const next = await call('updates:setSettings', { ...settings.data!, check })
+    qc.setQueryData(['data', 'updates', 'settings'], next)
+  })
+  return (
+    <Block
+      title={t('Actualizaciones')}
+      desc={t(
+        'Una vez al día la app mira en GitHub si hay versión nueva. No envía ningún dato tuyo.',
+      )}
+    >
+      {settings.data && (
+        <label className="check">
+          <input
+            type="checkbox"
+            data-testid="updates-check"
+            checked={settings.data.check}
+            onChange={(e) => void save.run(e.target.checked)}
+          />
+          <span>{t('Avisar cuando haya una versión nueva')}</span>
+        </label>
+      )}
+      {status.data && (
+        <p className="hint">
+          {t('Versión instalada: {current}.', { current: status.data.current })}{' '}
+          <a href={status.data.url} target="_blank" rel="noreferrer">
+            {t('Ver las versiones publicadas')}
+          </a>
+        </p>
+      )}
+    </Block>
+  )
+}
+
 function VaultBlock({ status }: { status: VaultStatus }) {
   const close = useAction(() => call('vault:close'))
   return (
@@ -348,6 +392,7 @@ export function Settings({ status }: { status: VaultStatus }) {
         <AutoLock status={status} />
         <ChangePassword />
         <RotateKey />
+        <UpdatesBlock />
         <VaultBlock status={status} />
       </div>
     </div>

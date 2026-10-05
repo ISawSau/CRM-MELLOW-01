@@ -10,6 +10,7 @@ import { createHandlers } from './ipc/handlers'
 import type { IpcHandlers } from './ipc/run'
 import { MetaService } from './meta/meta-service'
 import { Notifier } from './notifier'
+import { UpdateService } from './updates'
 import type { Platform } from './platform'
 import type { ReportFonts } from './reports/report-html'
 import { ReportService } from './reports/report-service'
@@ -36,6 +37,11 @@ export interface BackendOptions {
   decodeHeic?: (data: Uint8Array) => Promise<DecodedImage | null>
   print?: (html: string) => Promise<Buffer>
   fonts?: () => ReportFonts
+  /**
+   * API de la última versión de GitHub (D-114). Sin indicar, la oficial; null la
+   * desactiva (desarrollo y tests, para no salir a internet).
+   */
+  releasesUrl?: string | null
   /** Móvil: hasta qué tamaño se bajan solos los archivos de la nube (D-101). */
   maxAutoDownloadBytes?: number
 }
@@ -68,6 +74,7 @@ export function createBackend(o: BackendOptions): Backend {
       emit('vault:changed', status)
       if (status.state === 'unlocked') {
         notifier.start()
+        updates.start()
         // Un poco después de abrir, cuando la interfaz ya está a la vista.
         setTimeout(() => {
           try {
@@ -76,7 +83,10 @@ export function createBackend(o: BackendOptions): Backend {
             // Un aviso nunca debe romper la app.
           }
         }, 5_000).unref?.()
-      } else notifier.stop()
+      } else {
+        notifier.stop()
+        updates.stop()
+      }
     },
     data: { onChange: (change) => emit('data:changed', change) },
   })
@@ -100,6 +110,11 @@ export function createBackend(o: BackendOptions): Backend {
     onChange: () => emit('analysis:changed', null),
   })
   const notifier: Notifier = new Notifier(vault, platform)
+  const updates: UpdateService = new UpdateService(vault, {
+    current: () => platform.version(),
+    onChange: () => emit('updates:changed', null),
+    ...(o.releasesUrl !== undefined ? { url: o.releasesUrl } : {}),
+  })
   const saveResult = (name: string) =>
     platform.saveAs({
       title: t('Guardar el resultado'),
@@ -174,6 +189,7 @@ export function createBackend(o: BackendOptions): Backend {
     tools,
     reports,
     gmail,
+    updates,
     lockWithSync,
     platform,
   })

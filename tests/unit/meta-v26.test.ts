@@ -22,7 +22,7 @@ describe('Graph API v26.0: rutas de objeto, nunca «/?ids=»', () => {
   it('la cuenta y sus Insights se piden por su ruta, con el token solo en la cabecera', async () => {
     const { calls, graph } = capture()
     // El id llega de la cuenta conectada (aquí uno cualquiera con el prefijo act_).
-    const account = 'act_1682000936239491'
+    const account = 'act_1234567890123456'
     await graph.get(account, { fields: 'id,name,account_status,currency,timezone_name' })
     await graph.get(`${account}/insights`, {
       fields: 'campaign_name,spend,impressions,clicks',
@@ -32,10 +32,10 @@ describe('Graph API v26.0: rutas de objeto, nunca «/?ids=»', () => {
     })
     const [acc, ins] = calls.map((c) => new URL(c.url))
     expect(`${acc!.origin}${acc!.pathname}`).toBe(
-      'https://graph.facebook.com/v26.0/act_1682000936239491',
+      'https://graph.facebook.com/v26.0/act_1234567890123456',
     )
     expect(acc!.searchParams.get('fields')).toBe('id,name,account_status,currency,timezone_name')
-    expect(ins!.pathname).toBe('/v26.0/act_1682000936239491/insights')
+    expect(ins!.pathname).toBe('/v26.0/act_1234567890123456/insights')
     expect(ins!.searchParams.get('breakdowns')).toBe('age')
     expect(JSON.parse(ins!.searchParams.get('time_range')!)).toEqual({
       since: '2026-09-01',
