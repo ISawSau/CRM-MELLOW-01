@@ -1,3 +1,7 @@
+## Novedades de la 0.16.4
+
+- **Conectar con Google sin errores de copia:** la app limpia los espacios que el teclado del móvil puede meter en el id y el secreto de cliente, y si el id no es de Google (tiene que terminar en `.apps.googleusercontent.com`) te avisa antes de abrir el navegador. Los campos ya no se autocorrigen.
+
 ## Novedades de la 0.16.3
 
 - **Elegir la cuenta de Google:** al conectar Google Drive o Gmail, Google te deja elegir siempre con qué cuenta entrar, aunque el navegador tenga otra abierta. Si no sale la tuya, pulsa «Usar otra cuenta».

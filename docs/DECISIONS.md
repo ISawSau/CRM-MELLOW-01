@@ -848,3 +848,9 @@ El usuario no quiere escribir comandos de desarrollo para usar la app. Los insta
 
 - Problema del usuario: al conectar Google Drive (o Gmail), el navegador entraba directamente con otra cuenta de Google ya abierta y no dejaba cambiarla.
 - La petición de autorización lleva ahora `prompt=select_account consent`: Google muestra siempre el selector de cuentas y después el permiso, que hace falta para recibir el token de actualización. La documentación oficial («Using OAuth 2.0 for Web Server Applications», parámetro `prompt`) dice que es una lista separada por espacios y que `select_account` pide al usuario que elija la cuenta. Un test lo comprueba.
+
+### D-112 · Id de cliente de Google: limpiar y comprobar antes de abrir Google (v0.16.4)
+
+- Problema del usuario: «Error 401: invalid_client» en la página de Google, también en una pestaña de incógnito. Ese error quiere decir que Google no encuentra el id de cliente; no depende de la cuenta con la que se entra.
+- `connectGoogle` quita los espacios del id y del secreto (un teclado de móvil puede meterlos al autocorregir) y, si el id no termina en `.apps.googleusercontent.com`, avisa en la app sin abrir el navegador. Así se ve al momento si se ha pegado el secreto en lugar del id o un id cortado. Vale para Drive, Gmail y «Traer desde Google Drive».
+- Los campos del id y del secreto ya no se autocorrigen, no ponen mayúsculas ni pasan el corrector.

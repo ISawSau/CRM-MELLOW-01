@@ -43,6 +43,22 @@ const PAGE = (
 <div style="max-width:420px"><h1 style="font-size:20px">${title}</h1><p>${text}</p></div></body></html>`
 
 /**
+ * Limpia el id y el secreto pegados (un teclado de móvil puede meter espacios al
+ * autocorregir) y comprueba que el id tiene la forma de los de Google. Con un id mal
+ * copiado Google solo responde «Error 401: invalid_client» en el navegador (D-112).
+ */
+export function cleanGoogleClient(client: GoogleClient): GoogleClient {
+  const clientId = client.clientId.replace(/\s+/g, '')
+  if (!/^[\w-]+\.apps\.googleusercontent\.com$/.test(clientId))
+    throw new Error(
+      t(
+        'El id de cliente de Google no es válido: tiene que terminar en .apps.googleusercontent.com. Cópialo otra vez desde Google Cloud → Credenciales, del cliente de tipo «Aplicación de escritorio».',
+      ),
+    )
+  return { clientId, clientSecret: client.clientSecret.replace(/\s+/g, '') }
+}
+
+/**
  * Abre el navegador del sistema para conectar con Google y espera la respuesta en
  * un puerto local. Devuelve los tokens.
  */
@@ -52,6 +68,7 @@ export async function connectGoogle(
   http: FetchLike = fetch,
   opts: { scope?: string; tokenUrl?: string } = {},
 ): Promise<GoogleTokens> {
+  client = cleanGoogleClient(client)
   const verifier = b64url(randomBytes(48))
   const challenge = b64url(createHash('sha256').update(verifier).digest())
   const state = b64url(randomBytes(16))

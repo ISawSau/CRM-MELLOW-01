@@ -109,6 +109,9 @@ export function GmailSettings() {
                 {s?.hasClient ? t('ID de cliente (opcional)') : t('ID de cliente')}
               </label>
               <input
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
                 id="gm-id"
                 className="input mono"
                 value={clientId}
@@ -119,6 +122,9 @@ export function GmailSettings() {
             <div className="field">
               <label htmlFor="gm-secret">{t('Secreto de cliente')}</label>
               <input
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
                 id="gm-secret"
                 className="input mono"
                 type="password"
