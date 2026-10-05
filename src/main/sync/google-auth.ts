@@ -102,7 +102,8 @@ export async function connectGoogle(
         state,
         // Token de actualización para sincronizar sin volver a pedir permiso.
         access_type: 'offline',
-        prompt: 'consent',
+        // Siempre se elige la cuenta: el navegador puede tener abierta otra de Google.
+        prompt: 'select_account consent',
       })
       openBrowser(`${AUTH_URL}?${params}`)
     })
