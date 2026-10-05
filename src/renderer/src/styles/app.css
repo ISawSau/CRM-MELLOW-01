@@ -308,6 +308,27 @@
   overflow: auto;
 }
 
+/* Aviso de versión nueva (D-114), encima de la sección abierta. */
+.update-banner {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
+  align-items: center;
+  margin: var(--space-3) var(--space-4) 0;
+  padding: var(--space-2) var(--space-3);
+  border-left: 2px solid var(--accent);
+  background: var(--bg-raised);
+  color: var(--text);
+}
+
+.update-banner .marker {
+  background: var(--accent);
+}
+
+.update-banner > span:nth-child(2) {
+  flex: 1 1 16rem;
+}
+
 .page {
   display: grid;
   gap: var(--space-5);

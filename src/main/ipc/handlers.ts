@@ -18,6 +18,7 @@ import type { GmailService } from '../gmail/gmail-service'
 import { createGmailHandlers } from './gmail-handlers'
 import { createAnalysisHandlers } from './analysis-handlers'
 import { createDataHandlers } from './data-handlers'
+import type { UpdateService } from '../updates'
 import { createMetaHandlers } from './meta-handlers'
 import { createSyncHandlers } from './sync-handlers'
 import { createToolsHandlers } from './tools-handlers'
@@ -33,6 +34,7 @@ export interface HandlerDeps {
   tools: ToolsService
   reports: ReportService
   gmail: GmailService
+  updates: UpdateService
   /** Sube lo pendiente y bloquea (bloqueo manual y automático). */
   lockWithSync: () => Promise<void>
   platform: Platform
@@ -51,6 +53,7 @@ export function createHandlers({
   tools,
   reports,
   gmail,
+  updates,
   lockWithSync,
   platform,
 }: HandlerDeps): IpcHandlers {
@@ -96,6 +99,19 @@ export function createHandlers({
     }),
 
     'app:activity': () => autoLock.touch(),
+
+    // Aviso de versión nueva (D-114).
+    'updates:status': () => updates.status(),
+    'updates:settings': () => vault.data.getUpdateSettings(),
+    'updates:setSettings': (s) => {
+      const saved = vault.data.setUpdateSettings(s)
+      void updates.check()
+      return saved
+    },
+    'updates:dismiss': ({ version }) => {
+      vault.data.setUpdateSettings({ ...vault.data.getUpdateSettings(), dismissed: version })
+      return updates.status()
+    },
 
     'vault:status': () => vault.status(),
 

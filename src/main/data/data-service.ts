@@ -76,6 +76,7 @@ import {
 } from '@shared/home'
 import { z } from 'zod'
 import { notifySettingsSchema, type NotifySettings } from '@shared/growth'
+import { updateSettingsSchema, type UpdateSettings } from '@shared/updates'
 import { DEFAULT_PROFILE, profileSchema, type Profile } from '@shared/profile'
 import {
   elapsedHours,
@@ -160,6 +161,7 @@ const BRIEF_TEMPLATES_KEY = 'briefs.templates'
 const HOME_LAYOUT_KEY = 'home.layout'
 const HOME_CARDS_SEEN_KEY = 'home.cardsSeen'
 const NOTIFY_KEY = 'notify.settings'
+const UPDATES_KEY = 'updates.settings'
 const MAIL_TEMPLATES_KEY = 'mail.templates'
 const TIMER_KEY = 'timer.running'
 const COLLECTIONS_KEY = 'data.collections'
@@ -500,6 +502,18 @@ export class DataService {
     this.putSetting(NOTIFY_KEY, notifySettingsSchema.parse(s))
     this.emit(null)
     return this.getNotifySettings()
+  }
+
+  /** Aviso de versión nueva (D-114). */
+  getUpdateSettings(): UpdateSettings {
+    const r = updateSettingsSchema.safeParse(this.getSetting(UPDATES_KEY) ?? {})
+    return r.success ? r.data : updateSettingsSchema.parse({})
+  }
+
+  setUpdateSettings(s: UpdateSettings): UpdateSettings {
+    this.putSetting(UPDATES_KEY, updateSettingsSchema.parse(s))
+    this.emit(null)
+    return this.getUpdateSettings()
   }
 
   /** Tareas sin hacer con fecha límite hoy o ya pasada. */

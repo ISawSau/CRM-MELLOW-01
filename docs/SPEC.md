@@ -1,6 +1,6 @@
 # Especificación del CRM personal
 
-Versión 0.5 · 4 de octubre de 2026
+Versión 0.6 · 5 de octubre de 2026
 
 Este documento recoge todas las decisiones de diseño tomadas antes de escribir código. Es la referencia para construir el proyecto fase a fase. Lo que aparece marcado como **verificar** depende de APIs o normativa externa que cambian con el tiempo y debe comprobarse en la documentación oficial antes de implementarlo.
 
@@ -60,7 +60,7 @@ Principios que guían cualquier decisión:
 | PDF | pdf-lib (unir, dividir), pdf.js (comprimir pintando las páginas y vista previa), printToPDF de Electron (informes) | Cubre generación y compresión de PDF gratis, sin binarios (D-075, D-076). |
 | Tipos de cambio | Tasas de referencia del BCE descargadas de sus XML oficiales (diario, 90 días e histórico), gratis y sin clave (D-056). | Conversión de divisas sin coste y desde la fuente. |
 | Tests | Vitest (lógica) + Playwright para Electron (interfaz) | |
-| CI de builds | GitHub Actions (gratis en repos públicos o con minutos gratuitos en privados; **verificar** límites) | Compilar en Windows y Linux reales, necesario por los módulos nativos (SQLite). |
+| CI de builds | GitHub Actions, gratis al ser el repositorio público (D-113) | Compilar en Windows y Linux reales, necesario por los módulos nativos (SQLite). |
 
 Arquitectura de procesos: el proceso principal de Electron es el único que toca la base de datos, los archivos y las APIs externas. El renderer (la interfaz) se comunica con él mediante IPC tipado. Las sincronizaciones largas (histórico de Meta, subida a Drive) usan E/S asíncrona y escriben por trozos en transacciones cortas para no congelar la interfaz; si algún día no basta, se moverán a un utility process (D-057).
 
@@ -384,7 +384,7 @@ El negocio actual es ecommerce y no usa formularios de leads. Si en el futuro se
 
 ### 7.14 Ajustes
 
-Perfil · bóveda · seguridad (contraseña, autobloqueo, clave de recuperación) · sincronización y copias · conexiones (Meta, Google) · monedas y zonas horarias · formato regional · apariencia (selector de temas con los predefinidos claro y oscuro, temas propios creados y editados desde la app, densidad compacta o cómoda) · campos, etiquetas, estados y pipelines · presets de columnas · atajos de teclado.
+Perfil · bóveda · seguridad (contraseña, autobloqueo, clave de recuperación) · sincronización y copias · conexiones (Meta, Google) · monedas y zonas horarias · formato regional · apariencia (selector de temas con los predefinidos claro y oscuro, temas propios creados y editados desde la app, densidad compacta o cómoda) · campos, etiquetas, estados y pipelines · presets de columnas · atajos de teclado · aviso de versión nueva (D-114).
 
 ---
 

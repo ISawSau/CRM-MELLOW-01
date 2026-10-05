@@ -23,6 +23,7 @@ import { ProfilePage } from './ProfilePage'
 import { Upcoming } from './Pages'
 import { Settings } from './Settings'
 import { Sidebar } from './Sidebar'
+import { UpdateBanner } from './UpdateBanner'
 import { StatusBar } from './StatusBar'
 import { ConflictDialog } from './sync'
 import { t } from '@shared/i18n'
@@ -240,6 +241,7 @@ function ShellInner({ status }: { status: VaultStatus }) {
           <div className="m-scrim" onClick={() => setDrawer(false)} aria-hidden="true" />
         )}
         <main className="main">
+          <UpdateBanner />
           {current.entity ? (
             <DataPage
               key={current.entity}

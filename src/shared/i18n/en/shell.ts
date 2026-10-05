@@ -299,4 +299,15 @@ export const shell: Record<string, string> = {
   'Animación de la pantalla de contraseña': 'Password screen animation',
   'Se ve a la derecha al desbloquear la bóveda y reacciona a lo que escribes.':
     'It appears on the right when you unlock the vault and reacts as you type.',
+  // Aviso de versión nueva (D-114)
+  'Hay una versión nueva de CRM Mellow: {latest} (tienes la {current}).':
+    'A new version of CRM Mellow is available: {latest} (you have {current}).',
+  Descargar: 'Download',
+  'Ahora no': 'Not now',
+  Actualizaciones: 'Updates',
+  'Una vez al día la app mira en GitHub si hay versión nueva. No envía ningún dato tuyo.':
+    'Once a day the app checks GitHub for a new version. It sends none of your data.',
+  'Avisar cuando haya una versión nueva': 'Tell me when a new version is available',
+  'Versión instalada: {current}.': 'Installed version: {current}.',
+  'Ver las versiones publicadas': 'See published versions',
 }

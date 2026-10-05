@@ -854,3 +854,17 @@ El usuario no quiere escribir comandos de desarrollo para usar la app. Los insta
 - Problema del usuario: «Error 401: invalid_client» en la página de Google, también en una pestaña de incógnito. Ese error quiere decir que Google no encuentra el id de cliente; no depende de la cuenta con la que se entra.
 - `connectGoogle` quita los espacios del id y del secreto (un teclado de móvil puede meterlos al autocorregir) y, si el id no termina en `.apps.googleusercontent.com`, avisa en la app sin abrir el navegador. Así se ve al momento si se ha pegado el secreto en lugar del id o un id cortado. Vale para Drive, Gmail y «Traer desde Google Drive».
 - Los campos del id y del secreto ya no se autocorrigen, no ponen mayúsculas ni pasan el corrector.
+
+### D-113 · Repositorio público con licencia MIT (v0.16.5)
+
+- El usuario hizo público el repositorio el 05/10/2026: en uno privado se habían agotado los 2.000 minutos gratuitos de Actions del mes (los de Windows cuentan el doble) y el CI ya no tenía máquinas. En los repositorios públicos Actions es gratis y sin ese límite. Sustituye lo de «coste cero en un repo privado» de D-013.
+- Licencia **MIT** (elegida por el usuario), © yellowmellow: `LICENSE`, `license` en `package.json` y `mobile/package.json`, y una copia en `build/licencias/`, que va dentro de los instaladores junto a las de FFmpeg (GPL-3.0, programa aparte) y libheif (LGPL-3.0).
+- README pensado para cualquier visitante: `README.md` en inglés y `README.es.md` en español, con lo que hace la app, privacidad y seguridad, instalación, cómo conectar Google y Meta con credenciales propias, compilar desde el código, firmar el APK en un fork y cómo contribuir. SPEC, DECISIONS y DESIGN siguen en español.
+- El test de Meta que usaba el id real de la cuenta publicitaria del usuario usa ahora uno inventado (CLAUDE.md: el repositorio no contiene datos reales). El id sigue en commits antiguos; reescribir el historial se descartó porque cambia todos los hashes y un id de cuenta no da acceso sin un token.
+
+### D-114 · Aviso de versión nueva (v0.16.5)
+
+- Con el repositorio público ya no hace falta token para consultar Releases (D-022 lo descartó por eso). Con la bóveda desbloqueada y el ajuste activado (por defecto), el proceso principal pide `GET https://api.github.com/repos/ISawSau/CRM-MELLOW-01/releases/latest` como mucho una vez al día (documentación de la API REST de GitHub, «Get the latest release», consultada el 05/10/2026: devuelve la última versión publicada, sin borradores ni prereleases; cabeceras `Accept: application/vnd.github+json` y `X-GitHub-Api-Version: 2026-03-10`). Sin token ni datos del usuario. Un fallo de red se ignora y se reintenta en la siguiente ronda (cada 6 horas).
+- Si `tag_name` es una versión x.y.z posterior a la instalada, encima de la sección abierta aparece «Hay una versión nueva…» con «Descargar» (abre la página de la versión en el navegador; solo se acepta un enlace a los Releases de este repositorio) y «Ahora no» (no vuelve a avisar de esa versión). Se apaga en Ajustes → Actualizaciones, donde también se ve la versión instalada.
+- No descarga ni instala nada sola: instalar sigue siendo cosa del usuario (en Windows el instalador no está firmado y en Android hay que confirmar la instalación).
+- Sin empaquetar (desarrollo y tests) no se consulta GitHub salvo con `CRM_TEST_RELEASES_URL`, para que los tests no salgan a internet. El ajuste se guarda en la bóveda (`updates.settings`).
