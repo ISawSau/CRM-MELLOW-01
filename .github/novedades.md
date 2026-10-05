@@ -1,3 +1,7 @@
+## Novedades de la 0.16.3
+
+- **Elegir la cuenta de Google:** al conectar Google Drive o Gmail, Google te deja elegir siempre con qué cuenta entrar, aunque el navegador tenga otra abierta. Si no sale la tuya, pulsa «Usar otra cuenta».
+
 ## Novedades de la 0.16.2
 
 - **Logo nuevo:** el iris de yellowmellow con su nuevo diseño, en el icono de la app (Windows, Linux y Android), en la barra lateral y en la pantalla de contraseña.

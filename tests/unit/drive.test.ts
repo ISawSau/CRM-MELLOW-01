@@ -202,6 +202,8 @@ describe('conexión con Google (OAuth para escritorio)', () => {
     expect(`${u.origin}${u.pathname}`).toBe('https://accounts.google.com/o/oauth2/v2/auth')
     expect(u.searchParams.get('scope')).toBe('https://www.googleapis.com/auth/drive.file')
     expect(u.searchParams.get('code_challenge_method')).toBe('S256')
+    // Siempre deja elegir la cuenta de Google, aunque el navegador tenga otra abierta.
+    expect(u.searchParams.get('prompt')).toBe('select_account consent')
     expect(u.searchParams.get('redirect_uri')).toMatch(/^http:\/\/127\.0\.0\.1:\d+$/)
     const body = tokenBody!
     expect(body.get('code')).toBe('codigo123')

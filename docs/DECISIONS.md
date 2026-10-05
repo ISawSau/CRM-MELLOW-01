@@ -843,3 +843,8 @@ El usuario no quiere escribir comandos de desarrollo para usar la app. Los insta
 - La imagen original, recortada y cuadrada a 1024 px, queda en `build/mellow_eye_crop_v2.png`. De ella salen el icono de escritorio (`build/icon.png`, 512 px; electron-builder hace el `.ico` de Windows y los iconos de Linux), el logo de la interfaz (`src/renderer/src/assets/logo.png`, 256 px) y el primer plano del icono adaptable de Android (`mipmap-*/ic_launcher_foreground.png`).
 - En Android el ojo ocupa el 64 % del icono, dentro de la zona segura de 66 dp de 108 que ningún recorte del lanzador tapa, sobre el fondo oscuro de la app. El icono monocromo (Android 13+) usa la silueta.
 - El logo de la barra lateral y de la pantalla de contraseña ya no se recorta en círculo: el borde dentado es parte del diseño.
+
+### D-111 · Google: elegir siempre la cuenta (v0.16.3)
+
+- Problema del usuario: al conectar Google Drive (o Gmail), el navegador entraba directamente con otra cuenta de Google ya abierta y no dejaba cambiarla.
+- La petición de autorización lleva ahora `prompt=select_account consent`: Google muestra siempre el selector de cuentas y después el permiso, que hace falta para recibir el token de actualización. La documentación oficial («Using OAuth 2.0 for Web Server Applications», parámetro `prompt`) dice que es una lista separada por espacios y que `select_account` pide al usuario que elija la cuenta. Un test lo comprueba.
