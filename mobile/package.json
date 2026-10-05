@@ -3,7 +3,7 @@
   "private": true,
   "description": "Lo que ejecuta el Node de la app de Android (nodejs-mobile, D-101): el motor compilado en backend/ y su único módulo nativo.",
   "main": "backend/main.js",
-  "license": "UNLICENSED",
+  "license": "MIT",
   "dependencies": {
     "better-sqlite3": "npm:better-sqlite3-multiple-ciphers@11.10.0"
   }
