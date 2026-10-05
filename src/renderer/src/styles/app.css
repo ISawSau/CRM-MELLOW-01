@@ -35,8 +35,7 @@
   flex: none;
   width: 22px;
   height: 22px;
-  border-radius: var(--radius-round);
-  object-fit: cover;
+  object-fit: contain;
   user-select: none;
 }
 

@@ -836,3 +836,10 @@ El usuario no quiere escribir comandos de desarrollo para usar la app. Los insta
 
 - **Beneficio por hora:** columna nueva en Facturación: (cobrado − gastos) ÷ horas registradas del periodo, en rojo si es negativo. Junto a «Facturado por hora» (D-099) da la rentabilidad real de cada cliente.
 - **Resumen semanal:** en la ficha del cliente, el resumen de los últimos 7 días completos en texto plano (inversión, compras, CPA y ROAS con su cambio frente a la semana anterior y el objetivo, CTR, las campañas con más inversión y el ritmo del mes) para copiar y pegar en un correo o en WhatsApp. Se genera en el momento y no se guarda.
+
+### D-110 · Logo «mellow_eye_crop_v2» (v0.16.2)
+
+- Petición del usuario: el logo y todos los iconos pasan al diseño nuevo del iris (anillos naranja y rojo, fibras oscuras, collarete dentado y pupila roja), con fondo transparente.
+- La imagen original, recortada y cuadrada a 1024 px, queda en `build/mellow_eye_crop_v2.png`. De ella salen el icono de escritorio (`build/icon.png`, 512 px; electron-builder hace el `.ico` de Windows y los iconos de Linux), el logo de la interfaz (`src/renderer/src/assets/logo.png`, 256 px) y el primer plano del icono adaptable de Android (`mipmap-*/ic_launcher_foreground.png`).
+- En Android el ojo ocupa el 64 % del icono, dentro de la zona segura de 66 dp de 108 que ningún recorte del lanzador tapa, sobre el fondo oscuro de la app. El icono monocromo (Android 13+) usa la silueta.
+- El logo de la barra lateral y de la pantalla de contraseña ya no se recorta en círculo: el borde dentado es parte del diseño.
