@@ -1,3 +1,7 @@
+## Novedades de la 0.16.2
+
+- **Logo nuevo:** el iris de yellowmellow con su nuevo diseño, en el icono de la app (Windows, Linux y Android), en la barra lateral y en la pantalla de contraseña.
+
 ## Novedades de la 0.16.1
 
 - **App de Android publicada:** desde esta versión el APK firmado (`CRM-Mellow-0.16.1-android-arm64.apk`) está aquí, en Assets, junto a los instaladores de escritorio. Mira las instrucciones de Android más abajo.
