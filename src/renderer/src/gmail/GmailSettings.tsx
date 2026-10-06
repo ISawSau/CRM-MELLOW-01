@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { t } from '@shared/i18n'
 import { call, IpcCallError } from '../lib/ipc'
 import { Alert } from '../ui/Alert'
+import { GoogleLoginHelp } from '../ui/GoogleLoginHelp'
 import { useGmailStatus } from './gmail'
 
 /** Ajustes → Gmail: conectar en solo lectura con el proyecto de Google del usuario. */
@@ -145,7 +146,13 @@ export function GmailSettings() {
               >
                 {busy ? t('Esperando a Google…') : t('Conectar')}
               </button>
+              {busy && (
+                <button type="button" className="btn" onClick={() => void call('google:cancel')}>
+                  {t('Cancelar')}
+                </button>
+              )}
             </div>
+            {busy && <GoogleLoginHelp />}
           </div>
         )}
       </div>
