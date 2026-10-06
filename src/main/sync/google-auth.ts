@@ -21,6 +21,13 @@ export const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file'
 export const GMAIL_SCOPE = 'https://www.googleapis.com/auth/gmail.readonly'
 export const REVOKE_URL = 'https://oauth2.googleapis.com/revoke'
 const LOGIN_TIMEOUT_MS = 5 * 60_000
+/**
+ * Android 15 corta la red a las apps en segundo plano (cambio para todas las apps): el
+ * canje del código falla mientras el usuario sigue en el navegador y funciona en cuanto
+ * vuelve a la app. Se reintenta un rato (D-117).
+ */
+const EXCHANGE_RETRY_MS = 3 * 60_000
+const EXCHANGE_RETRY_DELAY_MS = 2_000
 
 export interface GoogleClient {
   clientId: string
@@ -92,7 +99,7 @@ export async function connectGoogle(
   client: GoogleClient,
   openBrowser: (url: string) => void,
   http: FetchLike = fetch,
-  opts: { scope?: string; tokenUrl?: string } = {},
+  opts: { scope?: string; tokenUrl?: string; retryMs?: number; retryDelayMs?: number } = {},
 ): Promise<GoogleTokens> {
   client = cleanGoogleClient(client)
   const verifier = b64url(randomBytes(48))
@@ -138,7 +145,12 @@ export async function connectGoogle(
         )
         return
       }
-      res.end(PAGE(t('Conectado'), t('Ya puedes cerrar esta pestaña y volver a CRM Mellow.')))
+      res.end(
+        PAGE(
+          t('Conectado'),
+          t('Vuelve a CRM Mellow para terminar. Ya puedes cerrar esta pestaña.'),
+        ),
+      )
       clearTimeout(timer)
       server?.close()
       resolve({ code: got, redirect })
@@ -166,18 +178,24 @@ export async function connectGoogle(
     })
   })
 
-  const res = await http(opts.tokenUrl ?? TOKEN_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
-      code: code.code,
-      client_id: client.clientId,
-      client_secret: client.clientSecret,
-      code_verifier: verifier,
-      grant_type: 'authorization_code',
-      redirect_uri: code.redirect,
-    }),
-  })
+  const exchange = () =>
+    http(opts.tokenUrl ?? TOKEN_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        code: code.code,
+        client_id: client.clientId,
+        client_secret: client.clientSecret,
+        code_verifier: verifier,
+        grant_type: 'authorization_code',
+        redirect_uri: code.redirect,
+      }),
+    })
+  const res = await retryNetwork(
+    exchange,
+    opts.retryMs ?? EXCHANGE_RETRY_MS,
+    opts.retryDelayMs ?? EXCHANGE_RETRY_DELAY_MS,
+  )
   const json = (await res.json()) as {
     access_token?: string
     refresh_token?: string
@@ -194,6 +212,26 @@ export async function connectGoogle(
     accessToken: json.access_token,
     refreshToken: json.refresh_token,
     expiresAt: Date.now() + (json.expires_in ?? 3600) * 1000,
+  }
+}
+
+/**
+ * Repite `run` mientras falle la red (sin respuesta de Google) y no pase `windowMs`. Una
+ * respuesta, aunque sea un error, no se repite: el código de Google solo vale una vez.
+ */
+async function retryNetwork<T>(
+  run: () => Promise<T>,
+  windowMs: number,
+  delayMs: number,
+): Promise<T> {
+  const until = Date.now() + windowMs
+  for (;;) {
+    try {
+      return await run()
+    } catch (e) {
+      if (e instanceof AppError || Date.now() + delayMs > until) throw e
+      await new Promise((r) => setTimeout(r, delayMs))
+    }
   }
 }
 
