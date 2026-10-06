@@ -424,7 +424,7 @@ Cada fase termina con algo que funciona, tests y build verificado en Windows y L
 | 10. Gmail | Hilos por cliente y contacto. |
 | 11. X y LinkedIn | Conectores por API si son gratuitos; si no, importación de CSV con mapeo guardado. Retirado en la 0.13.3 (D-091). |
 | 12. Personalización avanzada | Colecciones personalizadas, plantillas de brief definitivas, widgets de inicio configurables, editor de temas (crear y modificar temas desde la app). |
-| 13. Móvil | App de Android con el mismo motor e interfaz adaptada a pantalla táctil; la bóveda se trae y sincroniza con Google Drive (D-101). |
+| 13. Móvil | App de Android con el mismo motor e interfaz adaptada a pantalla táctil; la bóveda se trae y sincroniza con Google Drive (D-101). Todo cabe a lo ancho: menús y diálogos como hojas que suben desde abajo, tablas sin columnas fijas y estadísticas de dos en dos (D-122). |
 | 14. Rendimiento y negocio | Objetivos por cliente con colores de verde a rojo en Campañas, lista de arranque, ritmo de gasto del mes, fatiga creativa, avisos del sistema, registro de tests A/B, beneficio por hora y resumen semanal (D-104 a D-109). |
 
 Hasta la fase 5, el traslado entre ordenadores se hace copiando la carpeta de la bóveda manualmente.

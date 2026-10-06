@@ -1,3 +1,12 @@
+## Novedades de la 0.17.1 · El móvil, sin cosas montadas ni cortadas
+
+- **Perfil:** al desplazarte, la foto y tus datos se mueven con la página, sin montarse sobre las cifras. La foto ocupa menos.
+- **Tablas (Clientes, Tareas…):** el nombre ya no se queda fijo tapando las demás columnas. Toda la fila se desplaza a lo ancho.
+- **Ajustes de sección, confirmaciones y menús:** los ajustes de cada sección, «Vaciar la papelera» y los demás diálogos salen enteros, abajo y a lo ancho. Filtrar, Ordenar, Columnas y Vista se abren igual, sin salirse por la derecha. Los campos, las opciones y los filtros se reparten en dos líneas.
+- **Campañas:** estadísticas de dos en dos y más pequeñas. «Campañas › conjunto › anuncio» va debajo de ellas, justo encima de la tabla (también en el ordenador).
+- **Análisis:** los widgets ya no se montan unos encima de otros: cifras de dos en dos y gráficos a lo ancho.
+- **Papelera y cuentas de Meta:** cada elemento en su bloque, con el nombre arriba y los botones debajo.
+
 ## Novedades de la 0.17.0 · Actualizar desde la app
 
 - **Actualizar con un botón:** cuando hay versión nueva, pulsa **Actualizar** en el aviso (o en Ajustes → Actualizaciones). La app baja el archivo de tu sistema desde GitHub, comprueba su huella SHA-256 y lo instala:
