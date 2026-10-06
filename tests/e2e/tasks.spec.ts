@@ -58,8 +58,14 @@ test('una tarea para hoy con checklist y repetición semanal', async () => {
   await add.press('Enter')
   await add.fill('Enviar al cliente')
   await add.press('Enter')
-  await panel().getByRole('checkbox', { name: 'Hecho: Exportar datos' }).click()
-  await expect(panel().getByRole('checkbox', { name: 'Hecho: Exportar datos' })).toBeChecked()
+  // Al guardar cada elemento la lista se vuelve a pintar: se espera a que estén los dos y
+  // se marca con reintento (la casilla puede cambiarse por la nueva justo al pulsarla).
+  await expect(panel().getByRole('checkbox', { name: 'Hecho: Enviar al cliente' })).toBeVisible()
+  const done = panel().getByRole('checkbox', { name: 'Hecho: Exportar datos' })
+  await expect(async () => {
+    await done.check({ timeout: 2_000 })
+    await expect(done).toBeChecked({ timeout: 1_000 })
+  }).toPass()
 
   await panel().getByLabel('Repetición').selectOption({ label: 'Cada semana' })
   await panel()
