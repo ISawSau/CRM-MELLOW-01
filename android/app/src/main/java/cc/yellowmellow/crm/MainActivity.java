@@ -13,6 +13,7 @@ import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.pm.PackageInstaller;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.graphics.Color;
@@ -23,6 +24,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.os.PersistableBundle;
 import android.provider.OpenableColumns;
+import android.provider.Settings;
 import android.util.Log;
 import android.view.View;
 import android.view.WindowInsets;
@@ -43,6 +45,7 @@ import org.json.JSONObject;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.HashMap;
@@ -60,6 +63,8 @@ public class MainActivity extends Activity implements NativeChannel.Handler {
     private static final long CLIPBOARD_CLEAR_MS = 60_000;
     private static final int REQ_NOTIFY = 3;
     private static final String NOTIFY_CHANNEL = "avisos";
+    /** Respuesta del instalador de paquetes al instalar una versión nueva (D-120). */
+    private static final String ACTION_INSTALL_STATUS = "cc.yellowmellow.crm.INSTALL_STATUS";
     private boolean askedNotify = false;
     private int nextNotifyId = 1;
 
@@ -205,6 +210,9 @@ public class MainActivity extends Activity implements NativeChannel.Handler {
                 case "notify":
                     notifyUser(req.optString("title"), req.optString("body"));
                     background(() -> NativeChannel.reply(id, true));
+                    break;
+                case "installApk":
+                    installApk(id, req.optString("path"));
                     break;
                 case "busy":
                     // Conectar con Google: la app no se congela ni pierde la red al pasar
@@ -377,11 +385,88 @@ public class MainActivity extends Activity implements NativeChannel.Handler {
         NativeChannel.notifyAsync("/native/background");
     }
 
-    /** El botón «Volver a CRM Mellow» de la página de Google trae la app al frente. */
+    /**
+     * Actualizar desde la app (D-120): instala el APK que ha bajado y comprobado el motor con
+     * el instalador de paquetes de Android, que pide confirmación. Antes, Android tiene que
+     * permitir a esta app instalar apps; si no, se abre ese ajuste y se avisa al motor.
+     */
+    private void installApk(String id, String path) {
+        if (!getPackageManager().canRequestPackageInstalls()) {
+            try {
+                startActivity(new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+                        Uri.parse("package:" + getPackageName())));
+            } catch (Exception e) {
+                Log.w(TAG, "No se ha podido abrir el ajuste de instalar apps");
+            }
+            background(() -> NativeChannel.reply(id, "permission"));
+            return;
+        }
+        final File file = new File(path);
+        try {
+            // Solo APKs de la carpeta de actualizaciones, donde los deja el motor.
+            String dir = new File(getCacheDir(), "actualizacion").getCanonicalPath();
+            if (!file.getCanonicalPath().startsWith(dir + File.separator) || !file.isFile())
+                throw new IOException("Ruta no válida");
+        } catch (IOException e) {
+            background(() -> NativeChannel.reply(id, null));
+            return;
+        }
+        background(() -> {
+            try {
+                PackageInstaller installer = getPackageManager().getPackageInstaller();
+                PackageInstaller.SessionParams params = new PackageInstaller.SessionParams(
+                        PackageInstaller.SessionParams.MODE_FULL_INSTALL);
+                params.setAppPackageName(getPackageName());
+                int session = installer.createSession(params);
+                try (PackageInstaller.Session s = installer.openSession(session)) {
+                    try (InputStream in = new FileInputStream(file);
+                         OutputStream out = s.openWrite("crm-mellow.apk", 0, file.length())) {
+                        byte[] buf = new byte[256 * 1024];
+                        int n;
+                        while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
+                        s.fsync(out);
+                    }
+                    Intent status = new Intent(this, MainActivity.class)
+                            .setAction(ACTION_INSTALL_STATUS)
+                            .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
+                    // Mutable: el instalador añade el resultado a esta intención.
+                    int flags = PendingIntent.FLAG_UPDATE_CURRENT
+                            | (Build.VERSION.SDK_INT >= 31 ? PendingIntent.FLAG_MUTABLE : 0);
+                    s.commit(PendingIntent.getActivity(this, session, status, flags).getIntentSender());
+                }
+                NativeChannel.reply(id, "installing");
+            } catch (Exception e) {
+                Log.w(TAG, "No se ha podido instalar la versión nueva", e);
+                NativeChannel.reply(id, null);
+            }
+        });
+    }
+
+    /**
+     * El botón «Volver a CRM Mellow» de la página de Google trae la app al frente. También
+     * llega aquí la respuesta del instalador: si pide confirmación, se le muestra al usuario.
+     */
     @Override
+    @SuppressWarnings("deprecation")
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
         setIntent(intent);
+        if (!ACTION_INSTALL_STATUS.equals(intent.getAction())) return;
+        int status = intent.getIntExtra(PackageInstaller.EXTRA_STATUS, PackageInstaller.STATUS_FAILURE);
+        if (status == PackageInstaller.STATUS_PENDING_USER_ACTION) {
+            Intent confirm = Build.VERSION.SDK_INT >= 33
+                    ? intent.getParcelableExtra(Intent.EXTRA_INTENT, Intent.class)
+                    : intent.getParcelableExtra(Intent.EXTRA_INTENT);
+            if (confirm != null) {
+                try {
+                    startActivity(confirm);
+                } catch (Exception e) {
+                    Log.w(TAG, "No se ha podido pedir confirmación para instalar");
+                }
+            }
+        } else if (status != PackageInstaller.STATUS_SUCCESS) {
+            Log.w(TAG, "Instalación no completada: " + intent.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE));
+        }
     }
 
     @Override

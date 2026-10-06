@@ -7,7 +7,7 @@ import { setLocale } from '@shared/i18n'
 import { createBackend } from '../main/backend'
 import { ConfigStore } from '../main/config'
 import { useNativeSqlite } from '../main/db/connection'
-import { androidPlatform } from './android-platform'
+import { androidPlatform, androidUpdateTarget } from './android-platform'
 import { runBackgroundProbe } from './background-probe'
 import { runMobileSelfTest } from './self-test'
 import { startMobileServer, type MobileServer } from './server'
@@ -56,6 +56,12 @@ async function main(): Promise<void> {
     emit: (event, payload) => server?.emit(event, payload),
     // Fotos y documentos sí; los vídeos grandes se quedan en la nube (se ven sus miniaturas).
     maxAutoDownloadBytes: 25 * 1024 * 1024,
+    updateTarget: androidUpdateTarget({
+      cacheDir: arg('cache'),
+      native: (request) => server?.native(request) ?? Promise.resolve(null),
+    }),
+    // Los tests del PC no salen a GitHub (solo a su servidor falso, si lo dan).
+    ...(__CRM_MOBILE_TEST__ ? { releasesUrl: process.env['CRM_TEST_RELEASES_URL'] ?? null } : {}),
     ...(__CRM_MOBILE_TEST__ && process.env['CRM_TEST_GOOGLE_URL']
       ? { testUrls: { google: process.env['CRM_TEST_GOOGLE_URL'] } }
       : {}),

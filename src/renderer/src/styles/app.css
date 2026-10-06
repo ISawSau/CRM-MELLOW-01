@@ -41,7 +41,9 @@
 
 .gate-body {
   display: grid;
-  align-content: center;
+  /* «safe»: si no cabe (pantalla baja, teclado del móvil abierto), empieza arriba y se
+     desplaza, en lugar de cortarse por arriba. */
+  align-content: safe center;
   padding: var(--space-7) var(--space-6);
 }
 
@@ -327,6 +329,48 @@
 
 .update-banner > span:nth-child(2) {
   flex: 1 1 16rem;
+}
+
+/* Actualizar desde la app (D-120): avance, comando para instalar y errores. */
+.update-progress {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+  color: var(--text-muted);
+}
+
+.update-progress progress {
+  width: 10rem;
+  max-width: 100%;
+  accent-color: var(--accent);
+}
+
+.update-command {
+  display: grid;
+  gap: var(--space-1);
+  justify-items: start;
+  margin-top: var(--space-1);
+}
+
+.update-command code {
+  max-width: 100%;
+  padding: var(--space-1) var(--space-2);
+  overflow-x: auto;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  white-space: pre;
+}
+
+.update-error {
+  color: var(--danger);
+}
+
+.updates-state {
+  display: grid;
+  gap: var(--space-2);
 }
 
 .page {

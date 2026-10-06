@@ -6,7 +6,7 @@ Descarga el archivo de tu sistema en **Assets**, aquí abajo. Tus datos no está
 2. Ábrelo con doble clic. Si aparece «Windows protegió su PC», pulsa **Más información** → **Ejecutar de todas formas**. El aviso sale porque el instalador no está firmado (firmarlo cuesta dinero).
 3. Sigue el asistente. Al terminar tendrás **CRM Mellow** en el escritorio y en el menú Inicio.
 
-- **Actualizar:** descarga la versión nueva e instálala encima.
+- **Actualizar:** desde la 0.17.0, con el botón **Actualizar** del aviso de versión nueva (o Ajustes → Actualizaciones): la app baja el instalador, comprueba su huella y lo abre. También puedes descargar la versión nueva e instalarla encima.
 - **Desinstalar:** Configuración → Aplicaciones → CRM Mellow → Desinstalar.
 
 ## Arch Linux
@@ -20,7 +20,7 @@ Descarga el archivo de tu sistema en **Assets**, aquí abajo. Tus datos no está
 
 3. Abre **CRM Mellow** desde el menú de aplicaciones.
 
-- **Actualizar:** igual, con el archivo de la versión nueva.
+- **Actualizar:** con el botón **Actualizar** de la app (desde la 0.17.0) se baja y comprueba el archivo, y te da el comando `sudo pacman -U` para instalarlo. O igual que arriba, con el archivo de la versión nueva. Con el AppImage, **Actualizar** lo sustituye y la app se vuelve a abrir.
 - **Desinstalar:** `sudo pacman -R crm-mellow`
 - **Sin instalar nada:** también está **CRM-Mellow-{{VERSION}}-linux-x86_64.AppImage**. Clic derecho → Propiedades → Permitir ejecutar, y doble clic.
 

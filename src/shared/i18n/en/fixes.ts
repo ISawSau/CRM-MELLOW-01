@@ -91,4 +91,34 @@ export const fixes: Record<string, string> = {
   'Usar esta dirección': 'Use this address',
   'No se ha podido llegar a Google. Comprueba la conexión a internet y que CRM Mellow tiene permiso para usar la red (en GrapheneOS: Ajustes → Apps → CRM Mellow → Permisos → Red).':
     'Could not reach Google. Check your internet connection and that CRM Mellow is allowed to use the network (on GrapheneOS: Settings → Apps → CRM Mellow → Permissions → Network).',
+  // Actualizar desde la app (D-120)
+  'GitHub respondió {status}.': 'GitHub replied {status}.',
+  'GitHub no ha dado una versión publicada.': 'GitHub did not return a published version.',
+  'La versión nueva no trae su huella SHA-256: no se instala sin comprobarla.':
+    'The new version has no SHA-256 checksum: it is not installed without checking it.',
+  'El archivo bajado no coincide con su huella SHA-256: no se instala. Vuelve a intentarlo.':
+    'The downloaded file does not match its SHA-256 checksum: it is not installed. Try again.',
+  'La descarga se ha cortado.': 'The download was interrupted.',
+  'Android no ha podido abrir el instalador.': 'Android could not open the installer.',
+  'Al abrir la bóveda y cada hora la app mira en GitHub si hay versión nueva, y se puede actualizar desde aquí. No envía ningún dato tuyo.':
+    'When you open the vault and every hour, the app checks GitHub for a new version, and you can update from here. It does not send any of your data.',
+  'Buscando en GitHub…': 'Checking GitHub…',
+  'Hay una versión nueva: {latest}.': 'There is a new version: {latest}.',
+  'Es la última (comprobado el {when}).': 'This is the latest (checked on {when}).',
+  'No se ha podido consultar GitHub: {message}': 'Could not check GitHub: {message}',
+  'Actualizar a la {latest}': 'Update to {latest}',
+  'Buscar ahora': 'Check now',
+  'Bajando la versión {latest}: {done} de {total} MB…':
+    'Downloading version {latest}: {done} of {total} MB…',
+  'Bajando la versión {latest}…': 'Downloading version {latest}…',
+  Descarga: 'Download',
+  'Instalando la versión {latest}: la app se cerrará y se abrirá la nueva.':
+    'Installing version {latest}: the app will close and the new one will open.',
+  'Android tiene que permitir a CRM Mellow instalar apps: actívalo en el ajuste que se acaba de abrir, vuelve y pulsa otra vez «Actualizar».':
+    'Android has to allow CRM Mellow to install apps: turn it on in the setting that just opened, come back and tap “Update” again.',
+  'Bajada y comprobada. Para instalarla, abre una terminal y pega:':
+    'Downloaded and checked. To install it, open a terminal and paste:',
+  'No se ha podido actualizar: {message}': 'Could not update: {message}',
+  Reintentar: 'Retry',
+  Novedades: 'What’s new',
 }

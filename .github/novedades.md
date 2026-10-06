@@ -1,3 +1,15 @@
+## Novedades de la 0.17.0 · Actualizar desde la app
+
+- **Actualizar con un botón:** cuando hay versión nueva, pulsa **Actualizar** en el aviso (o en Ajustes → Actualizaciones). La app baja el archivo de tu sistema desde GitHub, comprueba su huella SHA-256 y lo instala:
+  - en Windows abre el instalador y se cierra;
+  - con el AppImage se sustituye y se vuelve a abrir;
+  - en Arch (.pacman) lo deja en Descargas y te da el comando `sudo pacman -U` para copiar;
+  - en Android abre el instalador del sistema (la primera vez pide permitir a CRM Mellow instalar apps).
+- **El aviso sale antes:** la app mira si hay versión nueva al abrir la bóveda y cada hora (antes, una vez al día). En Ajustes → Actualizaciones hay un botón **Buscar ahora** y se ve cuándo se comprobó por última vez.
+- **Pantalla de contraseña en el móvil:** ya no se corta al abrir el teclado. La animación va encima del formulario sin taparlo, el botón ocupa todo el ancho y no sale la ruta interna de la bóveda.
+- **Animación aleatoria por defecto:** la pantalla de contraseña muestra una animación distinta cada vez. Si eliges una en Ajustes, se queda la tuya.
+- **Tablas como en Meta:** en Campañas, Creatividades, Facturación y Comparar, la tabla no pasa del alto de la ventana. La barra para desplazarte en horizontal está siempre a la vista y la cabecera se queda fija.
+
 ## Novedades de la 0.16.9
 
 - **Móvil, traer la bóveda desde Google Drive:** arreglado que se quedara en «Esperando a Google…». Android congelaba la app a los pocos segundos de pasar al navegador y la dirección a la que vuelve Google no contestaba. Ahora, mientras conectas con Google, la app sigue activa (verás un aviso «Conectando con Google…») y la página de Google tiene un botón **Volver a CRM Mellow**.

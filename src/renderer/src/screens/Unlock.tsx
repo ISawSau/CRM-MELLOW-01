@@ -91,7 +91,7 @@ function UnlockForm({
         <h1 className="title" data-testid="unlock-name">
           {status.name}
         </h1>
-        <span className="faint mono">{status.path}</span>
+        <span className="faint mono unlock-path">{status.path}</span>
       </div>
       <form className="form" onSubmit={submit}>
         <PasswordField

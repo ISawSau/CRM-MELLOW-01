@@ -12,6 +12,8 @@ import { MailTemplatesSettings } from '../gmail/MailTemplatesSettings'
 import { SectionIconsSettings } from './SectionIconsSettings'
 import { DataSettings } from '../data/FieldsSettings'
 import { SyncSettings } from './SyncSettings'
+import { UPDATES_KEY, UpdateProgress, useUpdateStatus } from './UpdateBanner'
+import { formatDateTime } from '@shared/format'
 import { Alert } from '../ui/Alert'
 import { PasswordField } from '../ui/PasswordField'
 import { newThemeFrom, ThemeEditor } from '../theme/ThemeEditor'
@@ -316,19 +318,24 @@ function UpdatesBlock() {
     queryKey: ['data', 'updates', 'settings'],
     queryFn: () => call('updates:settings'),
   })
-  const status = useQuery({
-    queryKey: ['data', 'updates', 'status'],
-    queryFn: () => call('updates:status'),
-  })
+  const status = useUpdateStatus()
   const save = useAction(async (check: boolean) => {
     const next = await call('updates:setSettings', { ...settings.data!, check })
     qc.setQueryData(['data', 'updates', 'settings'], next)
   })
+  const checkNow = useAction(async () => {
+    qc.setQueryData(UPDATES_KEY, await call('updates:check'))
+  })
+  const install = useAction(async () => {
+    qc.setQueryData(UPDATES_KEY, await call('updates:install'))
+  })
+  const s = status.data
+  const busy = s?.download.phase === 'downloading' || s?.download.phase === 'installing'
   return (
     <Block
       title={t('Actualizaciones')}
       desc={t(
-        'Una vez al día la app mira en GitHub si hay versión nueva. No envía ningún dato tuyo.',
+        'Al abrir la bóveda y cada hora la app mira en GitHub si hay versión nueva, y se puede actualizar desde aquí. No envía ningún dato tuyo.',
       )}
     >
       {settings.data && (
@@ -342,13 +349,52 @@ function UpdatesBlock() {
           <span>{t('Avisar cuando haya una versión nueva')}</span>
         </label>
       )}
-      {status.data && (
-        <p className="hint">
-          {t('Versión instalada: {current}.', { current: status.data.current })}{' '}
-          <a href={status.data.url} target="_blank" rel="noreferrer">
-            {t('Ver las versiones publicadas')}
-          </a>
-        </p>
+      {s && (
+        <div className="updates-state" data-testid="updates-state">
+          <p className="hint">
+            {t('Versión instalada: {current}.', { current: s.current })}{' '}
+            {s.checking
+              ? t('Buscando en GitHub…')
+              : s.newer
+                ? t('Hay una versión nueva: {latest}.', { latest: s.latest ?? '' })
+                : s.checkedAt
+                  ? t('Es la última (comprobado el {when}).', {
+                      when: formatDateTime(s.checkedAt),
+                    })
+                  : ''}
+          </p>
+          {s.checkError && !s.checking && (
+            <p className="hint hint-error">
+              {t('No se ha podido consultar GitHub: {message}', { message: s.checkError })}
+            </p>
+          )}
+          <UpdateProgress s={s} />
+          <div className="form-actions">
+            {s.newer && s.canInstall && (
+              <button
+                type="button"
+                className="btn btn-primary"
+                disabled={busy || install.pending}
+                onClick={() => void install.run()}
+                data-testid="updates-install"
+              >
+                {t('Actualizar a la {latest}', { latest: s.latest ?? '' })}
+              </button>
+            )}
+            <button
+              type="button"
+              className="btn"
+              disabled={s.checking || checkNow.pending}
+              onClick={() => void checkNow.run()}
+              data-testid="updates-check-now"
+            >
+              {t('Buscar ahora')}
+            </button>
+            <a className="btn btn-link" href={s.url} target="_blank" rel="noreferrer">
+              {t('Ver las versiones publicadas')}
+            </a>
+          </div>
+        </div>
       )}
     </Block>
   )

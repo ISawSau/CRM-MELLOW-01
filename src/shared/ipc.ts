@@ -343,6 +343,8 @@ export const ipcSchemas = {
   'updates:settings': z.void(),
   'updates:setSettings': updateSettingsSchema,
   'updates:dismiss': z.object({ version: z.string().trim().min(1).max(32) }),
+  'updates:check': z.void(),
+  'updates:install': z.void(),
   'briefs:templates': z.void(),
   'briefs:setTemplates': z.object({ templates: briefTemplatesSchema }),
   'briefs:createFromTemplate': z.object({ templateId: idSchema, values: values.default({}) }),
@@ -512,6 +514,8 @@ export interface IpcOutputs {
   'updates:settings': UpdateSettings
   'updates:setSettings': UpdateSettings
   'updates:dismiss': UpdateStatus
+  'updates:check': UpdateStatus
+  'updates:install': UpdateStatus
   'briefs:templates': BriefTemplate[]
   'briefs:setTemplates': BriefTemplate[]
   'briefs:createFromTemplate': RecordRow

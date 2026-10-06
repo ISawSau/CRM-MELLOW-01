@@ -9,6 +9,9 @@
          sin él Android congela la app al pasar al navegador y le corta la red. -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <!-- Actualizar desde la app (D-120): instala el APK de la versión nueva, comprobado antes
+         con su huella SHA-256. Android pide permiso al usuario la primera vez. -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
     <application
         android:allowBackup="false"

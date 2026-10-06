@@ -14,7 +14,13 @@ import { writeFileAtomic } from './fs-utils'
 const configSchema = z.object({
   lastVaultPath: z.string().nullable().default(null),
   locale: localeSchema.default('es'),
-  lockAnimation: lockAnimationSchema.default('gravedad'),
+  /** Por defecto una distinta cada vez (D-119). */
+  lockAnimation: lockAnimationSchema.default('aleatoria'),
+  /**
+   * La ha elegido el usuario en Ajustes. Hasta la 0.16.9 se guardaba «gravedad» por defecto
+   * aunque nadie la eligiera: sin esta marca se pasa a la aleatoria.
+   */
+  lockAnimationChosen: z.boolean().default(false),
   /** El tema en uso pide ventana transparente (D-097); se aplica al crear la ventana. */
   windowTransparent: z.boolean().default(false),
 })
@@ -35,7 +41,10 @@ export class ConfigStore {
   private read(): AppConfig {
     try {
       const parsed = configSchema.safeParse(JSON.parse(readFileSync(this.file, 'utf8')))
-      if (parsed.success) return parsed.data
+      if (parsed.success)
+        return parsed.data.lockAnimationChosen
+          ? parsed.data
+          : { ...parsed.data, lockAnimation: 'aleatoria' }
     } catch {
       // Sin archivo o ilegible: se empieza de cero.
     }
@@ -57,7 +66,7 @@ export class ConfigStore {
   }
 
   setLockAnimation(lockAnimation: LockAnimation): void {
-    this.data = { ...this.data, lockAnimation }
+    this.data = { ...this.data, lockAnimation, lockAnimationChosen: true }
     writeFileAtomic(this.file, JSON.stringify(this.data, null, 2) + '\n')
   }
 

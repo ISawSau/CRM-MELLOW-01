@@ -305,8 +305,6 @@ export const shell: Record<string, string> = {
   Descargar: 'Download',
   'Ahora no': 'Not now',
   Actualizaciones: 'Updates',
-  'Una vez al día la app mira en GitHub si hay versión nueva. No envía ningún dato tuyo.':
-    'Once a day the app checks GitHub for a new version. It sends none of your data.',
   'Avisar cuando haya una versión nueva': 'Tell me when a new version is available',
   'Versión instalada: {current}.': 'Installed version: {current}.',
   'Ver las versiones publicadas': 'See published versions',

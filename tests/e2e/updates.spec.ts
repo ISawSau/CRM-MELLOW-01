@@ -30,7 +30,7 @@ function fakeReleases(): Promise<{ server: Server; url: string; hits: () => numb
   )
 }
 
-test('avisa de una versión nueva; se cierra con «Ahora no» y se apaga en Ajustes', async () => {
+test('avisa de una versión nueva; se cierra con «Ahora no», se busca y se apaga en Ajustes', async () => {
   const releases = await fakeReleases()
   const parent = mkdtempSync(join(tmpdir(), 'crm-upd-'))
   const ctx = await launchApp([], undefined, { CRM_TEST_RELEASES_URL: releases.url })
@@ -48,11 +48,17 @@ test('avisa de una versión nueva; se cierra con «Ahora no» y se apaga en Ajus
   await expect(banner).toBeHidden()
 
   await page.getByTestId('nav-ajustes').click()
+  const state = page.getByTestId('updates-state')
+  await expect(state).toContainText('Hay una versión nueva: 99.0.0.')
   const check = page.getByTestId('updates-check')
   await expect(check).toBeChecked()
   await check.click()
   await expect(check).not.toBeChecked()
   expect(releases.hits()).toBe(1)
+  // «Buscar ahora» consulta otra vez aunque el aviso automático esté apagado.
+  await page.getByTestId('updates-check-now').click()
+  await expect.poll(() => releases.hits()).toBe(2)
+  await expect(state).toContainText('Hay una versión nueva: 99.0.0.')
 
   await ctx.close()
   releases.server.close()

@@ -120,6 +120,11 @@
 .meta-table-scroll {
   overflow: auto;
   border-top: 1px solid var(--line);
+  /* Como en el Administrador de anuncios de Meta (D-121): la tabla no pasa del alto de la
+     ventana, así la barra horizontal está siempre a la vista sin bajar hasta la última fila;
+     las filas se desplazan dentro, con la cabecera fija. */
+  max-height: max(320px, calc(100dvh - var(--table-reserve, 150px)));
+  overscroll-behavior-x: contain;
 }
 
 .meta-table {
