@@ -283,9 +283,28 @@ function newItemId(): string {
 }
 
 function ChecklistEditor({ field, value, onCommit }: EditorProps) {
-  const items = (value as ChecklistItem[] | undefined) ?? []
+  const saved = (value as ChecklistItem[] | undefined) ?? []
+  // Lista local: cada cambio parte de la última versión enviada, no de la guardada, para
+  // que dos cambios seguidos (añadir dos elementos antes de que vuelva el primero) no se
+  // pisen. Lo que llega y es eco de un guardado propio no la sustituye.
+  const [items, setItems] = useState(saved)
+  const [prev, setPrev] = useState(value)
+  const [sent, setSent] = useState<string[]>([])
+  if (prev !== value) {
+    setPrev(value)
+    const key = JSON.stringify(saved)
+    if (sent.at(-1) === key) setSent([])
+    else if (!sent.includes(key)) {
+      setSent([])
+      setItems(saved)
+    }
+  }
   const [text, setText] = useState('')
-  const save = (next: ChecklistItem[]) => onCommit(next.length ? next : null)
+  const save = (next: ChecklistItem[]) => {
+    setItems(next)
+    setSent((s) => [...s.slice(-19), JSON.stringify(next)])
+    onCommit(next.length ? next : null)
+  }
   const template = parseFieldConfig('checklist', field.config).template ?? []
   const add = () => {
     const s = text.trim()

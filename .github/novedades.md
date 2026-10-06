@@ -1,6 +1,7 @@
 ## Novedades de la 0.16.8
 
 - **Móvil, conectar con Google:** arreglado el «fetch failed» al traer la bóveda desde Google Drive (o conectar Drive o Gmail) en el móvil. Android 15 corta la red a las apps que no están en pantalla, y la app intentaba terminar la conexión mientras seguías en el navegador. Ahora espera a que vuelvas: tras iniciar sesión en Google, vuelve a CRM Mellow y termina sola.
+- **Checklist sin elementos perdidos:** si añadías dos elementos seguidos muy rápido, el primero podía desaparecer. Ya no pasa.
 
 ## Novedades de la 0.16.7
 
