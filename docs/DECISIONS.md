@@ -906,3 +906,42 @@ El usuario no quiere escribir comandos de desarrollo para usar la app. Los insta
   - De interfaz en el móvil (`tests/e2e-mobile/google.spec.ts`, con su propio motor): conectar Drive en Ajustes pegando la dirección, traer la bóveda con el navegador que vuelve solo (y el botón de volver), cada fallo con «Volver a intentarlo», cancelar y retomar tras recargar, y cortes de red.
   - En el emulador de Android 15 del CI, una sonda (`src/mobile/background-probe.ts`) manda la app al fondo más de 10 s y llama a la dirección local como haría el navegador. Lo hace sin el servicio (para ver el fallo de antes) y con él, y el CI falla si con el servicio el motor no contesta o no tiene red en segundo plano.
 - Arreglado de paso: tras traer una bóveda, la siguiente vez que se abría «Traer desde Google Drive» la pantalla se cerraba sola porque reutilizaba el estado «hecho» guardado en la interfaz. Ahora se pide siempre al motor al abrirla.
+
+### D-119 · Pantalla de contraseña en el móvil y animación aleatoria por defecto (v0.17.0)
+
+- Problema del usuario: en el móvil la pantalla de contraseña «se veía mal y se cortaba». Con capturas a 412×839, 360×640 y 412×420 (teclado abierto) se vieron tres fallos:
+  - el contenido centrado en vertical se salía por arriba al no caber, tapado por la cabecera y sin poder desplazarse;
+  - la animación quedaba pequeña y encima del campo de la contraseña;
+  - salía la ruta interna de la bóveda.
+- Arreglo:
+  - `align-content: safe center` en las pantallas de entrada (si no cabe, empieza arriba y se desplaza);
+  - en pantallas estrechas, la animación va encima del formulario (no detrás) y se oculta con menos de 560 px de alto (teclado abierto);
+  - el botón principal ocupa todo el ancho y la ruta no se muestra;
+  - márgenes más pequeños.
+- La animación por defecto pasa a «Una distinta cada vez». Hasta la 0.16.9 se guardaba «gravedad» en la configuración aunque nadie la eligiera, así que se añade `lockAnimationChosen`. Sin esa marca se usa la aleatoria; elegir una en Ajustes la pone y se respeta.
+
+### D-120 · Actualizar desde la app con la huella SHA-256 comprobada (v0.17.0)
+
+- Problema del usuario: el aviso de versión nueva «no acaba de ir bien»: no salía o tardaba mucho. Además, quería actualizar desde la app también en el escritorio.
+- Causa del retraso: se consultaba como mucho una vez al día por proceso y el resultado se guardaba en memoria. Con versiones seguidas el mismo día, el aviso llegaba con horas de retraso.
+- Ahora se consulta a los 5 s de abrir la bóveda y cada hora, como mucho una vez cada 30 minutos. GitHub permite 60 consultas por hora sin token.
+  - En Ajustes → Actualizaciones hay un botón «Buscar ahora» (consulta siempre, aunque el aviso esté apagado).
+  - Se ve la última comprobación y, si falló, por qué.
+- «Actualizar» (`updates:install`) baja el archivo de esta instalación desde la versión publicada, comprueba su huella e instala. Cada sistema tiene su destino (`UpdateTarget`):
+  - **Windows**: el instalador NSIS se abre y la app se cierra, subiendo antes lo pendiente.
+  - **AppImage** (`APPIMAGE`): se baja junto al que está en uso, ocupa su lugar con el mismo nombre (los accesos directos siguen valiendo) y la app se vuelve a abrir.
+  - **.pacman**: sin contraseña de administrador no se puede instalar. Se deja en Descargas y se da el comando `sudo pacman -U "…"` para copiar.
+  - **Android**: el motor baja el APK a la caché y el lado nativo lo instala con `PackageInstaller` (sesión de instalación del sistema, sin bibliotecas extra). Android pide confirmación y, la primera vez, abre el ajuste de «Instalar apps desconocidas» para CRM Mellow (permiso `REQUEST_INSTALL_PACKAGES`). Solo se instalan APKs de la carpeta de actualizaciones de la app; al estar firmado con la misma clave, se instala encima y los datos se quedan.
+  - Sin empaquetar (desarrollo) no hay destino: solo se avisa y se enlaza la página.
+- Seguridad:
+  - solo se bajan archivos cuya dirección empieza por `https://github.com/ISawSau/CRM-MELLOW-01/releases/download/` y cuyo nombre no lleva rutas;
+  - la huella SHA-256 es la que da GitHub en `assets[].digest` (documentación de la API REST, «Get the latest release») o, si falta, la de `SHA256SUMS.txt` de la misma versión;
+  - sin huella no se instala, y si no coincide el archivo se borra y se avisa.
+- La descarga se da por perdida si no recibe nada en 60 s. Los tests del PC (móvil) nunca consultan GitHub.
+- Descartado `electron-updater`: no sirve para .pacman ni Android, y habría que publicar `latest.yml` además de los instaladores.
+
+### D-121 · Tablas como el Administrador de anuncios de Meta: barra horizontal siempre a la vista (v0.17.0)
+
+- Problema del usuario: en las tablas anchas la barra para desplazarse en horizontal quedaba debajo de la última fila, y había que bajar del todo para usarla.
+- Las tablas de datos (Clientes, Tareas…) ya ocupaban el alto de la ventana. Las de estilo Ads Manager (`.meta-table-scroll`: Campañas, Creatividades, Facturación y Comparar) crecían con sus filas.
+- Ahora no pasan del alto de la ventana (`max-height: max(320px, 100dvh − 150 px)`, 200 px en el móvil por sus barras). Como en Meta, las filas se desplazan dentro, la cabecera queda fija (ya era `sticky`) y la barra horizontal se ve siempre. Un test de Campañas lo comprueba.

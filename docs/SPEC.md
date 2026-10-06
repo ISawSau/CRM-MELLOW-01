@@ -1,6 +1,6 @@
 # Especificación del CRM personal
 
-Versión 0.7 · 6 de octubre de 2026
+Versión 0.8 · 6 de octubre de 2026
 
 Este documento recoge todas las decisiones de diseño tomadas antes de escribir código. Es la referencia para construir el proyecto fase a fase. Lo que aparece marcado como **verificar** depende de APIs o normativa externa que cambian con el tiempo y debe comprobarse en la documentación oficial antes de implementarlo.
 
@@ -200,7 +200,7 @@ Tabla genérica de vínculos (campo de relación, id de origen, id de destino, p
 
 ### 7.1 Desbloqueo, perfil e inicio
 
-- Pantalla de contraseña. Desde la 0.13.4, con una animación ASCII a la derecha (gravedad como en yellowmellow.cc, el ojo o la cerradura; elegible en Ajustes, D-096).
+- Pantalla de contraseña. Desde la 0.13.4, con una animación ASCII a la derecha (gravedad como en yellowmellow.cc, el ojo o la cerradura; elegible en Ajustes, D-096). Por defecto, una distinta cada vez; en el móvil va encima del formulario y se oculta con el teclado abierto (D-119).
 - Perfil: nombre, foto, datos fiscales y de empresa, moneda y zona horaria por defecto.
 - *Arreglos tras la 0.13:* Perfil es una sección propia antes de Inicio, con Datos y Cuentas conectadas (Meta, sincronización y Gmail) (D-087). X y LinkedIn se quitaron después (D-091).
 - *Perfil tipo GitHub (0.14, D-095):* la primera vez, un asistente para configurarlo (o «Saltar por ahora»). Después se ve como la página de un usuario de GitHub:
@@ -262,7 +262,7 @@ Tabla genérica de vínculos (campo de relación, id de origen, id de destino, p
 - Respeta los límites de uso leyendo las cabeceras de consumo que devuelve la API, con reintentos y espera exponencial.
 
 **Interfaz.**
-- Tabla tipo Ads Manager con navegación campaña, ad set, anuncio; selector de rango de fechas; comparación con el periodo anterior; totales; formato condicional.
+- Tabla tipo Ads Manager con navegación campaña, ad set, anuncio; selector de rango de fechas; comparación con el periodo anterior; totales; formato condicional. Como en Meta, la tabla no pasa del alto de la ventana: cabecera fija y barra horizontal siempre a la vista (D-121).
 - Columnas configurables con presets guardables (p. ej. "Ecom rendimiento", "Creatividades").
 - Métricas calculadas propias con editor de fórmulas sobre cualquier métrica o acción (p. ej. beneficio = valor de compras − gasto − fee), con formato de moneda, porcentaje o número. Usables en tablas, dashboards, informes y alertas.
 
@@ -385,7 +385,7 @@ El negocio actual es ecommerce y no usa formularios de leads. Si en el futuro se
 
 ### 7.14 Ajustes
 
-Perfil · bóveda · seguridad (contraseña, autobloqueo, clave de recuperación) · sincronización y copias · conexiones (Meta, Google) · monedas y zonas horarias · formato regional · apariencia (selector de temas con los predefinidos claro y oscuro, temas propios creados y editados desde la app, densidad compacta o cómoda) · campos, etiquetas, estados y pipelines · presets de columnas · atajos de teclado · aviso de versión nueva (D-114).
+Perfil · bóveda · seguridad (contraseña, autobloqueo, clave de recuperación) · sincronización y copias · conexiones (Meta, Google) · monedas y zonas horarias · formato regional · apariencia (selector de temas con los predefinidos claro y oscuro, temas propios creados y editados desde la app, densidad compacta o cómoda) · campos, etiquetas, estados y pipelines · presets de columnas · atajos de teclado · versiones nuevas: aviso al abrir la bóveda y cada hora, «Buscar ahora» y «Actualizar» desde la app con la huella SHA-256 comprobada (Windows, AppImage, .pacman con su comando y Android; D-114, D-120).
 
 ---
 
