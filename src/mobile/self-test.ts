@@ -1,9 +1,11 @@
 import { mkdtempSync, readdirSync, rmSync } from 'node:fs'
+import { rootCertificates } from 'node:tls'
 import { join } from 'node:path'
 import { argon2id } from 'hash-wasm'
 import { collator, norm } from '@shared/data/text'
 import { formatDate, formatNumber } from '@shared/format'
 import { sqliteVersion } from '../main/db/connection'
+import { describeNetError } from '../main/sync/google-auth'
 import { VaultService } from '../main/vault/vault-service'
 
 function expect(what: string, got: string, want: string): void {
@@ -22,6 +24,24 @@ function checkIntl(): void {
     'Árbol nube Ñu oso zeta',
   )
   expect('sin tildes', norm('Campaña José'), 'campana jose')
+}
+
+/**
+ * Conexión HTTPS con Google como la que hace «Traer desde Google Drive» (D-116). Solo avisa
+ * (el emulador del CI puede no tener red), pero deja en el registro la causa si falla.
+ */
+async function checkHttps(log: (line: string) => void): Promise<void> {
+  const env = `OpenSSL ${process.versions.openssl}, ${rootCertificates.length} certificados raíz`
+  try {
+    const res = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      body: new URLSearchParams({ grant_type: 'authorization_code' }),
+      signal: AbortSignal.timeout(20_000),
+    })
+    log(`ok  HTTPS con Google (respuesta ${res.status}; ${env})`)
+  } catch (e) {
+    log(`aviso HTTPS con Google: ${describeNetError(e)} (${env})`)
+  }
 }
 
 /**
@@ -63,6 +83,7 @@ export async function runMobileSelfTest(
     if (vault.data.get(client.id)?.title !== 'Autoprueba')
       throw new Error('los datos no se han conservado')
     log('ok  bloqueada y desbloqueada con los datos intactos')
+    await checkHttps(log)
     log('AUTOPRUEBA CORRECTA')
     return true
   } catch (e) {

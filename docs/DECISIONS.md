@@ -874,3 +874,10 @@ El usuario no quiere escribir comandos de desarrollo para usar la app. Los insta
 - Problema del usuario: al traer la bóveda desde Google Drive en el móvil, la app solo decía «Ha ocurrido un error inesperado». El motor lanzaba `Error` corrientes al conectar con Google (tiempo agotado, conexión cancelada, respuesta no válida, id de cliente mal pegado, token rechazado) y el IPC, que solo deja pasar el mensaje de los `AppError`, los convertía en ese aviso genérico.
 - Código nuevo `GOOGLE_ERROR` («No se ha podido conectar con Google»). `google-auth.ts` lanza `AppError` con el mensaje concreto, y «Traer desde Google Drive» y «Conectar» Google Drive envuelven cualquier otro fallo (por ejemplo de Drive) con `asGoogleError`, que conserva su mensaje. Un test lo comprueba a través de `runIpc`.
 - El mensaje de tiempo agotado añade la causa más probable: si Google mostró un error en el navegador (como «invalid_client»), hay que revisar el id de cliente.
+
+### D-116 · Red del motor en Android: causa del fallo, IPv4 primero y prueba en el emulador (v0.16.7)
+
+- Problema del usuario: en el móvil, tras dar permiso a Google en el navegador («ya puedes cerrar esta pestaña»), la app mostraba «fetch failed». El inicio de sesión sí llegó; falla la petición HTTPS que hace después el motor (Node 18 de nodejs-mobile) para canjear el código por el token. Es la primera conexión a internet del motor del móvil que se usa de verdad, y el CI no la probaba.
+- `describeNetError` añade la causa que `fetch` deja en `cause` (DNS, conexión rechazada o agotada, certificado…). Los fallos de Google la muestran, para saber qué pasa en el dispositivo.
+- Al arrancar el motor del móvil: `dns.setDefaultResultOrder('ipv4first')` y `net.setDefaultAutoSelectFamily(true)` (Happy Eyeballs, Node 18.18 o posterior). Sin ellos, Node 18 se queda en una dirección IPv6 que no funciona en muchas redes móviles y no prueba la IPv4.
+- La autoprueba del emulador hace una petición HTTPS real a Google y deja en el registro del CI el resultado o la causa del fallo, con la versión de OpenSSL y los certificados raíz que trae el motor. Solo avisa: no hace fallar el CI si el emulador no tiene red.

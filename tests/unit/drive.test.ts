@@ -6,6 +6,7 @@ import {
   asGoogleError,
   cleanGoogleClient,
   connectGoogle,
+  describeNetError,
   refreshAccess,
 } from '../../src/main/sync/google-auth'
 import { runIpc, type IpcHandlers } from '../../src/main/ipc/run'
@@ -255,6 +256,22 @@ describe('conexión con Google (OAuth para escritorio)', () => {
     } catch (e) {
       expect((e as AppError).code).toBe('GOOGLE_ERROR')
     }
+  })
+
+  it('un «fetch failed» lleva su causa (DNS, conexión, certificado…)', () => {
+    const cause = Object.assign(new Error('getaddrinfo ENOTFOUND oauth2.googleapis.com'), {
+      code: 'ENOTFOUND',
+    })
+    expect(describeNetError(new TypeError('fetch failed', { cause }))).toBe(
+      'fetch failed (getaddrinfo ENOTFOUND oauth2.googleapis.com)',
+    )
+    const tls = Object.assign(new Error('unable to get local issuer certificate'), {
+      code: 'UNABLE_TO_GET_ISSUER_CERT_LOCALLY',
+    })
+    expect(asGoogleError(new TypeError('fetch failed', { cause: tls })).message).toBe(
+      'fetch failed (UNABLE_TO_GET_ISSUER_CERT_LOCALLY: unable to get local issuer certificate)',
+    )
+    expect(describeNetError(new Error('sin causa'))).toBe('sin causa')
   })
 
   it('rechaza una respuesta con otro state y explica un acceso retirado', async () => {
