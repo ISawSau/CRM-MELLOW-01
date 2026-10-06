@@ -200,6 +200,24 @@ export function MetaPerformance({ onAccounts }: { onAccounts: () => void }) {
     )
   if (!account) return null
 
+  // Las migas (Campañas › conjunto › anuncio) van encima de la tabla, debajo de las
+  // estadísticas (D-122).
+  const crumbs = (
+    <nav className="crumbs" aria-label={t('Nivel')}>
+      <button type="button" className="btn-link" onClick={() => setPath([])}>
+        {t('Campañas')}
+      </button>
+      {path.map((p, i) => (
+        <span key={p.parentId}>
+          <span className="faint"> › </span>
+          <button type="button" className="btn-link" onClick={() => setPath(path.slice(0, i + 1))}>
+            {p.label}
+          </button>
+        </span>
+      ))}
+    </nav>
+  )
+
   const savePreset = (p: ColumnPreset, asNew: boolean) => {
     const list = asNew
       ? [...custom, { ...p, id: `p-${Date.now().toString(36)}` }]
@@ -354,23 +372,7 @@ export function MetaPerformance({ onAccounts }: { onAccounts: () => void }) {
         </label>
       </div>
 
-      <nav className="crumbs" aria-label={t('Nivel')}>
-        <button type="button" className="btn-link" onClick={() => setPath([])}>
-          {t('Campañas')}
-        </button>
-        {path.map((p, i) => (
-          <span key={p.parentId}>
-            <span className="faint"> › </span>
-            <button
-              type="button"
-              className="btn-link"
-              onClick={() => setPath(path.slice(0, i + 1))}
-            >
-              {p.label}
-            </button>
-          </span>
-        ))}
-      </nav>
+      {!table.data && crumbs}
 
       {table.data && (
         <>
@@ -390,6 +392,7 @@ export function MetaPerformance({ onAccounts }: { onAccounts: () => void }) {
             ))}
           <Kpis r={table.data} o={options} />
           {targetOn && <TargetLegend target={table.data.target!} currency={table.data.currency} />}
+          {crumbs}
           <AdsTable
             r={table.data}
             level={crumb.level}
