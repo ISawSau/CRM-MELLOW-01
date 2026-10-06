@@ -1,3 +1,7 @@
+## Novedades de la 0.16.8
+
+- **Móvil, conectar con Google:** arreglado el «fetch failed» al traer la bóveda desde Google Drive (o conectar Drive o Gmail) en el móvil. Android 15 corta la red a las apps que no están en pantalla, y la app intentaba terminar la conexión mientras seguías en el navegador. Ahora espera a que vuelvas: tras iniciar sesión en Google, vuelve a CRM Mellow y termina sola.
+
 ## Novedades de la 0.16.7
 
 - **Móvil, conexión con Google:** arreglos de red en la app de Android para la conexión con Google tras iniciar sesión (prueba IPv4 si el IPv6 de la red falla) y, si aun así falla, el mensaje dice la causa concreta en lugar de «fetch failed».

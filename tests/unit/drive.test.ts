@@ -220,6 +220,46 @@ describe('conexión con Google (OAuth para escritorio)', () => {
     expect(challenge).toBe(u.searchParams.get('code_challenge'))
   })
 
+  it('repite el canje mientras no haya red (Android 15 la corta en segundo plano, D-117)', async () => {
+    let tries = 0
+    const http: FetchLike = async (input, init) => {
+      if (String(input) !== 'https://oauth2.googleapis.com/token') return fetch(input, init)
+      tries++
+      if (tries < 3) throw new TypeError('fetch failed')
+      return new Response(
+        JSON.stringify({ access_token: 'acceso', refresh_token: 'renovar', expires_in: 3600 }),
+      )
+    }
+    const back = (u: string) => {
+      const url = new URL(u)
+      const redirect = url.searchParams.get('redirect_uri')!
+      void fetch(`${redirect}/?code=c&state=${url.searchParams.get('state')}`)
+    }
+    const client = { clientId: 'cliente.apps.googleusercontent.com', clientSecret: 's' }
+    const tokens = await connectGoogle(client, back, http, { retryMs: 5_000, retryDelayMs: 1 })
+    expect(tokens.accessToken).toBe('acceso')
+    expect(tries).toBe(3)
+    // Sin red durante todo el margen, el fallo llega con su mensaje.
+    const offline: FetchLike = async (input, init) => {
+      if (String(input) !== 'https://oauth2.googleapis.com/token') return fetch(input, init)
+      throw new TypeError('fetch failed')
+    }
+    await expect(
+      connectGoogle(client, back, offline, { retryMs: 20, retryDelayMs: 5 }),
+    ).rejects.toThrow('fetch failed')
+    // Una respuesta de Google (aunque sea un error) no se repite: el código vale una vez.
+    let calls = 0
+    const denied: FetchLike = async (input, init) => {
+      if (String(input) !== 'https://oauth2.googleapis.com/token') return fetch(input, init)
+      calls++
+      return new Response(JSON.stringify({ error_description: 'Bad Request' }), { status: 400 })
+    }
+    await expect(
+      connectGoogle(client, back, denied, { retryMs: 5_000, retryDelayMs: 1 }),
+    ).rejects.toThrow('Bad Request')
+    expect(calls).toBe(1)
+  })
+
   it('limpia los espacios del id y rechaza un id que no es de Google antes de abrir el navegador', async () => {
     expect(
       cleanGoogleClient({

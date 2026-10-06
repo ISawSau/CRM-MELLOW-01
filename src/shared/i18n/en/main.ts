@@ -24,8 +24,8 @@ export const main: Record<string, string> = {
   'Has cancelado la conexión.': 'You cancelled the connection.',
   'Respuesta de Google no válida.': 'Invalid response from Google.',
   Conectado: 'Connected',
-  'Ya puedes cerrar esta pestaña y volver a CRM Mellow.':
-    'You can now close this tab and go back to CRM Mellow.',
+  'Vuelve a CRM Mellow para terminar. Ya puedes cerrar esta pestaña.':
+    'Go back to CRM Mellow to finish. You can now close this tab.',
   'Google no ha dado acceso.': 'Google did not grant access.',
   'Google ha retirado el acceso: vuelve a conectar {service} en Ajustes.':
     'Google has revoked access: reconnect {service} in Settings.',
