@@ -41,7 +41,9 @@
 
 .gate-body {
   display: grid;
-  align-content: center;
+  /* «safe»: si no cabe (pantalla baja, teclado del móvil abierto), empieza arriba y se
+     desplaza, en lugar de cortarse por arriba. */
+  align-content: safe center;
   padding: var(--space-7) var(--space-6);
 }
 

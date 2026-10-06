@@ -230,6 +230,11 @@
     -webkit-overflow-scrolling: touch;
   }
 
+  /* Barra superior e inferior del móvil: la tabla deja sitio a las dos (D-121). */
+  .meta-table-scroll {
+    --table-reserve: 200px;
+  }
+
   /* Zonas táctiles cómodas. */
   .btn,
   .input,
@@ -250,4 +255,76 @@
 
 .shell[data-narrow] .main .section-head:not(:has(> :not(.eyebrow, h1))) {
   display: none;
+}
+
+/* --- Pantallas de entrada en el móvil (bienvenida, crear, contraseña) -------------- */
+
+@media (max-width: 760px) {
+  .gate-top {
+    padding: var(--space-3) var(--space-4);
+    letter-spacing: 0.1em;
+  }
+
+  .gate-body {
+    padding: var(--space-5) var(--space-4) var(--space-6);
+  }
+
+  .gate-inner {
+    gap: var(--space-4);
+  }
+
+  .gate-foot {
+    padding: var(--space-2) var(--space-4);
+  }
+
+  /* El botón principal a lo ancho, cómodo con el pulgar; los enlaces debajo. */
+  .gate .form-actions .btn-primary {
+    flex: 1 1 100%;
+  }
+
+  /* La ruta de la bóveda en el móvil es interna de la app: no dice nada al usuario. */
+  .unlock-path {
+    display: none;
+  }
+
+  /* La animación encima del formulario, sin taparlo (en el ordenador va al lado). */
+  .gate-body-art {
+    overflow: visible;
+  }
+
+  .gate-art {
+    position: relative;
+    top: auto;
+    right: auto;
+    order: -1;
+    justify-self: center;
+    width: min(78vw, 34vh);
+    margin-bottom: var(--space-2);
+    transform: none;
+    animation-name: gate-art-in-narrow;
+  }
+
+  @keyframes gate-art-in-narrow {
+    from {
+      opacity: 0;
+      transform: scale(0.96);
+    }
+    to {
+      opacity: 0.75;
+      transform: scale(1);
+    }
+  }
+}
+
+/* Con el teclado abierto (pantalla baja) solo queda el formulario. */
+@media (max-width: 760px) and (max-height: 560px) {
+  .gate-art {
+    display: none;
+  }
+}
+
+@media (max-width: 760px) and (prefers-reduced-motion: reduce) {
+  .gate-art {
+    opacity: 0.75;
+  }
 }
