@@ -62,8 +62,16 @@ async function main(): Promise<void> {
     }),
     // Los tests del PC no salen a GitHub (solo a su servidor falso, si lo dan).
     ...(__CRM_MOBILE_TEST__ ? { releasesUrl: process.env['CRM_TEST_RELEASES_URL'] ?? null } : {}),
-    ...(__CRM_MOBILE_TEST__ && process.env['CRM_TEST_GOOGLE_URL']
-      ? { testUrls: { google: process.env['CRM_TEST_GOOGLE_URL'] } }
+    // Servidores falsos de Google y Meta: solo en la compilación para los tests del PC.
+    ...(__CRM_MOBILE_TEST__
+      ? {
+          testUrls: {
+            google: process.env['CRM_TEST_GOOGLE_URL'],
+            graph: process.env['CRM_TEST_GRAPH_URL'],
+            ecb: process.env['CRM_TEST_ECB_URL'],
+            metaPollMs: process.env['CRM_TEST_META_POLL_MS'],
+          },
+        }
       : {}),
   })
   backend.openLastVault()

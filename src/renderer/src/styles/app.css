@@ -1033,6 +1033,13 @@ kbd {
   top: var(--space-4);
 }
 
+/* En una columna la tarjeta va arriba y se desplaza con lo demás (no se monta encima). */
+@media (max-width: 900px) {
+  .profile-card {
+    position: static;
+  }
+}
+
 .profile-avatar {
   display: grid;
   place-items: center;

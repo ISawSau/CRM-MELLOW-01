@@ -945,3 +945,27 @@ El usuario no quiere escribir comandos de desarrollo para usar la app. Los insta
 - Problema del usuario: en las tablas anchas la barra para desplazarse en horizontal quedaba debajo de la última fila, y había que bajar del todo para usarla.
 - Las tablas de datos (Clientes, Tareas…) ya ocupaban el alto de la ventana. Las de estilo Ads Manager (`.meta-table-scroll`: Campañas, Creatividades, Facturación y Comparar) crecían con sus filas.
 - Ahora no pasan del alto de la ventana (`max-height: max(320px, 100dvh − 150 px)`, 200 px en el móvil por sus barras). Como en Meta, las filas se desplazan dentro, la cabecera queda fija (ya era `sticky`) y la barra horizontal se ve siempre. Un test de Campañas lo comprueba.
+
+### D-122 · En el móvil todo cabe en la pantalla (v0.17.1)
+
+- Problemas del usuario en el móvil:
+  - en Perfil, al desplazarse, la foto y la tarjeta se quedaban fijas y se montaban sobre lo demás;
+  - en las tablas (Clientes…) la columna del nombre se quedaba fija y tapaba las demás;
+  - los ajustes de sección y confirmaciones como «Vaciar la papelera» salían desplazados a un lado;
+  - en Campañas, las migas («Campañas › conjunto › anuncio») iban encima de las estadísticas, y estas salían de una en una y muy grandes;
+  - en Análisis todo salía junto y montado.
+- Causas y arreglos:
+  - **Perfil:** la tarjeta era `sticky` también con una sola columna. Con 900 px o menos pasa a `static`, y en el móvil la foto mide como mucho 128 px.
+  - **Tablas:** en el ordenador la selección y el nombre siguen fijos a la izquierda. En el móvil ocupaban media pantalla, así que se desplazan con todo.
+  - **Diálogos:** la animación de entrada (`motion-pop-in`) centraba con `translateX(-50%)` y, al quedarse en su último fotograma (`both`), empujaba media pantalla a la izquierda la hoja que el móvil pone abajo. En el móvil suben con su propia animación y su contenido se ajusta al ancho (`minmax(0, 1fr)`).
+  - **Menús desplegables** (filtrar, ordenar, columnas, vista…): colgaban de su botón y se salían por la derecha. En el móvil son hojas a lo ancho, abajo.
+  - **Filas con columnas fijas** (campos de la sección, opciones de un campo, filtros, papelera, cuentas de Meta): en el móvil se reparten en dos líneas. Las pestañas que no caben se desplazan a lo ancho.
+  - **Estadísticas** (`.kpis`: Campañas, Inicio, Análisis): siempre dos por fila en el móvil, más compactas (también en móviles de 360 px).
+  - **Campañas:** las migas van justo encima de la tabla, debajo de las estadísticas, en el móvil y en el ordenador (es la tabla la que cambia de nivel).
+  - **Análisis:** la regla que pasaba a una columna toda rejilla de la página dejaba los widgets, que ocupan 3, 6 o 12 columnas, en columnas implícitas montadas unas sobre otras. Los dashboards tienen ahora dos columnas en el móvil: cifras de dos en dos y gráficos a lo ancho.
+- Nuevo test `tests/e2e-mobile/layout.spec.ts`, con datos de ejemplo y Meta falso. Recorre Perfil desplazado, Clientes, ajustes de sección y de un campo, menús y filtros, Papelera con su confirmación, Campañas (también a 360 px) y Análisis. Comprueba que:
+  - nada se sale por la derecha (salvo lo que se desplaza a lo ancho);
+  - los menús y diálogos caben enteros;
+  - nada fijo se monta encima de otra cosa;
+  - los widgets no se pisan.
+
