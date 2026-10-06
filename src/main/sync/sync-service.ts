@@ -7,8 +7,21 @@ import { backupVault } from '../db/backup'
 import { checkpoint, type SqliteDb } from '../db/connection'
 import { VAULT_FILES } from '../vault/vault-file'
 import type { VaultService } from '../vault/vault-service'
-import { connectGoogle, refreshAccess, type GoogleClient } from './google-auth'
-import { DRIVE_ROOT_PREFIX, DriveRemote, FolderRemote, type FetchLike, type Remote } from './remote'
+import {
+  connectGoogle,
+  refreshAccess,
+  type ConnectOptions,
+  type GoogleClient,
+  type GoogleLogins,
+} from './google-auth'
+import {
+  DRIVE_ROOT_PREFIX,
+  DriveRemote,
+  FolderRemote,
+  type DriveUrls,
+  type FetchLike,
+  type Remote,
+} from './remote'
 import { t } from '@shared/i18n'
 
 /**
@@ -124,6 +137,11 @@ export interface SyncServiceOptions {
    */
   maxAutoDownloadBytes?: number
   openBrowser: (url: string) => void
+  /** Inicio de sesión con Google en curso (pegar la dirección, cancelar, D-118). */
+  logins?: GoogleLogins
+  /** Direcciones de Google (tests). */
+  connect?: Pick<ConnectOptions, 'authUrl' | 'tokenUrl'>
+  driveUrls?: DriveUrls
   onChange?: (s: SyncStatus) => void
   http?: FetchLike
   now?: () => Date
@@ -226,11 +244,14 @@ export class SyncService {
       cfg.rootName,
       async () => {
         if (this.access && this.access.expiresAt - 60_000 > Date.now()) return this.access.token
-        const fresh = await refreshAccess(client, cfg.refreshToken, this.http)
+        const fresh = await refreshAccess(client, cfg.refreshToken, this.http, {
+          ...(this.opts.connect?.tokenUrl ? { tokenUrl: this.opts.connect.tokenUrl } : {}),
+        })
         this.access = { token: fresh.accessToken, expiresAt: fresh.expiresAt }
         return fresh.accessToken
       },
       this.http,
+      this.opts.driveUrls,
     )
   }
 
@@ -257,7 +278,10 @@ export class SyncService {
   }
 
   async configureDrive(client: GoogleClient): Promise<SyncStatus> {
-    const tokens = await connectGoogle(client, this.opts.openBrowser, this.http)
+    const tokens = await connectGoogle(client, this.opts.openBrowser, this.http, {
+      ...this.opts.connect,
+      ...(this.opts.logins ? { logins: this.opts.logins } : {}),
+    })
     this.access = { token: tokens.accessToken, expiresAt: tokens.expiresAt }
     const id = (this.vault.vaultId ?? 'boveda').slice(0, 8)
     writeSetting(this.db(), CONFIG_KEY, {

@@ -6,8 +6,9 @@ import { safeFileName } from '@shared/files'
 import { getLocale, setLocale, t } from '@shared/i18n'
 import type { AutoLock } from '../auto-lock'
 import type { Platform } from '../platform'
-import { cloneFromDrive } from '../sync/clone'
-import { asGoogleError } from '../sync/google-auth'
+import type { IpcEvent, IpcEvents } from '@shared/ipc'
+import { CloneJob, type CloneJobOptions } from '../sync/clone'
+import type { GoogleLogins } from '../sync/google-auth'
 import type { ConfigStore } from '../config'
 import type { VaultService } from '../vault/vault-service'
 import type { SyncService } from '../sync/sync-service'
@@ -39,6 +40,11 @@ export interface HandlerDeps {
   /** Sube lo pendiente y bloquea (bloqueo manual y automático). */
   lockWithSync: () => Promise<void>
   platform: Platform
+  /** Inicio de sesión con Google en curso (D-118). */
+  logins: GoogleLogins
+  /** Direcciones de Google (tests). */
+  google: Pick<CloneJobOptions, 'connect' | 'driveUrls'>
+  emit: <E extends IpcEvent>(event: E, payload: IpcEvents[E]) => void
 }
 
 /** La sincronización al desbloquear no debe dejar la pantalla esperando eternamente. */
@@ -57,6 +63,9 @@ export function createHandlers({
   updates,
   lockWithSync,
   platform,
+  logins,
+  google,
+  emit,
 }: HandlerDeps): IpcHandlers {
   // Tras traer la versión de la nube, Meta rellena el hueco desde la última vez.
   const syncAfterUnlock = () =>
@@ -90,6 +99,20 @@ export function createHandlers({
       config.setLastVaultPath(p)
     }
   }
+
+  // «Traer desde Google Drive» (D-118): al terminar, la bóveda queda abierta y bloqueada.
+  const clone = new CloneJob({
+    openBrowser: (url) => platform.openExternal(url),
+    logins,
+    ...google,
+    ...(platform.keepRunning ? { hold: (text: string) => platform.keepRunning!(text) } : {}),
+    opened: (path) => {
+      allow(path)
+      vault.open(path)
+      remember()
+    },
+    onChange: (status) => emit('vault:cloneChanged', status),
+  })
 
   return {
     'app:info': () => ({
@@ -146,20 +169,15 @@ export function createHandlers({
       return status
     },
 
-    'vault:cloneFromDrive': async ({ parentPath, clientId, clientSecret }) => {
+    'vault:cloneStart': ({ parentPath, clientId, clientSecret }) => {
       requireAllowed(parentPath)
-      const path = await cloneFromDrive({
-        client: { clientId, clientSecret },
-        parentPath,
-        openBrowser: (url) => platform.openExternal(url),
-      }).catch((e: unknown) => {
-        throw asGoogleError(e)
-      })
-      allow(path)
-      const status = vault.open(path)
-      remember()
-      return status
+      return clone.start({ clientId, clientSecret }, parentPath)
     },
+    'vault:cloneStatus': () => clone.status(),
+    'vault:cloneCancel': () => clone.cancel(),
+    'google:login': () => logins.status(),
+    'google:paste': ({ url }) => logins.paste(url),
+    'google:cancel': () => logins.cancel(),
 
     'vault:unlock': async ({ password, force }) => {
       await vault.unlock(password, force)

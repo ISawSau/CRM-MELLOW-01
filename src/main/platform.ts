@@ -44,6 +44,15 @@ export interface Platform {
    * historial de avisos fuera de la bóveda, así que nunca nombres de clientes ni anuncios.
    */
   notify(title: string, body: string): void
+  /**
+   * Mantiene la app viva mientras dura algo que el usuario ha empezado y que sigue con la
+   * app en segundo plano (conectar con Google, D-118). En Android es un servicio en primer
+   * plano con su aviso: sin él, el sistema congela la app a los pocos segundos y le corta la
+   * red. Devuelve la función que lo suelta. En escritorio no hace falta.
+   */
+  keepRunning?(text: string): () => void
+  /** Enlace que vuelve a abrir la app desde el navegador (Android), o null. */
+  readonly returnToAppUrl?: string | null
 }
 
 /** ¿Se puede abrir fuera de la app? Solo https y mailto. */

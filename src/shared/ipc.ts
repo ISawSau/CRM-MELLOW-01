@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import type { CloneStatus, GoogleLoginStatus } from './google'
 import { timerStartSchema, type RunningTimer } from './timer'
 import { mailTemplatesSchema, type MailTemplate } from './mail-templates'
 import { lockAnimationSchema, type LockAnimation } from './lock-animation'
@@ -201,12 +202,23 @@ export const ipcSchemas = {
   'vault:pickFolder': z.object({ purpose: z.enum(['create', 'open']) }),
   'vault:create': z.object({ parentPath: absolutePath, name: vaultNameSchema, password }),
   'vault:open': z.object({ path: absolutePath }),
-  /** Trae la bóveda desde Google Drive a una carpeta nueva dentro de `parentPath` (D-101). */
-  'vault:cloneFromDrive': z.object({
+  /**
+   * Empieza a traer la bóveda desde Google Drive a una carpeta nueva dentro de `parentPath`
+   * (D-101). Es un trabajo del motor: la interfaz sigue su estado (D-118).
+   */
+  'vault:cloneStart': z.object({
     parentPath: absolutePath,
     clientId: z.string().trim().min(1).max(300),
     clientSecret: z.string().trim().max(300),
   }),
+  'vault:cloneStatus': z.void(),
+  /** Cancela lo que esté en marcha y deja el estado en reposo. */
+  'vault:cloneCancel': z.void(),
+  /** Inicio de sesión con Google en curso (D-118). */
+  'google:login': z.void(),
+  /** Dirección a la que Google ha llevado al navegador, pegada por el usuario. */
+  'google:paste': z.object({ url: z.string().trim().min(1).max(4000) }),
+  'google:cancel': z.void(),
   'vault:unlock': z.object({ password: anyPassword, force: z.boolean().default(false) }),
   'vault:recover': z.object({
     recoveryKey: z.string().min(1).max(200),
@@ -435,7 +447,12 @@ export interface IpcOutputs {
   'vault:pickFolder': string | null
   'vault:create': { status: VaultStatus; recoveryKey: string }
   'vault:open': VaultStatus
-  'vault:cloneFromDrive': VaultStatus
+  'vault:cloneStart': CloneStatus
+  'vault:cloneStatus': CloneStatus
+  'vault:cloneCancel': CloneStatus
+  'google:login': GoogleLoginStatus
+  'google:paste': GoogleLoginStatus
+  'google:cancel': GoogleLoginStatus
   'vault:unlock': VaultStatus
   'vault:recover': VaultStatus
   'vault:lock': VaultStatus
@@ -589,6 +606,8 @@ export interface IpcEvents {
   'gmail:changed': GmailStatus
   /** La consulta de versión nueva tiene resultado (D-114). */
   'updates:changed': null
+  'vault:cloneChanged': CloneStatus
+  'google:changed': GoogleLoginStatus
   /** Avance de una conversión de vídeo. */
   'tools:progress': ToolsProgress
 }
