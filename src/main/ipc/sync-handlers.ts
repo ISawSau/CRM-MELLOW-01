@@ -1,5 +1,6 @@
 import type { Platform } from '../platform'
 import type { SyncService } from '../sync/sync-service'
+import { asGoogleError } from '../sync/google-auth'
 import type { IpcHandlers } from './run'
 import { t } from '@shared/i18n'
 
@@ -22,7 +23,9 @@ export function createSyncHandlers(sync: SyncService, platform: Platform): SyncH
       return sync.status()
     },
     'sync:connectDrive': async (client) => {
-      await sync.configureDrive(client)
+      await sync.configureDrive(client).catch((e: unknown) => {
+        throw asGoogleError(e)
+      })
       await sync.sync()
       return sync.status()
     },

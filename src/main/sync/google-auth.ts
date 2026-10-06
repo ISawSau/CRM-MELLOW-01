@@ -2,6 +2,7 @@ import { createHash, randomBytes } from 'node:crypto'
 import { createServer, type Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import type { FetchLike } from './remote'
+import { AppError } from '@shared/errors'
 import { getLocale, t } from '@shared/i18n'
 
 /**
@@ -43,6 +44,19 @@ const PAGE = (
 <div style="max-width:420px"><h1 style="font-size:20px">${title}</h1><p>${text}</p></div></body></html>`
 
 /**
+ * Los fallos al conectar con Google llegan a la interfaz con su mensaje (D-115): un
+ * `Error` corriente se mostraría solo como «Ha ocurrido un error inesperado».
+ */
+export function asGoogleError(e: unknown): AppError {
+  if (e instanceof AppError) return e
+  return new AppError(
+    'GOOGLE_ERROR',
+    undefined,
+    e instanceof Error && e.message ? e.message : undefined,
+  )
+}
+
+/**
  * Limpia el id y el secreto pegados (un teclado de móvil puede meter espacios al
  * autocorregir) y comprueba que el id tiene la forma de los de Google. Con un id mal
  * copiado Google solo responde «Error 401: invalid_client» en el navegador (D-112).
@@ -50,7 +64,9 @@ const PAGE = (
 export function cleanGoogleClient(client: GoogleClient): GoogleClient {
   const clientId = client.clientId.replace(/\s+/g, '')
   if (!/^[\w-]+\.apps\.googleusercontent\.com$/.test(clientId))
-    throw new Error(
+    throw new AppError(
+      'GOOGLE_ERROR',
+      undefined,
       t(
         'El id de cliente de Google no es válido: tiene que terminar en .apps.googleusercontent.com. Cópialo otra vez desde Google Cloud → Credenciales, del cliente de tipo «Aplicación de escritorio».',
       ),
@@ -77,7 +93,15 @@ export async function connectGoogle(
   const code = await new Promise<{ code: string; redirect: string }>((resolve, reject) => {
     const timer = setTimeout(() => {
       server?.close()
-      reject(new Error(t('Se agotó el tiempo para conectar con Google.')))
+      reject(
+        new AppError(
+          'GOOGLE_ERROR',
+          undefined,
+          t(
+            'Se agotó el tiempo para conectar con Google. Si Google mostró un error en el navegador (por ejemplo «invalid_client»), revisa el id de cliente.',
+          ),
+        ),
+      )
     }, LOGIN_TIMEOUT_MS)
     let redirect = ''
     server = createServer((req, res) => {
@@ -94,7 +118,9 @@ export async function connectGoogle(
         clearTimeout(timer)
         server?.close()
         reject(
-          new Error(
+          new AppError(
+            'GOOGLE_ERROR',
+            undefined,
             err === 'access_denied'
               ? t('Has cancelado la conexión.')
               : t('Respuesta de Google no válida.'),
@@ -149,7 +175,11 @@ export async function connectGoogle(
     error_description?: string
   }
   if (!res.ok || !json.access_token || !json.refresh_token)
-    throw new Error(json.error_description ?? t('Google no ha dado acceso.'))
+    throw new AppError(
+      'GOOGLE_ERROR',
+      undefined,
+      json.error_description ?? t('Google no ha dado acceso.'),
+    )
   return {
     accessToken: json.access_token,
     refreshToken: json.refresh_token,
@@ -181,7 +211,9 @@ export async function refreshAccess(
     error?: string
   }
   if (!res.ok || !json.access_token)
-    throw new Error(
+    throw new AppError(
+      'GOOGLE_ERROR',
+      undefined,
       json.error === 'invalid_grant'
         ? t('Google ha retirado el acceso: vuelve a conectar {service} en Ajustes.', { service })
         : t('No se pudo renovar el acceso a {service}.', { service }),

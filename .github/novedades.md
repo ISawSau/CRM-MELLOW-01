@@ -1,3 +1,7 @@
+## Novedades de la 0.16.6
+
+- **Errores de Google claros:** si algo falla al traer la bóveda desde Google Drive o al conectar Drive, la app dice qué ha pasado (tiempo agotado, conexión cancelada, id de cliente no válido…) en lugar de «Ha ocurrido un error inesperado».
+
 ## Novedades de la 0.16.5
 
 - **Aviso de versión nueva:** cuando sale una versión, la app te lo dice con un aviso y un botón para descargarla. Lo consulta una vez al día en GitHub, sin enviar ningún dato tuyo, y se apaga en Ajustes → Actualizaciones.

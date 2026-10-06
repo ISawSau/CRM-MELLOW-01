@@ -7,6 +7,7 @@ import { getLocale, setLocale, t } from '@shared/i18n'
 import type { AutoLock } from '../auto-lock'
 import type { Platform } from '../platform'
 import { cloneFromDrive } from '../sync/clone'
+import { asGoogleError } from '../sync/google-auth'
 import type { ConfigStore } from '../config'
 import type { VaultService } from '../vault/vault-service'
 import type { SyncService } from '../sync/sync-service'
@@ -151,6 +152,8 @@ export function createHandlers({
         client: { clientId, clientSecret },
         parentPath,
         openBrowser: (url) => platform.openExternal(url),
+      }).catch((e: unknown) => {
+        throw asGoogleError(e)
       })
       allow(path)
       const status = vault.open(path)
