@@ -170,16 +170,43 @@
     padding: var(--space-4) var(--space-3) 0;
   }
 
+  /* Nada de dentro ensancha la página más que la pantalla (tablas y pestañas se desplazan). */
+  .page {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* Las pestañas que no caben se desplazan a lo ancho, sin barra. */
+  .tabs {
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .tabs button {
+    flex: none;
+    white-space: nowrap;
+  }
+
   .data-head {
     flex-wrap: wrap;
     align-items: center;
   }
 
-  /* Las rejillas de varias columnas pasan a una. */
-  .page [class*='grid'],
+  /* Las rejillas de varias columnas pasan a una (los dashboards tienen la suya, abajo). */
+  .page [class*='grid']:not(.widget-grid),
   .home-grid,
   .settings-block {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  /*
+   * Perfil: la foto no ocupa la pantalla entera (D-122).
+   */
+  .profile-avatar {
+    max-width: 128px;
+  }
+
+  .profile-avatar-empty {
+    font-size: 48px;
   }
 
   /* Ficha de un registro: pantalla completa por encima. */
@@ -209,6 +236,54 @@
     padding: var(--space-4) var(--space-4) var(--space-5);
   }
 
+  /*
+   * La animación de entrada de los diálogos del ordenador los centra con translateX(-50%) y,
+   * al quedarse en su último fotograma, empujaba la hoja media pantalla a la izquierda (D-122).
+   * En el móvil suben desde abajo.
+   */
+  :root:not([data-motion='ninguno']) .dialog {
+    animation-name: motion-sheet-in;
+  }
+
+  @keyframes motion-sheet-in {
+    from {
+      opacity: 0;
+      transform: translateY(24px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  /* Lo de dentro se ajusta al ancho de la hoja (no la estira hacia la derecha). */
+  .dialog {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  /*
+   * Menús desplegables (filtrar, ordenar, columnas, vista…): en el ordenador cuelgan de su
+   * botón; en el móvil se salían por la derecha. Aquí son hojas a lo ancho, abajo (D-122).
+   */
+  .popover,
+  .popover[data-align='end'] {
+    position: fixed;
+    z-index: 48;
+    top: auto;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    min-width: 0;
+    max-width: none;
+    max-height: 70vh;
+    border-radius: var(--radius-panel, 12px) var(--radius-panel, 12px) 0 0;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  .menu-wide {
+    min-width: 0;
+  }
+
   .palette {
     top: 0;
     width: 100%;
@@ -228,6 +303,141 @@
   .grid-wrap {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
+  }
+
+  /*
+   * En el ordenador la selección y el nombre se quedan fijos a la izquierda; en el móvil
+   * ocuparían media pantalla y taparían las demás columnas: se desplazan con todo (D-122).
+   */
+  .grid-row > .grid-cell:nth-child(-n + 2) {
+    position: relative;
+    left: auto;
+  }
+
+  /* Papelera: nombre arriba, datos debajo y los botones en su fila. */
+  .trash-item {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1) var(--space-3);
+    padding: var(--space-2) 0;
+  }
+
+  .trash-title {
+    flex: 1 1 100%;
+  }
+
+  .trash-item > .form-actions {
+    flex: 1 1 100%;
+  }
+
+  /* Campos de la sección: nombre arriba; tipo y botones debajo. */
+  .fields-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1) var(--space-3);
+    padding: var(--space-2) 0;
+  }
+
+  .fields-label {
+    flex: 1 1 100%;
+  }
+
+  .fields-actions {
+    margin-left: auto;
+  }
+
+  /* Opciones de un campo de selección: en dos líneas si no caben. */
+  .option-row {
+    display: flex;
+    flex-wrap: wrap;
+    padding-bottom: var(--space-2);
+    border-bottom: 1px solid var(--line);
+  }
+
+  .option-row > .input {
+    flex: 1 1 140px;
+    width: auto;
+    min-width: 0;
+  }
+
+  /* Filtros y orden: campo y condición arriba; el valor debajo, junto a «quitar». */
+  .filter-row {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 28px;
+  }
+
+  .filter-row[data-testid='filter-row'] > :nth-child(3) {
+    grid-column: 1 / 3;
+  }
+
+  /* Cuentas de Meta: el cliente debajo del nombre; los desgloses se desplazan a lo ancho. */
+  .account-item {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .account-client,
+  .account-sync,
+  .account-main .faint {
+    padding-left: 26px;
+  }
+
+  .breakdowns {
+    min-width: 0;
+    overflow-x: auto;
+  }
+
+  /* Estadísticas (Campañas, Inicio, Análisis): dos por fila, más compactas (D-122). */
+  .kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .kpi {
+    gap: 2px;
+    padding: var(--space-2) var(--space-3);
+  }
+
+  .kpi-label {
+    letter-spacing: 0.06em;
+  }
+
+  .kpi-value {
+    font-size: var(--text-xl);
+  }
+
+  /*
+   * Dashboards: dos columnas; las cifras sueltas van de dos en dos y los gráficos a lo ancho.
+   * Con una sola columna los widgets, que ocupan varias, se montaban unos encima de otros.
+   */
+  .widget-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-2);
+  }
+
+  .widget-cell,
+  .widget-cell[data-size] {
+    grid-column: 1 / -1;
+  }
+
+  .widget-cell[data-size='s'] {
+    grid-column: span 1;
+  }
+
+  .widget {
+    grid-template-columns: minmax(0, 1fr);
+    padding: var(--space-3);
+  }
+
+  .widget-head {
+    flex-wrap: wrap;
+    row-gap: 2px;
+  }
+
+  .widget-cell[data-size='s'] .widget-title {
+    flex-basis: 100%;
+    letter-spacing: 0.06em;
+  }
+
+  .widget .kpi-value {
+    font-size: var(--text-xl);
   }
 
   /* Barra superior e inferior del móvil: la tabla deja sitio a las dos (D-121). */
