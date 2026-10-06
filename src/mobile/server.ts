@@ -69,7 +69,7 @@ export const MOBILE_CSP = [
 ].join('; ')
 
 export interface NativeRequest {
-  kind: 'save' | 'clipboard' | 'open' | 'notify'
+  kind: 'save' | 'clipboard' | 'open' | 'notify' | 'busy'
   [key: string]: unknown
 }
 
@@ -92,6 +92,8 @@ export interface MobileServer {
   emit<E extends IpcEvent>(event: E, payload: IpcEvents[E]): void
   /** Petición al lado nativo; responde lo que devuelva (o null si no hay nadie escuchando). */
   native(request: NativeRequest): Promise<unknown>
+  /** El lado nativo escucha (la app de Android está en marcha). */
+  nativeConnected(): boolean
   close(): Promise<void>
 }
 
@@ -298,6 +300,7 @@ export function startMobileServer(o: MobileServerOptions): Promise<MobileServer>
             broadcast(nativeClients, 'request', { id, ...request })
           })
         },
+        nativeConnected: () => nativeClients.size > 0,
         close: () =>
           new Promise((r) => {
             for (const c of [...uiClients, ...nativeClients]) c.end()

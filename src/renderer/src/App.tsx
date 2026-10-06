@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { DEFAULT_APPEARANCE } from '@shared/appearance'
+import { cloneActive } from '@shared/google'
 import { useVaultStatus } from './lib/hooks'
 import { call } from './lib/ipc'
 import { CloneFromDrive } from './screens/CloneFromDrive'
@@ -18,6 +19,14 @@ export function App() {
   const status = useVaultStatus()
   const [creating, setCreating] = useState(false)
   const [cloning, setCloning] = useState(false)
+  // Si se recarga la interfaz con «Traer desde Google Drive» en marcha, se sigue ahí (D-118).
+  useEffect(() => {
+    void call('vault:cloneStatus')
+      .then((c) => {
+        if (cloneActive(c)) setCloning(true)
+      })
+      .catch(() => {})
+  }, [])
   /** Clave de recuperación recién creada: se muestra antes de entrar. */
   const [newRecoveryKey, setNewRecoveryKey] = useState<string | null>(null)
 

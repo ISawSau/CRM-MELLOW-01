@@ -13,8 +13,9 @@ import {
   writeFileSync,
 } from 'node:fs'
 import { dirname, join, normalize, relative, isAbsolute } from 'node:path'
-import { Readable } from 'node:stream'
+import { Readable, Transform } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
+import { AppError } from '@shared/errors'
 import { t } from '@shared/i18n'
 
 /**
@@ -29,8 +30,12 @@ export interface Remote {
   readonly label: string
   /** Nombres de los elementos de una carpeta remota ('' = raíz). */
   list(dir: string): Promise<string[]>
-  /** Descarga a `dest`; false si no existe. */
-  get(path: string, dest: string): Promise<boolean>
+  /** Descarga a `dest`; false si no existe. `onProgress`: bytes bajados y total. */
+  get(
+    path: string,
+    dest: string,
+    onProgress?: (received: number, total: number | null) => void,
+  ): Promise<boolean>
   put(path: string, src: string): Promise<void>
   readText(path: string): Promise<string | null>
   writeText(path: string, text: string): Promise<void>
@@ -105,8 +110,15 @@ export class FolderRemote implements Remote {
 
 // --- Google Drive ------------------------------------------------------------------
 
-const API = 'https://www.googleapis.com/drive/v3'
-const UPLOAD = 'https://www.googleapis.com/upload/drive/v3'
+/** Direcciones de la API de Drive (los tests de interfaz usan un Google falso). */
+export interface DriveUrls {
+  api: string
+  upload: string
+}
+export const DRIVE_URLS: DriveUrls = {
+  api: 'https://www.googleapis.com/drive/v3',
+  upload: 'https://www.googleapis.com/upload/drive/v3',
+}
 const FOLDER = 'application/vnd.google-apps.folder'
 /** Nombre de la carpeta de cada bóveda en Drive: el prefijo y el principio de su id. */
 export const DRIVE_ROOT_PREFIX = 'CRM Mellow · '
@@ -114,6 +126,35 @@ export const DRIVE_ROOT_PREFIX = 'CRM Mellow · '
 const SIMPLE_LIMIT = 5 * 1024 * 1024
 /** Trozos de la subida reanudable: múltiplo de 256 KB. */
 const RESUMABLE_CHUNK = 8 * 1024 * 1024
+/** Una descarga que no recibe nada en este tiempo se da por perdida (red móvil caída). */
+const DOWNLOAD_IDLE_MS = 60_000
+
+/**
+ * Error de una respuesta de Drive. Los dos fallos de configuración típicos se explican:
+ * la API de Drive sin activar en el proyecto de Google Cloud y el acceso rechazado.
+ */
+export function driveError(status: number, text: string): Error {
+  if (
+    status === 403 &&
+    /SERVICE_DISABLED|accessNotConfigured|has not been used in project|is disabled/i.test(text)
+  )
+    return new AppError(
+      'GOOGLE_ERROR',
+      undefined,
+      t(
+        'La API de Google Drive no está activada en tu proyecto de Google Cloud. Actívala en «APIs y servicios» → «Biblioteca» → «Google Drive API», espera un par de minutos y vuelve a intentarlo.',
+      ),
+    )
+  if (status === 401)
+    return new AppError(
+      'GOOGLE_ERROR',
+      undefined,
+      t('Google Drive no ha aceptado el acceso. Vuelve a conectar con Google.'),
+    )
+  return new Error(
+    t('Google Drive respondió {status}: {text}', { status, text: text.slice(0, 200) }),
+  )
+}
 
 export type FetchLike = typeof fetch
 
@@ -129,6 +170,7 @@ export class DriveRemote implements Remote {
     private readonly rootName: string,
     private readonly token: () => Promise<string>,
     private readonly http: FetchLike = fetch,
+    private readonly urls: DriveUrls = DRIVE_URLS,
   ) {}
 
   get label(): string {
@@ -142,6 +184,7 @@ export class DriveRemote implements Remote {
   static async vaultFolders(
     token: () => Promise<string>,
     http: FetchLike = fetch,
+    urls: DriveUrls = DRIVE_URLS,
   ): Promise<string[]> {
     const q = [
       `name contains '${DRIVE_ROOT_PREFIX}'`,
@@ -150,13 +193,10 @@ export class DriveRemote implements Remote {
       `mimeType = '${FOLDER}'`,
     ].join(' and ')
     const res = await http(
-      `${API}/files?${new URLSearchParams({ q, fields: 'files(name)', pageSize: '50', spaces: 'drive' })}`,
+      `${urls.api}/files?${new URLSearchParams({ q, fields: 'files(name)', pageSize: '50', spaces: 'drive' })}`,
       { headers: { Authorization: `Bearer ${await token()}` } },
     )
-    if (!res.ok)
-      throw new Error(
-        t('Google Drive respondió {status}: {text}', { status: res.status, text: '' }),
-      )
+    if (!res.ok) throw driveError(res.status, await res.text().catch(() => ''))
     const json = (await res.json()) as { files?: { name: string }[] }
     return [...new Set((json.files ?? []).map((f) => f.name))].filter((n) =>
       n.startsWith(DRIVE_ROOT_PREFIX),
@@ -168,15 +208,8 @@ export class DriveRemote implements Remote {
       ...init,
       headers: { ...(init.headers ?? {}), Authorization: `Bearer ${await this.token()}` },
     })
-    if (!res.ok && res.status !== 308 && res.status !== 404) {
-      const text = await res.text().catch(() => '')
-      throw new Error(
-        t('Google Drive respondió {status}: {text}', {
-          status: res.status,
-          text: text.slice(0, 200),
-        }),
-      )
-    }
+    if (!res.ok && res.status !== 308 && res.status !== 404)
+      throw driveError(res.status, await res.text().catch(() => ''))
     return res
   }
 
@@ -192,7 +225,7 @@ export class DriveRemote implements Remote {
       folder ? `mimeType = '${FOLDER}'` : `mimeType != '${FOLDER}'`,
     ].join(' and ')
     const res = await this.call(
-      `${API}/files?${new URLSearchParams({ q, fields: 'files(id)', pageSize: '1', spaces: 'drive' })}`,
+      `${this.urls.api}/files?${new URLSearchParams({ q, fields: 'files(id)', pageSize: '1', spaces: 'drive' })}`,
     )
     const json = (await res.json()) as { files?: { id: string }[] }
     return json.files?.[0]?.id ?? null
@@ -215,7 +248,7 @@ export class DriveRemote implements Remote {
       let id = await this.find(part, parent, true)
       if (!id) {
         if (!create) return null
-        const res = await this.call(`${API}/files?fields=id`, {
+        const res = await this.call(`${this.urls.api}/files?fields=id`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ name: part, mimeType: FOLDER, parents: parent ? [parent] : [] }),
@@ -254,7 +287,7 @@ export class DriveRemote implements Remote {
         spaces: 'drive',
       })
       if (pageToken) params.set('pageToken', pageToken)
-      const res = await this.call(`${API}/files?${params}`)
+      const res = await this.call(`${this.urls.api}/files?${params}`)
       const json = (await res.json()) as { files?: { name: string }[]; nextPageToken?: string }
       for (const f of json.files ?? []) names.push(f.name)
       pageToken = json.nextPageToken
@@ -262,14 +295,40 @@ export class DriveRemote implements Remote {
     return names
   }
 
-  async get(path: string, dest: string): Promise<boolean> {
+  async get(
+    path: string,
+    dest: string,
+    onProgress?: (received: number, total: number | null) => void,
+  ): Promise<boolean> {
     const id = await this.fileId(path)
     if (!id) return false
-    const res = await this.call(`${API}/files/${id}?alt=media`)
+    const res = await this.call(`${this.urls.api}/files/${id}?alt=media`)
     if (res.status === 404 || !res.body) return false
     mkdirSync(dirname(dest), { recursive: true })
     const tmp = `${dest}.part`
-    await pipeline(Readable.fromWeb(res.body as never), createWriteStream(tmp))
+    const total = Number(res.headers.get('content-length')) || null
+    const body = Readable.fromWeb(res.body as never)
+    const stalled = setTimeout(
+      () => body.destroy(new Error(t('La descarga de Google Drive se ha quedado parada.'))),
+      DOWNLOAD_IDLE_MS,
+    )
+    let received = 0
+    const meter = new Transform({
+      transform(chunk: Buffer, _encoding, done) {
+        received += chunk.length
+        stalled.refresh()
+        onProgress?.(received, total)
+        done(null, chunk)
+      },
+    })
+    try {
+      await pipeline(body, meter, createWriteStream(tmp))
+    } catch (e) {
+      rmSync(tmp, { force: true })
+      throw e
+    } finally {
+      clearTimeout(stalled)
+    }
     renameSync(tmp, dest)
     return true
   }
@@ -283,8 +342,8 @@ export class DriveRemote implements Remote {
     // Subida reanudable por trozos.
     const start = await this.call(
       existing
-        ? `${UPLOAD}/files/${existing}?uploadType=resumable`
-        : `${UPLOAD}/files?uploadType=resumable&fields=id`,
+        ? `${this.urls.upload}/files/${existing}?uploadType=resumable`
+        : `${this.urls.upload}/files?uploadType=resumable&fields=id`,
       {
         method: existing ? 'PATCH' : 'POST',
         headers: {
@@ -320,7 +379,7 @@ export class DriveRemote implements Remote {
     data: Buffer,
   ): Promise<void> {
     if (existing) {
-      await this.call(`${UPLOAD}/files/${existing}?uploadType=media`, {
+      await this.call(`${this.urls.upload}/files/${existing}?uploadType=media`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/octet-stream' },
         body: new Uint8Array(data),
@@ -337,7 +396,7 @@ export class DriveRemote implements Remote {
       data,
       Buffer.from(`\r\n--${boundary}--`),
     ])
-    await this.call(`${UPLOAD}/files?uploadType=multipart&fields=id`, {
+    await this.call(`${this.urls.upload}/files?uploadType=multipart&fields=id`, {
       method: 'POST',
       headers: { 'Content-Type': `multipart/related; boundary=${boundary}` },
       body: new Uint8Array(body),
@@ -347,7 +406,7 @@ export class DriveRemote implements Remote {
   async readText(path: string): Promise<string | null> {
     const id = await this.fileId(path)
     if (!id) return null
-    const res = await this.call(`${API}/files/${id}?alt=media`)
+    const res = await this.call(`${this.urls.api}/files/${id}?alt=media`)
     return res.status === 404 ? null : res.text()
   }
 
@@ -363,7 +422,7 @@ export class DriveRemote implements Remote {
     const parent = await this.folder(dir, false)
     if (!parent) return
     const id = (await this.find(name, parent, false)) ?? (await this.find(name, parent, true))
-    if (id) await this.call(`${API}/files/${id}`, { method: 'DELETE' })
+    if (id) await this.call(`${this.urls.api}/files/${id}`, { method: 'DELETE' })
     this.folders.delete(path)
   }
 }

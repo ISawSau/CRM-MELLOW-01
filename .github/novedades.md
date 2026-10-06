@@ -1,3 +1,11 @@
+## Novedades de la 0.16.9
+
+- **Móvil, traer la bóveda desde Google Drive:** arreglado que se quedara en «Esperando a Google…». Android congelaba la app a los pocos segundos de pasar al navegador y la dirección a la que vuelve Google no contestaba. Ahora, mientras conectas con Google, la app sigue activa (verás un aviso «Conectando con Google…») y la página de Google tiene un botón **Volver a CRM Mellow**.
+- **Cada paso a la vista:** iniciar sesión, conectar, buscar la bóveda y descargarla (con los MB que lleva). Puedes cancelar, y si sales y vuelves a la app sigue donde estaba.
+- **Si el navegador no vuelve a la app:** copia la dirección de la barra del navegador (empieza por http://127.0.0.1) y pégala en «¿El navegador no vuelve a CRM Mellow?». Sirve también al conectar Google Drive o Gmail en Ajustes.
+- **Errores claros:** id o secreto no reconocidos, código caducado, la API de Google Drive sin activar en tu proyecto, otra cuenta de Google sin bóveda o sin conexión (con el permiso de red de GrapheneOS), cada uno con lo que hay que hacer.
+- **Volver a traerla:** arreglado que, tras traer una bóveda, la pantalla de «Traer desde Google Drive» se cerrara sola la siguiente vez.
+
 ## Novedades de la 0.16.8
 
 - **Móvil, conectar con Google:** arreglado el «fetch failed» al traer la bóveda desde Google Drive (o conectar Drive o Gmail) en el móvil. Android 15 corta la red a las apps que no están en pantalla, y la app intentaba terminar la conexión mientras seguías en el navegador. Ahora espera a que vuelvas: tras iniciar sesión en Google, vuelve a CRM Mellow y termina sola.

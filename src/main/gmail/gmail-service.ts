@@ -18,6 +18,7 @@ import {
   REVOKE_URL,
   TOKEN_URL,
   type GoogleClient,
+  type GoogleLogins,
 } from '../sync/google-auth'
 import type { FetchLike } from '../sync/remote'
 import { deleteSetting, readSetting, writeSetting } from '../sync/sync-service'
@@ -53,6 +54,8 @@ type GmailConfig = z.infer<typeof configSchema>
 export interface GmailOptions {
   http?: FetchLike
   openBrowser: (url: string) => void
+  /** Inicio de sesión con Google en curso (pegar la dirección, cancelar, D-118). */
+  logins?: GoogleLogins
   /** El cliente de Google de Drive, si lo hay. */
   driveClient: () => GoogleClient | null
   apiUrl?: string
@@ -138,6 +141,7 @@ export class GmailService {
       tokens = await connectGoogle(client, this.opts.openBrowser, this.http, {
         scope: GMAIL_SCOPE,
         ...(this.opts.tokenUrl ? { tokenUrl: this.opts.tokenUrl } : {}),
+        ...(this.opts.logins ? { logins: this.opts.logins } : {}),
       })
     } catch (e) {
       throw new AppError('GMAIL_ERROR', undefined, e instanceof Error ? e.message : String(e))

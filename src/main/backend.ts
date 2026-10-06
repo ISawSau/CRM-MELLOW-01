@@ -6,6 +6,7 @@ import { AnalysisService } from './analysis/analysis-service'
 import { AutoLock } from './auto-lock'
 import type { ConfigStore } from './config'
 import { GmailService } from './gmail/gmail-service'
+import { GoogleLogins } from './sync/google-auth'
 import { createHandlers } from './ipc/handlers'
 import type { IpcHandlers } from './ipc/run'
 import { MetaService } from './meta/meta-service'
@@ -69,6 +70,19 @@ export interface Backend {
 export function createBackend(o: BackendOptions): Backend {
   const { platform, config, emit } = o
   const urls = o.testUrls ?? {}
+  // Google falso de los tests: tokens y Drive. La página de inicio de sesión sigue siendo la
+  // de Google (solo se abre https); el «navegador» de los tests la traduce al falso.
+  const google = urls.google
+    ? {
+        connect: { tokenUrl: `${urls.google}/token` },
+        driveUrls: { api: `${urls.google}/drive/v3`, upload: `${urls.google}/upload/drive/v3` },
+      }
+    : {}
+  const logins = new GoogleLogins({
+    ...(platform.keepRunning ? { hold: (text: string) => platform.keepRunning!(text) } : {}),
+    returnUrl: platform.returnToAppUrl ?? null,
+    onChange: (status) => emit('google:changed', status),
+  })
   const vault: VaultService = new VaultService({
     onChange: (status) => {
       emit('vault:changed', status)
@@ -94,6 +108,8 @@ export function createBackend(o: BackendOptions): Backend {
     hostname: o.hostname,
     ...(o.maxAutoDownloadBytes ? { maxAutoDownloadBytes: o.maxAutoDownloadBytes } : {}),
     openBrowser: (url) => platform.openExternal(url),
+    logins,
+    ...google,
     onChange: (status) => emit('sync:changed', status),
   })
   const meta: MetaService = new MetaService(vault, {
@@ -139,6 +155,7 @@ export function createBackend(o: BackendOptions): Backend {
   })
   const gmail = new GmailService(vault, {
     openBrowser: (url) => platform.openExternal(url),
+    logins,
     driveClient: () => sync.googleClient(),
     onChange: (s) => emit('gmail:changed', s),
     ...(urls.google
@@ -192,6 +209,9 @@ export function createBackend(o: BackendOptions): Backend {
     updates,
     lockWithSync,
     platform,
+    logins,
+    google,
+    emit,
   })
   return {
     vault,

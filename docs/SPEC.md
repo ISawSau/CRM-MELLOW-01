@@ -1,6 +1,6 @@
 # Especificación del CRM personal
 
-Versión 0.6 · 5 de octubre de 2026
+Versión 0.7 · 6 de octubre de 2026
 
 Este documento recoge todas las decisiones de diseño tomadas antes de escribir código. Es la referencia para construir el proyecto fase a fase. Lo que aparece marcado como **verificar** depende de APIs o normativa externa que cambian con el tiempo y debe comprobarse en la documentación oficial antes de implementarlo.
 
@@ -91,6 +91,7 @@ Comportamiento:
 - `vault.json` guarda la versión de esquema. Una versión antigua de la app se niega a abrir una bóveda con esquema más nuevo, para evitar corrupción.
 - Pasar la carpeta a un USB o disco externo funciona siempre como método manual, aunque no haya sincronización con Drive.
 - En un equipo o móvil nuevo, «Traer desde Google Drive» baja la bóveda sincronizada (cifrada) y se desbloquea con la contraseña de siempre. En Android la bóveda vive en la carpeta privada de la app y no se copia en las copias de seguridad de Android (D-101).
+- Conectar con Google (traer la bóveda, conectar Drive o Gmail) es un trabajo del motor: la pantalla muestra cada paso (iniciar sesión, conectar, buscar la bóveda, descargarla con su avance), se puede cancelar y se retoma si la interfaz se recarga. Si el navegador no consigue volver a la app, se pega la dirección a la que Google lo ha llevado (http://127.0.0.1:…). En Android, mientras dura, un servicio en primer plano con su aviso evita que el sistema congele la app y le corte la red al pasar al navegador; la página de Google tiene un botón «Volver a CRM Mellow» (D-118).
 
 ---
 

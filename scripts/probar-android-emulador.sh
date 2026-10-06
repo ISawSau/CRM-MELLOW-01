@@ -51,6 +51,67 @@ for _ in $(seq 1 90); do
   fi
   sleep 2
 done
+
+# --- Segundo plano (D-118) ---------------------------------------------------------------
+# Lo que pasa al conectar con Google: el usuario está en el navegador (la app en segundo
+# plano) y Google vuelve a una dirección local del motor. El motor (sonda de la autoprueba,
+# src/mobile/background-probe.ts) espera en un puerto; aquí se manda la app al fondo, se
+# espera más de los 10 s tras los que Android congela las apps en segundo plano y se llama a
+# esa dirección como haría el navegador. Primero sin el servicio en primer plano (así estaba
+# la app hasta la 0.16.8) y después con él.
+PROBE=$OUT/sonda.txt
+: > "$PROBE"
+NC=$(adb shell 'command -v nc || command -v toybox' 2> /dev/null | tr -d '\r' | head -1)
+case "$NC" in
+  */toybox) NC="$NC nc" ;;
+esac
+probe() {
+  local mode=$1 port="" out
+  for _ in $(seq 1 60); do
+    port=$(adb logcat -d 2> /dev/null | grep -o "sonda $mode: esperando en el puerto [0-9]*" \
+      | tail -1 | grep -o '[0-9]*$')
+    [ -n "$port" ] && break
+    sleep 2
+  done
+  if [ -z "$port" ]; then
+    echo "sonda $mode: no ha empezado" | tee -a "$PROBE"
+    return
+  fi
+  adb shell input keyevent KEYCODE_HOME
+  sleep 25
+  if [ "$mode" = con-servicio ]; then
+    adb shell dumpsys activity services cc.yellowmellow.crm 2> /dev/null > "$OUT/servicios.txt"
+    if grep -q "BusyService" "$OUT/servicios.txt" && grep -q "isForeground=true" "$OUT/servicios.txt"; then
+      echo "sonda $mode: servicio en primer plano activo" | tee -a "$PROBE"
+    else
+      echo "sonda $mode: el servicio en primer plano no aparece" | tee -a "$PROBE"
+    fi
+  fi
+  out=$(adb shell "printf 'GET /?code=sonda HTTP/1.0\\r\\n\\r\\n' | timeout 10 $NC 127.0.0.1 $port" 2>&1 | tr -d '\r')
+  if echo "$out" | grep -q "sonda ok"; then
+    echo "sonda $mode: el motor contesta con la app en segundo plano" | tee -a "$PROBE"
+  else
+    echo "sonda $mode: el motor NO contesta con la app en segundo plano (${out:-sin respuesta})" \
+      | tee -a "$PROBE"
+  fi
+  # El motor comprueba la red con la app todavía en segundo plano.
+  for _ in $(seq 1 15); do
+    adb logcat -d 2> /dev/null | grep -q "sonda $mode: .*HTTPS con Google" && break
+    sleep 2
+  done
+  adb shell am start -n cc.yellowmellow.crm/.MainActivity > /dev/null 2>&1 || true
+  for _ in $(seq 1 30); do
+    adb logcat -d 2> /dev/null | grep -q "sonda $mode: .*HTTPS con Google" && break
+    sleep 2
+  done
+  adb logcat -d 2> /dev/null | grep -o "sonda $mode: .*" | tee -a "$PROBE"
+}
+if grep -q "interfaz conectada" "$LOG"; then
+  echo "--- Segundo plano (navegador encima, más de 10 s) ---"
+  probe sin-servicio
+  probe con-servicio
+fi
+
 adb logcat -d -v threadtime > "$LOG" 2>&1 || echo "(adb logcat ha fallado: $?)"
 adb logcat -d -b crash -v threadtime > "$OUT/crash.txt" || true
 PID=$(adb shell pidof cc.yellowmellow.crm || true)
@@ -76,7 +137,18 @@ if [ -n "$TOMB" ]; then
 fi
 echo "--- Red (HTTPS con Google desde el motor) ---"
 grep -E "HTTPS con Google" "$LOG" | tail -2 || true
+echo "--- Segundo plano (resultado) ---"
+cat "$PROBE" 2> /dev/null || true
 grep -q "AUTOPRUEBA CORRECTA" "$LOG" || { echo "La autoprueba del motor no ha pasado"; exit 1; }
+# Con el servicio en primer plano el motor tiene que contestar en segundo plano y, si el
+# emulador tiene red (la autoprueba llegó a Google), tener red también ahí.
+grep -q "sonda con-servicio: el motor contesta con la app en segundo plano" "$PROBE" \
+  || { echo "Con el servicio en primer plano el motor no contesta en segundo plano"; exit 1; }
+if grep -q "autoprueba: ok  HTTPS con Google" "$LOG" \
+  && ! grep -q "sonda con-servicio: ok  HTTPS con Google" "$PROBE"; then
+  echo "Con el servicio en primer plano el motor no tiene red en segundo plano"
+  exit 1
+fi
 grep -q "interfaz conectada" "$LOG" || { echo "La interfaz no ha llegado a conectarse al motor"; exit 1; }
 if grep -q "FATAL EXCEPTION\|Fatal signal" "$LOG"; then echo "La app se ha cerrado con un error"; exit 1; fi
 echo "APK: autoprueba correcta e interfaz conectada"

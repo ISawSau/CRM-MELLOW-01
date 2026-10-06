@@ -8,6 +8,7 @@ import { createBackend } from '../main/backend'
 import { ConfigStore } from '../main/config'
 import { useNativeSqlite } from '../main/db/connection'
 import { androidPlatform } from './android-platform'
+import { runBackgroundProbe } from './background-probe'
 import { runMobileSelfTest } from './self-test'
 import { startMobileServer, type MobileServer } from './server'
 
@@ -19,6 +20,9 @@ import { startMobileServer, type MobileServer } from './server'
  * `--native` es la carpeta de librerías nativas de la app (ahí está SQLite compilado para Android).
  * Todo lo que guarda va dentro de `--data` (bóvedas y la configuración mínima).
  */
+/** Compilación para los tests de interfaz del PC (vite.mobile.config.ts). */
+declare const __CRM_MOBILE_TEST__: boolean
+
 function arg(name: string): string {
   const i = process.argv.indexOf(`--${name}`)
   const v = i >= 0 ? process.argv[i + 1] : undefined
@@ -33,8 +37,8 @@ async function main(): Promise<void> {
     useNativeSqlite(join(arg('native'), 'libbetter_sqlite3.so'))
     trace('SQLite cargado')
   }
-  if (process.argv.includes('--autoprueba'))
-    await runMobileSelfTest(arg('cache'), (line) => trace(`autoprueba: ${line}`))
+  const selfTest = process.argv.includes('--autoprueba')
+  if (selfTest) await runMobileSelfTest(arg('cache'), (line) => trace(`autoprueba: ${line}`))
   const data = arg('data')
   const config = new ConfigStore(join(data, 'config'))
   setLocale(config.get().locale)
@@ -52,6 +56,9 @@ async function main(): Promise<void> {
     emit: (event, payload) => server?.emit(event, payload),
     // Fotos y documentos sí; los vídeos grandes se quedan en la nube (se ven sus miniaturas).
     maxAutoDownloadBytes: 25 * 1024 * 1024,
+    ...(__CRM_MOBILE_TEST__ && process.env['CRM_TEST_GOOGLE_URL']
+      ? { testUrls: { google: process.env['CRM_TEST_GOOGLE_URL'] } }
+      : {}),
   })
   backend.openLastVault()
   server = await startMobileServer({
@@ -74,6 +81,11 @@ async function main(): Promise<void> {
     },
   })
   trace(`motor listo en 127.0.0.1:${server.port}`)
+  // CI: qué pasa con la app en segundo plano mientras se inicia sesión en Google (D-118).
+  if (selfTest) {
+    const s = server
+    void runBackgroundProbe({ platform, nativeReady: () => s.nativeConnected(), log: trace })
+  }
 }
 
 // Si falla, se deja escrito y el proceso sigue vivo: en Android salir de Node cierra la app

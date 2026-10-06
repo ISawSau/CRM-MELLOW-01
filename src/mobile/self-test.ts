@@ -30,7 +30,7 @@ function checkIntl(): void {
  * Conexión HTTPS con Google como la que hace «Traer desde Google Drive» (D-116). Solo avisa
  * (el emulador del CI puede no tener red), pero deja en el registro la causa si falla.
  */
-async function checkHttps(log: (line: string) => void): Promise<void> {
+export async function checkHttps(log: (line: string) => void): Promise<void> {
   const env = `OpenSSL ${process.versions.openssl}, ${rootCertificates.length} certificados raíz`
   try {
     const res = await fetch('https://oauth2.googleapis.com/token', {

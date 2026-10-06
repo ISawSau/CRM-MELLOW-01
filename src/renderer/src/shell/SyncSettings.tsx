@@ -6,6 +6,7 @@ import { formatBytes } from '@shared/files'
 import { formatDateTime } from '@shared/format'
 import { call, IpcCallError } from '../lib/ipc'
 import { Alert } from '../ui/Alert'
+import { GoogleLoginHelp } from '../ui/GoogleLoginHelp'
 import { useToast } from '../ui/Toast'
 import { syncSummary, useSyncStatus } from './sync'
 import { t, tn } from '@shared/i18n'
@@ -118,7 +119,13 @@ function GoogleForm({ onDone }: { onDone: () => void }) {
         >
           {busy ? t('Esperando a Google…') : t('Conectar')}
         </button>
+        {busy && (
+          <button type="button" className="btn" onClick={() => void call('google:cancel')}>
+            {t('Cancelar')}
+          </button>
+        )}
       </div>
+      {busy && <GoogleLoginHelp />}
     </div>
   )
 }

@@ -206,6 +206,13 @@ public class MainActivity extends Activity implements NativeChannel.Handler {
                     notifyUser(req.optString("title"), req.optString("body"));
                     background(() -> NativeChannel.reply(id, true));
                     break;
+                case "busy":
+                    // Conectar con Google: la app no se congela ni pierde la red al pasar
+                    // al navegador (D-118).
+                    if (req.optBoolean("on")) BusyService.start(this, req.optString("text"));
+                    else BusyService.stop(this);
+                    background(() -> NativeChannel.reply(id, true));
+                    break;
                 default:
                     background(() -> NativeChannel.reply(id, null));
             }
@@ -368,6 +375,13 @@ public class MainActivity extends Activity implements NativeChannel.Handler {
     protected void onStop() {
         super.onStop();
         NativeChannel.notifyAsync("/native/background");
+    }
+
+    /** El botón «Volver a CRM Mellow» de la página de Google trae la app al frente. */
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
     }
 
     @Override

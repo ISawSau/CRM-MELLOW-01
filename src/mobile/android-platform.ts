@@ -18,9 +18,15 @@ export interface AndroidPlatformOptions {
  * privada de la app, los archivos se suben desde la interfaz y lo que se guarda o se copia
  * pasa por el lado nativo (selector de Android, portapapeles con marca de dato sensible).
  */
+/** Abre la app desde la página del navegador (filtro de MainActivity, D-118). */
+export const RETURN_TO_APP_URL =
+  'intent://volver#Intent;scheme=cc.yellowmellow.crm;package=cc.yellowmellow.crm;end'
+
 export function androidPlatform(o: AndroidPlatformOptions): Platform {
   mkdirSync(o.vaultsDir, { recursive: true })
   const exportsDir = join(o.cacheDir, 'exportar')
+  // Servicio en primer plano mientras haya algo que lo necesite (pueden solaparse).
+  let holders = 0
   return {
     name: 'android',
     version: () => o.version,
@@ -50,5 +56,15 @@ export function androidPlatform(o: AndroidPlatformOptions): Platform {
     notify(title, body) {
       void o.native({ kind: 'notify', title, body })
     },
+    keepRunning(text) {
+      if (holders++ === 0) void o.native({ kind: 'busy', on: true, text })
+      let released = false
+      return () => {
+        if (released) return
+        released = true
+        if (--holders === 0) void o.native({ kind: 'busy', on: false })
+      }
+    },
+    returnToAppUrl: RETURN_TO_APP_URL,
   }
 }
