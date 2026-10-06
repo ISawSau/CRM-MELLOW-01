@@ -1,4 +1,6 @@
+import { setDefaultResultOrder } from 'node:dns'
 import { mkdirSync } from 'node:fs'
+import net from 'node:net'
 import { trace } from './trace'
 
 /**
@@ -20,3 +22,9 @@ process.exit = ((code?: number) => {
 }) as typeof process.exit
 
 trace(`motor arrancando (Node ${process.version}, ${process.arch}, Intl: ${typeof Intl})`)
+
+// Red (D-116): en muchas redes móviles el IPv6 no funciona del todo y Node 18 no prueba
+// IPv4 si el IPv6 falla; se resuelve primero en IPv4 y se activa el intento por las dos
+// familias (Happy Eyeballs). Los dos ajustes existen en Node 18.18 o posterior.
+setDefaultResultOrder('ipv4first')
+;(net as { setDefaultAutoSelectFamily?: (on: boolean) => void }).setDefaultAutoSelectFamily?.(true)

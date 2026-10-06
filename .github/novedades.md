@@ -1,3 +1,7 @@
+## Novedades de la 0.16.7
+
+- **Móvil, conexión con Google:** arreglos de red en la app de Android para la conexión con Google tras iniciar sesión (prueba IPv4 si el IPv6 de la red falla) y, si aun así falla, el mensaje dice la causa concreta en lugar de «fetch failed».
+
 ## Novedades de la 0.16.6
 
 - **Errores de Google claros:** si algo falla al traer la bóveda desde Google Drive o al conectar Drive, la app dice qué ha pasado (tiempo agotado, conexión cancelada, id de cliente no válido…) en lugar de «Ha ocurrido un error inesperado».

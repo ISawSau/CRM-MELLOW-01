@@ -49,11 +49,21 @@ const PAGE = (
  */
 export function asGoogleError(e: unknown): AppError {
   if (e instanceof AppError) return e
-  return new AppError(
-    'GOOGLE_ERROR',
-    undefined,
-    e instanceof Error && e.message ? e.message : undefined,
-  )
+  return new AppError('GOOGLE_ERROR', undefined, describeNetError(e) || undefined)
+}
+
+/**
+ * Mensaje de un fallo con su causa: `fetch` solo dice «fetch failed» y el motivo real
+ * (sin DNS, conexión rechazada, certificado…) va en `cause` (D-116).
+ */
+export function describeNetError(e: unknown): string {
+  if (!(e instanceof Error)) return e === undefined || e === null ? '' : String(e)
+  const cause = (e as { cause?: unknown }).cause
+  if (!(cause instanceof Error)) return e.message
+  const code = (cause as { code?: unknown }).code
+  const prefix = typeof code === 'string' && !cause.message.includes(code) ? code : ''
+  const detail = [prefix, cause.message].filter(Boolean).join(': ')
+  return detail && !e.message.includes(detail) ? `${e.message} (${detail})` : e.message
 }
 
 /**

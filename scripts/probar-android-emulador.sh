@@ -74,6 +74,8 @@ if [ -n "$TOMB" ]; then
   echo "--- Hilos del motor (node, arranque, canal) ---"
   awk '/^--- --- ---/{show=0} /name: (node|arranque|canal-nativo|main)/{show=1} show' "$OUT/tombstone.txt" | head -160
 fi
+echo "--- Red (HTTPS con Google desde el motor) ---"
+grep -E "HTTPS con Google" "$LOG" | tail -2 || true
 grep -q "AUTOPRUEBA CORRECTA" "$LOG" || { echo "La autoprueba del motor no ha pasado"; exit 1; }
 grep -q "interfaz conectada" "$LOG" || { echo "La interfaz no ha llegado a conectarse al motor"; exit 1; }
 if grep -q "FATAL EXCEPTION\|Fatal signal" "$LOG"; then echo "La app se ha cerrado con un error"; exit 1; fi
