@@ -11,7 +11,7 @@ import { createHandlers } from './ipc/handlers'
 import type { IpcHandlers } from './ipc/run'
 import { MetaService } from './meta/meta-service'
 import { Notifier } from './notifier'
-import { UpdateService } from './updates'
+import { UpdateService, type UpdateTarget } from './updates'
 import type { Platform } from './platform'
 import type { ReportFonts } from './reports/report-html'
 import { ReportService } from './reports/report-service'
@@ -43,6 +43,8 @@ export interface BackendOptions {
    * desactiva (desarrollo y tests, para no salir a internet).
    */
   releasesUrl?: string | null
+  /** Cómo se actualiza esta instalación desde la app (D-120); sin él, solo se avisa. */
+  updateTarget?: UpdateTarget | null
   /** Móvil: hasta qué tamaño se bajan solos los archivos de la nube (D-101). */
   maxAutoDownloadBytes?: number
 }
@@ -130,6 +132,7 @@ export function createBackend(o: BackendOptions): Backend {
     current: () => platform.version(),
     onChange: () => emit('updates:changed', null),
     ...(o.releasesUrl !== undefined ? { url: o.releasesUrl } : {}),
+    ...(o.updateTarget ? { target: o.updateTarget } : {}),
   })
   const saveResult = (name: string) =>
     platform.saveAs({

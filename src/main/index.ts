@@ -23,6 +23,7 @@ import { electronPlatform } from './electron-platform'
 import { reportFonts } from './reports/fonts'
 import { htmlToPdf } from './reports/print'
 import { decodeHeic } from './tools/heic'
+import { desktopUpdateTarget } from './update-target'
 import { createMainWindow } from './window'
 
 // En desarrollo electron-vite sirve la interfaz desde Vite; empaquetada, desde app://crm.
@@ -75,6 +76,7 @@ if (process.argv.includes('--autoprueba')) {
     },
     // La app instalada consulta GitHub; sin empaquetar, solo un servidor falso de los tests.
     ...(app.isPackaged ? {} : { releasesUrl: testUrl('CRM_TEST_RELEASES_URL') ?? null }),
+    updateTarget: desktopUpdateTarget(testUrl('CRM_TEST_UPDATE_DIR')),
     ffmpeg: ffmpegPath,
     decodeHeic,
     print: htmlToPdf,

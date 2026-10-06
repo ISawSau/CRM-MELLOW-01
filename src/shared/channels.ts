@@ -80,6 +80,8 @@ export const IPC_CHANNELS = [
   'updates:settings',
   'updates:setSettings',
   'updates:dismiss',
+  'updates:check',
+  'updates:install',
   'briefs:templates',
   'briefs:setTemplates',
   'briefs:createFromTemplate',

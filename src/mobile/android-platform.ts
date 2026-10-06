@@ -1,7 +1,9 @@
 import { randomBytes } from 'node:crypto'
 import { mkdirSync, rmSync } from 'node:fs'
 import { basename, dirname, join } from 'node:path'
+import { t } from '@shared/i18n'
 import { externalUrl, type Platform } from '../main/platform'
+import type { UpdateTarget } from '../main/updates'
 import type { NativeRequest } from './server'
 
 export interface AndroidPlatformOptions {
@@ -66,5 +68,27 @@ export function androidPlatform(o: AndroidPlatformOptions): Platform {
       }
     },
     returnToAppUrl: RETURN_TO_APP_URL,
+  }
+}
+
+/**
+ * Actualizar la app de Android desde ella misma (D-120): el motor baja el APK de su
+ * arquitectura a la caché y comprueba su huella; el lado nativo lo instala con el
+ * instalador de paquetes de Android, que pide confirmación al usuario. Al estar firmado con
+ * la misma clave, se instala encima y los datos se quedan.
+ */
+export function androidUpdateTarget(o: {
+  cacheDir: string
+  native: (request: NativeRequest) => Promise<unknown>
+}): UpdateTarget {
+  return {
+    suffix: process.arch === 'x64' ? '-android-x86_64.apk' : '-android-arm64.apk',
+    dir: () => join(o.cacheDir, 'actualizacion'),
+    install: async (file) => {
+      const r = await o.native({ kind: 'installApk', path: file })
+      if (r === 'permission') return { kind: 'permission' }
+      if (r !== 'installing') throw new Error(t('Android no ha podido abrir el instalador.'))
+      return { kind: 'installing' }
+    },
   }
 }

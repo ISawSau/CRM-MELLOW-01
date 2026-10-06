@@ -136,6 +136,16 @@ export function createHandlers({
       vault.data.setUpdateSettings({ ...vault.data.getUpdateSettings(), dismissed: version })
       return updates.status()
     },
+    // «Buscar ahora» y «Actualizar» (D-120). La descarga sigue por su cuenta: la interfaz
+    // ve su avance con «updates:changed».
+    'updates:check': async () => {
+      await updates.check(true)
+      return updates.status()
+    },
+    'updates:install': () => {
+      void updates.install()
+      return updates.status()
+    },
 
     'vault:status': () => vault.status(),
 
