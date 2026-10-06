@@ -2,7 +2,14 @@ import { createHash, randomBytes } from 'node:crypto'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { cleanGoogleClient, connectGoogle, refreshAccess } from '../../src/main/sync/google-auth'
+import {
+  asGoogleError,
+  cleanGoogleClient,
+  connectGoogle,
+  refreshAccess,
+} from '../../src/main/sync/google-auth'
+import { runIpc, type IpcHandlers } from '../../src/main/ipc/run'
+import { AppError } from '../../src/shared/errors'
 import { DriveRemote, type FetchLike } from '../../src/main/sync/remote'
 import { cloneFromDrive } from '../../src/main/sync/clone'
 import { SyncService } from '../../src/main/sync/sync-service'
@@ -226,6 +233,28 @@ describe('conexión con Google (OAuth para escritorio)', () => {
       }),
     ).rejects.toThrow(/apps\.googleusercontent\.com/)
     expect(opened).toBe(false)
+  })
+
+  it('los fallos al conectar llegan a la interfaz con su mensaje, no como error inesperado', async () => {
+    const err = asGoogleError(new Error('Se agotó el tiempo'))
+    expect(err).toBeInstanceOf(AppError)
+    expect(err.code).toBe('GOOGLE_ERROR')
+    expect(err.message).toBe('Se agotó el tiempo')
+    const handlers = {
+      'vault:status': () => {
+        throw asGoogleError(new Error('Respuesta de Google no válida.'))
+      },
+    } as unknown as IpcHandlers
+    expect(await runIpc(handlers, 'vault:status', undefined)).toEqual({
+      ok: false,
+      error: { code: 'GOOGLE_ERROR', message: 'Respuesta de Google no válida.' },
+    })
+    try {
+      cleanGoogleClient({ clientId: 'GOCSPX-secreto', clientSecret: '' })
+      expect.unreachable()
+    } catch (e) {
+      expect((e as AppError).code).toBe('GOOGLE_ERROR')
+    }
   })
 
   it('rechaza una respuesta con otro state y explica un acceso retirado', async () => {

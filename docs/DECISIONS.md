@@ -868,3 +868,9 @@ El usuario no quiere escribir comandos de desarrollo para usar la app. Los insta
 - Si `tag_name` es una versión x.y.z posterior a la instalada, encima de la sección abierta aparece «Hay una versión nueva…» con «Descargar» (abre la página de la versión en el navegador; solo se acepta un enlace a los Releases de este repositorio) y «Ahora no» (no vuelve a avisar de esa versión). Se apaga en Ajustes → Actualizaciones, donde también se ve la versión instalada.
 - No descarga ni instala nada sola: instalar sigue siendo cosa del usuario (en Windows el instalador no está firmado y en Android hay que confirmar la instalación).
 - Sin empaquetar (desarrollo y tests) no se consulta GitHub salvo con `CRM_TEST_RELEASES_URL`, para que los tests no salgan a internet. El ajuste se guarda en la bóveda (`updates.settings`).
+
+### D-115 · Los fallos de Google se ven con su mensaje (v0.16.6)
+
+- Problema del usuario: al traer la bóveda desde Google Drive en el móvil, la app solo decía «Ha ocurrido un error inesperado». El motor lanzaba `Error` corrientes al conectar con Google (tiempo agotado, conexión cancelada, respuesta no válida, id de cliente mal pegado, token rechazado) y el IPC, que solo deja pasar el mensaje de los `AppError`, los convertía en ese aviso genérico.
+- Código nuevo `GOOGLE_ERROR` («No se ha podido conectar con Google»). `google-auth.ts` lanza `AppError` con el mensaje concreto, y «Traer desde Google Drive» y «Conectar» Google Drive envuelven cualquier otro fallo (por ejemplo de Drive) con `asGoogleError`, que conserva su mensaje. Un test lo comprueba a través de `runIpc`.
+- El mensaje de tiempo agotado añade la causa más probable: si Google mostró un error en el navegador (como «invalid_client»), hay que revisar el id de cliente.

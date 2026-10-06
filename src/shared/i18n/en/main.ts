@@ -15,7 +15,8 @@ export const main: Record<string, string> = {
   'Gmail ha rechazado el acceso: vuelve a conectar Gmail en Ajustes.':
     'Gmail has refused access: reconnect Gmail in Settings.',
   'Gmail ha respondido con un error ({status}).': 'Gmail returned an error ({status}).',
-  'Se agotó el tiempo para conectar con Google.': 'Timed out while connecting to Google.',
+  'Se agotó el tiempo para conectar con Google. Si Google mostró un error en el navegador (por ejemplo «invalid_client»), revisa el id de cliente.':
+    'Timed out while connecting to Google. If Google showed an error in the browser (for example “invalid_client”), check the client ID.',
   'El id de cliente de Google no es válido: tiene que terminar en .apps.googleusercontent.com. Cópialo otra vez desde Google Cloud → Credenciales, del cliente de tipo «Aplicación de escritorio».':
     'The Google client ID is not valid: it must end in .apps.googleusercontent.com. Copy it again from Google Cloud → Credentials, from the “Desktop app” client.',
   'No se ha conectado': 'Not connected',
@@ -419,6 +420,7 @@ export const main: Record<string, string> = {
   'Ese archivo ya se está procesando.': 'That file is already being processed.',
   'Proceso cancelado.': 'Process cancelled.',
   'No se ha podido leer el correo de Gmail.': 'Could not read Gmail messages.',
+  'No se ha podido conectar con Google.': 'Could not connect to Google.',
   'Ha ocurrido un error inesperado.': 'An unexpected error occurred.',
   'Meta no devolvió el informe': 'Meta did not return the report',
   'No se ha podido leer la foto HEIC: puede que esté dañada.':
