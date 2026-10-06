@@ -22,6 +22,9 @@ export default defineConfig(({ mode }) =>
         // backend-test: el mismo motor para Node del PC (tests de la interfaz móvil en
         // Chromium), con el better-sqlite3 de node_modules.
         resolve: { alias: mode === 'backend' ? backendAlias : alias },
+        // Solo en la compilación para los tests del PC se aceptan los servidores falsos de
+        // Google (D-118): el APK nunca los lleva.
+        define: { __CRM_MOBILE_TEST__: JSON.stringify(mode === 'backend-test') },
         build: {
           ssr: resolve(__dirname, 'src/mobile/main.ts'),
           target: 'node18',

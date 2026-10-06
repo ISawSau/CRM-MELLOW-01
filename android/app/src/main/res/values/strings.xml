@@ -4,4 +4,6 @@
     <string name="loading">Abriendo…</string>
     <string name="notify_channel">Avisos</string>
     <string name="start_failed">No se ha podido arrancar la app. Ciérrala y vuelve a abrirla.</string>
+    <string name="busy_channel">Conexión con Google</string>
+    <string name="busy_text">Conectando con Google…</string>
 </resources>
