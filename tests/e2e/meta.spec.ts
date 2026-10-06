@@ -96,6 +96,13 @@ test('rendimiento: KPIs, tabla con totales y navegación hasta el anuncio', asyn
   await expect(table.getByTestId('meta-row')).toContainText('Prospecting')
   await expect(table.getByTestId('meta-row')).toContainText('Activa')
   await expect(table.getByTestId('meta-totals')).toContainText('Total (1)')
+  // Como en Meta (D-121): la tabla no pasa del alto de la ventana, así su barra horizontal
+  // se ve sin bajar hasta la última fila.
+  const box = await table.evaluate((t) => {
+    const scroller = t.parentElement!
+    return { max: parseFloat(getComputedStyle(scroller).maxHeight), window: innerHeight }
+  })
+  expect(box.max).toBeLessThan(box.window)
   await shot('32-meta-rendimiento')
 
   await table.getByRole('button', { name: 'Prospecting' }).click()
