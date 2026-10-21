@@ -305,6 +305,7 @@ export const DEFAULT_SECTION_ICONS: Record<string, string> = {
   informes: 'file-chart-column',
   documentos: 'folder-open',
   herramientas: 'wrench',
+  biblioteca: 'book-open',
   papelera: 'trash-2',
   ajustes: 'settings',
 }

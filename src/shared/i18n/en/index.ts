@@ -1,4 +1,5 @@
 import { analysis } from './analysis'
+import { books } from './books'
 import { common } from './common'
 import { data } from './data'
 import { fixes } from './fixes'
@@ -26,5 +27,6 @@ export const EN: Record<string, string> = {
   ...reports,
   ...theme,
   ...growth,
+  ...books,
   ...fixes,
 }

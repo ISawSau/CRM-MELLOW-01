@@ -192,7 +192,7 @@
   }
 
   /* Las rejillas de varias columnas pasan a una (los dashboards tienen la suya, abajo). */
-  .page [class*='grid']:not(.widget-grid),
+  .page [class*='grid']:not(.widget-grid, .book-grid),
   .home-grid,
   .settings-block {
     grid-template-columns: minmax(0, 1fr);

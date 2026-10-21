@@ -1,4 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { ReadingCard } from '../books/ReadingStats'
 import { useState } from 'react'
 import type { Widget } from '@shared/analysis'
 import { parseFieldConfig, type FieldDef } from '@shared/data/fields'
@@ -224,6 +225,8 @@ function HomeCardView({ id, onNavigate }: { id: HomeCard; onNavigate: (s: string
       return <TasksCard onNavigate={onNavigate} />
     case 'alertas':
       return <AlertsCard onNavigate={onNavigate} />
+    case 'lectura':
+      return <ReadingCard onNavigate={onNavigate} />
   }
 }
 
