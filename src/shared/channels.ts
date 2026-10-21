@@ -157,6 +157,18 @@ export const IPC_CHANNELS = [
   'tools:cancel',
   'tools:decodeHeic',
   'meta:clientAccounts',
+  'books:readerUrl',
+  'books:progressAll',
+  'books:open',
+  'books:setProgress',
+  'books:finish',
+  'books:saveSession',
+  'books:stats',
+  'books:goal',
+  'books:setGoal',
+  'books:prefs',
+  'books:setPrefs',
+  'books:readingMode',
 ] as const
 
 export const IPC_EVENTS = [
@@ -170,4 +182,5 @@ export const IPC_EVENTS = [
   'updates:changed',
   'vault:cloneChanged',
   'google:changed',
+  'books:changed',
 ] as const

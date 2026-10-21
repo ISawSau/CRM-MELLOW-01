@@ -20,6 +20,8 @@ import type { GmailService } from '../gmail/gmail-service'
 import { createGmailHandlers } from './gmail-handlers'
 import { createAnalysisHandlers } from './analysis-handlers'
 import { createDataHandlers } from './data-handlers'
+import { createBooksHandlers } from './books-handlers'
+import type { BooksService } from '../books/books-service'
 import type { UpdateService } from '../updates'
 import { createMetaHandlers } from './meta-handlers'
 import { createSyncHandlers } from './sync-handlers'
@@ -37,6 +39,9 @@ export interface HandlerDeps {
   reports: ReportService
   gmail: GmailService
   updates: UpdateService
+  books: BooksService
+  /** Dirección del marco aislado de los ebooks (D-123). */
+  readerUrl: () => string
   /** Sube lo pendiente y bloquea (bloqueo manual y automático). */
   lockWithSync: () => Promise<void>
   platform: Platform
@@ -61,6 +66,8 @@ export function createHandlers({
   reports,
   gmail,
   updates,
+  books,
+  readerUrl,
   lockWithSync,
   platform,
   logins,
@@ -268,5 +275,6 @@ export function createHandlers({
     ...createAnalysisHandlers(analysis),
     ...createToolsHandlers(tools, reports),
     ...createGmailHandlers(gmail, vault),
+    ...createBooksHandlers(books, readerUrl, platform),
   }
 }

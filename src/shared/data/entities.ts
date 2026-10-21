@@ -975,6 +975,54 @@ export const ENTITIES: readonly EntityDef[] = [
       },
     ],
   },
+  {
+    // Biblioteca (fase 15, D-123): libros en PDF y ebook para leer en la app. La posición
+    // y los ratos de lectura van aparte (books-service); aquí, la ficha del libro.
+    id: 'libro',
+    label: 'Biblioteca',
+    singular: 'libro',
+    gender: 'm',
+    titleKey: 'titulo',
+    seedVersion: 1,
+    fields: [
+      { key: 'titulo', label: 'Título', type: 'text', system: true, required: true },
+      { key: 'autor', label: 'Autor', type: 'text', system: true },
+      {
+        key: 'estado',
+        label: 'Estado',
+        type: 'select',
+        system: true,
+        config: {
+          options: [
+            opt('por-leer', 'Por leer', 'gris'),
+            opt('leyendo', 'Leyendo', 'azul'),
+            opt('leido', 'Leído', 'verde'),
+            opt('abandonado', 'Abandonado', 'terracota'),
+          ],
+        },
+      },
+      { key: 'archivo', label: 'Archivo', type: 'files', system: true },
+      { key: 'valoracion', label: 'Valoración', type: 'rating', config: { max: 5 } },
+      { key: 'etiquetas', label: 'Etiquetas', type: 'multiselect', config: { options: [] } },
+      { key: 'empezado', label: 'Empezado', type: 'date', system: true },
+      { key: 'terminado', label: 'Terminado', type: 'date', system: true },
+      { key: 'paginas', label: 'Páginas', type: 'number', system: true, config: { decimals: 0 } },
+      { key: 'notas', label: 'Notas', type: 'longtext' },
+    ],
+    views: [
+      { name: 'Estantería', kind: 'gallery', config: { cardFields: ['autor', 'estado'] } },
+      {
+        name: 'Todos',
+        kind: 'table',
+        config: { sorts: [{ fieldId: 'updatedAt', dir: 'desc' }] },
+      },
+      {
+        name: 'Por estado',
+        kind: 'kanban',
+        config: { groupBy: 'estado', cardFields: ['autor', 'valoracion'] },
+      },
+    ],
+  },
 ]
 
 export function findEntity(id: string): EntityDef | undefined {

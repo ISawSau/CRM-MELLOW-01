@@ -75,6 +75,16 @@ import {
   type PacingRow,
 } from './growth'
 import { updateSettingsSchema, type UpdateSettings, type UpdateStatus } from './updates'
+import {
+  bookProgressSchema,
+  readerPrefsSchema,
+  readingGoalSchema,
+  readingSessionSchema,
+  type BookProgress,
+  type ReaderPrefs,
+  type ReadingGoal,
+  type ReadingStats,
+} from './books'
 
 /**
  * Contrato IPC entre la interfaz (renderer) y el proceso principal.
@@ -189,6 +199,8 @@ export interface AppInfo {
   hostname: string
   isPackaged: boolean
 }
+
+const readerDevice = z.enum(['escritorio', 'movil'])
 
 export const ipcSchemas = {
   'app:info': z.void(),
@@ -434,6 +446,18 @@ export const ipcSchemas = {
   'tools:cancel': z.object({ token: z.string().regex(/^[a-f0-9]{16}$/) }),
   'tools:decodeHeic': decodeHeicSchema,
   'meta:clientAccounts': z.object({ clientId: idSchema }),
+  'books:readerUrl': z.void(),
+  'books:progressAll': z.void(),
+  'books:open': z.object({ recordId: idSchema }),
+  'books:setProgress': bookProgressSchema,
+  'books:finish': z.object({ recordId: idSchema }),
+  'books:saveSession': readingSessionSchema,
+  'books:stats': z.void(),
+  'books:goal': z.void(),
+  'books:setGoal': readingGoalSchema,
+  'books:prefs': z.object({ device: readerDevice }),
+  'books:setPrefs': z.object({ device: readerDevice, prefs: readerPrefsSchema }),
+  'books:readingMode': z.object({ on: z.boolean(), volumeKeys: z.boolean().default(false) }),
 } as const
 
 export interface IpcOutputs {
@@ -592,6 +616,19 @@ export interface IpcOutputs {
   'tools:cancel': void
   'tools:decodeHeic': DecodedImage
   'meta:clientAccounts': AdAccountInfo[]
+  /** Dirección del marco aislado que pinta los ebooks (D-123). */
+  'books:readerUrl': string
+  'books:progressAll': BookProgress[]
+  'books:open': BookProgress | null
+  'books:setProgress': BookProgress
+  'books:finish': void
+  'books:saveSession': void
+  'books:stats': ReadingStats
+  'books:goal': ReadingGoal
+  'books:setGoal': ReadingGoal
+  'books:prefs': ReaderPrefs
+  'books:setPrefs': ReaderPrefs
+  'books:readingMode': void
 }
 
 export type IpcChannel = keyof typeof ipcSchemas
@@ -614,5 +651,7 @@ export interface IpcEvents {
   'google:changed': GoogleLoginStatus
   /** Avance de una conversión de vídeo. */
   'tools:progress': ToolsProgress
+  /** Ha cambiado la posición, un rato de lectura o el objetivo (biblioteca). */
+  'books:changed': null
 }
 export type IpcEvent = keyof IpcEvents

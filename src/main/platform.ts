@@ -51,6 +51,11 @@ export interface Platform {
    * red. Devuelve la función que lo suelta. En escritorio no hace falta.
    */
   keepRunning?(text: string): () => void
+  /**
+   * Leyendo un libro (D-123): la pantalla no se apaga sola y, en Android, la app ocupa la
+   * pantalla entera y los botones de volumen pasan página si se pide.
+   */
+  readingMode?(o: { on: boolean; volumeKeys: boolean }): void
   /** Enlace que vuelve a abrir la app desde el navegador (Android), o null. */
   readonly returnToAppUrl?: string | null
 }
