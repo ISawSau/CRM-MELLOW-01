@@ -1134,4 +1134,5 @@ El usuario veía que cada sincronización bajaba todo de cero. Pidió que solo b
     - subida automática sin que se vea;
     - 20.000 filas.
   - **Interfaz:** escritorio con carpeta y móvil con el Google falso, incluido traer la bóveda de Drive.
+  - **Emulador:** la sonda de segundo plano (D-118) espera a que la app vuelva a la vista, con el aviso nuevo de primer plano, antes de arrancar el servicio en primer plano. Si no, a veces lo pedía aún en segundo plano y Android lo rechazaba (`ForegroundServiceStartNotAllowedException`).
 

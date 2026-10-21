@@ -43,6 +43,8 @@ async function main(): Promise<void> {
   const config = new ConfigStore(join(data, 'config'))
   setLocale(config.get().locale)
   let server: MobileServer | null = null
+  /** La app está a la vista (avisos nativos de primer y segundo plano, D-125). */
+  let foreground = true
   const platform = androidPlatform({
     version: arg('version'),
     vaultsDir: join(data, 'bovedas'),
@@ -91,6 +93,7 @@ async function main(): Promise<void> {
     token: arg('token'),
     port: Number(arg('port')),
     onNative: (what) => {
+      if (what === 'foreground' || what === 'background') foreground = what === 'foreground'
       if (backend.vault.status().state !== 'unlocked') return
       if (what === 'lock') void backend.lockWithSync()
       else if (what === 'foreground') {
@@ -109,7 +112,12 @@ async function main(): Promise<void> {
   // CI: qué pasa con la app en segundo plano mientras se inicia sesión en Google (D-118).
   if (selfTest) {
     const s = server
-    void runBackgroundProbe({ platform, nativeReady: () => s.nativeConnected(), log: trace })
+    void runBackgroundProbe({
+      platform,
+      nativeReady: () => s.nativeConnected(),
+      foreground: () => foreground,
+      log: trace,
+    })
   }
 }
 
