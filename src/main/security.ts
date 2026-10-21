@@ -1,6 +1,7 @@
 import { app, protocol, shell, type Session } from 'electron'
 import { readFile } from 'node:fs/promises'
 import { extname, isAbsolute, join, normalize, relative } from 'node:path'
+import { isReaderPath, readerContentSecurityPolicy } from './reader-csp'
 
 /**
  * Endurecimiento de Electron (CLAUDE.md y la guía oficial de seguridad de Electron).
@@ -10,6 +11,26 @@ import { extname, isAbsolute, join, normalize, relative } from 'node:path'
 export const APP_SCHEME = 'app'
 export const APP_HOST = 'crm'
 export const APP_ORIGIN = `${APP_SCHEME}://${APP_HOST}`
+
+/** Origen aislado del lector de ebooks (D-123, reader-csp.ts). */
+export const READER_SCHEME = 'crm-reader'
+export const READER_HOST = 'reader'
+export const READER_ORIGIN = `${READER_SCHEME}://${READER_HOST}`
+
+/**
+ * Origen del lector en desarrollo: el mismo servidor de Vite con el otro nombre del
+ * equipo local (localhost ↔ 127.0.0.1), que para el navegador es otro origen.
+ */
+export function devReaderOrigin(devServerUrl: string): string {
+  const url = new URL(devServerUrl)
+  url.hostname = url.hostname === '127.0.0.1' ? 'localhost' : '127.0.0.1'
+  return url.origin
+}
+
+/** Dirección del marco del lector. */
+export function readerUrl(devServerUrl?: string): string {
+  return `${devServerUrl ? devReaderOrigin(devServerUrl) : READER_ORIGIN}/reader.html`
+}
 
 const MIME_TYPES: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
@@ -30,6 +51,8 @@ const MIME_TYPES: Record<string, string> = {
 export function registerPrivilegedScheme(): void {
   protocol.registerSchemesAsPrivileged([
     { scheme: APP_SCHEME, privileges: { standard: true, secure: true, supportFetchAPI: true } },
+    // El lector de ebooks: otro origen, con su propia CSP (D-123).
+    { scheme: READER_SCHEME, privileges: { standard: true, secure: true } },
     // Archivos de la bóveda (imágenes y vídeos con avance); con CORS para miniaturas.
     {
       scheme: 'vault',
@@ -60,12 +83,14 @@ export function contentSecurityPolicy(devServerUrl?: string): string {
     `style-src ${self}${dev ? " 'unsafe-inline'" : ''}`,
     `img-src ${self} data: blob: vault:`,
     `font-src ${self}`,
-    `connect-src ${self}${dev ? ` ws://${dev.host}` : ''}`,
+    // vault: para leer los libros de la bóveda (se pasan al lector, D-123).
+    `connect-src ${self} vault:${dev ? ` ws://${dev.host}` : ''}`,
     "media-src 'self' blob: vault:",
     "object-src 'none'",
     "base-uri 'none'",
     "form-action 'none'",
-    "frame-src 'none'",
+    // Solo el marco aislado del lector de ebooks (D-123).
+    `frame-src ${devServerUrl ? devReaderOrigin(devServerUrl) : READER_ORIGIN}`,
     "frame-ancestors 'none'",
     "worker-src 'none'",
   ]
@@ -114,6 +139,35 @@ export function registerAppProtocol(ses: Session, rendererDir: string): void {
   })
 }
 
+/**
+ * Sirve el lector de ebooks desde `crm-reader://reader/` (D-123): solo su página y los
+ * scripts y estilos compilados, con la CSP del lector. Nada de la bóveda pasa por aquí.
+ */
+export function registerReaderProtocol(ses: Session, rendererDir: string): void {
+  const root = normalize(rendererDir)
+  const csp = readerContentSecurityPolicy(APP_ORIGIN)
+  ses.protocol.handle(READER_SCHEME, async (request) => {
+    const url = new URL(request.url)
+    if (url.host !== READER_HOST || !isReaderPath(url.pathname))
+      return new Response('No encontrado', { status: 404 })
+    let body: Buffer
+    try {
+      body = await readFile(join(root, url.pathname))
+    } catch {
+      return new Response('No encontrado', { status: 404 })
+    }
+    return new Response(new Uint8Array(body), {
+      status: 200,
+      headers: {
+        'Content-Type': MIME_TYPES[extname(url.pathname).toLowerCase()] ?? 'text/plain',
+        'Content-Security-Policy': csp,
+        'X-Content-Type-Options': 'nosniff',
+        'Referrer-Policy': 'no-referrer',
+      },
+    })
+  })
+}
+
 /** ¿La URL pertenece a la propia interfaz? */
 export function isAppUrl(raw: string, devServerUrl?: string): boolean {
   try {
@@ -124,6 +178,13 @@ export function isAppUrl(raw: string, devServerUrl?: string): boolean {
   } catch {
     return false
   }
+}
+
+/** ¿La URL es del lector de ebooks (su página o un capítulo blob: suyo)? */
+export function isReaderFrameUrl(raw: string, devServerUrl?: string): boolean {
+  // Con prefijos: Node no da el origen de los esquemas propios (crm-reader:).
+  const origin = devServerUrl ? devReaderOrigin(devServerUrl) : READER_ORIGIN
+  return raw === 'about:blank' || raw.startsWith(`${origin}/`) || raw.startsWith(`blob:${origin}/`)
 }
 
 /** Solo se abren en el navegador del sistema enlaces https y mailto. */
@@ -159,6 +220,7 @@ export function hardenSession(ses: Session, devServerUrl?: string): void {
 
   // El renderer no sale a la red: solo puede pedir recursos de la propia app.
   const dev = devServerUrl ? new URL(devServerUrl) : null
+  const devReader = devServerUrl ? devReaderOrigin(devServerUrl) : null
   ses.webRequest.onBeforeRequest((details, callback) => {
     const url = new URL(details.url)
     const allowed =
@@ -168,17 +230,27 @@ export function hardenSession(ses: Session, devServerUrl?: string): void {
       url.protocol === 'blob:' ||
       // Archivos de la bóveda, servidos por la propia app (files/vault-protocol.ts).
       (url.protocol === 'vault:' && (url.host === 'file' || url.host === 'thumb')) ||
+      // El lector de ebooks (D-123).
+      (url.protocol === `${READER_SCHEME}:` && url.host === READER_HOST) ||
       (dev !== null &&
-        (url.origin === dev.origin || (url.protocol === 'ws:' && url.host === dev.host)))
+        (url.origin === dev.origin ||
+          url.origin === devReader ||
+          (url.protocol === 'ws:' &&
+            (url.host === dev.host || `http://${url.host}` === devReader))))
     callback({ cancel: !allowed })
   })
 
   // En desarrollo la interfaz viene del servidor de Vite: se le añade la CSP por cabecera.
   if (devServerUrl) {
     const csp = contentSecurityPolicy(devServerUrl)
+    const readerCsp = readerContentSecurityPolicy(dev!.origin, true)
     ses.webRequest.onHeadersReceived((details, callback) => {
+      const reader = new URL(details.url).origin === devReader
       callback({
-        responseHeaders: { ...details.responseHeaders, 'Content-Security-Policy': [csp] },
+        responseHeaders: {
+          ...details.responseHeaders,
+          'Content-Security-Policy': [reader ? readerCsp : csp],
+        },
       })
     })
   }
@@ -199,6 +271,15 @@ export function hardenWebContents(devServerUrl?: string): void {
     }
     contents.on('will-navigate', blockNavigation)
     contents.on('will-redirect', blockNavigation)
+    // Marcos: solo el lector de ebooks y sus capítulos (blob:). Un enlace de un libro
+    // no navega dentro de la app: se abre fuera, si es https.
+    contents.on('will-frame-navigate', (event) => {
+      if (event.isMainFrame) return
+      if (!isReaderFrameUrl(event.url, devServerUrl)) {
+        event.preventDefault()
+        openExternalSafely(event.url)
+      }
+    })
     contents.on('will-attach-webview', (event) => event.preventDefault())
   })
 }

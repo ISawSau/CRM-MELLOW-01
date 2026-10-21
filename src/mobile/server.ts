@@ -11,6 +11,7 @@ import { decodeWire, encodeWire } from '@shared/wire'
 import type { DataService } from '../main/data/data-service'
 import { vaultFileResponse } from '../main/files/vault-protocol'
 import { runIpc, type IpcHandlers } from '../main/ipc/run'
+import { isReaderPath, readerContentSecurityPolicy } from '../main/reader-csp'
 
 /**
  * Servidor local de la app de Android (D-101). Solo escucha en 127.0.0.1 y solo atiende a
@@ -26,6 +27,9 @@ import { runIpc, type IpcHandlers } from '../main/ipc/run'
  *   /native/reply      respuesta del lado nativo a una de esas peticiones
  *   /native/lock       pantalla apagada: se sube lo pendiente y se bloquea
  *   /native/background la app pasa a segundo plano: se sube lo pendiente
+ *
+ * El lector de ebooks (D-123) se sirve en otro puerto (otro origen) con su propia CSP: solo
+ * su página y los scripts y estilos compilados, sin secreto (son los del APK, sin datos).
  */
 
 export const COOKIE = 'crm'
@@ -51,25 +55,30 @@ const MIME_TYPES: Record<string, string> = {
   '.mjs': 'text/javascript; charset=utf-8',
 }
 
-/** CSP de la interfaz: como en escritorio, y los archivos de la bóveda desde el mismo origen. */
-export const MOBILE_CSP = [
-  "default-src 'none'",
-  "script-src 'self'",
-  "style-src 'self'",
-  "img-src 'self' data: blob:",
-  "font-src 'self'",
-  "connect-src 'self'",
-  "media-src 'self' blob:",
-  "object-src 'none'",
-  "base-uri 'none'",
-  "form-action 'none'",
-  "frame-src 'none'",
-  "frame-ancestors 'none'",
-  "worker-src 'self' blob:",
-].join('; ')
+/**
+ * CSP de la interfaz: como en escritorio, y los archivos de la bóveda desde el mismo origen.
+ * El único marco permitido es el lector de ebooks, en su propio puerto (D-123).
+ */
+export function mobileCsp(readerOrigin: string): string {
+  return [
+    "default-src 'none'",
+    "script-src 'self'",
+    "style-src 'self'",
+    "img-src 'self' data: blob:",
+    "font-src 'self'",
+    "connect-src 'self'",
+    "media-src 'self' blob:",
+    "object-src 'none'",
+    "base-uri 'none'",
+    "form-action 'none'",
+    `frame-src ${readerOrigin}`,
+    "frame-ancestors 'none'",
+    "worker-src 'self' blob:",
+  ].join('; ')
+}
 
 export interface NativeRequest {
-  kind: 'save' | 'clipboard' | 'open' | 'notify' | 'busy' | 'installApk'
+  kind: 'save' | 'clipboard' | 'open' | 'notify' | 'busy' | 'installApk' | 'reading'
   [key: string]: unknown
 }
 
@@ -89,6 +98,8 @@ export interface MobileServerOptions {
 export interface MobileServer {
   server: Server
   port: number
+  /** Dirección del lector de ebooks (otro puerto: otro origen, D-123). */
+  readerUrl: string
   emit<E extends IpcEvent>(event: E, payload: IpcEvents[E]): void
   /** Petición al lado nativo; responde lo que devuelva (o null si no hay nadie escuchando). */
   native(request: NativeRequest): Promise<unknown>
@@ -180,7 +191,7 @@ export function startMobileServer(o: MobileServerOptions): Promise<MobileServer>
     }
     res.writeHead(200, {
       'Content-Type': MIME_TYPES[extname(file).toLowerCase()] ?? 'application/octet-stream',
-      'Content-Security-Policy': MOBILE_CSP,
+      'Content-Security-Policy': csp,
       'X-Content-Type-Options': 'nosniff',
       'Cross-Origin-Opener-Policy': 'same-origin',
       'Referrer-Policy': 'no-referrer',
@@ -269,6 +280,32 @@ export function startMobileServer(o: MobileServerOptions): Promise<MobileServer>
     send(res, 200, encodeWire(result), 'application/json')
   }
 
+  // --- Lector de ebooks: otro origen, sin API ni bóveda (D-123) -----------------------
+  let readerPort = 0
+  const readerServer = createServer((req, res) => {
+    const path = new URL(req.url ?? '/', 'http://127.0.0.1').pathname
+    if (
+      req.method !== 'GET' ||
+      req.headers.host !== `127.0.0.1:${readerPort}` ||
+      !isReaderPath(path)
+    )
+      return notFound(res)
+    readFile(join(root, path)).then(
+      (body) => {
+        res.writeHead(200, {
+          'Content-Type': MIME_TYPES[extname(path).toLowerCase()] ?? 'text/plain',
+          'Content-Security-Policy': readerContentSecurityPolicy(`http://127.0.0.1:${port}`),
+          'X-Content-Type-Options': 'nosniff',
+          'Referrer-Policy': 'no-referrer',
+          'Cache-Control': 'no-store',
+        })
+        res.end(body)
+      },
+      () => notFound(res),
+    )
+  })
+  let csp = mobileCsp("'none'")
+
   const server = createServer((req, res) => {
     handle(req, res).catch(() => {
       if (!res.headersSent) send(res, 500, '', 'text/plain')
@@ -276,37 +313,45 @@ export function startMobileServer(o: MobileServerOptions): Promise<MobileServer>
     })
   })
 
-  return new Promise((resolve, reject) => {
-    server.once('error', reject)
-    server.listen(o.port, '127.0.0.1', () => {
-      port = (server.address() as AddressInfo).port
-      resolve({
-        server,
-        port,
-        emit: (event, payload) => broadcast(uiClients, event, payload),
-        native(request) {
-          if (nativeClients.size === 0) return Promise.resolve(null)
-          const id = randomUUID()
-          return new Promise((done) => {
-            const timer = setTimeout(() => {
-              pending.delete(id)
-              done(null)
-            }, NATIVE_TIMEOUT_MS)
-            pending.set(id, (value) => {
-              clearTimeout(timer)
-              pending.delete(id)
-              done(value)
-            })
-            broadcast(nativeClients, 'request', { id, ...request })
-          })
-        },
-        nativeConnected: () => nativeClients.size > 0,
-        close: () =>
-          new Promise((r) => {
-            for (const c of [...uiClients, ...nativeClients]) c.end()
-            server.close(() => r())
-          }),
-      })
+  const listen = (srv: Server, wanted: number) =>
+    new Promise<number>((resolve, reject) => {
+      srv.once('error', reject)
+      srv.listen(wanted, '127.0.0.1', () => resolve((srv.address() as AddressInfo).port))
     })
-  })
+
+  return (async () => {
+    port = await listen(server, o.port)
+    readerPort = await listen(readerServer, 0)
+    const readerOrigin = `http://127.0.0.1:${readerPort}`
+    csp = mobileCsp(readerOrigin)
+    return {
+      server,
+      port,
+      readerUrl: `${readerOrigin}/reader.html`,
+      emit: (event, payload) => broadcast(uiClients, event, payload),
+      native(request) {
+        if (nativeClients.size === 0) return Promise.resolve(null)
+        const id = randomUUID()
+        return new Promise((done) => {
+          const timer = setTimeout(() => {
+            pending.delete(id)
+            done(null)
+          }, NATIVE_TIMEOUT_MS)
+          pending.set(id, (value) => {
+            clearTimeout(timer)
+            pending.delete(id)
+            done(value)
+          })
+          broadcast(nativeClients, 'request', { id, ...request })
+        })
+      },
+      nativeConnected: () => nativeClients.size > 0,
+      close: () =>
+        new Promise<void>((r) => {
+          for (const c of [...uiClients, ...nativeClients]) c.end()
+          readerServer.close()
+          server.close(() => r())
+        }),
+    } satisfies MobileServer
+  })()
 }
