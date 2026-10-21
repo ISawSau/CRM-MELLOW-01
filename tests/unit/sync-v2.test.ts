@@ -365,3 +365,127 @@ describe('sincronización por cambios (D-125)', () => {
     expect(packs(remote).length).toBeLessThanOrEqual(8)
   })
 })
+
+/**
+ * Nada se pierde al cambiar de época (D-126): si otro equipo empieza una época nueva sin
+ * haber bajado lo que este ya había subido (como al elegir «quedarme con la de este equipo»
+ * o al pasar los dos a la vez del formato anterior), lo de este se junta con la nueva.
+ */
+describe('cambiar de época no pierde nada (D-126)', () => {
+  type Internals = { remote(): unknown; newEpoch(remote: unknown): Promise<void> }
+  /** Lo que hacía la 0.19.0 al resolver un conflicto con «la de este equipo». */
+  const forceEpoch = async (d: Device) => {
+    const s = d.sync as unknown as Internals
+    await s.newEpoch(s.remote())
+  }
+  const bookField = (v: VaultService, key: string) =>
+    v.data.listFields(BOOK_ENTITY).find((f) => f.key === key)!.id
+
+  it('el libro y la lectura que el móvil ya había subido no se borran', async () => {
+    const { devs } = await devices(['portatil', 'movil'])
+    const [pc, phone] = devs as [Device, Device]
+    const shared = pc.vault.data.create(BOOK_ENTITY, {}, { title: 'Compartido' })
+    new BooksService(pc.vault).setProgress({
+      recordId: shared.id,
+      location: '10',
+      fraction: 0.1,
+      page: 10,
+      pages: 100,
+      chapter: null,
+    })
+    await syncAll(devs)
+
+    // El móvil importa un libro, lee media hora y lo sube.
+    const pdf = phone.vault.data.importBuffer('nuevo.pdf', Buffer.from('pdf del móvil'))
+    const mine = phone.vault.data.create(
+      BOOK_ENTITY,
+      { [bookField(phone.vault, 'archivo')]: [pdf] },
+      { title: 'Del móvil' },
+    )
+    await new Promise((res) => setTimeout(res, 5))
+    const books = new BooksService(phone.vault)
+    books.setProgress({
+      recordId: shared.id,
+      location: '80',
+      fraction: 0.8,
+      page: 80,
+      pages: 100,
+      chapter: null,
+    })
+    books.saveSession({
+      id: 'rato-del-movil',
+      recordId: shared.id,
+      startedAt: new Date(Date.now() - 1_800_000).toISOString(),
+      endedAt: new Date().toISOString(),
+      seconds: 1800,
+      fromFraction: 0.1,
+      toFraction: 0.8,
+      pages: 70,
+    })
+    await phone.sync.sync()
+
+    // El ordenador, sin bajar eso, empieza otra época con lo suyo.
+    client(pc, 'Del ordenador')
+    await forceEpoch(pc)
+    await phone.sync.sync()
+    expect(phone.sync.status()).toMatchObject({ phase: 'idle', conflict: null })
+    const titlesOf = (v: VaultService) =>
+      v.data
+        .query(BOOK_ENTITY)
+        .map((r) => r.title)
+        .sort()
+    expect(titlesOf(phone.vault)).toEqual(['Compartido', 'Del móvil'])
+    expect(books.progress(shared.id)).toMatchObject({ page: 80 })
+    expect(titles(phone.vault)).toEqual(['Del ordenador'])
+
+    // Y el ordenador lo recibe todo, también el archivo del libro.
+    await pc.sync.sync()
+    expect(titlesOf(pc.vault)).toEqual(['Compartido', 'Del móvil'])
+    const pcBooks = new BooksService(pc.vault)
+    expect(pcBooks.progress(shared.id)).toMatchObject({ page: 80, fraction: 0.8 })
+    expect(
+      pc.vault.sqlite
+        .prepare("SELECT seconds FROM reading_sessions WHERE id = 'rato-del-movil'")
+        .get(),
+    ).toEqual({ seconds: 1800 })
+    expect(pc.vault.data.files.read(pdf.id).toString()).toBe('pdf del móvil')
+    expect(pc.vault.data.get(mine.id).title).toBe('Del móvil')
+  })
+
+  it('si los dos cambian lo mismo, gana lo editado más tarde', async () => {
+    const { devs } = await devices(['portatil', 'movil'])
+    const [pc, phone] = devs as [Device, Device]
+    const r = client(pc, 'Original')
+    await syncAll(devs)
+    phone.vault.data.update(r.id, { [nombre(phone.vault).id]: 'Antes, en el móvil' })
+    await phone.sync.sync()
+    await new Promise((res) => setTimeout(res, 5))
+    pc.vault.data.update(r.id, { [nombre(pc.vault).id]: 'Después, en el ordenador' })
+    await forceEpoch(pc)
+    await syncAll(devs)
+    expect(pc.vault.data.get(r.id).title).toBe('Después, en el ordenador')
+    expect(phone.vault.data.get(r.id).title).toBe('Después, en el ordenador')
+  })
+
+  it('ponerse al día en la misma época no resucita lo que otro borró', async () => {
+    const { devs } = await devices(['portatil', 'movil', 'tableta'], { compactPacks: 3 })
+    const [a, b, c] = devs as [Device, Device, Device]
+    const gone = client(a, 'Se borra')
+    client(a, 'Se queda')
+    await syncAll(devs)
+    client(c, 'Hecho sin conexión')
+    a.vault.data.trash([gone.id])
+    a.vault.data.purge([gone.id])
+    for (let i = 0; i < 8; i++) {
+      client(i % 2 ? a : b, `Cliente ${i}`)
+      await a.sync.sync()
+      await b.sync.sync()
+    }
+    await c.sync.sync()
+    expect(titles(c.vault)).toContain('Hecho sin conexión')
+    expect(titles(c.vault)).not.toContain('Se borra')
+    await a.sync.sync()
+    expect(titles(a.vault)).not.toContain('Se borra')
+    expect(titles(a.vault)).toContain('Hecho sin conexión')
+  })
+})

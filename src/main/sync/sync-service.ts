@@ -174,6 +174,11 @@ export const manifestV2Schema = z.object({
   updatedAt: z.string(),
   /** Nombre del equipo que la escribió (se enseña al elegir en un conflicto). */
   deviceName: z.string(),
+  /**
+   * La época viene de restaurar una copia: los demás equipos la toman tal cual, sin juntar
+   * lo suyo (si no, deshacerlo no serviría de nada). Las demás épocas juntan (D-126).
+   */
+  authoritative: z.boolean().default(false),
 })
 export type ManifestV2 = z.infer<typeof manifestV2Schema>
 
@@ -687,12 +692,17 @@ export class SyncService {
 
   /** Hay un cambio aquí: se sube a los pocos segundos (D-125). */
   notifyLocalChange(): void {
-    if (!this.configured || !this.active) return
+    if (!this.configured) return
     if (this.changeTimer) clearTimeout(this.changeTimer)
-    this.changeTimer = setTimeout(() => {
-      this.changeTimer = null
-      void this.sync('auto').catch(() => {})
-    }, this.opts.changeDelayMs ?? CHANGE_DELAY_MS)
+    // En segundo plano (la app se acaba de cerrar): enseguida y con la app viva hasta subir.
+    const background = !this.active
+    this.changeTimer = setTimeout(
+      () => {
+        this.changeTimer = null
+        void this.sync(background ? 'background' : 'auto').catch(() => {})
+      },
+      background ? 300 : (this.opts.changeDelayMs ?? CHANGE_DELAY_MS),
+    )
     this.changeTimer.unref?.()
   }
 
@@ -794,20 +804,16 @@ export class SyncService {
         const m = r.v2
         const rotated = !!st && st.epoch === m.epoch && local.keyGeneration > st.keyGeneration
         if (readSetting(this.db(), FORCE_PUSH_KEY) === true) {
-          await this.newEpoch(remote)
+          // Lo restaurado es la versión buena: los demás la toman tal cual.
+          await this.newEpoch(remote, true)
         } else if (rotated) {
           // Clave maestra nueva: antes se traen los cambios de los demás (los paquetes no
           // dependen de esa clave) y luego empieza una época con la base de datos recifrada.
           await this.pullChanges(remote, m)
           await this.newEpoch(remote)
         } else if (!st || st.epoch !== m.epoch) {
-          if (!st && this.v1Dirty()) {
-            this.conflict = { device: m.deviceName, uploadedAt: m.updatedAt }
-            this.phase = 'conflict'
-            this.emit()
-            return
-          }
-          if (!(await this.rebase(remote, m, !!st))) return
+          // Otra época: se trae y se junta con lo de aquí (D-126), sin preguntar.
+          if (!(await this.rebase(remote, m))) return
           await this.exchange(remote, m)
         } else {
           await this.exchange(remote, m)
@@ -833,7 +839,7 @@ export class SyncService {
     let pulled = await this.pullChanges(remote, m)
     if (pulled.gap) {
       // Sus paquetes ya no están: se pone al día desde la instantánea, con lo suyo.
-      if (!(await this.rebase(remote, m, true))) return
+      if (!(await this.rebase(remote, m))) return
       await this.pushChanges(remote)
       pulled = await this.pullChanges(remote, m)
     }
@@ -859,18 +865,13 @@ export class SyncService {
 
   // --- Formato 1 → 2 ---------------------------------------------------------------
 
-  /** La nube aún está en el formato 1: se baja si es más nueva. False si hay que parar. */
+  /**
+   * La nube aún está en el formato 1. Si es más nueva, se baja y se junta con lo de aquí
+   * (D-126): antes había que elegir una de las dos y la otra se perdía. False si hay que parar.
+   */
   private async fromV1(remote: Remote, m: RemoteManifest): Promise<boolean> {
     const st = this.state()
-    if (m.generation > st.generation) {
-      if (this.changes() > st.changeMark) {
-        this.conflict = { device: m.device, uploadedAt: m.uploadedAt }
-        this.phase = 'conflict'
-        this.emit()
-        return false
-      }
-      return (await this.pullV1(remote, m)) === 'reopened'
-    }
+    if (m.generation > st.generation) return (await this.pullV1(remote, m)) === 'reopened'
     return true
   }
 
@@ -884,6 +885,7 @@ export class SyncService {
       if (!got) throw new Error(t('Falta crm.db en el destino.'))
       if (!(await remote.get('vault.json', join(dir, VAULT_FILES.manifest))))
         throw new Error(t('Falta vault.json en el destino.'))
+      this.stash([], this.attach().dump())
       const r = await this.replace(dir)
       if (r === 'locked') return 'locked'
       writeSetting(this.db(), STATE_KEY, {
@@ -891,6 +893,7 @@ export class SyncService {
         changeMark: this.changes(),
         lastSyncAt: this.now().toISOString(),
       })
+      this.applyStash()
       return 'reopened'
     } finally {
       rmSync(dir, { recursive: true, force: true })
@@ -958,6 +961,7 @@ export class SyncService {
     epoch: string,
     snapshot: ManifestV2['snapshot'],
     previous: ManifestV2['previous'],
+    authoritative = false,
   ): ManifestV2 {
     const local = readManifest(this.vaultPath())
     return {
@@ -971,6 +975,7 @@ export class SyncService {
       previous,
       updatedAt: this.now().toISOString(),
       deviceName: this.opts.hostname,
+      authoritative,
     }
   }
 
@@ -978,14 +983,19 @@ export class SyncService {
    * Época nueva desde la base de datos de este equipo: instantánea, `sync.json` y fuera lo
    * de las épocas anteriores (y los archivos del formato 1).
    */
-  private async newEpoch(remote: Remote): Promise<void> {
+  private async newEpoch(remote: Remote, authoritative = false): Promise<void> {
     const device = this.deviceId()
     const epoch = randomId()
     const sid = randomId()
     await this.uploadBlobs(remote)
     await this.uploadSnapshot(remote, sid, epoch, {})
     const at = this.now().toISOString()
-    const m = this.manifestFor(epoch, { id: sid, device, createdAt: at, covers: {} }, null)
+    const m = this.manifestFor(
+      epoch,
+      { id: sid, device, createdAt: at, covers: {} },
+      null,
+      authoritative,
+    )
     await remote.writeText('sync.json', JSON.stringify(m, null, 2))
     this.attach().clear()
     const local = readManifest(this.vaultPath())
@@ -1009,20 +1019,26 @@ export class SyncService {
   }
 
   /**
-   * Pone este equipo al día desde la instantánea de la nube. `carry`: lo que tenía sin
-   * subir se vuelve a aplicar encima y se sube después (con su hora, así que gana solo si
-   * es más reciente). False si hay que parar (otra contraseña).
+   * Pone este equipo al día desde la instantánea de la nube. Lo que tenía sin subir se
+   * vuelve a aplicar encima y se sube después (con su hora, así que gana solo si es más
+   * reciente); si era otra época, además se junta todo lo suyo. False si hay que parar
+   * (otra contraseña).
    */
-  private async rebase(remote: Remote, m: ManifestV2, carry: boolean): Promise<boolean> {
+  private async rebase(remote: Remote, m: ManifestV2): Promise<boolean> {
     if (m.schema > SCHEMA_VERSION)
       throw new Error(
         t('Otro equipo usa una versión más nueva de la app: actualiza esta para sincronizar.'),
       )
-    const carried: PackRow[] = carry ? this.attach().collect(Number.MAX_SAFE_INTEGER).rows : []
+    const log = this.attach()
+    const carried: PackRow[] = log.collect(Number.MAX_SAFE_INTEGER).rows
     const device = this.deviceId()
-    // Si la instantánea pide otra contraseña, esto espera cifrado a que se desbloquee: los
-    // cambios sin subir y los ajustes de este equipo (su destino, por ejemplo).
-    this.stash(carried)
+    // Antes de cambiar la base de datos se guarda, cifrado, lo de este equipo (D-126): lo
+    // que tenía sin subir, sus ajustes propios y, si viene de otra época (otra historia),
+    // todo lo suyo para juntarlo después. En la misma época basta con lo que tenía sin
+    // subir: lo demás ya estaba en la nube, y así no vuelve lo que otro borró. Si la
+    // instantánea pide otra contraseña, espera aquí a que se desbloquee.
+    const diverged = this.v2()?.epoch !== m.epoch
+    this.stash(carried, diverged && !m.authoritative ? log.dump() : [])
     const dir = this.tmpDir()
     try {
       const step = { step: 'bajando' as const, done: 0, total: 1 }
@@ -1061,11 +1077,14 @@ export class SyncService {
       changeMark: this.changes(),
       lastSyncAt: null,
     })
+    // Primero lo que los demás subieron después de la instantánea y luego lo de aquí: así se
+    // compara con lo más reciente de verdad.
+    await this.pullChanges(remote, m)
     this.applyStash()
     return true
   }
 
-  private stash(rows: PackRow[]): void {
+  private stash(rows: PackRow[], merge: PackRow[] = []): void {
     const local = this.db()
       .prepare(
         "SELECT key, value FROM settings WHERE (key LIKE 'sync.%' AND key NOT IN ('sync.v2', 'sync.snapshot')) OR key = 'backups.last'",
@@ -1083,6 +1102,7 @@ export class SyncService {
         schema: SCHEMA_VERSION,
         rows,
         local,
+        ...(merge.length ? { merge } : {}),
       }
       writeFileSync(join(this.vaultPath(), STASH_FILE), sealPack(pack, key, STASH_FILE))
     } finally {
@@ -1103,7 +1123,16 @@ export class SyncService {
          ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`,
       )
       for (const l of pack.local ?? []) put.run(l.key, l.value, new Date().toISOString())
-      if (pack.rows.length) this.attach().apply(pack.rows, true)
+      const log = this.attach()
+      if (pack.rows.length) log.apply(pack.rows, true)
+      if (pack.merge?.length) {
+        const res = log.merge(pack.merge)
+        if (res.tables.size) {
+          this.appliedSomething = true
+          this.vault.data.afterRemoteChanges(res)
+          this.opts.onApplied?.(res)
+        }
+      }
     } finally {
       zeroize(key)
     }
@@ -1486,7 +1515,7 @@ export class SyncService {
         if ((await this.pullV1(remote, r.v1)) === 'locked') return
         await this.newEpoch(remote)
       } else {
-        if (!(await this.rebase(remote, r.v2, false))) return
+        if (!(await this.rebase(remote, r.v2))) return
         await this.exchange(remote, r.v2)
       }
       await this.downloadMissing(remote)

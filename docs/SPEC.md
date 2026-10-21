@@ -1,6 +1,6 @@
 # Especificación del CRM personal
 
-Versión 0.10 · 21 de octubre de 2026
+Versión 0.11 · 21 de octubre de 2026
 
 Este documento recoge todas las decisiones de diseño tomadas antes de escribir código. Es la referencia para construir el proyecto fase a fase. Lo que aparece marcado como **verificar** depende de APIs o normativa externa que cambian con el tiempo y debe comprobarse en la documentación oficial antes de implementarlo.
 
@@ -116,8 +116,9 @@ Por cambios desde la 0.19 (D-125):
 - **Botón manual** «Sincronizar ahora» en la barra de estado y en Ajustes.
 - **Archivos y libros:** solo los que faltan (por su HMAC). Los libros, en todos los equipos, también con datos móviles.
 - **Época nueva:** al pasar del formato anterior, al rotar la clave maestra y al restaurar una copia. Los demás equipos se ponen al día desde su instantánea.
+- **Nunca se descarta nada (D-126):** un equipo que se encuentra una época que no es la suya guarda antes, cifrado, todo lo suyo y luego lo junta con la nueva. Entra lo que falta y, si está en los dos, gana lo editado más tarde. Lo único que manda sin juntarse es una copia restaurada a propósito.
 - **Contraseña:** el cambio de contraseña viaja en un paquete.
-- **Aviso para elegir versión:** solo queda para un caso, el de un equipo que llega del formato anterior con cambios sin subir.
+- **Sin avisos para elegir versión (D-126):** tampoco al llegar del formato anterior con cambios sin subir; se juntan.
 - Todo se cifra antes de subirse. Google nunca ve datos en claro.
 
 ### Copias de seguridad

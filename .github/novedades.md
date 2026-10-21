@@ -1,3 +1,12 @@
+## Novedades de la 0.19.1 · La sincronización ya nunca borra lo de otro equipo
+
+- **Arreglado: se podían perder libros y progreso de lectura.**
+  - Con la 0.19.0, si un equipo empezaba de nuevo la copia de la nube sin haber bajado antes lo que el otro ya había subido, eso se perdía en los dos. Pasaba al elegir «Quedarme con la de este equipo» o al actualizar los dos equipos a la vez.
+  - Ahora, antes de ponerse al día, cada equipo guarda todo lo suyo y luego lo junta con lo de la nube: entra lo que falta y, si algo está en los dos, gana lo último que editaste.
+  - Ya no hay avisos para elegir una versión: siempre se juntan.
+- **El lector guarda la página al cerrar.** Antes, si cerrabas la app justo después de pasar página, se perdía la última posición. Ahora se guarda al momento al cerrar o al pasar la app a segundo plano, y se sube enseguida.
+- **Si perdiste algo con la 0.19.0:** en el equipo donde ocurrió se guardan las 3 últimas copias «antes de sincronizar». En Ajustes → Copias de seguridad, restaura la de justo antes. Lo restaurado llega a los demás equipos.
+
 ## Novedades de la 0.19.0 · Sincronización por cambios: rápida, sola y sin conflictos
 
 - **Solo viaja lo que cambia.**

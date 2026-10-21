@@ -84,7 +84,7 @@ describe('sincronización entre dos equipos (carpeta compartida)', () => {
     b.vault.dispose()
   })
 
-  it('al pasar del formato anterior con cambios sin subir, pregunta; la nube deja copia de lo local', async () => {
+  it('al pasar del formato anterior con cambios sin subir, junta los dos sin preguntar (D-126)', async () => {
     const { a, b, remote } = await twoDevices()
     a.sync.configureFolder(remote)
     a.vault.data.create('cliente', { [nombre(a.vault).id]: 'Nube' })
@@ -99,11 +99,13 @@ describe('sincronización entre dos equipos (carpeta compartida)', () => {
       .run(JSON.stringify({ generation: 1, changeMark: 0, lastSyncAt: null }))
     b.vault.sqlite.prepare('DELETE FROM sync_outbox').run()
     await b.sync.sync()
-    expect(b.sync.status()).toMatchObject({ phase: 'conflict', conflict: { device: 'portatil' } })
-    await b.sync.resolve('remote')
-    expect(titles(b.vault)).toEqual(['Nube'])
+    expect(b.sync.status()).toMatchObject({ phase: 'idle', conflict: null })
+    expect(titles(b.vault)).toEqual(['Local', 'Nube'])
     const backups = readdirSync(join(b.vault.currentPath!, 'backups'))
     expect(backups.some((n) => n.endsWith('antes-de-sincronizar'))).toBe(true)
+    // Lo de B llega también a A.
+    await a.sync.sync()
+    expect(titles(a.vault)).toEqual(['Local', 'Nube'])
     a.vault.dispose()
     b.vault.dispose()
   })

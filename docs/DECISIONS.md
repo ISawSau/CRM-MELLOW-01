@@ -1136,3 +1136,34 @@ El usuario veía que cada sincronización bajaba todo de cero. Pidió que solo b
   - **Interfaz:** escritorio con carpeta y móvil con el Google falso, incluido traer la bóveda de Drive.
   - **Emulador:** la sonda de segundo plano (D-118) espera a que la app vuelva a la vista, con el aviso nuevo de primer plano, antes de arrancar el servicio en primer plano. Si no, a veces lo pedía aún en segundo plano y Android lo rechazaba (`ForegroundServiceStartNotAllowedException`).
 
+### D-126 · Al cambiar de época se junta todo, nunca se descarta (v0.19.1)
+
+Con la 0.19.0, tras media hora leyendo en el móvil y sincronizar con Drive, el usuario perdió un libro y todo el progreso de lectura. Después leyó cinco páginas más en el ordenador, cerró la app y en el móvil no había llegado nada.
+
+- **La causa:**
+  - Una época nueva sale de la base de datos de un solo equipo y borra los paquetes de las anteriores. Si ese equipo no había bajado aún lo que otro ya había subido, eso desaparecía de la nube.
+  - El otro equipo, al ver la época nueva, cambiaba su base de datos por la instantánea llevando encima solo lo que tenía **sin subir**. Lo que ya había subido (el libro, la posición, los ratos de lectura) se perdía también en él.
+  - Pasaba con «Quedarme con la de este equipo» en el aviso de conflicto (al llegar del formato 1 con cambios sin subir) y cuando los dos equipos pasaban a la vez del formato 1 al 2: cada uno empezaba su época y ganaba el último.
+  - Las cinco páginas: la posición se guardaba 1,5 s después de pasar página y al cerrar la ventana de golpe no llegaba a guardarse. Luego, la época del otro equipo la borraba igualmente.
+- **El arreglo:**
+  - **Antes de cambiar de época**, el equipo guarda en `.cambios-pendientes.bin` (cifrado, como un paquete) todo lo del usuario además de lo que tenía sin subir: `ChangeLog.dump()`, sin las métricas de Meta (se vuelven a bajar) ni los ajustes propios del equipo.
+  - **Después**, primero baja los paquetes de la época nueva y luego junta lo suyo (`ChangeLog.merge()`):
+    - entra lo que falta;
+    - si la fila está en los dos y tiene `updated_at`, gana la editada más tarde;
+    - en los ratos de lectura (sin `updated_at`), el más largo;
+    - si no, se queda la de la nube.
+    - Lo que gana va a la cola y se sube, así el otro equipo lo recibe.
+    - Si el equipo se cierra a medias, el archivo sigue ahí y se junta al volver a abrir.
+  - **En la misma época** (un equipo atrasado cuyos paquetes ya se han compactado) basta con lo que tenía sin subir: lo demás ya estaba en la nube. Así no vuelve lo que otro equipo borró.
+  - **Restaurar una copia** marca la época como la buena (`authoritative` en `sync.json`): los demás la toman tal cual, sin juntar. Es lo que se pide al restaurar.
+  - **Sin diálogos de conflicto:** al llegar del formato 1 con cambios sin subir también se baja la nube y se junta. Si la nube del formato 1 es más nueva, se baja y se junta igual.
+  - **Coste aceptado:** algo borrado en un equipo puede volver si el otro aún lo tenía al cambiar de época. Mejor algo de más que algo perdido.
+  - **En segundo plano**, un cambio (la página guardada al cerrar) programa la subida en 300 ms en lugar de esperar a volver a la app.
+  - **Lector:** guarda la posición medio segundo después de pasar página y, al ocultarse o cerrarse la ventana, al momento, junto con el rato de lectura.
+- **Recuperar lo perdido con la 0.19.0:** en el equipo donde se perdió quedan las 3 últimas copias «antes de sincronizar» (Ajustes → Copias de seguridad). Si se restaura la de antes de la pérdida, esa época manda y llega a los demás.
+- **Tests:**
+  - el caso del usuario: el móvil sube un libro con su archivo, la posición y media hora de lectura; el ordenador empieza otra época sin bajarlo; los dos acaban con todo (falla con el código de la 0.19.0);
+  - si los dos cambian la misma fila, gana la editada más tarde;
+  - ponerse al día en la misma época no resucita lo borrado;
+  - del formato 1 con cambios sin subir: se juntan sin preguntar y llegan al otro equipo;
+  - restaurar una copia sigue mandando.

@@ -62,6 +62,9 @@ const NATURAL_IDENTITY: Record<string, string[]> = {
 /** Ajustes de cada equipo (su destino, su estado de sincronización, sus copias). */
 const LOCAL_SETTING = (ref: 'NEW' | 'OLD') =>
   `${ref}."key" NOT LIKE 'sync.%' AND ${ref}."key" <> 'backups.last'`
+const isLocalSetting = (key: string) => key.startsWith('sync.') || key === 'backups.last'
+/** Tablas que no se juntan al cambiar de instantánea: lo de Meta se vuelve a bajar. */
+const MERGE_SKIP = ['ad_', 'fx_rates']
 
 const q = (name: string) => `"${name.replace(/"/g, '""')}"`
 
@@ -241,6 +244,64 @@ export class ChangeLog {
   /** Vacía la cola (todo va ya en una instantánea completa). */
   clear(): void {
     this.db.prepare('DELETE FROM sync_outbox').run()
+  }
+
+  /**
+   * Todo lo del usuario en este equipo (D-126): antes de cambiar la base de datos por la de
+   * la nube se guarda, para juntarlo después y no perder nada. Sin las métricas de Meta, que
+   * se vuelven a bajar de Meta, ni los ajustes propios de este equipo.
+   */
+  dump(): PackRow[] {
+    const device = this.o.device()
+    const out: PackRow[] = []
+    for (const t of this.tables.values()) {
+      if (MERGE_SKIP.some((p) => t.name.startsWith(p))) continue
+      const rows = this.db.prepare(`SELECT * FROM main.${q(t.name)}`).all() as Record<
+        string,
+        unknown
+      >[]
+      for (const row of rows) {
+        if (t.name === 'settings' && isLocalSetting(String(row['key']))) continue
+        const v: Record<string, Cell> = {}
+        for (const c of t.cols) if (c !== t.surrogate) v[c] = encodeCell(row[c])
+        out.push({
+          t: t.name,
+          k: t.identity.map((c) => encodeCell(row[c]) as string | number | null),
+          ts: 0,
+          d: device,
+          v,
+        })
+      }
+    }
+    return out
+  }
+
+  /**
+   * Junta lo que había aquí (de `dump`) con lo que hay ahora (D-126): entra lo que falta y,
+   * si está en los dos, lo editado más tarde (`updated_at`; en los ratos de lectura, el más
+   * largo). Lo que entra queda en la cola para subirlo. Un borrado de aquí no se recupera:
+   * mejor algo de más que algo perdido.
+   */
+  merge(rows: PackRow[]): AppliedChanges {
+    const winners: PackRow[] = []
+    const device = this.o.device()
+    for (const r of rows) {
+      const t = this.tables.get(r.t)
+      if (!t || !r.v || r.k.length !== t.identity.length) continue
+      const cur = this.stmt(`SELECT * FROM main.${q(t.name)} WHERE ${this.where(t)}`).get(
+        ...r.k,
+      ) as Record<string, unknown> | undefined
+      const mine = r.v
+      let wins = !cur
+      if (cur && t.cols.includes('updated_at')) {
+        const a = mine['updated_at']
+        const b = cur['updated_at']
+        wins = typeof a === 'string' && typeof b === 'string' && a > b
+      } else if (cur && t.name === 'reading_sessions')
+        wins = Number(mine['seconds']) > Number(cur['seconds'])
+      if (wins) winners.push({ ...r, ts: this.tick(), d: device })
+    }
+    return this.apply(winners, true)
   }
 
   /**
