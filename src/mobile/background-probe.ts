@@ -18,11 +18,20 @@ import { checkHttps } from './self-test'
 export async function runBackgroundProbe(o: {
   platform: Platform
   nativeReady: () => boolean
+  /** La app está a la vista. */
+  foreground: () => boolean
   log: (line: string) => void
 }): Promise<void> {
   for (let i = 0; i < 120 && !o.nativeReady(); i++) await sleep(500)
   if (!o.nativeReady()) return o.log('sonda: el lado nativo no se ha conectado')
   for (const mode of ['sin-servicio', 'con-servicio'] as const) {
+    if (mode === 'con-servicio') {
+      // Android solo deja arrancar el servicio en primer plano con la app a la vista: se
+      // espera a que el script la traiga de vuelta tras la sonda anterior (si no, la carrera
+      // a veces lo arrancaba aún en segundo plano y Android lo rechazaba).
+      for (let i = 0; i < 120 && !o.foreground(); i++) await sleep(500)
+      await sleep(1_000)
+    }
     const release = mode === 'con-servicio' ? o.platform.keepRunning?.('Prueba del CI') : undefined
     // Mayor parada del motor mientras espera: si Android lo congela, el reloj sigue y los
     // latidos no; al descongelarse se ve el hueco.
