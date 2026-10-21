@@ -42,6 +42,10 @@ export interface Remote {
   put(path: string, src: string, onProgress?: (sent: number, total: number) => void): Promise<void>
   readText(path: string): Promise<string | null>
   writeText(path: string, text: string): Promise<void>
+  /** Contenido de un archivo pequeño (paquetes de cambios, D-125); null si no existe. */
+  readBytes(path: string): Promise<Buffer | null>
+  /** `fresh`: el nombre es nuevo (no hace falta buscar si ya existe). */
+  writeBytes(path: string, data: Buffer, o?: { fresh?: boolean }): Promise<void>
   remove(path: string): Promise<void>
 }
 
@@ -99,10 +103,19 @@ export class FolderRemote implements Remote {
   }
 
   async writeText(path: string, text: string): Promise<void> {
+    await this.writeBytes(path, Buffer.from(text, 'utf8'))
+  }
+
+  async readBytes(path: string): Promise<Buffer | null> {
+    const p = this.abs(path)
+    return existsSync(p) ? readFileSync(p) : null
+  }
+
+  async writeBytes(path: string, data: Buffer): Promise<void> {
     const p = this.abs(path)
     mkdirSync(dirname(p), { recursive: true })
     const tmp = join(dirname(p), `.tmp-${randomBytes(6).toString('hex')}`)
-    writeFileSync(tmp, text)
+    writeFileSync(tmp, data)
     renameSync(tmp, p)
   }
 
@@ -156,7 +169,7 @@ const DEFAULT_TIMING: DriveTiming = {
 }
 
 /** Fallo de red (sin respuesta de Drive) o tiempo agotado: se puede reintentar. */
-function isNetworkError(e: unknown): boolean {
+export function isNetworkError(e: unknown): boolean {
   if (e instanceof AppError) return false
   if (!(e instanceof Error)) return false
   if (e.name === 'AbortError' || e.name === 'TimeoutError' || e.name === 'DriveBusyError')
@@ -224,6 +237,8 @@ export type FetchLike = typeof fetch
 export class DriveRemote implements Remote {
   readonly kind = 'drive'
   private folders = new Map<string, string>()
+  /** Ids de los archivos vistos al listar: leerlos luego no necesita buscarlos (D-125). */
+  private known = new Map<string, string>()
 
   private readonly timing: DriveTiming
 
@@ -381,6 +396,8 @@ export class DriveRemote implements Remote {
   }
 
   private async fileId(path: string): Promise<string | null> {
+    const seen = this.known.get(path)
+    if (seen) return seen
     const { dir, name } = this.split(path)
     const parent = await this.folder(dir, false)
     return parent ? this.find(name, parent, false) : null
@@ -394,14 +411,20 @@ export class DriveRemote implements Remote {
     do {
       const params = new URLSearchParams({
         q: `'${parent}' in parents and trashed = false`,
-        fields: 'nextPageToken, files(name)',
+        fields: 'nextPageToken, files(id, name)',
         pageSize: '1000',
         spaces: 'drive',
       })
       if (pageToken) params.set('pageToken', pageToken)
       const res = await this.call(`${this.urls.api}/files?${params}`)
-      const json = (await res.json()) as { files?: { name: string }[]; nextPageToken?: string }
-      for (const f of json.files ?? []) names.push(f.name)
+      const json = (await res.json()) as {
+        files?: { id: string; name: string }[]
+        nextPageToken?: string
+      }
+      for (const f of json.files ?? []) {
+        names.push(f.name)
+        this.known.set(dir ? `${dir}/${f.name}` : f.name, f.id)
+      }
       pageToken = json.nextPageToken
     } while (pageToken)
     return names
@@ -661,10 +684,25 @@ export class DriveRemote implements Remote {
   }
 
   async writeText(path: string, text: string): Promise<void> {
+    await this.writeBytes(path, Buffer.from(text, 'utf8'))
+  }
+
+  async readBytes(path: string): Promise<Buffer | null> {
+    const id = await this.fileId(path)
+    if (!id) return null
+    const res = await this.call(`${this.urls.api}/files/${id}?alt=media`)
+    if (res.status === 404) {
+      this.known.delete(path)
+      return null
+    }
+    return Buffer.from(await res.arrayBuffer())
+  }
+
+  async writeBytes(path: string, data: Buffer, o: { fresh?: boolean } = {}): Promise<void> {
     const { dir, name } = this.split(path)
     const parent = await this.folder(dir)
-    const existing = await this.find(name, parent, false)
-    await this.putBuffer(parent!, name, existing, Buffer.from(text, 'utf8'))
+    const existing = o.fresh ? null : await this.find(name, parent, false)
+    await this.putBuffer(parent!, name, existing, data)
   }
 
   async remove(path: string): Promise<void> {
@@ -674,5 +712,8 @@ export class DriveRemote implements Remote {
     const id = (await this.find(name, parent, false)) ?? (await this.find(name, parent, true))
     if (id) await this.call(`${this.urls.api}/files/${id}`, { method: 'DELETE' })
     this.folders.delete(path)
+    for (const k of [...this.known.keys()])
+      if (k === path || k.startsWith(`${path}/`)) this.known.delete(k)
+    for (const k of [...this.folders.keys()]) if (k.startsWith(`${path}/`)) this.folders.delete(k)
   }
 }

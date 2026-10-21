@@ -13,7 +13,7 @@ import {
   type GoogleLogins,
 } from './google-auth'
 import { DRIVE_URLS, DriveRemote, type DriveUrls, type FetchLike } from './remote'
-import { manifestSchema } from './sync-service'
+import { manifestSchema, manifestV2Schema } from './sync-service'
 
 /** Una petición a Drive que no contesta en este tiempo se da por perdida. */
 const HEADERS_TIMEOUT_MS = 30_000
@@ -78,13 +78,25 @@ export async function cloneFromDrive(o: CloneOptions): Promise<string> {
   })
   o.onPhase?.('search')
   const token = () => Promise.resolve(tokens.accessToken)
-  const found: { remote: DriveRemote; uploadedAt: string }[] = []
+  // Formato 2 (D-125): la base de datos es la instantánea que dice sync.json; los cambios de
+  // después los aplica la primera sincronización al desbloquear.
+  const found: { remote: DriveRemote; uploadedAt: string; base: string }[] = []
   for (const name of await DriveRemote.vaultFolders(token, http, urls)) {
     const remote = new DriveRemote(name, token, http, urls)
     const text = await remote.readText('sync.json')
     if (!text) continue
-    const m = manifestSchema.safeParse(JSON.parse(text))
-    if (m.success) found.push({ remote, uploadedAt: m.data.uploadedAt })
+    const raw: unknown = JSON.parse(text)
+    const v2 = manifestV2Schema.safeParse(raw)
+    if (v2.success) {
+      found.push({
+        remote,
+        uploadedAt: v2.data.updatedAt,
+        base: `snapshots/${v2.data.snapshot.id}/`,
+      })
+      continue
+    }
+    const m = manifestSchema.safeParse(raw)
+    if (m.success) found.push({ remote, uploadedAt: m.data.uploadedAt, base: '' })
   }
   found.sort((a, b) => b.uploadedAt.localeCompare(a.uploadedAt))
   const latest = found[0]
@@ -101,11 +113,11 @@ export async function cloneFromDrive(o: CloneOptions): Promise<string> {
   mkdirSync(target, { recursive: true })
   try {
     o.onPhase?.('download', 0, null)
-    if (!(await latest.remote.get('vault.json', join(target, VAULT_FILES.manifest))))
+    if (!(await latest.remote.get(`${latest.base}vault.json`, join(target, VAULT_FILES.manifest))))
       throw new Error(t('Falta vault.json en el destino.'))
     const progress = (received: number, total: number | null) =>
       o.onPhase?.('download', received, total)
-    if (!(await latest.remote.get('crm.db', join(target, VAULT_FILES.db), progress)))
+    if (!(await latest.remote.get(`${latest.base}crm.db`, join(target, VAULT_FILES.db), progress)))
       throw new Error(t('Falta crm.db en el destino.'))
   } catch (e) {
     rmSync(target, { recursive: true, force: true })

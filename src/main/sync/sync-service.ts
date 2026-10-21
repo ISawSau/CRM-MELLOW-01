@@ -1,12 +1,32 @@
-import { copyFileSync, existsSync, mkdirSync, readdirSync, rmSync, statSync } from 'node:fs'
+import { createHash, randomBytes } from 'node:crypto'
+import {
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs'
 import { join } from 'node:path'
 import { z } from 'zod'
 import { AppError } from '@shared/errors'
 import type { BackupEntry, SyncProgress, SyncStatus } from '@shared/ipc'
 import { backupVault } from '../db/backup'
 import { checkpoint, type SqliteDb } from '../db/connection'
-import { VAULT_FILES } from '../vault/vault-file'
+import { SCHEMA_VERSION } from '../db/migrations'
+import { loadOrCreateFilesKey } from '../files/file-store'
+import { deriveSubkey, zeroize } from '../vault/crypto'
+import {
+  VAULT_FILES,
+  readManifest,
+  vaultManifestSchema,
+  writeManifest,
+  type VaultManifest,
+} from '../vault/vault-file'
 import type { VaultService } from '../vault/vault-service'
+import { ChangeLog, type AppliedChanges, type PackRow } from './changes'
 import {
   connectGoogle,
   refreshAccess,
@@ -14,10 +34,12 @@ import {
   type GoogleClient,
   type GoogleLogins,
 } from './google-auth'
+import { openPack, sealPack, type Pack } from './packs'
 import {
   DRIVE_ROOT_PREFIX,
   DriveRemote,
   FolderRemote,
+  isNetworkError,
   type DriveTiming,
   type DriveUrls,
   type FetchLike,
@@ -28,24 +50,53 @@ import { t, tn } from '@shared/i18n'
 /**
  * Sincronización entre equipos y copias de seguridad (SPEC §4).
  *
- * Modelo: la nube guarda una «generación» (sync.json). Cada subida la incrementa.
- * Cada equipo recuerda (dentro de su base de datos cifrada) la generación que tiene y
- * un contador de cambios. Al abrir:
- * - nube más nueva y aquí sin cambios → se descarga;
- * - nube más nueva y aquí con cambios → conflicto: el usuario elige y la otra versión
- *   queda como copia de seguridad;
- * - aquí con cambios y la nube igual → se sube.
- * No se fusiona nada automáticamente (v1).
+ * Por cambios (D-125). Cada equipo apunta las filas que cambia (`ChangeLog`) y las sube en
+ * paquetes pequeños y cifrados, `changes/<época>/<equipo>-<n>.bin`. Los demás bajan solo
+ * los paquetes que aún no tienen y los aplican: si dos equipos cambian la misma fila, gana
+ * el cambio más reciente. No hay avisos de conflicto.
+ *
+ * Para que la nube no crezca sin fin, de vez en cuando un equipo sube una instantánea
+ * completa (`snapshots/<id>/crm.db`) que dice qué paquetes incluye, y se borran los que ya
+ * cubría la anterior. Un equipo que llega tarde (sus paquetes ya no están) se pone al día
+ * desde la instantánea sin perder lo que tenía sin subir.
+ *
+ * Una «época» empieza con una instantánea: al pasar del formato anterior, al rotar la clave
+ * maestra (la base de datos se vuelve a cifrar) o al restaurar una copia de seguridad.
+ * Los equipos que vienen de otra época se ponen al día desde su instantánea.
+ *
+ * `sync.json`: formato, época, instantánea actual y la anterior. El formato 1 (la base de
+ * datos entera cada vez, con conflictos) solo se lee para pasar al 2.
  */
 
 const CONFIG_KEY = 'sync.config'
 const STATE_KEY = 'sync.state'
+const V2_KEY = 'sync.v2'
+/** Qué instantánea es esta base de datos (va dentro de cada instantánea, D-125). */
+const SNAPSHOT_KEY = 'sync.snapshot'
 const BACKUP_CONFIG_KEY = 'backups.config'
 const BACKUP_LAST_KEY = 'backups.last'
 export const CHANGES_KEY = 'sync.changes'
+/** Tras restaurar una copia: lo restaurado empieza una época nueva. */
 const FORCE_PUSH_KEY = 'sync.forcePush'
 const AUTO_REASON = 'automatica'
+const SYNC_BACKUP_REASON = 'antes-de-sincronizar'
+/** Copias «antes de sincronizar» que se guardan (antes se guardaban todas). */
+const KEEP_SYNC_BACKUPS = 3
 const PERIODIC_MS = 30 * 60_000
+/** Identidad de este equipo, en la carpeta de la bóveda (no va en la base de datos). */
+const DEVICE_FILE = '.equipo.json'
+/**
+ * Cambios de aquí sin subir mientras se cambia de instantánea, cifrados como un paquete: si
+ * la nueva pide otra contraseña, esperan aquí a que se desbloquee.
+ */
+const STASH_FILE = '.cambios-pendientes.bin'
+/** Filas por paquete y tamaño máximo (la subida simple de Drive admite hasta 5 MB). */
+const PACK_ROWS = 4000
+const PACK_MAX_BYTES = 4 * 1024 * 1024
+/** Instantánea nueva al pasar de estos paquetes o de esta antigüedad. */
+const COMPACT_PACKS = 150
+const COMPACT_AGE_MS = 7 * 86_400_000
+const PACK_NAME = /^([a-f0-9]{12})-(\d{8})\.bin$/
 
 const configSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('folder'), path: z.string().min(1) }),
@@ -59,12 +110,29 @@ const configSchema = z.discriminatedUnion('kind', [
 ])
 type SyncConfig = z.infer<typeof configSchema>
 
+/** Estado del formato 1 (solo para pasar al 2). */
 const stateSchema = z.object({
   generation: z.number().int().min(0).default(0),
   changeMark: z.number().int().min(0).default(0),
   lastSyncAt: z.string().nullable().default(null),
 })
 type SyncState = z.infer<typeof stateSchema>
+
+/** Estado de este equipo en el formato 2. */
+const v2StateSchema = z.object({
+  device: z.string(),
+  epoch: z.string(),
+  /** Último paquete propio subido. */
+  seq: z.number().int().min(0),
+  /** Último paquete aplicado de cada equipo (también el propio). */
+  applied: z.record(z.string(), z.number().int().min(0)),
+  snapshot: z.string(),
+  keyGeneration: z.number().int(),
+  /** Huella del vault.json ya compartido (cambio de contraseña, D-125). */
+  manifestHash: z.string(),
+  lastSyncAt: z.string().nullable(),
+})
+type V2State = z.infer<typeof v2StateSchema>
 
 export const backupConfigSchema = z.object({
   intervalDays: z.number().int().min(1).max(60).default(3),
@@ -73,6 +141,7 @@ export const backupConfigSchema = z.object({
 })
 export type BackupConfig = z.infer<typeof backupConfigSchema>
 
+/** `sync.json` del formato 1. */
 export const manifestSchema = z.object({
   format: z.literal('crm-mellow-sync'),
   version: z.literal(1),
@@ -82,6 +151,31 @@ export const manifestSchema = z.object({
   uploadedAt: z.string(),
 })
 type RemoteManifest = z.infer<typeof manifestSchema>
+
+const snapshotSchema = z.object({
+  id: z.string().regex(/^[a-f0-9]{16}$/),
+  device: z.string(),
+  createdAt: z.string(),
+  /** Último paquete de cada equipo que ya va dentro. */
+  covers: z.record(z.string(), z.number().int().min(0)),
+})
+
+/** `sync.json` del formato 2 (D-125). */
+export const manifestV2Schema = z.object({
+  format: z.literal('crm-mellow-sync'),
+  version: z.literal(2),
+  vaultId: z.string(),
+  epoch: z.string().regex(/^[a-f0-9]{16}$/),
+  /** Migraciones de la instantánea (una app más antigua no la puede abrir). */
+  schema: z.number().int().min(0),
+  keyGeneration: z.number().int(),
+  snapshot: snapshotSchema,
+  previous: snapshotSchema.nullable().default(null),
+  updatedAt: z.string(),
+  /** Nombre del equipo que la escribió (se enseña al elegir en un conflicto). */
+  deviceName: z.string(),
+})
+export type ManifestV2 = z.infer<typeof manifestV2Schema>
 
 export function readSetting(db: SqliteDb, key: string): unknown {
   const r = db.prepare('SELECT value FROM settings WHERE key = ?').get(key) as
@@ -130,6 +224,16 @@ export function backupsToPrune(names: string[], cfg: BackupConfig): string[] {
   return autos.filter((n) => !keep.has(n))
 }
 
+const randomId = () => randomBytes(8).toString('hex')
+const pad = (n: number) => String(n).padStart(8, '0')
+
+/** Huella del vault.json sin el número de migraciones (eso es de cada equipo). */
+function manifestHash(m: VaultManifest): string {
+  return createHash('sha256')
+    .update(JSON.stringify({ ...m, schemaVersion: 0 }))
+    .digest('hex')
+}
+
 export interface SyncServiceOptions {
   hostname: string
   /**
@@ -146,11 +250,22 @@ export interface SyncServiceOptions {
   connect?: Pick<ConnectOptions, 'authUrl' | 'tokenUrl'>
   driveUrls?: DriveUrls
   onChange?: (s: SyncStatus) => void
+  /** Han llegado cambios de otro equipo: la interfaz y los servicios se refrescan. */
+  onApplied?: (changes: AppliedChanges) => void
+  /** Hay un cambio local nuevo (para subirlo enseguida, D-125). */
+  onLocalChange?: () => void
   /**
    * Mientras sincroniza (D-124): en Android, servicio en primer plano y pantalla encendida,
    * para que el sistema no congele la app ni le corte la red a mitad. Devuelve cómo soltarlo.
    */
   hold?: (text: string) => () => void
+  /**
+   * Paquetes a partir de los que este equipo hace una instantánea nueva. En el móvil, más:
+   * subir la base de datos entera con datos móviles es lo que se quiere evitar.
+   */
+  compactPacks?: number
+  /** Espera tras un cambio antes de subirlo (tests). */
+  changeDelayMs?: number
   http?: FetchLike
   /** Tiempos de Drive (tests). */
   driveTiming?: Partial<DriveTiming>
@@ -159,21 +274,71 @@ export interface SyncServiceOptions {
 
 /** Cada cuánto, como mucho, se avisa a la interfaz del progreso. */
 const PROGRESS_EMIT_MS = 400
+/** Tras un cambio, se sube a los pocos segundos (se juntan los que vienen seguidos). */
+const CHANGE_DELAY_MS = 4_000
+/** Con la app abierta, se mira si hay algo nuevo cada minuto. */
+const LIVE_MS = 60_000
+/** Una sincronización automática se enseña si mueve más que esto. */
+const VISIBLE_BYTES = 256 * 1024
+
+/**
+ * `manual`: «Sincronizar ahora» (se ve y mantiene el móvil despierto). `auto`: tras un
+ * cambio, cada minuto o al volver a la app (no se ve salvo que mueva algo grande).
+ * `background`: al cerrar o pasar a segundo plano (no se ve, pero mantiene la app viva).
+ */
+export type SyncMode = 'manual' | 'auto' | 'background'
 
 export class SyncService {
   private phase: SyncStatus['phase'] = 'idle'
   private error: string | null = null
   private conflict: SyncStatus['conflict'] = null
   private running: Promise<void> | null = null
+  private again: SyncMode | null = null
+  /** Sincronización automática: no se enseña salvo que mueva algo grande (D-125). */
+  private quiet = false
+  private visible = false
+  private appliedSomething = false
+  private lazyHold: (() => void) | null = null
+  private changeTimer: ReturnType<typeof setTimeout> | null = null
+  private liveTimer: ReturnType<typeof setInterval> | null = null
+  private active = true
   private access: { token: string; expiresAt: number } | null = null
   private timer: ReturnType<typeof setInterval> | null = null
   private progress: SyncProgress | null = null
   private lastProgressEmit = 0
+  private log: ChangeLog | null = null
+  /** Los archivos de la nube ya se han comparado en esta sesión. */
+  private blobsChecked = false
+  private deviceCache: { path: string; id: string } | null = null
+  /** Hay destino configurado: solo entonces se apuntan los cambios. */
+  private configured = false
 
   constructor(
     private readonly vault: VaultService,
     private readonly opts: SyncServiceOptions,
-  ) {}
+  ) {
+    this.vault.onUnlocked(() => this.attach())
+    try {
+      this.attach()
+    } catch {
+      // Bloqueada: se instala al desbloquear.
+    }
+  }
+
+  /** Registro de cambios sobre la conexión abierta (se rehace al reabrir la bóveda). */
+  private attach(): ChangeLog {
+    const db = this.vault.sqlite
+    if (this.log?.db !== db) {
+      this.log = new ChangeLog(db, {
+        device: () => this.deviceId(),
+        onChange: () => this.opts.onLocalChange?.(),
+        active: () => this.configured,
+      })
+      this.blobsChecked = false
+      this.configured = !!this.config()
+    }
+    return this.log
+  }
 
   private get http(): FetchLike {
     return this.opts.http ?? fetch
@@ -185,6 +350,43 @@ export class SyncService {
 
   private db(): SqliteDb {
     return this.vault.sqlite
+  }
+
+  private vaultPath(): string {
+    return this.vault.currentPath!
+  }
+
+  /**
+   * Id de este equipo (12 hexadecimales). Vive en la carpeta de la bóveda con el nombre del
+   * equipo y la ruta: una copia de la carpeta en otro sitio es otro equipo.
+   */
+  deviceId(): string {
+    const path = this.vaultPath()
+    if (this.deviceCache?.path === path) return this.deviceCache.id
+    const file = join(path, DEVICE_FILE)
+    let id: string | null = null
+    try {
+      const d = JSON.parse(readFileSync(file, 'utf8')) as {
+        id?: string
+        host?: string
+        path?: string
+      }
+      if (
+        typeof d.id === 'string' &&
+        /^[a-f0-9]{12}$/.test(d.id) &&
+        d.host === this.opts.hostname &&
+        d.path === path
+      )
+        id = d.id
+    } catch {
+      // Aún no tiene.
+    }
+    if (!id) {
+      id = randomBytes(6).toString('hex')
+      writeFileSync(file, JSON.stringify({ id, host: this.opts.hostname, path }, null, 2) + '\n')
+    }
+    this.deviceCache = { path, id }
+    return id
   }
 
   private config(): SyncConfig | null {
@@ -206,9 +408,47 @@ export class SyncService {
     return stateSchema.parse(readSetting(this.db(), STATE_KEY) ?? {})
   }
 
+  private v2(): V2State | null {
+    const r = v2StateSchema.safeParse(readSetting(this.db(), V2_KEY))
+    const device = this.deviceId()
+    if (r.success && r.data.device === device) return r.data
+    // La base de datos viene de otro equipo (traída de Drive, o la carpeta se ha copiado o
+    // movido): este equipo empieza en la instantánea que es. Volver a aplicar paquetes que
+    // ya tenía no cambia nada (gana el más reciente, y es el mismo).
+    const snap = z
+      .object({ epoch: z.string(), id: z.string(), covers: z.record(z.string(), z.number()) })
+      .safeParse(readSetting(this.db(), SNAPSHOT_KEY))
+    if (!snap.success) return null
+    const local = readManifest(this.vaultPath())
+    const st: V2State = {
+      device,
+      epoch: snap.data.epoch,
+      seq: snap.data.covers[device] ?? 0,
+      applied: { ...snap.data.covers },
+      snapshot: snap.data.id,
+      keyGeneration: local.keyGeneration,
+      manifestHash: manifestHash(local),
+      lastSyncAt: null,
+    }
+    this.saveV2(st)
+    return st
+  }
+
+  private saveV2(st: V2State): void {
+    writeSetting(this.db(), V2_KEY, st)
+  }
+
   private changes(): number {
     const v = readSetting(this.db(), CHANGES_KEY)
     return typeof v === 'number' ? v : 0
+  }
+
+  /** Cambios del formato 1 sin subir (solo cuenta antes de pasar al 2). */
+  private v1Dirty(): boolean {
+    const v = readSetting(this.db(), STATE_KEY)
+    if (v === undefined) return false
+    const st = this.state()
+    return st.generation > 0 && this.changes() > st.changeMark
   }
 
   backupConfig(): BackupConfig {
@@ -220,15 +460,25 @@ export class SyncService {
     return this.emit()
   }
 
+  /** ¿Hay algo de aquí sin subir? */
+  private hasPending(): boolean {
+    if (readSetting(this.db(), FORCE_PUSH_KEY) === true) return true
+    const st = this.v2()
+    if (!st) return this.v1Dirty() || (this.attach().pending() > 0 && !!this.config())
+    if (this.attach().pending() > 0) return true
+    const local = readManifest(this.vaultPath())
+    return manifestHash(local) !== st.manifestHash && local.keyGeneration === st.keyGeneration
+  }
+
   status(): SyncStatus {
     let cfg: SyncConfig | null = null
-    let st: SyncState | null = null
+    let lastSync: string | null = null
     let last: string | null = null
-    let dirty = false
+    let pending = false
     try {
       cfg = this.config()
-      st = this.state()
-      dirty = this.changes() > st.changeMark
+      lastSync = this.v2()?.lastSyncAt ?? this.state().lastSyncAt
+      pending = !!cfg && this.hasPending()
       const l = readSetting(this.db(), BACKUP_LAST_KEY)
       last = typeof l === 'string' ? l : null
     } catch {
@@ -237,11 +487,11 @@ export class SyncService {
     return {
       kind: cfg?.kind ?? null,
       label: cfg ? this.remoteFor(cfg).label : null,
-      phase: this.phase,
+      phase: this.phase === 'syncing' && !this.visible ? 'idle' : this.phase,
       error: this.error,
       conflict: this.conflict,
-      lastSyncAt: st?.lastSyncAt ?? null,
-      pending: dirty,
+      lastSyncAt: lastSync,
+      pending,
       lastBackupAt: last,
       progress: this.phase === 'syncing' ? this.progress : null,
     }
@@ -290,6 +540,7 @@ export class SyncService {
         t('Elige una carpeta fuera de la bóveda (y que no la contenga).'),
       )
     writeSetting(this.db(), CONFIG_KEY, { kind: 'folder', path })
+    this.configured = true
     this.resetState()
     return this.emit()
   }
@@ -307,12 +558,14 @@ export class SyncService {
       refreshToken: tokens.refreshToken,
       rootName: `${DRIVE_ROOT_PREFIX}${id}`,
     })
+    this.configured = true
     this.resetState()
     return this.emit()
   }
 
   disconnect(): SyncStatus {
     deleteSetting(this.db(), CONFIG_KEY)
+    this.configured = false
     this.resetState()
     this.access = null
     this.conflict = null
@@ -332,35 +585,36 @@ export class SyncService {
       changeMark: this.changes(),
       lastSyncAt: null,
     })
+    deleteSetting(this.db(), V2_KEY)
+    this.attach().clear()
+    this.blobsChecked = false
   }
 
   // --- Ciclo de sincronización ---------------------------------------------------
 
-  /** Tras desbloquear: sincroniza, copia de seguridad si toca y arranca el ciclo periódico. */
+  /** Tras desbloquear: sincroniza, copia de seguridad si toca y arranca los ciclos. */
   async afterUnlock(): Promise<void> {
     this.stopTimer()
-    await this.sync()
+    await this.sync('auto')
     try {
       await this.maybeBackup()
     } catch (e) {
       this.fail(e)
     }
+    this.startLive()
     this.timer = setInterval(() => {
-      void (async () => {
-        try {
-          if (this.status().pending) await this.sync()
-          await this.maybeBackup()
-        } catch {
-          // Se reintenta en la siguiente vuelta.
-        }
-      })()
+      void this.maybeBackup().catch(() => {})
     }, PERIODIC_MS)
     this.timer.unref?.()
   }
 
   private stopTimer(): void {
     if (this.timer) clearInterval(this.timer)
+    if (this.liveTimer) clearInterval(this.liveTimer)
+    if (this.changeTimer) clearTimeout(this.changeTimer)
     this.timer = null
+    this.liveTimer = null
+    this.changeTimer = null
   }
 
   /** Antes de bloquear o cerrar: sube lo pendiente (con límite de tiempo). */
@@ -368,38 +622,114 @@ export class SyncService {
     this.stopTimer()
     let pending: boolean
     try {
-      pending = !!this.config() && this.changes() > this.state().changeMark
+      pending = !!this.config() && this.hasPending()
     } catch {
       return
     }
     if (!pending || this.conflict) return
-    await Promise.race([this.sync(), new Promise<void>((r) => setTimeout(r, timeoutMs))])
+    await Promise.race([
+      this.sync('background'),
+      new Promise<void>((r) => setTimeout(r, timeoutMs)),
+    ])
   }
 
-  /** «Sincronizar ahora». */
-  sync(): Promise<void> {
-    if (this.running) return this.running
-    this.running = this.held(() => this.doSync()).finally(() => {
+  /** Sincroniza. Si ya está sincronizando, se repite al terminar. */
+  sync(mode: SyncMode = 'manual'): Promise<void> {
+    if (this.running) {
+      if (mode === 'manual' && this.quiet) {
+        // Se ha pedido a mano mientras iba sola: a partir de ahora se ve.
+        this.quiet = false
+        this.visible = true
+        this.lazyHold?.()
+        this.emit()
+      }
+      this.again = this.again === 'manual' || mode === 'manual' ? 'manual' : mode
+      return this.running
+    }
+    this.running = (async () => {
+      let next: SyncMode | null = mode
+      while (next) {
+        const run = next
+        this.again = null
+        await this.held(run, () => this.doSync())
+        next = this.again && this.phase === 'idle' ? this.again : null
+      }
+    })().finally(() => {
       this.running = null
     })
     return this.running
   }
 
-  /** Mantiene el equipo despierto mientras dura `run` (D-124). */
-  private async held<T>(run: () => Promise<T>): Promise<T> {
-    if (!this.config()) return run()
-    const release = this.opts.hold?.(t('Sincronizando la bóveda…'))
+  /**
+   * Mantiene el equipo despierto mientras dura `run` (D-124): siempre a mano o al cerrar;
+   * en las automáticas, solo si resulta que hay mucho que mover.
+   */
+  private async held<T>(mode: SyncMode, run: () => Promise<T>): Promise<T> {
+    this.quiet = mode !== 'manual'
+    this.visible = !this.quiet
+    this.appliedSomething = false
+    let release = null as (() => void) | null
+    const acquire = () => {
+      if (!release && this.config())
+        release = this.opts.hold?.(t('Sincronizando la bóveda…')) ?? null
+    }
+    if (mode !== 'auto') acquire()
+    else this.lazyHold = acquire
     try {
       return await run()
     } finally {
       this.progress = null
+      this.lazyHold = null
+      this.quiet = false
       release?.()
     }
+  }
+
+  /** Hay un cambio aquí: se sube a los pocos segundos (D-125). */
+  notifyLocalChange(): void {
+    if (!this.configured || !this.active) return
+    if (this.changeTimer) clearTimeout(this.changeTimer)
+    this.changeTimer = setTimeout(() => {
+      this.changeTimer = null
+      void this.sync('auto').catch(() => {})
+    }, this.opts.changeDelayMs ?? CHANGE_DELAY_MS)
+    this.changeTimer.unref?.()
+  }
+
+  /**
+   * App a la vista (true) o en segundo plano (false). A la vista mira cada minuto si hay
+   * algo nuevo; al pasar a segundo plano sube lo pendiente y para.
+   */
+  setActive(active: boolean): void {
+    this.active = active
+    if (!active) {
+      if (this.liveTimer) clearInterval(this.liveTimer)
+      this.liveTimer = null
+      return
+    }
+    this.startLive()
+  }
+
+  private startLive(): void {
+    if (this.liveTimer) clearInterval(this.liveTimer)
+    this.liveTimer = setInterval(() => {
+      if (this.configured && this.active && this.phase !== 'conflict')
+        void this.sync('auto').catch(() => {})
+    }, LIVE_MS)
+    this.liveTimer.unref?.()
   }
 
   /** Progreso del paso actual; se avisa a la interfaz como mucho cada 400 ms. */
   private report(p: SyncProgress, force = false): void {
     this.progress = p
+    if (this.quiet && !this.visible && (p.totalBytes > VISIBLE_BYTES || p.total > 5)) {
+      // Una automática que resulta grande (un libro nuevo, la primera vez): se ve y el
+      // móvil no se duerme hasta que acabe.
+      this.visible = true
+      this.lazyHold?.()
+      force = true
+    }
+    if (!this.visible) return
     const now = Date.now()
     if (!force && now - this.lastProgressEmit < PROGRESS_EMIT_MS) return
     this.lastProgressEmit = now
@@ -408,67 +738,143 @@ export class SyncService {
 
   private fail(e: unknown): void {
     this.progress = null
+    if (this.quiet && !this.visible && isNetworkError(e)) {
+      // Sin red en una automática: no es un error que enseñar; se reintenta luego.
+      this.phase = 'idle'
+      return
+    }
     this.phase = 'error'
     this.error = e instanceof Error ? e.message : t('Error de sincronización.')
     this.emit()
   }
 
-  private async readManifest(remote: Remote): Promise<RemoteManifest | null> {
+  /** `sync.json` de la nube (null si está vacía). */
+  private async readRemote(
+    remote: Remote,
+  ): Promise<{ v1: RemoteManifest; v2?: undefined } | { v2: ManifestV2; v1?: undefined } | null> {
     const text = await remote.readText('sync.json')
     if (!text) return null
-    const m = manifestSchema.safeParse(JSON.parse(text))
-    if (!m.success) throw new Error(t('El destino tiene un sync.json que no es de CRM Mellow.'))
-    if (m.data.vaultId !== this.vault.vaultId)
+    const raw = JSON.parse(text) as { format?: unknown; version?: unknown; vaultId?: unknown }
+    if (raw?.format !== 'crm-mellow-sync')
+      throw new Error(t('El destino tiene un sync.json que no es de CRM Mellow.'))
+    if (raw.vaultId !== this.vault.vaultId)
       throw new Error(t('El destino tiene otra bóveda: elige otra carpeta o desconecta.'))
-    return m.data
+    if (raw.version === 1) {
+      const m = manifestSchema.safeParse(raw)
+      if (!m.success) throw new Error(t('El destino tiene un sync.json que no es de CRM Mellow.'))
+      return { v1: m.data }
+    }
+    const m = manifestV2Schema.safeParse(raw)
+    if (!m.success)
+      throw new Error(
+        t('La nube usa un formato más nuevo: actualiza la app en este equipo para sincronizar.'),
+      )
+    return { v2: m.data }
   }
 
   private async doSync(): Promise<void> {
+    // Tras desbloquear con la contraseña nueva: lo que esperaba vuelve primero.
+    this.applyStash()
     const remote = this.remote()
     if (!remote) return
     this.phase = 'syncing'
     this.error = null
     this.progress = { step: 'comprobando', done: 0, total: 0, bytes: 0, totalBytes: 0 }
-    this.emit()
+    if (this.visible) this.emit()
     try {
-      const m = await this.readManifest(remote)
-      const st = this.state()
-      const dirty = this.changes() > st.changeMark
-      const remoteGen = m?.generation ?? 0
-      if (readSetting(this.db(), FORCE_PUSH_KEY) === true) {
-        // Tras restaurar una copia: lo restaurado pasa a ser la versión buena.
-        await this.push(remote, remoteGen)
-        deleteSetting(this.db(), FORCE_PUSH_KEY)
-      } else if (m && remoteGen > st.generation) {
-        if (dirty) {
-          this.conflict = { device: m.device, uploadedAt: m.uploadedAt }
-          this.phase = 'conflict'
-          this.emit()
-          return
+      const r = await this.readRemote(remote)
+      const st = this.v2()
+      const local = readManifest(this.vaultPath())
+      if (!r) {
+        await this.newEpoch(remote)
+      } else if (r.v1) {
+        if (!(await this.fromV1(remote, r.v1))) return
+        await this.newEpoch(remote)
+      } else {
+        const m = r.v2
+        const rotated = !!st && st.epoch === m.epoch && local.keyGeneration > st.keyGeneration
+        if (readSetting(this.db(), FORCE_PUSH_KEY) === true) {
+          await this.newEpoch(remote)
+        } else if (rotated) {
+          // Clave maestra nueva: antes se traen los cambios de los demás (los paquetes no
+          // dependen de esa clave) y luego empieza una época con la base de datos recifrada.
+          await this.pullChanges(remote, m)
+          await this.newEpoch(remote)
+        } else if (!st || st.epoch !== m.epoch) {
+          if (!st && this.v1Dirty()) {
+            this.conflict = { device: m.deviceName, uploadedAt: m.updatedAt }
+            this.phase = 'conflict'
+            this.emit()
+            return
+          }
+          if (!(await this.rebase(remote, m, !!st))) return
+          await this.exchange(remote, m)
+        } else {
+          await this.exchange(remote, m)
         }
-        const result = await this.pull(remote, m)
-        if (result === 'locked') return
-      } else if (dirty || !m || remoteGen < st.generation) {
-        await this.push(remote, remoteGen)
       }
       await this.downloadMissing(remote)
+      this.pruneSyncBackups()
+      const done = this.v2()
+      if (done) this.saveV2({ ...done, lastSyncAt: this.now().toISOString() })
       this.conflict = null
       this.phase = 'idle'
       this.progress = null
-      this.emit()
+      // Una automática que no ha traído nada no molesta a la interfaz.
+      if (this.visible || this.appliedSomething) this.emit()
     } catch (e) {
       this.fail(e)
     }
   }
 
+  /** Lo de aquí sube, lo de los demás baja y, si toca, instantánea nueva. */
+  private async exchange(remote: Remote, m: ManifestV2): Promise<void> {
+    await this.pushChanges(remote)
+    let pulled = await this.pullChanges(remote, m)
+    if (pulled.gap) {
+      // Sus paquetes ya no están: se pone al día desde la instantánea, con lo suyo.
+      if (!(await this.rebase(remote, m, true))) return
+      await this.pushChanges(remote)
+      pulled = await this.pullChanges(remote, m)
+    }
+    await this.maybeCompact(remote, m, pulled.names)
+  }
+
   private tmpDir(): string {
-    const dir = join(this.vault.currentPath!, '.sincronizacion')
+    const dir = join(this.vaultPath(), '.sincronizacion')
     rmSync(dir, { recursive: true, force: true })
     mkdirSync(dir, { recursive: true })
     return dir
   }
 
-  private async pull(remote: Remote, m: RemoteManifest): Promise<'reopened' | 'locked'> {
+  /** Clave de los paquetes: sale de la de los archivos (igual en todos los equipos). */
+  private packKey(): Buffer {
+    const files = loadOrCreateFilesKey(this.db())
+    try {
+      return deriveSubkey(files, 'sync-pack/v1')
+    } finally {
+      zeroize(files)
+    }
+  }
+
+  // --- Formato 1 → 2 ---------------------------------------------------------------
+
+  /** La nube aún está en el formato 1: se baja si es más nueva. False si hay que parar. */
+  private async fromV1(remote: Remote, m: RemoteManifest): Promise<boolean> {
+    const st = this.state()
+    if (m.generation > st.generation) {
+      if (this.changes() > st.changeMark) {
+        this.conflict = { device: m.device, uploadedAt: m.uploadedAt }
+        this.phase = 'conflict'
+        this.emit()
+        return false
+      }
+      return (await this.pullV1(remote, m)) === 'reopened'
+    }
+    return true
+  }
+
+  private async pullV1(remote: Remote, m: RemoteManifest): Promise<'reopened' | 'locked'> {
     const dir = this.tmpDir()
     try {
       const step = { step: 'bajando' as const, done: 0, total: 1 }
@@ -478,15 +884,8 @@ export class SyncService {
       if (!got) throw new Error(t('Falta crm.db en el destino.'))
       if (!(await remote.get('vault.json', join(dir, VAULT_FILES.manifest))))
         throw new Error(t('Falta vault.json en el destino.'))
-      const r = await this.vault.replaceDatabase(dir, 'antes-de-sincronizar')
-      if (r === 'locked') {
-        this.phase = 'idle'
-        this.error = t(
-          'Los datos de la nube usan otra contraseña: desbloquea con la contraseña actual.',
-        )
-        this.emit()
-        return 'locked'
-      }
+      const r = await this.replace(dir)
+      if (r === 'locked') return 'locked'
       writeSetting(this.db(), STATE_KEY, {
         generation: m.generation,
         changeMark: this.changes(),
@@ -498,9 +897,455 @@ export class SyncService {
     }
   }
 
-  private async push(remote: Remote, baseGen: number): Promise<void> {
-    const vaultPath = this.vault.currentPath!
-    // 1. Archivos que la nube aún no tiene (están cifrados; el nombre es su HMAC).
+  // --- Épocas e instantáneas -------------------------------------------------------
+
+  /** Sustituye la base de datos conservando lo que es solo de este equipo. */
+  private async replace(dir: string): Promise<'reopened' | 'locked'> {
+    // Lo de este equipo se queda; «qué instantánea es» viene con la base de datos nueva.
+    const local = "(key LIKE 'sync.%' AND key <> 'sync.snapshot') OR key = 'backups.last'"
+    const keep = this.db().prepare(`SELECT key, value FROM settings WHERE ${local}`).all() as {
+      key: string
+      value: string
+    }[]
+    const r = await this.vault.replaceDatabase(dir, SYNC_BACKUP_REASON)
+    if (r === 'locked') {
+      this.phase = 'idle'
+      this.error = t(
+        'Los datos de la nube usan otra contraseña: desbloquea con la contraseña actual.',
+      )
+      this.emit()
+      return 'locked'
+    }
+    const db = this.db()
+    db.transaction(() => {
+      db.prepare(`DELETE FROM settings WHERE ${local}`).run()
+      const put = db.prepare('INSERT INTO settings (key, value, updated_at) VALUES (?, ?, ?)')
+      const at = new Date().toISOString()
+      for (const k of keep) put.run(k.key, k.value, at)
+    })()
+    // La cola que traía la base de datos de otro equipo no es de este.
+    this.attach().clear()
+    return 'reopened'
+  }
+
+  /** Sube la base de datos entera como instantánea `snapshots/<id>/`. */
+  private async uploadSnapshot(
+    remote: Remote,
+    id: string,
+    epoch: string,
+    covers: Record<string, number>,
+  ): Promise<void> {
+    const vaultPath = this.vaultPath()
+    const dir = this.tmpDir()
+    try {
+      writeSetting(this.db(), SNAPSHOT_KEY, { epoch, id, covers })
+      checkpoint(this.db())
+      copyFileSync(join(vaultPath, VAULT_FILES.db), join(dir, VAULT_FILES.db))
+      copyFileSync(join(vaultPath, VAULT_FILES.manifest), join(dir, VAULT_FILES.manifest))
+      const total = statSync(join(dir, VAULT_FILES.db)).size
+      this.report({ step: 'subiendo', done: 0, total: 1, bytes: 0, totalBytes: total }, true)
+      await remote.put(`snapshots/${id}/crm.db`, join(dir, VAULT_FILES.db), (sent) =>
+        this.report({ step: 'subiendo', done: 0, total: 1, bytes: sent, totalBytes: total }),
+      )
+      await remote.put(`snapshots/${id}/vault.json`, join(dir, VAULT_FILES.manifest))
+      this.report({ step: 'subiendo', done: 1, total: 1, bytes: total, totalBytes: total }, true)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  }
+
+  private manifestFor(
+    epoch: string,
+    snapshot: ManifestV2['snapshot'],
+    previous: ManifestV2['previous'],
+  ): ManifestV2 {
+    const local = readManifest(this.vaultPath())
+    return {
+      format: 'crm-mellow-sync',
+      version: 2,
+      vaultId: this.vault.vaultId!,
+      epoch,
+      schema: SCHEMA_VERSION,
+      keyGeneration: local.keyGeneration,
+      snapshot,
+      previous,
+      updatedAt: this.now().toISOString(),
+      deviceName: this.opts.hostname,
+    }
+  }
+
+  /**
+   * Época nueva desde la base de datos de este equipo: instantánea, `sync.json` y fuera lo
+   * de las épocas anteriores (y los archivos del formato 1).
+   */
+  private async newEpoch(remote: Remote): Promise<void> {
+    const device = this.deviceId()
+    const epoch = randomId()
+    const sid = randomId()
+    await this.uploadBlobs(remote)
+    await this.uploadSnapshot(remote, sid, epoch, {})
+    const at = this.now().toISOString()
+    const m = this.manifestFor(epoch, { id: sid, device, createdAt: at, covers: {} }, null)
+    await remote.writeText('sync.json', JSON.stringify(m, null, 2))
+    this.attach().clear()
+    const local = readManifest(this.vaultPath())
+    this.saveV2({
+      device,
+      epoch,
+      seq: 0,
+      applied: {},
+      snapshot: sid,
+      keyGeneration: local.keyGeneration,
+      manifestHash: manifestHash(local),
+      lastSyncAt: at,
+    })
+    deleteSetting(this.db(), FORCE_PUSH_KEY)
+    for (const n of await remote.list('changes'))
+      if (n !== epoch) await remote.remove(`changes/${n}`)
+    for (const n of await remote.list('snapshots'))
+      if (n !== sid) await remote.remove(`snapshots/${n}`)
+    await remote.remove('crm.db')
+    await remote.remove('vault.json')
+  }
+
+  /**
+   * Pone este equipo al día desde la instantánea de la nube. `carry`: lo que tenía sin
+   * subir se vuelve a aplicar encima y se sube después (con su hora, así que gana solo si
+   * es más reciente). False si hay que parar (otra contraseña).
+   */
+  private async rebase(remote: Remote, m: ManifestV2, carry: boolean): Promise<boolean> {
+    if (m.schema > SCHEMA_VERSION)
+      throw new Error(
+        t('Otro equipo usa una versión más nueva de la app: actualiza esta para sincronizar.'),
+      )
+    const carried: PackRow[] = carry ? this.attach().collect(Number.MAX_SAFE_INTEGER).rows : []
+    const device = this.deviceId()
+    // Si la instantánea pide otra contraseña, esto espera cifrado a que se desbloquee: los
+    // cambios sin subir y los ajustes de este equipo (su destino, por ejemplo).
+    this.stash(carried)
+    const dir = this.tmpDir()
+    try {
+      const step = { step: 'bajando' as const, done: 0, total: 1 }
+      const got = await remote.get(
+        `snapshots/${m.snapshot.id}/crm.db`,
+        join(dir, VAULT_FILES.db),
+        (bytes, total) => this.report({ ...step, bytes, totalBytes: total ?? bytes }),
+      )
+      if (!got) throw new Error(t('Falta crm.db en el destino.'))
+      if (
+        !(await remote.get(
+          `snapshots/${m.snapshot.id}/vault.json`,
+          join(dir, VAULT_FILES.manifest),
+        ))
+      )
+        throw new Error(t('Falta vault.json en el destino.'))
+      if ((await this.replace(dir)) === 'locked') return false
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+    const local = readManifest(this.vaultPath())
+    this.saveV2({
+      device,
+      epoch: m.epoch,
+      seq: m.snapshot.covers[device] ?? 0,
+      applied: { ...m.snapshot.covers },
+      snapshot: m.snapshot.id,
+      keyGeneration: local.keyGeneration,
+      manifestHash: manifestHash(local),
+      lastSyncAt: null,
+    })
+    this.appliedSomething = true
+    deleteSetting(this.db(), FORCE_PUSH_KEY)
+    writeSetting(this.db(), STATE_KEY, {
+      generation: 0,
+      changeMark: this.changes(),
+      lastSyncAt: null,
+    })
+    this.applyStash()
+    return true
+  }
+
+  private stash(rows: PackRow[]): void {
+    const local = this.db()
+      .prepare(
+        "SELECT key, value FROM settings WHERE (key LIKE 'sync.%' AND key NOT IN ('sync.v2', 'sync.snapshot')) OR key = 'backups.last'",
+      )
+      .all() as { key: string; value: string }[]
+    const key = this.packKey()
+    try {
+      const pack: Pack = {
+        format: 'crm-mellow-pack',
+        version: 1,
+        epoch: 'pendiente',
+        device: this.deviceId(),
+        seq: 1,
+        createdAt: this.now().toISOString(),
+        schema: SCHEMA_VERSION,
+        rows,
+        local,
+      }
+      writeFileSync(join(this.vaultPath(), STASH_FILE), sealPack(pack, key, STASH_FILE))
+    } finally {
+      zeroize(key)
+    }
+  }
+
+  /** Lo que quedó sin subir al cambiar de instantánea vuelve a la cola (con su hora). */
+  private applyStash(): void {
+    const file = join(this.vaultPath(), STASH_FILE)
+    if (!existsSync(file)) return
+    const key = this.packKey()
+    try {
+      const pack = openPack(readFileSync(file), key, STASH_FILE)
+      const db = this.db()
+      const put = db.prepare(
+        `INSERT INTO settings (key, value, updated_at) VALUES (?, ?, ?)
+         ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`,
+      )
+      for (const l of pack.local ?? []) put.run(l.key, l.value, new Date().toISOString())
+      if (pack.rows.length) this.attach().apply(pack.rows, true)
+    } finally {
+      zeroize(key)
+    }
+    rmSync(file, { force: true })
+  }
+
+  /** Instantánea nueva si hay muchos paquetes o la última es vieja. */
+  private async maybeCompact(remote: Remote, m: ManifestV2, names: string[]): Promise<void> {
+    const st = this.v2()
+    if (!st || st.epoch !== m.epoch) return
+    const limit = this.opts.compactPacks ?? COMPACT_PACKS
+    const age = this.now().getTime() - Date.parse(m.snapshot.createdAt)
+    if (names.length < limit && !(age > COMPACT_AGE_MS && names.length >= 10)) return
+    // Solo quien tiene todo aplicado: la instantánea tiene que incluir lo que dice.
+    for (const n of names) {
+      const p = PACK_NAME.exec(n)
+      if (p && Number(p[2]) > (st.applied[p[1]!] ?? 0)) return
+    }
+    const sid = randomId()
+    const covers = { ...st.applied, [st.device]: st.seq }
+    await this.uploadSnapshot(remote, sid, m.epoch, covers)
+    const latest = await this.readRemote(remote)
+    if (!latest?.v2 || latest.v2.epoch !== m.epoch || latest.v2.snapshot.id !== m.snapshot.id) {
+      // Otro equipo se ha adelantado: vale la suya.
+      await remote.remove(`snapshots/${sid}`)
+      return
+    }
+    const next = this.manifestFor(
+      m.epoch,
+      { id: sid, device: st.device, createdAt: this.now().toISOString(), covers },
+      m.snapshot,
+    )
+    await remote.writeText('sync.json', JSON.stringify(next, null, 2))
+    this.saveV2({ ...this.v2()!, snapshot: sid })
+    // Fuera los paquetes que ya cubría la instantánea anterior y las que no se usan.
+    if (m.previous)
+      for (const n of names) {
+        const p = PACK_NAME.exec(n)
+        if (p && Number(p[2]) <= (m.previous.covers[p[1]!] ?? 0))
+          await remote.remove(`changes/${m.epoch}/${n}`)
+      }
+    for (const n of await remote.list('snapshots'))
+      if (n !== sid && n !== m.snapshot.id) await remote.remove(`snapshots/${n}`)
+  }
+
+  // --- Paquetes ----------------------------------------------------------------------
+
+  /** Sube lo que ha cambiado aquí (primero los archivos que nombra). */
+  private async pushChanges(remote: Remote): Promise<void> {
+    const st = this.v2()
+    if (!st) return
+    const log = this.attach()
+    const filesChanged = this.db()
+      .prepare("SELECT 1 FROM sync_outbox WHERE tbl = 'files' LIMIT 1")
+      .get()
+    if (!this.blobsChecked || filesChanged) await this.uploadBlobs(remote)
+    const key = this.packKey()
+    try {
+      const local = readManifest(this.vaultPath())
+      const hash = manifestHash(local)
+      let manifest =
+        hash !== st.manifestHash && local.keyGeneration === st.keyGeneration
+          ? readFileSync(join(this.vaultPath(), VAULT_FILES.manifest), 'utf8')
+          : undefined
+      let sent = 0
+      for (;;) {
+        const { rows, maxId } = log.collect(PACK_ROWS)
+        if (!rows.length && !manifest) {
+          if (maxId) log.ack(maxId)
+          if (maxId) continue
+          break
+        }
+        await this.writePacks(remote, st, key, rows, manifest)
+        sent += rows.length
+        this.report({
+          step: 'subiendo',
+          done: sent,
+          total: sent + log.pending(),
+          bytes: 0,
+          totalBytes: 0,
+        })
+        if (maxId) log.ack(maxId)
+        if (manifest) {
+          manifest = undefined
+          st.manifestHash = hash
+        }
+        this.saveV2(st)
+      }
+    } finally {
+      zeroize(key)
+    }
+  }
+
+  /** Escribe uno o varios paquetes (si no caben en uno, se parten). */
+  private async writePacks(
+    remote: Remote,
+    st: V2State,
+    key: Buffer,
+    rows: PackRow[],
+    manifest: string | undefined,
+  ): Promise<void> {
+    const seq = st.seq + 1
+    const path = `changes/${st.epoch}/${st.device}-${pad(seq)}.bin`
+    const pack: Pack = {
+      format: 'crm-mellow-pack',
+      version: 1,
+      epoch: st.epoch,
+      device: st.device,
+      seq,
+      createdAt: this.now().toISOString(),
+      schema: SCHEMA_VERSION,
+      rows,
+      ...(manifest ? { manifest } : {}),
+    }
+    const data = sealPack(pack, key, path)
+    if (data.length > PACK_MAX_BYTES && rows.length > 1) {
+      const half = Math.ceil(rows.length / 2)
+      await this.writePacks(remote, st, key, rows.slice(0, half), manifest)
+      await this.writePacks(remote, st, key, rows.slice(half), undefined)
+      return
+    }
+    await remote.writeBytes(path, data, { fresh: true })
+    st.seq = seq
+    st.applied[st.device] = seq
+    this.saveV2(st)
+  }
+
+  /**
+   * Baja y aplica los paquetes nuevos de cada equipo, en orden. `gap`: faltan paquetes que
+   * ya se han borrado (este equipo llevaba tiempo sin sincronizar).
+   */
+  private async pullChanges(
+    remote: Remote,
+    m: ManifestV2,
+  ): Promise<{ gap: boolean; names: string[] }> {
+    const st = this.v2()
+    if (!st) return { gap: false, names: [] }
+    const log = this.attach()
+    const names = await remote.list(`changes/${m.epoch}`)
+    const byDevice = new Map<string, number[]>()
+    for (const n of names) {
+      const p = PACK_NAME.exec(n)
+      if (!p) continue
+      const list = byDevice.get(p[1]!) ?? []
+      list.push(Number(p[2]))
+      byDevice.set(p[1]!, list)
+    }
+    const todo: { device: string; seq: number }[] = []
+    let ownMax = 0
+    for (const [device, seqs] of byDevice) {
+      const sorted = [...new Set(seqs)].sort((a, b) => a - b)
+      if (device === st.device) ownMax = sorted.at(-1) ?? 0
+      let have = st.applied[device] ?? 0
+      const next = sorted.filter((s) => s > have)
+      if (!next.length) continue
+      if (next[0] !== have + 1) {
+        if ((m.snapshot.covers[device] ?? 0) > have) return { gap: true, names }
+        // El siguiente aún no se ve (se está subiendo): la próxima vez.
+        continue
+      }
+      for (const s of next) {
+        if (s !== have + 1) break
+        todo.push({ device, seq: s })
+        have = s
+      }
+    }
+    const key = this.packKey()
+    const merged: AppliedChanges = {
+      tables: new Set(),
+      settings: new Set(),
+      records: new Set(),
+      skipped: 0,
+    }
+    let newer = false
+    try {
+      const stopped = new Set<string>()
+      for (const [i, p] of todo.entries()) {
+        if (stopped.has(p.device)) continue
+        this.report({ step: 'bajando', done: i, total: todo.length, bytes: 0, totalBytes: 0 })
+        const path = `changes/${m.epoch}/${p.device}-${pad(p.seq)}.bin`
+        const data = await remote.readBytes(path)
+        if (!data) {
+          stopped.add(p.device)
+          continue
+        }
+        const pack = openPack(data, key, path)
+        if (pack.schema > SCHEMA_VERSION) {
+          // Lo ha hecho una versión más nueva de la app: se espera a actualizar.
+          newer = true
+          stopped.add(p.device)
+          continue
+        }
+        const res = log.apply(pack.rows)
+        for (const tb of res.tables) merged.tables.add(tb)
+        for (const k of res.settings) merged.settings.add(k)
+        for (const r of res.records) merged.records.add(r)
+        merged.skipped += res.skipped
+        if (pack.manifest) this.adoptManifest(pack.manifest)
+        const cur = this.v2()!
+        cur.applied[p.device] = p.seq
+        this.saveV2(cur)
+      }
+    } finally {
+      zeroize(key)
+    }
+    const cur = this.v2()!
+    if (cur.seq < ownMax) {
+      // Nunca se reutiliza un número de paquete propio.
+      cur.seq = ownMax
+      this.saveV2(cur)
+    }
+    if (merged.tables.size) {
+      this.appliedSomething = true
+      // La búsqueda y lo guardado en memoria, al día ya (no depende de la interfaz).
+      this.vault.data.afterRemoteChanges(merged)
+      this.opts.onApplied?.(merged)
+    }
+    if (newer)
+      throw new Error(
+        t('Otro equipo usa una versión más nueva de la app: actualiza esta para sincronizar.'),
+      )
+    return { gap: false, names }
+  }
+
+  /** vault.json de otro equipo (contraseña o clave de recuperación nuevas). */
+  private adoptManifest(text: string): void {
+    const r = vaultManifestSchema.safeParse(JSON.parse(text))
+    if (!r.success) return
+    const vaultPath = this.vaultPath()
+    const local = readManifest(vaultPath)
+    if (r.data.vaultId !== local.vaultId || r.data.keyGeneration !== local.keyGeneration) return
+    const next = { ...r.data, schemaVersion: local.schemaVersion }
+    writeManifest(vaultPath, next)
+    const st = this.v2()
+    if (st) this.saveV2({ ...st, manifestHash: manifestHash(next) })
+  }
+
+  // --- Archivos ------------------------------------------------------------------------
+
+  /** Archivos cifrados que la nube aún no tiene (su nombre es su HMAC). */
+  private async uploadBlobs(remote: Remote): Promise<void> {
+    const vaultPath = this.vaultPath()
     const missing: { path: string; src: string; size: number }[] = []
     for (const kind of ['files', 'thumbs'] as const) {
       const there = new Set(await remote.list(kind))
@@ -510,61 +1355,23 @@ export class SyncService {
           missing.push({ path: `${kind}/${id}.bin`, src, size: statSync(src).size })
         }
     }
-    const db = statSync(join(vaultPath, VAULT_FILES.db)).size
-    const totalBytes = missing.reduce((a, f) => a + f.size, 0) + db
-    const total = missing.length + 1
+    const totalBytes = missing.reduce((a, f) => a + f.size, 0)
+    const total = missing.length
     let doneBytes = 0
     let done = 0
-    const up = (sent: number) =>
-      this.report({ step: 'subiendo', done, total, bytes: doneBytes + sent, totalBytes })
-    up(0)
     for (const f of missing) {
-      await remote.put(f.path, f.src, up)
+      await remote.put(f.path, f.src, (sent) =>
+        this.report({ step: 'subiendo', done, total, bytes: doneBytes + sent, totalBytes }),
+      )
       doneBytes += f.size
       done++
       this.report({ step: 'subiendo', done, total, bytes: doneBytes, totalBytes }, true)
     }
-    // 2. ¿Alguien ha subido mientras tanto?
-    const latest = await this.readManifest(remote)
-    if ((latest?.generation ?? 0) !== baseGen)
-      throw new Error(t('La nube ha cambiado: vuelve a sincronizar.'))
-    // 3. La base de datos lleva ya su nueva generación (así el otro equipo la conoce).
-    const before = this.state()
-    const gen = baseGen + 1
-    const at = this.now().toISOString()
-    writeSetting(this.db(), STATE_KEY, {
-      generation: gen,
-      changeMark: this.changes(),
-      lastSyncAt: at,
-    })
-    const dir = this.tmpDir()
-    try {
-      checkpoint(this.db())
-      copyFileSync(join(vaultPath, VAULT_FILES.db), join(dir, VAULT_FILES.db))
-      copyFileSync(join(vaultPath, VAULT_FILES.manifest), join(dir, VAULT_FILES.manifest))
-      await remote.put('crm.db', join(dir, VAULT_FILES.db), up)
-      await remote.put('vault.json', join(dir, VAULT_FILES.manifest))
-      this.report({ step: 'subiendo', done: total, total, bytes: totalBytes, totalBytes }, true)
-      // 4. sync.json al final: es lo que confirma la subida.
-      const manifest: RemoteManifest = {
-        format: 'crm-mellow-sync',
-        version: 1,
-        vaultId: this.vault.vaultId!,
-        generation: gen,
-        device: this.opts.hostname,
-        uploadedAt: at,
-      }
-      await remote.writeText('sync.json', JSON.stringify(manifest, null, 2))
-    } catch (e) {
-      writeSetting(this.db(), STATE_KEY, before)
-      throw e
-    } finally {
-      rmSync(dir, { recursive: true, force: true })
-    }
+    this.blobsChecked = true
   }
 
   private localBlobs(kind: 'files' | 'thumbs'): string[] {
-    const root = join(this.vault.currentPath!, kind)
+    const root = join(this.vaultPath(), kind)
     if (!existsSync(root)) return []
     return readdirSync(root)
       .filter((d) => /^[a-f0-9]{2}$/.test(d))
@@ -578,7 +1385,7 @@ export class SyncService {
    * siguen bajando los demás y al final se avisa (D-124).
    */
   private async downloadMissing(remote: Remote): Promise<void> {
-    const vaultPath = this.vault.currentPath!
+    const vaultPath = this.vaultPath()
     const rows = this.db().prepare('SELECT id, size, has_thumb FROM files').all() as {
       id: string
       size: number
@@ -637,19 +1444,31 @@ export class SyncService {
       )
   }
 
+  /** Las copias «antes de sincronizar»: solo las últimas (D-125). */
+  private pruneSyncBackups(): void {
+    const dir = join(this.vaultPath(), VAULT_FILES.backups)
+    if (!existsSync(dir)) return
+    const names = readdirSync(dir)
+      .filter((n) => parseBackupName(n)?.reason === SYNC_BACKUP_REASON)
+      .sort()
+      .reverse()
+    for (const n of names.slice(KEEP_SYNC_BACKUPS))
+      rmSync(join(dir, n), { recursive: true, force: true })
+  }
+
   /** Resuelve un conflicto; la versión descartada queda como copia de seguridad. */
   async resolve(keep: 'local' | 'remote'): Promise<void> {
     const remote = this.remote()
     if (!remote || !this.conflict) return
-    return this.held(() => this.doResolve(remote, keep))
+    return this.held('manual', () => this.doResolve(remote, keep))
   }
 
   private async doResolve(remote: Remote, keep: 'local' | 'remote'): Promise<void> {
     try {
       this.phase = 'syncing'
       this.emit()
-      const m = await this.readManifest(remote)
-      if (!m) throw new Error(t('El destino ya no tiene datos.'))
+      const r = await this.readRemote(remote)
+      if (!r) throw new Error(t('El destino ya no tiene datos.'))
       if (keep === 'local') {
         // La versión de la nube se guarda aquí como copia antes de sustituirla.
         const stamp = this.now()
@@ -657,14 +1476,18 @@ export class SyncService {
           .replace(/\.\d+Z$/, '')
           .replace(/[-:]/g, '')
           .replace('T', '-')
-        const dir = join(this.vault.currentPath!, VAULT_FILES.backups, `${stamp}-conflicto-nube`)
+        const dir = join(this.vaultPath(), VAULT_FILES.backups, `${stamp}-conflicto-nube`)
         mkdirSync(dir, { recursive: true })
-        await remote.get('crm.db', join(dir, VAULT_FILES.db))
-        await remote.get('vault.json', join(dir, VAULT_FILES.manifest))
-        await this.push(remote, m.generation)
+        const base = r.v2 ? `snapshots/${r.v2.snapshot.id}/` : ''
+        await remote.get(`${base}crm.db`, join(dir, VAULT_FILES.db))
+        await remote.get(`${base}vault.json`, join(dir, VAULT_FILES.manifest))
+        await this.newEpoch(remote)
+      } else if (r.v1) {
+        if ((await this.pullV1(remote, r.v1)) === 'locked') return
+        await this.newEpoch(remote)
       } else {
-        const r = await this.pull(remote, m)
-        if (r === 'locked') return
+        if (!(await this.rebase(remote, r.v2, false))) return
+        await this.exchange(remote, r.v2)
       }
       await this.downloadMissing(remote)
       this.conflict = null
@@ -689,7 +1512,7 @@ export class SyncService {
 
   /** Copia ahora (local y, si hay destino, también allí) y aplica la retención. */
   async createBackup(reason = 'manual'): Promise<string> {
-    const vaultPath = this.vault.currentPath!
+    const vaultPath = this.vaultPath()
     const dir = backupVault(vaultPath, this.db(), reason, this.now())
     const name = dir.split(/[\\/]/).pop()!
     if (reason === AUTO_REASON) writeSetting(this.db(), BACKUP_LAST_KEY, this.now().toISOString())
@@ -713,7 +1536,7 @@ export class SyncService {
   }
 
   async listBackups(): Promise<BackupEntry[]> {
-    const localDir = join(this.vault.currentPath!, VAULT_FILES.backups)
+    const localDir = join(this.vaultPath(), VAULT_FILES.backups)
     const local = existsSync(localDir) ? readdirSync(localDir) : []
     let remoteNames: string[] = []
     const remote = this.remote()
@@ -746,7 +1569,7 @@ export class SyncService {
   /** Restaura una copia (si solo está en la nube, la descarga antes). */
   async restoreBackup(name: string): Promise<'reopened' | 'locked'> {
     if (!parseBackupName(name)) throw new AppError('INVALID_INPUT')
-    const dir = join(this.vault.currentPath!, VAULT_FILES.backups, name)
+    const dir = join(this.vaultPath(), VAULT_FILES.backups, name)
     if (!existsSync(join(dir, VAULT_FILES.db))) {
       const remote = this.remote()
       if (!remote) throw new AppError('INVALID_INPUT', undefined, t('La copia no existe.'))
@@ -756,11 +1579,19 @@ export class SyncService {
         (await remote.get(`backups/${name}/vault.json`, join(dir, VAULT_FILES.manifest)))
       if (!ok) throw new AppError('INVALID_INPUT', undefined, t('La copia no existe.'))
     }
+    const keep = this.db()
+      .prepare("SELECT key, value FROM settings WHERE key LIKE 'sync.%'")
+      .all() as { key: string; value: string }[]
     const r = await this.vault.replaceDatabase(dir, 'antes-de-restaurar')
     if (r === 'reopened') {
-      // Lo restaurado se sube en la próxima sincronización, aunque la nube sea más nueva.
-      writeSetting(this.db(), CHANGES_KEY, this.changes() + 1)
-      writeSetting(this.db(), FORCE_PUSH_KEY, true)
+      // Lo restaurado empieza una época nueva en la próxima sincronización: es la buena.
+      const db = this.db()
+      db.prepare("DELETE FROM settings WHERE key LIKE 'sync.%'").run()
+      const put = db.prepare('INSERT INTO settings (key, value, updated_at) VALUES (?, ?, ?)')
+      for (const k of keep) put.run(k.key, k.value, new Date().toISOString())
+      this.attach().clear()
+      writeSetting(db, CHANGES_KEY, this.changes() + 1)
+      writeSetting(db, FORCE_PUSH_KEY, true)
     }
     this.emit()
     return r
