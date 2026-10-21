@@ -87,8 +87,17 @@ export function closeDb(db: SqliteDb): void {
   db.close()
 }
 
-/** Re-cifra toda la base de datos con una clave nueva. */
+/**
+ * Re-cifra toda la base de datos con una clave nueva. El SQLite del móvil (3.49) no lo hace
+ * en modo WAL (D-127): se pasa un momento al modo normal y se vuelve al WAL al terminar.
+ */
 export function rekeyDb(db: SqliteDb, newKey: Buffer): void {
-  applyKey(db, newKey, 'rekey')
-  db.prepare('SELECT count(*) FROM sqlite_master').get()
+  checkpoint(db)
+  db.pragma('journal_mode = DELETE')
+  try {
+    applyKey(db, newKey, 'rekey')
+    db.prepare('SELECT count(*) FROM sqlite_master').get()
+  } finally {
+    db.pragma('journal_mode = WAL')
+  }
 }
