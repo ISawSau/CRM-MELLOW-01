@@ -10,6 +10,7 @@ import { reports } from './reports'
 import { screens } from './screens'
 import { shared } from './shared'
 import { shell } from './shell'
+import { sync } from './sync'
 import { theme } from './theme'
 import { tools } from './tools'
 
@@ -28,5 +29,6 @@ export const EN: Record<string, string> = {
   ...theme,
   ...growth,
   ...books,
+  ...sync,
   ...fixes,
 }
