@@ -1,10 +1,24 @@
-import { READER_THEME_COLORS, isDarkReaderTheme, type ReaderPrefs } from '@shared/books'
+import {
+  READER_THEME_COLORS,
+  isBundledFont,
+  isDarkReaderTheme,
+  type ReaderPrefs,
+} from '@shared/books'
 import type { FrameStyle } from '@shared/reader-messages'
+import { BUNDLED_FAMILY } from './fonts'
 
-/** Tipografías del lector: las del sistema (ni descargas ni fuentes externas). */
-const FONTS: Record<Exclude<ReaderPrefs['font'], 'libro'>, string> = {
-  serif: "Georgia, 'Noto Serif', 'Liberation Serif', 'Times New Roman', serif",
-  sans: "system-ui, 'Segoe UI', Roboto, 'Noto Sans', 'Liberation Sans', sans-serif",
+const SERIF = "Georgia, 'Noto Serif', 'Liberation Serif', 'Times New Roman', serif"
+const SANS = "system-ui, 'Segoe UI', Roboto, 'Noto Sans', 'Liberation Sans', sans-serif"
+/**
+ * Tipografías del lector: las del sistema y las que van dentro de la app (D-124), con las
+ * del sistema de reserva mientras cargan. Nada se descarga de internet.
+ */
+export const FONT_FAMILIES: Record<Exclude<ReaderPrefs['font'], 'libro'>, string> = {
+  serif: SERIF,
+  sans: SANS,
+  literata: `'${BUNDLED_FAMILY.literata}', ${SERIF}`,
+  atkinson: `'${BUNDLED_FAMILY.atkinson}', ${SANS}`,
+  dislexia: `'${BUNDLED_FAMILY.dislexia}', ${SANS}`,
 }
 /** Márgenes laterales (hueco entre columnas), de estrechos a anchos. */
 const GAPS = [3, 6, 9, 13]
@@ -45,8 +59,11 @@ export function frameStyle(prefs: ReaderPrefs, wide: boolean): FrameStyle {
   const c = readerColors(prefs)
   return {
     ...c,
-    fontFamily: prefs.font === 'libro' ? null : FONTS[prefs.font],
+    fontFamily: prefs.font === 'libro' ? null : FONT_FAMILIES[prefs.font],
+    bundledFont: isBundledFont(prefs.font) ? prefs.font : null,
     fontSize: prefs.fontSize,
+    weight: prefs.weight,
+    spacing: prefs.spacing,
     lineHeight: prefs.lineHeight,
     gap: GAPS[prefs.margin] ?? 6,
     justify: prefs.justify,

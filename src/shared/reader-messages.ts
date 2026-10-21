@@ -1,3 +1,4 @@
+import type { BundledFont } from './books'
 /**
  * Mensajes entre la app y el marco aislado del lector de ebooks (D-123). El marco no
  * habla con el motor: recibe el libro y la apariencia y cuenta por dónde va.
@@ -17,7 +18,13 @@ export interface FrameStyle {
   dark: boolean
   /** null: la del libro. */
   fontFamily: string | null
+  /** Tipo de letra que va dentro de la app: el marco carga sus archivos (D-124). */
+  bundledFont: BundledFont | null
   fontSize: number
+  /** 0 normal, 1 más gruesa, 2 negrita. */
+  weight: number
+  /** 0 normal … 3 mucho más espacio entre letras y palabras. */
+  spacing: number
   lineHeight: number
   /** Hueco entre columnas y a los lados, en %. */
   gap: number

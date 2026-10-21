@@ -116,14 +116,31 @@ export type ReadingGoal = z.infer<typeof readingGoalSchema>
 
 export const READER_THEMES = ['app', 'papel', 'sepia', 'noche', 'negro'] as const
 export type ReaderTheme = (typeof READER_THEMES)[number]
-export const READER_FONTS = ['libro', 'serif', 'sans'] as const
+/**
+ * Tipos de letra (D-124): el del libro, los del sistema y tres que van dentro de la app
+ * (licencia OFL) para leer mejor: Literata (hecha para leer en pantalla), Atkinson
+ * Hyperlegible (letras que no se confunden) y OpenDyslexic (para dislexia o letra cansada).
+ */
+export const READER_FONTS = ['libro', 'literata', 'serif', 'atkinson', 'sans', 'dislexia'] as const
 export type ReaderFont = (typeof READER_FONTS)[number]
+export const BUNDLED_FONTS = ['literata', 'atkinson', 'dislexia'] as const
+export type BundledFont = (typeof BUNDLED_FONTS)[number]
+export function isBundledFont(f: string): f is BundledFont {
+  return (BUNDLED_FONTS as readonly string[]).includes(f)
+}
+/** Tamaño de la letra (%): hasta 400 para quien lo necesite muy grande. */
+export const FONT_SIZE_MIN = 60
+export const FONT_SIZE_MAX = 400
 
 export const readerPrefsSchema = z.object({
   theme: z.enum(READER_THEMES).default('app'),
   font: z.enum(READER_FONTS).default('libro'),
   /** Tamaño del texto en %. */
-  fontSize: z.number().int().min(60).max(250).default(100),
+  fontSize: z.number().int().min(FONT_SIZE_MIN).max(FONT_SIZE_MAX).default(100),
+  /** Grosor: 0 normal, 1 más gruesa (trazo), 2 negrita. */
+  weight: z.number().int().min(0).max(2).default(0),
+  /** Espacio entre letras y palabras: 0 normal … 3 mucho más. */
+  spacing: z.number().int().min(0).max(3).default(0),
   lineHeight: z.number().min(1).max(2.4).default(1.5),
   /** Márgenes laterales: 0 estrechos … 3 anchos. */
   margin: z.number().int().min(0).max(3).default(1),
@@ -138,6 +155,10 @@ export const readerPrefsSchema = z.object({
   volumeKeys: z.boolean().default(true),
   /** PDF: invertir colores con los temas oscuros. */
   pdfInvert: z.boolean().default(true),
+  /** PDF escaneado: realzar el texto (gris y más contraste) para páginas gastadas. */
+  pdfEnhance: z.enum(['no', 'nitido', 'contraste']).default('no'),
+  /** PDF: recortar los márgenes blancos (0 nada … 3 mucho) para que el texto salga mayor. */
+  pdfCrop: z.number().int().min(0).max(3).default(0),
 })
 export type ReaderPrefs = z.infer<typeof readerPrefsSchema>
 export const DEFAULT_READER_PREFS: ReaderPrefs = readerPrefsSchema.parse({})

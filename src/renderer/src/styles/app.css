@@ -508,7 +508,8 @@ kbd {
   border-left: 1px solid var(--line);
 }
 
-.segmented button[aria-pressed='true'] {
+.segmented button[aria-pressed='true'],
+.segmented button[aria-checked='true'] {
   background: var(--accent);
   color: var(--on-accent);
   font-weight: 600;
