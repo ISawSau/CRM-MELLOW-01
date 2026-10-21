@@ -19,3 +19,10 @@ libheif (dentro de la app, node_modules/libheif-js)
   Licencia: GNU LGPL versión 3 (texto completo en libheif-LGPL-3.0.txt).
   Código fuente: https://github.com/strukturag/libheif y
   https://github.com/catdad-experiments/libheif-js
+
+Tipos de letra (dentro de la app)
+  Archivo, DM Sans y JetBrains Mono (la interfaz) y Literata, Atkinson Hyperlegible y
+  OpenDyslexic (el lector de libros), de los paquetes de Fontsource, sin modificar.
+  Licencia: SIL Open Font License 1.1 (textos completos en fuente-*-OFL-1.1.txt).
+  Origen: https://fontsource.org, https://github.com/googlefonts/literata,
+  https://www.brailleinstitute.org/freefont y https://opendyslexic.org
