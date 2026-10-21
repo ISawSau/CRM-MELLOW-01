@@ -443,3 +443,35 @@ export const readingSessions = sqliteTable(
     index('reading_sessions_record_idx').on(t.recordId),
   ],
 )
+
+// --- Sincronización por cambios (D-125) -----------------------------------------------
+
+/**
+ * Filas cambiadas en este equipo que aún no se han subido. La clave es la identidad de la
+ * fila (JSON); al volver a cambiarla se reemplaza y su id crece, así nunca se pierde un
+ * cambio hecho mientras se subía el anterior.
+ */
+export const syncOutbox = sqliteTable(
+  'sync_outbox',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    tbl: text('tbl').notNull(),
+    key: text('key').notNull(),
+    /** Reloj híbrido del cambio (milisegundos, siempre creciente). */
+    ts: integer('ts').notNull(),
+  },
+  (t) => [uniqueIndex('sync_outbox_row').on(t.tbl, t.key)],
+)
+
+/** Último cambio conocido de cada fila, de este equipo o de otro: decide quién gana. */
+export const syncRows = sqliteTable(
+  'sync_rows',
+  {
+    tbl: text('tbl').notNull(),
+    key: text('key').notNull(),
+    ts: integer('ts').notNull(),
+    /** Equipo que lo hizo (desempata dos cambios con el mismo reloj). */
+    dev: text('dev').notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.tbl, t.key] })],
+)

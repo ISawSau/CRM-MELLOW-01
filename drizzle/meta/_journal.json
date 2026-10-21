@@ -64,6 +64,13 @@
       "when": 1792589177880,
       "tag": "0008_biblioteca",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1792605337504,
+      "tag": "0009_sincronizacion",
+      "breakpoints": true
     }
   ]
 }

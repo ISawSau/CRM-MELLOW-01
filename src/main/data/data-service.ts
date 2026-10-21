@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import {
   briefDocFromTemplate,
   briefTemplatesSchema,
@@ -178,6 +178,16 @@ function chunks<T>(xs: T[], n = CHUNK): T[][] {
 
 function newId(): string {
   return randomUUID()
+}
+
+/**
+ * Id de lo que se siembra de serie (campos y vistas): el mismo en todos los equipos, para
+ * que dos equipos que se actualizan a la vez no creen el mismo campo con ids distintos
+ * (D-125). Con forma de UUID.
+ */
+function seededId(...parts: string[]): string {
+  const h = createHash('sha256').update(parts.join('\u0000')).digest('hex')
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20, 32)}`
 }
 
 export type { FileInfo, VersionEntry }
@@ -773,7 +783,7 @@ export class DataService {
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           )
           .run(
-            newId(),
+            seededId('campo', entity, f.key),
             entity,
             f.key,
             f.label,
@@ -818,10 +828,19 @@ export class DataService {
             .get(e.id) as { m: number | null }
           this.db
             .prepare(
-              `INSERT INTO views (id, entity, name, kind, config, position, created_at, updated_at)
+              `INSERT OR IGNORE INTO views (id, entity, name, kind, config, position, created_at, updated_at)
                VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
             )
-            .run(newId(), e.id, v.name, v.kind, JSON.stringify(config), (max.m ?? -1) + 1, now, now)
+            .run(
+              seededId('vista', e.id, v.name, v.kind),
+              e.id,
+              v.name,
+              v.kind,
+              JSON.stringify(config),
+              (max.m ?? -1) + 1,
+              now,
+              now,
+            )
         })
         this.putSetting(`data.seeded.${e.id}`, e.seedVersion)
       }
@@ -1605,6 +1624,28 @@ export class DataService {
         'INSERT INTO history (record_id, entity, at, action, changes) VALUES (?, ?, ?, ?, ?)',
       )
       .run(recordId, entity, this.nowIso(), action, JSON.stringify(changes))
+  }
+
+  /**
+   * Han llegado cambios de otro equipo (D-125): fuera lo guardado en memoria y la búsqueda
+   * al día. Si han cambiado campos o colecciones, se reindexa todo.
+   */
+  afterRemoteChanges(c: {
+    tables: Set<string>
+    settings: Set<string>
+    records: Set<string>
+  }): void {
+    this.formulaCache.clear()
+    this.titleIds.clear()
+    this.collectionCache = null
+    const all = c.tables.has('field_defs') || c.settings.has(COLLECTIONS_KEY)
+    const records = c.records
+    const ids = all
+      ? (this.db.prepare('SELECT id FROM records').all() as { id: string }[]).map((r) => r.id)
+      : [...records]
+    this.tx(() => {
+      for (const id of ids) this.reindex(id)
+    })
   }
 
   /** Texto indexado para la búsqueda global: título y campos de texto. */

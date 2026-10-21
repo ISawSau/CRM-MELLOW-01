@@ -139,6 +139,17 @@ export class VaultService {
   }
 
   /** Conexión SQLite (solo para el proceso principal: copias y sincronización). */
+  private readonly unlockHooks = new Set<(sqlite: SqliteDb) => void>()
+
+  /**
+   * Avisa cada vez que se abre la base de datos (también al reabrirla tras traer otra
+   * versión): la sincronización instala ahí su registro de cambios (D-125).
+   */
+  onUnlocked(hook: (sqlite: SqliteDb) => void): () => void {
+    this.unlockHooks.add(hook)
+    return () => this.unlockHooks.delete(hook)
+  }
+
   get sqlite(): SqliteDb {
     if (!this.unlocked) throw new AppError('VAULT_IS_LOCKED')
     return this.unlocked.sqlite
@@ -365,6 +376,14 @@ export class VaultService {
       }, HEARTBEAT_MS)
       heartbeat.unref()
       this.unlocked = { sqlite, db: toDrizzle(sqlite), data, masterKey, lock, heartbeat }
+      for (const hook of this.unlockHooks) {
+        try {
+          hook(sqlite)
+        } catch (e) {
+          // Quien lo instala lo vuelve a intentar al sincronizar y avisa si no puede.
+          console.error('onUnlocked', e)
+        }
+      }
     } catch (e) {
       if (sqlite?.open) sqlite.close()
       if (lock) releaseLock(vaultPath, this.instanceId)
