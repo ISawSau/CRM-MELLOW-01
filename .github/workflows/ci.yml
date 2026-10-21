@@ -74,6 +74,33 @@ jobs:
           path: playwright-report/
           retention-days: 2
 
+  # El móvil usa un SQLite más antiguo que el escritorio (el módulo para el Node 18 de
+  # nodejs-mobile, D-127): los tests unitarios pasan también con esa versión. Node 22
+  # porque Vitest ya no funciona con el 18 y ese módulo no tiene binario para el 24.
+  sqlite-movil:
+    name: Tests con el SQLite del móvil
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalar dependencias y el módulo del móvil
+        run: |
+          npm ci
+          version=$(node -p "require('./mobile/package.json').dependencies['better-sqlite3'].split('@').pop()")
+          npm install --prefix "$RUNNER_TEMP/sqlite-movil" --no-save --no-package-lock \
+            "better-sqlite3-multiple-ciphers@$version"
+
+      - name: Tests unitarios
+        run: npm test
+        env:
+          CRM_SQLITE_MOVIL: ${{ runner.temp }}/sqlite-movil/node_modules/better-sqlite3-multiple-ciphers
+
   # Al subir la versión en main: crea la versión en Releases como borrador, para que cada
   # instalador se suba a ella directamente (sin pasar por el almacenamiento de artefactos).
   version:
@@ -257,9 +284,9 @@ jobs:
   # motor e interfaz cargada) y, con la clave de firma guardada como secreto, se publica.
   android:
     name: App de Android
-    needs: [calidad, version]
+    needs: [calidad, sqlite-movil, version]
     if: >-
-      always() && needs.calidad.result == 'success' &&
+      always() && needs.calidad.result == 'success' && needs.sqlite-movil.result == 'success' &&
       (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
     timeout-minutes: 60
