@@ -103,6 +103,21 @@ test('el lector de ebooks va aislado y se lee con las flechas', async () => {
     }),
   ).toEqual({ api: 'undefined', dom: 'bloqueado', origin: 'crm-reader://reader' })
 
+  // Una letra que va con la app (D-124) se carga también en crm-reader://.
+  await page.getByTestId('reader-settings').click()
+  await page.getByTestId('reader-font-literata').click()
+  await page.keyboard.press('Escape')
+  await expect
+    .poll(
+      async () =>
+        (await chapterFrame()).evaluate(async () => {
+          await document.fonts.ready
+          return document.fonts.check('16px "CRM Literata"')
+        }),
+      { timeout: 15_000 },
+    )
+    .toBe(true)
+
   const before = await page.getByTestId('reader-page').textContent()
   await page.getByTestId('reader-next').click()
   await expect(page.getByTestId('reader-page')).not.toHaveText(before ?? '')

@@ -1,6 +1,6 @@
 # Especificación del CRM personal
 
-Versión 0.9 · 21 de octubre de 2026
+Versión 0.9.1 · 21 de octubre de 2026
 
 Este documento recoge todas las decisiones de diseño tomadas antes de escribir código. Es la referencia para construir el proyecto fase a fase. Lo que aparece marcado como **verificar** depende de APIs o normativa externa que cambian con el tiempo y debe comprobarse en la documentación oficial antes de implementarlo.
 
@@ -123,6 +123,9 @@ Google no ofrece cliente oficial de Google Drive para escritorio en Linux, así 
 - Se suben `crm.db`, `vault.json` y los archivos y miniaturas que falten (por su HMAC). `sync.json` (generación, equipo y fecha) se escribe al final y confirma la subida.
 - **Copias:** cada 3 días por defecto, local y en el destino. Retención por defecto: las 10 últimas más la última de cada mes, solo para las automáticas. Las demás (antes de actualizar, de sincronizar, de restaurar…) no se borran solas.
 - **Restaurar:** desde Ajustes, con fecha, motivo, tamaño y dónde está la copia. Si es de una contraseña anterior, la bóveda queda bloqueada para entrar con aquella contraseña. Lo restaurado se sube en la próxima sincronización.
+- **Redes que fallan (D-124):** cada llamada a Drive tiene límite de tiempo y se repite ante fallos de red, 429 y 5xx. Una subida grande sigue desde lo que Drive ya ha recibido y una descarga cortada sigue con Range. Un archivo que no baja no impide bajar los demás; al final se avisa. Nunca se queda en «sincronizando» sin terminar.
+- **Progreso:** qué hace (comprobar, subir o bajar), cuántos archivos y cuántos MB, en Ajustes, en Perfil, en la barra de estado y, en el móvil, como una línea bajo la barra superior.
+- **Mientras sincroniza:** en Android, servicio en primer plano y pantalla encendida (no se bloquea por inactividad); en el escritorio, el equipo no se suspende.
 
 ### Riesgos a verificar
 
@@ -393,7 +396,9 @@ Para leer libros dentro de la app, sobre todo en el móvil (D-123). Es para leer
   - En el móvil: toques a los lados o deslizar para pasar página, centro para ver u ocultar los controles, botones de volumen (opcional), pantalla siempre encendida y sin barras del sistema mientras se lee.
   - En el ordenador: flechas y dos páginas si caben.
   - Índice, barra de avance, página o posición, porcentaje y tiempo que queda del capítulo y del libro con tu ritmo.
-- **Apariencia:** temas (como la app, papel, sepia, noche, negro), letra, tamaño, interlineado, márgenes, justificado, página a página o continuo y atenuar. Se guarda por tipo de equipo (móvil u ordenador). PDF con ajuste a la pantalla, pellizco para ampliar e inversión de colores en temas oscuros.
+- **Apariencia:** temas (como la app, papel, sepia, noche, negro), letra, tamaño, interlineado, márgenes, justificado, página a página o continuo y atenuar. Se guarda por tipo de equipo (móvil u ordenador).
+  - **Letra (D-124):** la del libro, con o sin remates del sistema, o una de las que van con la app (Literata, Atkinson Hyperlegible y OpenDyslexic, licencia OFL). Tamaño del 60 al 400 %, grosor (normal, más gruesa, negrita) y espacio entre letras y palabras.
+  - **PDF:** ajuste a la pantalla, pellizco para ampliar, inversión de colores en temas oscuros y, para escaneados antiguos, realzar el texto (gris y más contraste) y recortar márgenes.
 - **Seguimiento:**
   - por dónde va cada libro, sincronizado entre equipos;
   - ratos de lectura (solo el tiempo leyendo: los huecos de más de tres minutos sin pasar página no cuentan);

@@ -11,6 +11,9 @@ import type { PaneEvents, PaneHandle } from './panes'
  * ampliar) o en continuo (desplazando, pintando solo las páginas cercanas).
  */
 
+/** Cuánto se recorta de cada lado de la página según «Recortar márgenes». */
+const CROP = [0, 0.04, 0.07, 0.1]
+
 interface Flat {
   label: string
   page: number
@@ -29,6 +32,8 @@ export function PdfPane({
   initialPage,
   mode,
   invert,
+  enhance,
+  crop,
   events,
   ref,
 }: {
@@ -36,6 +41,10 @@ export function PdfPane({
   initialPage: number | null
   mode: 'paginado' | 'continuo'
   invert: boolean
+  /** Realzar el texto de un escaneado (D-124). */
+  enhance: 'no' | 'nitido' | 'contraste'
+  /** Recortar márgenes: 0 nada … 3 mucho (D-124). */
+  crop: number
   events: PaneEvents
   ref: Ref<PaneHandle>
 }) {
@@ -143,6 +152,7 @@ export function PdfPane({
       canvas,
       (size.w - pad * 2) * zoom,
       zoom === 1 ? size.h - pad * 2 : null,
+      CROP[crop] ?? 0,
     ).then(
       () => {
         if (stale || !stage.current) return
@@ -153,7 +163,7 @@ export function PdfPane({
     return () => {
       stale = true
     }
-  }, [doc, page, size, zoom, mode])
+  }, [doc, page, size, zoom, mode, crop])
 
   // Toques, deslizar y pellizcar (página a página).
   const pointers = useRef(new Map<number, { x: number; y: number }>())
@@ -223,13 +233,14 @@ export function PdfPane({
   useEffect(() => {
     const el = list.current
     if (!doc || mode !== 'continuo' || !el) return
+    const cropFraction = CROP[crop] ?? 0
     const rendered = new Map<number, HTMLCanvasElement>()
     const render = (n: number, slot: HTMLElement) => {
       if (rendered.has(n)) return
       const canvas = document.createElement('canvas')
       canvas.className = 'pdf-page'
       rendered.set(n, canvas)
-      void renderPdfPage(doc, n, canvas, slot.clientWidth, null).then(
+      void renderPdfPage(doc, n, canvas, slot.clientWidth, null, cropFraction).then(
         () => {
           if (rendered.get(n) === canvas) slot.replaceChildren(canvas)
         },
@@ -277,12 +288,13 @@ export function PdfPane({
       el.removeEventListener('scroll', onScroll)
       cancelAnimationFrame(raf)
     }
-  }, [doc, mode, ratio])
+  }, [doc, mode, ratio, crop])
 
   return (
     <div
       className="reader-host pdf-host"
       data-invert={invert}
+      data-enhance={enhance}
       data-mode={mode}
       data-zoomed={zoom > 1}
       data-testid="reader-pdf"

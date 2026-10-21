@@ -472,6 +472,45 @@
   width: auto;
 }
 
+.reader-field {
+  display: grid;
+  gap: var(--space-2);
+}
+
+/* Tipos de letra (D-124): cada botón enseña la letra. */
+.reader-fonts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+
+.reader-font {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  min-height: 64px;
+  padding: var(--space-2) var(--space-1);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--text-xs);
+  line-height: 1.2;
+  text-align: center;
+  cursor: pointer;
+}
+
+.reader-font[aria-checked='true'] {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.reader-font-sample {
+  font-size: 22px;
+  line-height: 1.1;
+}
+
 .reader-stepper {
   display: inline-flex;
   align-items: center;
@@ -595,8 +634,27 @@
   box-shadow: 0 2px 10px rgb(0 0 0 / 25%);
 }
 
+/*
+ * Realzar el texto de un escaneado (D-124): gris y más contraste; el fondo amarillento o
+ * manchado se aclara y la tinta gastada se oscurece. Se combina con invertir.
+ */
+.pdf-page {
+  --pdf-enhance: contrast(1);
+  --pdf-invert: contrast(1);
+
+  filter: var(--pdf-enhance) var(--pdf-invert);
+}
+
+.pdf-host[data-enhance='nitido'] .pdf-page {
+  --pdf-enhance: grayscale(1) contrast(1.5) brightness(1.04);
+}
+
+.pdf-host[data-enhance='contraste'] .pdf-page {
+  --pdf-enhance: grayscale(1) brightness(1.12) contrast(2.6);
+}
+
 .pdf-host[data-invert='true'] .pdf-page {
-  filter: invert(1) hue-rotate(180deg);
+  --pdf-invert: invert(1) hue-rotate(180deg);
 }
 
 .pdf-list {

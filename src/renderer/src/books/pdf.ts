@@ -53,24 +53,34 @@ export async function renderPdfPage(
   canvas: HTMLCanvasElement,
   cssWidth: number,
   cssHeight: number | null,
+  /** Parte de cada lado que se recorta (0–0,2): márgenes fuera, texto más grande (D-124). */
+  crop = 0,
 ): Promise<{ width: number; height: number }> {
   const page = await doc.getPage(pageNumber)
   const base = page.getViewport({ scale: 1 })
-  // Ajustar al ancho o, si se da el alto, a la página entera.
-  let scale = cssWidth / base.width
-  if (cssHeight !== null) scale = Math.min(scale, cssHeight / base.height)
+  const keep = 1 - 2 * crop
+  // Ajustar al ancho o, si se da el alto, a la página entera (lo que queda tras recortar).
+  let scale = cssWidth / (base.width * keep)
+  if (cssHeight !== null) scale = Math.min(scale, cssHeight / (base.height * keep))
   const dpr = Math.min(window.devicePixelRatio || 1, 2.5)
   const viewport = page.getViewport({ scale: scale * dpr })
-  canvas.width = Math.ceil(viewport.width)
-  canvas.height = Math.ceil(viewport.height)
-  const width = Math.round(viewport.width / dpr)
-  const height = Math.round(viewport.height / dpr)
+  canvas.width = Math.ceil(viewport.width * keep)
+  canvas.height = Math.ceil(viewport.height * keep)
+  const width = Math.round((viewport.width * keep) / dpr)
+  const height = Math.round((viewport.height * keep) / dpr)
   canvas.style.width = `${width}px`
   canvas.style.height = `${height}px`
   const ctx = canvas.getContext('2d')!
   ctx.fillStyle = '#ffffff'
   ctx.fillRect(0, 0, canvas.width, canvas.height)
-  await page.render({ canvas, canvasContext: ctx, viewport }).promise
+  await page.render({
+    canvas,
+    canvasContext: ctx,
+    viewport,
+    ...(crop > 0
+      ? { transform: [1, 0, 0, 1, -viewport.width * crop, -viewport.height * crop] }
+      : {}),
+  }).promise
   page.cleanup()
   return { width, height }
 }

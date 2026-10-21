@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
-import type { SyncStatus } from '@shared/ipc'
+import type { SyncProgress, SyncStatus } from '@shared/ipc'
+import { formatBytes } from '@shared/files'
 import { formatDateTime } from '@shared/format'
 import { call, IpcCallError, subscribe } from '../lib/ipc'
 import { useToast } from '../ui/Toast'
@@ -31,13 +32,69 @@ function ago(iso: string | null): string {
   return formatDateTime(new Date(iso))
 }
 
+/** «subiendo · 3 de 12 archivos · 4,5 MB de 20 MB» (D-124). */
+export function progressText(p: SyncProgress): string {
+  if (p.step === 'comprobando') return t('comprobando la nube…')
+  const parts = [p.step === 'subiendo' ? t('subiendo') : t('bajando')]
+  if (p.total > 1) parts.push(t('{done} de {total} archivos', { done: p.done, total: p.total }))
+  if (p.totalBytes > 0)
+    parts.push(
+      t('{bytes} de {total}', {
+        bytes: formatBytes(Math.min(p.bytes, p.totalBytes)),
+        total: formatBytes(p.totalBytes),
+      }),
+    )
+  return parts.join(' · ')
+}
+
+/** Fracción hecha (0–1), o null si aún no se sabe cuánto hay. */
+export function progressFraction(p: SyncProgress | null | undefined): number | null {
+  if (!p || p.step === 'comprobando') return null
+  if (p.totalBytes > 0) return Math.min(1, p.bytes / p.totalBytes)
+  return p.total > 0 ? Math.min(1, p.done / p.total) : null
+}
+
+/**
+ * Barra fina de progreso de la sincronización (Ajustes, Perfil y barra superior del móvil).
+ * Sin total conocido, una barra que se mueve sola: así se ve que no se ha quedado colgada.
+ */
+export function SyncProgressBar({
+  s,
+  className = '',
+}: {
+  s: SyncStatus | undefined
+  className?: string
+}) {
+  if (s?.phase !== 'syncing') return null
+  const f = progressFraction(s.progress)
+  return (
+    <div
+      className={`sync-bar ${f === null ? 'sync-bar-busy' : ''} ${className}`}
+      role="progressbar"
+      aria-label={t('Progreso de la sincronización')}
+      aria-valuemin={0}
+      aria-valuemax={100}
+      {...(f !== null ? { 'aria-valuenow': Math.round(f * 100) } : {})}
+      data-testid="sync-progress"
+    >
+      <span style={f !== null ? { width: `${f * 100}%` } : undefined} />
+    </div>
+  )
+}
+
 /** Texto y color del estado (barra de estado y Ajustes). */
 export function syncSummary(s: SyncStatus | undefined): {
   text: string
   tone: 'ok' | 'off' | 'warn' | 'error'
 } {
   if (!s || !s.kind) return { text: t('sincronización no configurada'), tone: 'off' }
-  if (s.phase === 'syncing') return { text: t('sincronizando…'), tone: 'warn' }
+  if (s.phase === 'syncing')
+    return {
+      text: s.progress
+        ? t('sincronizando: {what}', { what: progressText(s.progress) })
+        : t('sincronizando…'),
+      tone: 'warn',
+    }
   if (s.phase === 'conflict') return { text: t('conflicto: elige una versión'), tone: 'error' }
   if (s.phase === 'error') return { text: t('error de sincronización'), tone: 'error' }
   if (s.pending) return { text: t('cambios sin subir'), tone: 'warn' }

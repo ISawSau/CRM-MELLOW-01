@@ -1,3 +1,23 @@
+## Novedades de la 0.18.1 · La sincronización ya no se queda pillada y letra a tu gusto en el lector
+
+- **Sincronizar con Google Drive desde el móvil:**
+  - Si la conexión se corta o Google tarda, lo vuelve a intentar sola. Una subida o descarga grande sigue por donde iba, sin empezar de cero. Ya no se queda en «sincronizando» para siempre: termina o te dice qué ha fallado.
+  - Ves lo que hace: «subiendo · 3 de 12 archivos · 4,5 MB de 20 MB». Aparece con una barra en Ajustes, en Perfil y, en el móvil, como una línea fina bajo la barra de arriba.
+  - Mientras sincroniza, el móvil no apaga la pantalla. Si cambias de app o la bloqueas, sigue en segundo plano (verás un aviso de Android).
+- **Letra del lector (EPUB, MOBI, AZW3, FB2):**
+  - Tres letras nuevas pensadas para leer:
+    - **Literata**, hecha para leer en pantalla;
+    - **Atkinson Hyperlegible**, con letras que no se confunden;
+    - **OpenDyslexic**, para dislexia o vista cansada.
+  - Cada botón enseña cómo se ve su letra.
+  - Tamaño hasta el **400 %**.
+  - **Grosor:** normal, más gruesa o negrita, para letra fina o gastada.
+  - **Espaciado:** más aire entre letras y palabras.
+- **PDF escaneados (libros antiguos):** en un PDF la letra es una imagen y no se puede cambiar, pero ahora puedes:
+  - **realzar el texto** (más nítido o alto contraste): aclara el papel amarillento y oscurece la tinta gastada;
+  - **recortar márgenes**, para que el texto salga más grande en el móvil.
+- En los ajustes del lector ya se marca qué opción tienes elegida.
+
 ## Novedades de la 0.18.0 · Biblioteca: lee tus libros en la app (sobre todo en el móvil)
 
 - **Biblioteca nueva** (en el menú, grupo «personal»): añade libros en PDF, EPUB, MOBI, AZW3, FB2 o CBZ, sin DRM. Se guardan cifrados en la bóveda y se sincronizan con tus otros equipos, también el móvil, aunque sean grandes. El título, el autor y la portada salen del propio libro.

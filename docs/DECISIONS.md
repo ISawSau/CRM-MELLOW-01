@@ -1016,3 +1016,52 @@ El usuario no quiere escribir comandos de desarrollo para usar la app. Los insta
   - **Unidad:** el servicio, la descarga en el móvil, las CSP y el puerto del lector.
   - **Interfaz, en escritorio y en el móvil:** con un EPUB (portada, índice y contenido hostil) y un PDF hechos en el propio test. Comprueban añadir, leer pasando página, el índice, la apariencia, volver donde se estaba, terminar, que nada del libro llega a la app y que el marco no ve `window.api`.
 
+### D-124 · Sincronización que no se queda colgada y letra del lector a medida (v0.18.1)
+
+El usuario veía en el móvil «sincronizando» sin fin al sincronizar con Drive y pidió que el móvil no se apagara mientras sincroniza. Para el lector pidió poder cambiar la letra: en libros antiguos cuesta leerla o sale muy pequeña.
+
+- **Causa del cuelgue:** ninguna llamada a Drive tenía límite de tiempo (solo el cuerpo de una descarga). En una red de móvil, una conexión que se queda a medias (cobertura, cambio de wifi a datos, la pantalla que se apaga y Android que congela la app) deja la petición esperando para siempre. Además, desde la 0.18.0 el móvil baja todos los libros, aunque sean grandes, sin enseñar progreso.
+- **`DriveRemote`:**
+  - Cada llamada tiene 60 s, y el cuerpo se lee dentro de ese plazo.
+  - Fallos de red, 429, 5xx y 403 por límite de uso se repiten con espera: 1, 4, 15 y 30 s. Un 401 u otro 4xx no se repite.
+  - **Subida reanudable:** se hizo según la guía «Resume an interrupted upload» de Drive. Si un trozo falla, la app pregunta a Drive cuánto tiene (PUT vacío con `Content-Range: bytes */total`, que responde 308 con `Range`) y sigue desde ahí. Si la sesión ha caducado (404 u otro 4xx), abre otra. Un trozo que no avanza cuenta como fallo, para que no dé vueltas sin fin. Cada trozo tiene 5 minutos.
+  - **Descarga:** si se corta, sigue desde el byte en que iba con `Range` (206). Las descargas no se reintentan por dentro y por fuera a la vez: los reintentos no se multiplican.
+- **`SyncService`:**
+  - El estado lleva `progress`: paso (comprobando, subiendo o bajando), archivos y bytes. Avisa a la interfaz como mucho cada 400 ms.
+  - Baja primero lo pequeño.
+  - Si un archivo no baja, sigue con los demás y al final da el error. La sincronización siempre acaba en «sincronizado» o en «error».
+- **Despierto mientras sincroniza:**
+  - `hold` en la sincronización junta `keepRunning` (el servicio en primer plano de D-118, tipo `dataSync`) y `keepAwake`, nuevo en `Platform`.
+  - En Android, `keepAwake` es la petición nativa `awake`: `FLAG_KEEP_SCREEN_ON` mientras se lee o se sincroniza.
+  - En el escritorio, `powerSaveBlocker('prevent-app-suspension')`.
+  - Se suelta también si la sincronización falla.
+- **Interfaz:** una barra fina con el progreso (con el total o, si aún no se sabe, una que se mueve sola) en Ajustes, en Perfil y bajo la barra superior del móvil. El texto del estado dice qué hace, por ejemplo «subiendo · 3 de 12 archivos · 4,5 MB de 20 MB».
+- **Tipos de letra:**
+  - Literata, Atkinson Hyperlegible y OpenDyslexic, de Fontsource (OFL 1.1, juego latino, normal y negrita con sus cursivas). Van dentro de la app, sin descargas de internet. Cada una es un trozo de código aparte que solo se carga al elegirla (OpenDyslexic ocupa unos 600 KB).
+  - En el marco del lector se convierten en direcciones `blob:` para las `@font-face` de cada capítulo: su CSP ya admite letras de `blob:`, así que no se abre nada.
+  - En el panel, cada botón enseña su letra: se registra con `FontFace` desde los bytes, sin abrir la CSP de la app.
+  - Sus licencias van en `licencias/` de los instaladores y del APK, junto con las de las letras de la interfaz (Archivo, DM Sans, JetBrains Mono), que faltaban.
+- **Más ajustes de la letra:**
+  - **Tamaño hasta el 400 %:** de 10 en 10 hasta el 200 % y de 25 en 25 por encima.
+  - **Grosor:** «más gruesa» (`-webkit-text-stroke` de 0,025 em, vale para cualquier letra) o negrita.
+  - **Espaciado:** cuatro niveles de espacio entre letras y entre palabras.
+- **PDF escaneados:** la letra de un PDF no se puede cambiar, es una imagen. Lo que ayuda en un escaneado antiguo:
+  - **Realzar el texto:** filtro CSS en el canvas, gris con más contraste. El papel amarillento se aclara y la tinta gastada se oscurece. Se combina con invertir los colores.
+  - **Recortar márgenes:** 4, 7 o 10 % por lado, con `transform` de pdf.js, para que el texto salga mayor en la pantalla del móvil.
+- **Arreglo de paso:** los grupos de botones del lector usan `aria-checked` (son radios) y no se marcaban como elegidos. Ahora sí.
+- **Tests:**
+  - **Unidad:**
+    - Drive que no responde, sin red, 503 y 401.
+    - La red que no vuelve.
+    - Respuesta de un trozo perdida y sin red (sigue en la misma sesión).
+    - Sesión caducada.
+    - Descarga cortada a medias.
+    - El progreso y el «despierto» de la sincronización.
+    - Drive colgado que acaba en error.
+    - Un archivo que no baja sin parar los demás.
+  - **Interfaz, móvil y escritorio:**
+    - La letra se carga de verdad en el capítulo, también en `crm-reader://`.
+    - Negrita y espaciado.
+    - El tamaño hasta el 400 %.
+    - PDF realzado y recortado.
+

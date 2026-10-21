@@ -91,6 +91,8 @@ mkdir -p "$ASSETS/licencias"
 cp -r out/mobile/backend out/mobile/www "$ASSETS/"
 cp "$PKG/LICENSE" "$ASSETS/licencias/nodejs-mobile-MIT.txt"
 cp mobile/node_modules/better-sqlite3/LICENSE "$ASSETS/licencias/better-sqlite3-MIT.txt"
+# Los tipos de letra de la interfaz y del lector (OFL 1.1, D-124) y la licencia de la app.
+cp build/licencias/fuente-*-OFL-1.1.txt build/licencias/CRM-Mellow-MIT.txt "$ASSETS/licencias/"
 
 echo "== 4/4 APK ($TIPO)"
 if [ "$TIPO" = release ]; then TAREA=assembleRelease; else TAREA=assembleDebug; fi

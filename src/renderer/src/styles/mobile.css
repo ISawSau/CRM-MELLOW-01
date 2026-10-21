@@ -32,6 +32,18 @@
   border-bottom: 1px solid var(--line);
 }
 
+.m-topbar {
+  position: relative;
+}
+
+.m-topbar-sync {
+  position: absolute;
+  inset: auto 0 -1px 0;
+  height: 3px;
+  border-radius: 0;
+  background: transparent;
+}
+
 .m-title {
   flex: 1;
   min-width: 0;

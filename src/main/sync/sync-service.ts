@@ -2,7 +2,7 @@ import { copyFileSync, existsSync, mkdirSync, readdirSync, rmSync, statSync } fr
 import { join } from 'node:path'
 import { z } from 'zod'
 import { AppError } from '@shared/errors'
-import type { BackupEntry, SyncStatus } from '@shared/ipc'
+import type { BackupEntry, SyncProgress, SyncStatus } from '@shared/ipc'
 import { backupVault } from '../db/backup'
 import { checkpoint, type SqliteDb } from '../db/connection'
 import { VAULT_FILES } from '../vault/vault-file'
@@ -18,11 +18,12 @@ import {
   DRIVE_ROOT_PREFIX,
   DriveRemote,
   FolderRemote,
+  type DriveTiming,
   type DriveUrls,
   type FetchLike,
   type Remote,
 } from './remote'
-import { t } from '@shared/i18n'
+import { t, tn } from '@shared/i18n'
 
 /**
  * Sincronización entre equipos y copias de seguridad (SPEC §4).
@@ -145,9 +146,19 @@ export interface SyncServiceOptions {
   connect?: Pick<ConnectOptions, 'authUrl' | 'tokenUrl'>
   driveUrls?: DriveUrls
   onChange?: (s: SyncStatus) => void
+  /**
+   * Mientras sincroniza (D-124): en Android, servicio en primer plano y pantalla encendida,
+   * para que el sistema no congele la app ni le corte la red a mitad. Devuelve cómo soltarlo.
+   */
+  hold?: (text: string) => () => void
   http?: FetchLike
+  /** Tiempos de Drive (tests). */
+  driveTiming?: Partial<DriveTiming>
   now?: () => Date
 }
+
+/** Cada cuánto, como mucho, se avisa a la interfaz del progreso. */
+const PROGRESS_EMIT_MS = 400
 
 export class SyncService {
   private phase: SyncStatus['phase'] = 'idle'
@@ -156,6 +167,8 @@ export class SyncService {
   private running: Promise<void> | null = null
   private access: { token: string; expiresAt: number } | null = null
   private timer: ReturnType<typeof setInterval> | null = null
+  private progress: SyncProgress | null = null
+  private lastProgressEmit = 0
 
   constructor(
     private readonly vault: VaultService,
@@ -230,6 +243,7 @@ export class SyncService {
       lastSyncAt: st?.lastSyncAt ?? null,
       pending: dirty,
       lastBackupAt: last,
+      progress: this.phase === 'syncing' ? this.progress : null,
     }
   }
 
@@ -254,6 +268,7 @@ export class SyncService {
       },
       this.http,
       this.opts.driveUrls,
+      this.opts.driveTiming,
     )
   }
 
@@ -364,13 +379,35 @@ export class SyncService {
   /** «Sincronizar ahora». */
   sync(): Promise<void> {
     if (this.running) return this.running
-    this.running = this.doSync().finally(() => {
+    this.running = this.held(() => this.doSync()).finally(() => {
       this.running = null
     })
     return this.running
   }
 
+  /** Mantiene el equipo despierto mientras dura `run` (D-124). */
+  private async held<T>(run: () => Promise<T>): Promise<T> {
+    if (!this.config()) return run()
+    const release = this.opts.hold?.(t('Sincronizando la bóveda…'))
+    try {
+      return await run()
+    } finally {
+      this.progress = null
+      release?.()
+    }
+  }
+
+  /** Progreso del paso actual; se avisa a la interfaz como mucho cada 400 ms. */
+  private report(p: SyncProgress, force = false): void {
+    this.progress = p
+    const now = Date.now()
+    if (!force && now - this.lastProgressEmit < PROGRESS_EMIT_MS) return
+    this.lastProgressEmit = now
+    this.emit()
+  }
+
   private fail(e: unknown): void {
+    this.progress = null
     this.phase = 'error'
     this.error = e instanceof Error ? e.message : t('Error de sincronización.')
     this.emit()
@@ -391,6 +428,7 @@ export class SyncService {
     if (!remote) return
     this.phase = 'syncing'
     this.error = null
+    this.progress = { step: 'comprobando', done: 0, total: 0, bytes: 0, totalBytes: 0 }
     this.emit()
     try {
       const m = await this.readManifest(remote)
@@ -416,6 +454,7 @@ export class SyncService {
       await this.downloadMissing(remote)
       this.conflict = null
       this.phase = 'idle'
+      this.progress = null
       this.emit()
     } catch (e) {
       this.fail(e)
@@ -432,8 +471,11 @@ export class SyncService {
   private async pull(remote: Remote, m: RemoteManifest): Promise<'reopened' | 'locked'> {
     const dir = this.tmpDir()
     try {
-      if (!(await remote.get('crm.db', join(dir, VAULT_FILES.db))))
-        throw new Error(t('Falta crm.db en el destino.'))
+      const step = { step: 'bajando' as const, done: 0, total: 1 }
+      const got = await remote.get('crm.db', join(dir, VAULT_FILES.db), (bytes, total) =>
+        this.report({ ...step, bytes, totalBytes: total ?? bytes }),
+      )
+      if (!got) throw new Error(t('Falta crm.db en el destino.'))
       if (!(await remote.get('vault.json', join(dir, VAULT_FILES.manifest))))
         throw new Error(t('Falta vault.json en el destino.'))
       const r = await this.vault.replaceDatabase(dir, 'antes-de-sincronizar')
@@ -459,12 +501,28 @@ export class SyncService {
   private async push(remote: Remote, baseGen: number): Promise<void> {
     const vaultPath = this.vault.currentPath!
     // 1. Archivos que la nube aún no tiene (están cifrados; el nombre es su HMAC).
+    const missing: { path: string; src: string; size: number }[] = []
     for (const kind of ['files', 'thumbs'] as const) {
       const there = new Set(await remote.list(kind))
-      const local = this.localBlobs(kind)
-      for (const id of local)
-        if (!there.has(`${id}.bin`))
-          await remote.put(`${kind}/${id}.bin`, join(vaultPath, kind, id.slice(0, 2), `${id}.bin`))
+      for (const id of this.localBlobs(kind))
+        if (!there.has(`${id}.bin`)) {
+          const src = join(vaultPath, kind, id.slice(0, 2), `${id}.bin`)
+          missing.push({ path: `${kind}/${id}.bin`, src, size: statSync(src).size })
+        }
+    }
+    const db = statSync(join(vaultPath, VAULT_FILES.db)).size
+    const totalBytes = missing.reduce((a, f) => a + f.size, 0) + db
+    const total = missing.length + 1
+    let doneBytes = 0
+    let done = 0
+    const up = (sent: number) =>
+      this.report({ step: 'subiendo', done, total, bytes: doneBytes + sent, totalBytes })
+    up(0)
+    for (const f of missing) {
+      await remote.put(f.path, f.src, up)
+      doneBytes += f.size
+      done++
+      this.report({ step: 'subiendo', done, total, bytes: doneBytes, totalBytes }, true)
     }
     // 2. ¿Alguien ha subido mientras tanto?
     const latest = await this.readManifest(remote)
@@ -484,8 +542,9 @@ export class SyncService {
       checkpoint(this.db())
       copyFileSync(join(vaultPath, VAULT_FILES.db), join(dir, VAULT_FILES.db))
       copyFileSync(join(vaultPath, VAULT_FILES.manifest), join(dir, VAULT_FILES.manifest))
-      await remote.put('crm.db', join(dir, VAULT_FILES.db))
+      await remote.put('crm.db', join(dir, VAULT_FILES.db), up)
       await remote.put('vault.json', join(dir, VAULT_FILES.manifest))
+      this.report({ step: 'subiendo', done: total, total, bytes: totalBytes, totalBytes }, true)
       // 4. sync.json al final: es lo que confirma la subida.
       const manifest: RemoteManifest = {
         format: 'crm-mellow-sync',
@@ -514,7 +573,10 @@ export class SyncService {
       .map((n) => n.slice(0, 64))
   }
 
-  /** Archivos que usa la base de datos y aún no están en este equipo. */
+  /**
+   * Archivos que usa la base de datos y aún no están en este equipo. Si alguno falla, se
+   * siguen bajando los demás y al final se avisa (D-124).
+   */
   private async downloadMissing(remote: Remote): Promise<void> {
     const vaultPath = this.vault.currentPath!
     const rows = this.db().prepare('SELECT id, size, has_thumb FROM files').all() as {
@@ -525,20 +587,64 @@ export class SyncService {
     const limit = this.opts.maxAutoDownloadBytes ?? Infinity
     const always =
       limit === Infinity ? new Set<string>() : (this.opts.alwaysDownload?.() ?? new Set())
+    const todo: { path: string; dest: string; size: number }[] = []
     for (const r of rows) {
       for (const kind of ['files', 'thumbs'] as const) {
         if (kind === 'thumbs' && !r.has_thumb) continue
         if (kind === 'files' && r.size > limit && !always.has(r.id)) continue
         const dest = join(vaultPath, kind, r.id.slice(0, 2), `${r.id}.bin`)
-        if (!existsSync(dest)) await remote.get(`${kind}/${r.id}.bin`, dest)
+        if (!existsSync(dest))
+          todo.push({ path: `${kind}/${r.id}.bin`, dest, size: kind === 'files' ? r.size : 0 })
       }
     }
+    if (!todo.length) return
+    // Primero lo pequeño: las miniaturas y los archivos ligeros salen antes en pantalla.
+    todo.sort((a, b) => a.size - b.size)
+    const total = todo.length
+    const totalBytes = todo.reduce((a, f) => a + f.size, 0)
+    let done = 0
+    let doneBytes = 0
+    let firstError: unknown = null
+    let failed = 0
+    this.report({ step: 'bajando', done, total, bytes: 0, totalBytes }, true)
+    for (const f of todo) {
+      try {
+        await remote.get(f.path, f.dest, (received) =>
+          this.report({
+            step: 'bajando',
+            done,
+            total,
+            bytes: doneBytes + Math.min(received, f.size || received),
+            totalBytes,
+          }),
+        )
+      } catch (e) {
+        firstError ??= e
+        failed++
+      }
+      done++
+      doneBytes += f.size
+      this.report({ step: 'bajando', done, total, bytes: doneBytes, totalBytes }, true)
+    }
+    if (failed)
+      throw new Error(
+        tn(
+          failed,
+          'No se pudo bajar {n} archivo de la nube: {error}',
+          'No se pudieron bajar {n} archivos de la nube: {error}',
+          { error: firstError instanceof Error ? firstError.message : String(firstError) },
+        ),
+      )
   }
 
   /** Resuelve un conflicto; la versión descartada queda como copia de seguridad. */
   async resolve(keep: 'local' | 'remote'): Promise<void> {
     const remote = this.remote()
     if (!remote || !this.conflict) return
+    return this.held(() => this.doResolve(remote, keep))
+  }
+
+  private async doResolve(remote: Remote, keep: 'local' | 'remote'): Promise<void> {
     try {
       this.phase = 'syncing'
       this.emit()
@@ -563,6 +669,7 @@ export class SyncService {
       await this.downloadMissing(remote)
       this.conflict = null
       this.phase = 'idle'
+      this.progress = null
       this.emit()
     } catch (e) {
       this.fail(e)

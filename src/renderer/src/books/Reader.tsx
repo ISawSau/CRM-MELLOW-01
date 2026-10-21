@@ -1,7 +1,10 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
+  BUNDLED_FONTS,
   FINISHED_FRACTION,
+  FONT_SIZE_MAX,
+  FONT_SIZE_MIN,
   READER_FONTS,
   READER_THEMES,
   bookFormat,
@@ -21,7 +24,8 @@ import { useReaderPrefs, useReaderUrl, useReadingStats } from './hooks'
 import type { PaneEvents, PaneHandle } from './panes'
 import { PdfPane } from './PdfPane'
 import { ReadingTracker } from './session'
-import { frameStyle, readerColors } from './style'
+import { registerFont } from './fonts'
+import { FONT_FAMILIES, frameStyle, readerColors } from './style'
 
 export interface ReaderBook {
   id: string
@@ -41,10 +45,21 @@ const THEME_LABELS: Record<ReaderPrefs['theme'], string> = {
 }
 const FONT_LABELS: Record<ReaderPrefs['font'], string> = {
   libro: 'La del libro',
+  literata: 'Literata',
   serif: 'Con remates',
+  atkinson: 'Muy legible',
   sans: 'Sin remates',
+  dislexia: 'Para dislexia',
 }
 const MARGIN_LABELS = ['Estrechos', 'Normales', 'Anchos', 'Muy anchos']
+const WEIGHT_LABELS = ['Normal', 'Más gruesa', 'Negrita']
+const SPACING_LABELS = ['Normal', 'Un poco más', 'Más', 'Mucho más']
+const ENHANCE_LABELS: Record<ReaderPrefs['pdfEnhance'], string> = {
+  no: 'Normal',
+  nitido: 'Más nítido',
+  contraste: 'Alto contraste',
+}
+const CROP_LABELS = ['Sin recortar', 'Un poco', 'Más', 'Mucho']
 
 /** Minutos que se tarda en leer cada «página» si aún no hay ritmo propio. */
 const DEFAULT_MIN_PER_PAGE = { pdf: 1.5, ebook: 1.1 }
@@ -276,8 +291,17 @@ export function Reader({ book, onClose }: { book: ReaderBook; onClose: () => voi
     }
   }
 
-  const sizeStep = (d: number) =>
-    setPrefs({ fontSize: Math.min(250, Math.max(60, prefs.fontSize + d)) })
+  // De 10 en 10 hasta el 200 %; por encima, de 25 en 25 (llegar al 400 % sin mil toques).
+  const sizeStep = (dir: 1 | -1) => {
+    const n = prefs.fontSize
+    const step = dir > 0 ? (n >= 200 ? 25 : 10) : n > 200 ? 25 : 10
+    setPrefs({ fontSize: Math.min(FONT_SIZE_MAX, Math.max(FONT_SIZE_MIN, n + dir * step)) })
+  }
+  // Las letras que van con la app, para verlas en sus botones al abrir la apariencia.
+  useEffect(() => {
+    if (panel !== 'ajustes' || format !== 'ebook') return
+    for (const f of BUNDLED_FONTS) void registerFont(f).catch(() => {})
+  }, [panel, format])
   const lineStep = (d: number) =>
     setPrefs({
       lineHeight: Math.min(2.4, Math.max(1, Math.round((prefs.lineHeight + d) * 10) / 10)),
@@ -318,6 +342,8 @@ export function Reader({ book, onClose }: { book: ReaderBook; onClose: () => voi
             initialPage={start ? Number(start.location) || null : null}
             mode={prefs.flow}
             invert={dark && prefs.pdfInvert}
+            enhance={prefs.pdfEnhance}
+            crop={prefs.pdfCrop}
             events={events}
           />
         ) : readerUrl.data ? (
@@ -476,26 +502,68 @@ export function Reader({ book, onClose }: { book: ReaderBook; onClose: () => voi
                 </div>
                 {format === 'ebook' && (
                   <>
-                    <div className="segmented" role="radiogroup" aria-label={t('Tipo de letra')}>
+                    <div className="reader-fonts" role="radiogroup" aria-label={t('Tipo de letra')}>
                       {READER_FONTS.map((f) => (
                         <button
                           key={f}
                           type="button"
                           role="radio"
                           aria-checked={prefs.font === f}
+                          className="reader-font"
+                          data-testid={`reader-font-${f}`}
                           onClick={() => setPrefs({ font: f })}
                         >
-                          {t(FONT_LABELS[f])}
+                          <span
+                            className="reader-font-sample"
+                            style={f === 'libro' ? undefined : { fontFamily: FONT_FAMILIES[f] }}
+                            aria-hidden="true"
+                          >
+                            Aa
+                          </span>
+                          <span>{t(FONT_LABELS[f])}</span>
                         </button>
                       ))}
                     </div>
                     <Stepper
                       label={t('Tamaño')}
                       value={`${prefs.fontSize} %`}
-                      onDown={() => sizeStep(-10)}
-                      onUp={() => sizeStep(10)}
+                      onDown={() => sizeStep(-1)}
+                      onUp={() => sizeStep(1)}
                       testId="reader-font-size"
                     />
+                    <div className="reader-row">
+                      <span>{t('Grosor')}</span>
+                      <div className="segmented" role="radiogroup" aria-label={t('Grosor')}>
+                        {WEIGHT_LABELS.map((l, i) => (
+                          <button
+                            key={l}
+                            type="button"
+                            role="radio"
+                            aria-checked={prefs.weight === i}
+                            data-testid={`reader-weight-${i}`}
+                            onClick={() => setPrefs({ weight: i })}
+                          >
+                            {t(l)}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="reader-row">
+                      <span>{t('Espaciado')}</span>
+                      <select
+                        className="input"
+                        value={prefs.spacing}
+                        onChange={(e) => setPrefs({ spacing: Number(e.target.value) })}
+                        aria-label={t('Espaciado')}
+                        data-testid="reader-spacing"
+                      >
+                        {SPACING_LABELS.map((l, i) => (
+                          <option key={l} value={i}>
+                            {t(l)}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                     <Stepper
                       label={t('Interlineado')}
                       value={String(prefs.lineHeight).replace('.', ',')}
@@ -559,14 +627,53 @@ export function Reader({ book, onClose }: { book: ReaderBook; onClose: () => voi
                   </label>
                 )}
                 {format === 'pdf' && (
-                  <label className="check">
-                    <input
-                      type="checkbox"
-                      checked={prefs.pdfInvert}
-                      onChange={(e) => setPrefs({ pdfInvert: e.target.checked })}
-                    />
-                    <span>{t('Invertir los colores del PDF con los temas oscuros')}</span>
-                  </label>
+                  <>
+                    <div className="reader-field">
+                      <span>{t('Realzar el texto (escaneados antiguos)')}</span>
+                      <div
+                        className="segmented"
+                        role="radiogroup"
+                        aria-label={t('Realzar el texto (escaneados antiguos)')}
+                      >
+                        {(['no', 'nitido', 'contraste'] as const).map((v) => (
+                          <button
+                            key={v}
+                            type="button"
+                            role="radio"
+                            aria-checked={prefs.pdfEnhance === v}
+                            data-testid={`reader-enhance-${v}`}
+                            onClick={() => setPrefs({ pdfEnhance: v })}
+                          >
+                            {t(ENHANCE_LABELS[v])}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="reader-row">
+                      <span>{t('Recortar márgenes')}</span>
+                      <select
+                        className="input"
+                        value={prefs.pdfCrop}
+                        onChange={(e) => setPrefs({ pdfCrop: Number(e.target.value) })}
+                        aria-label={t('Recortar márgenes')}
+                        data-testid="reader-crop"
+                      >
+                        {CROP_LABELS.map((l, i) => (
+                          <option key={l} value={i}>
+                            {t(l)}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <label className="check">
+                      <input
+                        type="checkbox"
+                        checked={prefs.pdfInvert}
+                        onChange={(e) => setPrefs({ pdfInvert: e.target.checked })}
+                      />
+                      <span>{t('Invertir los colores del PDF con los temas oscuros')}</span>
+                    </label>
+                  </>
                 )}
                 <div className="reader-row">
                   <span>{t('Atenuar')}</span>

@@ -181,6 +181,18 @@ export interface SyncStatus {
   /** Hay cambios de este equipo sin subir. */
   pending: boolean
   lastBackupAt: string | null
+  /** Qué está haciendo ahora mismo (D-124): null si no está sincronizando. */
+  progress: SyncProgress | null
+}
+
+export interface SyncProgress {
+  step: 'comprobando' | 'subiendo' | 'bajando'
+  /** Archivos terminados y total (en «comprobando», 0 de 0). */
+  done: number
+  total: number
+  /** Bytes pasados y total de este paso. */
+  bytes: number
+  totalBytes: number
 }
 
 export interface BackupEntry {

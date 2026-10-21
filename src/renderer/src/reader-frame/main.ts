@@ -1,4 +1,7 @@
 import 'foliate-js/view.js'
+// Solo tipos de @shared/books: así el marco no carga zod ni el resto de la app.
+import type { BundledFont } from '@shared/books'
+import { BUNDLED_FAMILY, dataUrlBytes, loadFontFaces } from '../books/fonts'
 import type {
   BookInfo,
   FrameStyle,
@@ -97,10 +100,38 @@ function sanitize(markup: string, type: string): string {
 }
 const MARKUP = ['application/xhtml+xml', 'text/html', 'image/svg+xml']
 
+/** Espacio entre letras y entre palabras, de normal a mucho más (D-124). */
+const LETTER_SPACING = ['normal', '0.02em', '0.05em', '0.08em']
+const WORD_SPACING = ['normal', '0.06em', '0.14em', '0.24em']
+
+/**
+ * Las letras que van dentro de la app, como @font-face de cada capítulo. Los capítulos son
+ * documentos aparte, así que se les da una dirección blob: de este origen (la CSP del
+ * marco solo deja cargar letras de blob: y data:).
+ */
+const fontFaces = new Map<BundledFont, string>()
+async function loadFontCss(font: BundledFont): Promise<void> {
+  if (fontFaces.has(font)) return
+  const faces = await loadFontFaces(font)
+  fontFaces.set(
+    font,
+    faces
+      .map((f) => {
+        const url = URL.createObjectURL(new Blob([dataUrlBytes(f.data)], { type: 'font/woff2' }))
+        return `@font-face { font-family: "${BUNDLED_FAMILY[font]}"; src: url("${url}") format("woff2"); font-weight: ${f.weight}; font-style: ${f.style}; font-display: block; }`
+      })
+      .join('\n'),
+  )
+}
+
 function css(s: FrameStyle): string {
   const font = s.fontFamily ? `font-family: ${s.fontFamily} !important;` : ''
+  const faces = s.bundledFont ? (fontFaces.get(s.bundledFont) ?? '') : ''
+  const spacing = Math.min(3, Math.max(0, Math.round(s.spacing || 0)))
+  const text = 'body p, body li, body blockquote, body dd, body span, body div, body a'
   return `
     @namespace epub "http://www.idpf.org/2007/ops";
+    ${faces}
     html {
       color-scheme: ${s.dark ? 'dark' : 'light'};
       color: ${s.fg} !important;
@@ -122,6 +153,9 @@ function css(s: FrameStyle): string {
     [align="right"] { text-align: right; }
     [align="center"] { text-align: center; }
     pre { white-space: pre-wrap !important; }
+    ${spacing ? `${text} { letter-spacing: ${LETTER_SPACING[spacing]} !important; word-spacing: ${WORD_SPACING[spacing]} !important; }` : ''}
+    ${s.weight === 1 ? 'body, body * { -webkit-text-stroke: 0.025em currentColor; }' : ''}
+    ${s.weight === 2 ? 'body, body * { font-weight: 700 !important; }' : ''}
     img, svg, video { max-width: 100%; height: auto; }
     aside[epub|type~="endnote"], aside[epub|type~="footnote"], aside[epub|type~="note"],
     aside[epub|type~="rearnote"] { display: none; }
@@ -129,8 +163,20 @@ function css(s: FrameStyle): string {
 }
 
 let view: FoliateView | null = null
+let lastStyle: FrameStyle | null = null
 
 function applyStyle(s: FrameStyle): void {
+  lastStyle = s
+  const bundled =
+    s.bundledFont && Object.hasOwn(BUNDLED_FAMILY, s.bundledFont) ? s.bundledFont : null
+  if (bundled && !fontFaces.has(bundled))
+    // Se pinta ya con la letra de reserva y, al llegar la buena, otra vez.
+    void loadFontCss(bundled).then(
+      () => {
+        if (lastStyle === s) applyStyle(s)
+      },
+      () => {},
+    )
   document.documentElement.style.background = s.bg
   document.body.style.background = s.bg
   if (!view) return
