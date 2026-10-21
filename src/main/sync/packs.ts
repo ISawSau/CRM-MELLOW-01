@@ -27,6 +27,8 @@ export const packSchema = z.object({
   manifest: z.string().optional(),
   /** Solo en los cambios pendientes guardados aquí: los ajustes propios de este equipo. */
   local: z.array(z.object({ key: z.string(), value: z.string() })).optional(),
+  /** Solo ahí: todo lo que había en este equipo, para juntarlo (D-126). */
+  merge: z.array(z.custom<PackRow>((r) => typeof r === 'object' && r !== null)).optional(),
 })
 export type Pack = z.infer<typeof packSchema>
 
