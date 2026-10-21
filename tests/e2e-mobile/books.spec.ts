@@ -162,6 +162,47 @@ test('leer el EPUB: toques a los lados pasan página, el centro muestra los cont
   await page.getByTestId('reader-theme-sepia').click()
   await panel.getByRole('button', { name: 'Más' }).first().click()
   await expect(page.getByTestId('reader-font-size')).toHaveText('110 %')
+
+  // Letra que va con la app (D-124): OpenDyslexic, en negrita y con más espacio.
+  await page.getByTestId('reader-font-dislexia').click()
+  await page.getByTestId('reader-weight-2').click()
+  await page.getByTestId('reader-spacing').selectOption('2')
+  const chapterNow = await chapterFrame()
+  await expect
+    .poll(
+      () =>
+        chapterNow.evaluate(async () => {
+          await document.fonts.ready
+          const p = document.querySelector('p')!
+          const cs = getComputedStyle(p)
+          return {
+            family: cs.fontFamily.includes('CRM OpenDyslexic'),
+            // En negrita: es la cara que se usa (y la que se ha cargado).
+            loaded: document.fonts.check('bold 16px "CRM OpenDyslexic"'),
+            weight: cs.fontWeight,
+            spacing: cs.letterSpacing !== 'normal',
+          }
+        }),
+      { timeout: 15_000 },
+    )
+    .toEqual({ family: true, loaded: true, weight: '700', spacing: true })
+  // Los botones enseñan cada letra.
+  await expect(page.getByTestId('reader-font-atkinson').locator('.reader-font-sample')).toHaveCSS(
+    'font-family',
+    /CRM Atkinson Hyperlegible/,
+  )
+  await shot('44b-lector-letra')
+  // Hasta el 400 %: de 10 en 10 hasta 200 y luego de 25 en 25.
+  const more = panel.getByRole('button', { name: 'Más' }).first()
+  for (let i = 0; i < 10; i++) await more.click()
+  await expect(page.getByTestId('reader-font-size')).toHaveText('225 %')
+  for (let i = 0; i < 10; i++) await more.click()
+  await expect(page.getByTestId('reader-font-size')).toHaveText('400 %')
+  const less = panel.getByRole('button', { name: 'Menos' }).first()
+  for (let i = 0; i < 10; i++) await less.click()
+  await expect(page.getByTestId('reader-font-size')).toHaveText('180 %')
+  for (let i = 0; i < 7; i++) await less.click()
+  await expect(page.getByTestId('reader-font-size')).toHaveText('110 %')
   const box = (await panel.boundingBox())!
   expect(box.x).toBeGreaterThanOrEqual(0)
   expect(box.x + box.width).toBeLessThanOrEqual(page.viewportSize()!.width + 0.5)
@@ -226,6 +267,14 @@ test('leer el PDF página a página y en continuo', async () => {
   await expect(page.locator('.reader-top')).toHaveAttribute('data-visible', 'false')
   await tap(0.5)
   await page.getByTestId('reader-settings').click()
+  // Escaneados antiguos (D-124): realzar el texto y recortar márgenes.
+  await page.getByTestId('reader-enhance-contraste').click()
+  await expect(page.locator('.pdf-page').first()).toHaveCSS('filter', /contrast\(2\.6\)/)
+  const before = await page.locator('.pdf-page').first().elementHandle()
+  await page.getByTestId('reader-crop').selectOption('3')
+  await expect.poll(() => before!.evaluate((el) => el.isConnected), { timeout: 10_000 }).toBe(false)
+  await expect(page.locator('.pdf-page').first()).toBeVisible()
+  await shot('45b-lector-pdf-realzado')
   await page.getByTestId('reader-flow-continuo').click()
   await page.keyboard.press('Escape')
   await expect(page.locator('.pdf-list canvas').first()).toBeVisible({ timeout: 20_000 })
