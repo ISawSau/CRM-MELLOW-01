@@ -5,6 +5,7 @@ import { join } from 'node:path'
 import { lineChartSvg } from './reports/charts'
 import { htmlToPdf } from './reports/print'
 import { ffmpegPath } from './tools/dialogs'
+import { checkSync } from './sync/self-check'
 import { heicWorkerLoads } from './tools/heic'
 import { VaultService } from './vault/vault-service'
 
@@ -35,6 +36,8 @@ export async function runSelfTest(log: (line: string) => void = console.log): Pr
     const unlocked = await vault.unlock(password)
     if (unlocked.autoLockMinutes !== 5) throw new Error('los datos no se han conservado')
     log('ok  desbloqueada y datos conservados')
+    await checkSync(vault, join(parent, 'nube'))
+    log('ok  sincronización por cambios')
     vault.dispose()
 
     const encoders = execFileSync(ffmpegPath(), ['-hide_banner', '-encoders'], {
