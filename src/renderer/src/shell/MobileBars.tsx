@@ -2,6 +2,7 @@ import { Lock, Menu, Search } from 'lucide-react'
 import { t } from '@shared/i18n'
 import { SectionIcon } from '../ui/section-icons'
 import type { Section } from './sections'
+import { SyncProgressBar, useSyncStatus } from './sync'
 import { TimerItem } from './TimerItem'
 
 /** Secciones de la barra inferior en el móvil; el resto, en el menú. */
@@ -22,8 +23,11 @@ export function MobileTopBar({
   onSearch: () => void
   onLock: () => void
 }) {
+  const sync = useSyncStatus()
   return (
     <header className="m-topbar" data-testid="mobile-topbar">
+      {/* Sincronizando (D-124): una línea fina debajo de la barra, en cualquier pantalla. */}
+      <SyncProgressBar s={sync} className="m-topbar-sync" />
       <button
         type="button"
         className="m-icon-btn"

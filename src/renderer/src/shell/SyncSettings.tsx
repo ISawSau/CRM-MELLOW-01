@@ -8,7 +8,7 @@ import { call, IpcCallError } from '../lib/ipc'
 import { Alert } from '../ui/Alert'
 import { GoogleLoginHelp } from '../ui/GoogleLoginHelp'
 import { useToast } from '../ui/Toast'
-import { syncSummary, useSyncStatus } from './sync'
+import { SyncProgressBar, syncSummary, useSyncStatus } from './sync'
 import { t, tn } from '@shared/i18n'
 
 const REASONS: Record<string, string> = {
@@ -296,9 +296,13 @@ export function SyncSettings() {
           <span className={`marker marker-${summary.tone}`} aria-hidden="true" />
           <span>
             <strong>{s?.kind ? t(s.label ?? '') : t('Sin destino')}</strong>
-            <span className="muted"> · {summary.text}</span>
+            <span className="muted" data-testid="sync-summary">
+              {' '}
+              · {summary.text}
+            </span>
           </span>
         </div>
+        <SyncProgressBar s={s} />
         {s?.error && <Alert>{s.error}</Alert>}
         <div className="form-actions">
           {s?.kind ? (
@@ -306,6 +310,7 @@ export function SyncSettings() {
               <button
                 type="button"
                 className="btn btn-primary"
+                disabled={s.phase === 'syncing'}
                 onClick={() => run(call('sync:now'))}
               >
                 {t('Sincronizar ahora')}

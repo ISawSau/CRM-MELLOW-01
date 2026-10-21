@@ -6,7 +6,7 @@ import { useMetaAccounts, useMetaStatus } from '../meta/meta'
 import { ProfileSettings } from './ProfileSettings'
 import { ProfileView } from './ProfileView'
 import { profileReady } from '@shared/profile'
-import { useSyncStatus } from './sync'
+import { syncSummary, useSyncStatus } from './sync'
 import { t, tc, tn } from '@shared/i18n'
 
 type Tab = 'perfil' | 'editar' | 'cuentas'
@@ -91,7 +91,11 @@ function Accounts({ onNavigate }: { onNavigate: (section: string) => void }) {
               ? `${sync.kind === 'drive' ? 'Google Drive' : t('Carpeta')}${sync.label ? ` · ${t(sync.label)}` : ''}`
               : t('Sin configurar: la bóveda solo está en este equipo')
           }
-          detail={sync?.error ?? when(sync?.lastSyncAt ?? null)}
+          detail={
+            sync?.phase === 'syncing'
+              ? syncSummary(sync).text
+              : (sync?.error ?? when(sync?.lastSyncAt ?? null))
+          }
           action={t('Configurar')}
           onAction={() => onNavigate('ajustes')}
         />
