@@ -1,3 +1,10 @@
+## Novedades de la 0.19.2 · La sincronización vuelve a funcionar en el móvil
+
+- **Arreglado: en el móvil, sincronizar daba «qualified table names are not allowed…».** El móvil usa una versión de la base de datos algo más antigua que el ordenador y no aceptaba la forma en que la 0.19 apunta los cambios. Ya funciona.
+- **Al actualizar el móvil**, la primera sincronización baja lo de la nube y lo junta con lo que tengas en el móvil: no se pierde nada de lo que hiciste en él mientras fallaba.
+- **Arreglado también:** en el móvil, cambiar la clave maestra (Ajustes → Seguridad) fallaba.
+- A partir de ahora, cada versión se prueba también con la base de datos del móvil antes de publicarse.
+
 ## Novedades de la 0.19.1 · La sincronización ya nunca borra lo de otro equipo
 
 - **Arreglado: se podían perder libros y progreso de lectura.**

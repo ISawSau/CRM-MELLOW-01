@@ -6,6 +6,7 @@ import { collator, norm } from '@shared/data/text'
 import { formatDate, formatNumber } from '@shared/format'
 import { sqliteVersion } from '../main/db/connection'
 import { describeNetError } from '../main/sync/google-auth'
+import { checkSync } from '../main/sync/self-check'
 import { VaultService } from '../main/vault/vault-service'
 
 function expect(what: string, got: string, want: string): void {
@@ -83,6 +84,8 @@ export async function runMobileSelfTest(
     if (vault.data.get(client.id)?.title !== 'Autoprueba')
       throw new Error('los datos no se han conservado')
     log('ok  bloqueada y desbloqueada con los datos intactos')
+    await checkSync(vault, join(parent, 'nube'))
+    log('ok  sincronización por cambios')
     await checkHttps(log)
     log('AUTOPRUEBA CORRECTA')
     return true

@@ -178,11 +178,13 @@ export class ChangeLog {
         `json_array(${t.identity.map((c) => `${ref}.${q(c)}`).join(', ')})`
       // Sin «OR REPLACE» ni «ON CONFLICT»: dentro de un disparador los sustituiría el de la
       // sentencia que lo dispara (un INSERT OR IGNORE dejaría el cambio sin apuntar).
+      // Y sin «main.» en las tablas: el SQLite del móvil (3.49) no lo admite dentro de un
+      // disparador (D-127); sin calificar llegan igual a las de la base de datos.
       const mark = (ref: 'NEW' | 'OLD', where = '') => `
-        DELETE FROM main.sync_outbox WHERE tbl = '${t.name}' AND key = ${key(ref)}${where ? ` AND ${where}` : ''};
-        INSERT INTO main.sync_outbox (tbl, key, ts) SELECT '${t.name}', ${key(ref)}, crm_sync_ts()${where ? ` WHERE ${where}` : ''};
-        DELETE FROM main.sync_rows WHERE tbl = '${t.name}' AND key = ${key(ref)}${where ? ` AND ${where}` : ''};
-        INSERT INTO main.sync_rows (tbl, key, ts, dev) SELECT '${t.name}', ${key(ref)}, crm_sync_last(), crm_sync_dev()${where ? ` WHERE ${where}` : ''};
+        DELETE FROM sync_outbox WHERE tbl = '${t.name}' AND key = ${key(ref)}${where ? ` AND ${where}` : ''};
+        INSERT INTO sync_outbox (tbl, key, ts) SELECT '${t.name}', ${key(ref)}, crm_sync_ts()${where ? ` WHERE ${where}` : ''};
+        DELETE FROM sync_rows WHERE tbl = '${t.name}' AND key = ${key(ref)}${where ? ` AND ${where}` : ''};
+        INSERT INTO sync_rows (tbl, key, ts, dev) SELECT '${t.name}', ${key(ref)}, crm_sync_last(), crm_sync_dev()${where ? ` WHERE ${where}` : ''};
         SELECT crm_sync_changed();`
       const when = (ref: 'NEW' | 'OLD') =>
         `crm_sync_on()${t.name === 'settings' ? ` AND ${LOCAL_SETTING(ref)}` : ''}`

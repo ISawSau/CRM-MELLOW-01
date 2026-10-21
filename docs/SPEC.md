@@ -1,6 +1,6 @@
 # Especificación del CRM personal
 
-Versión 0.11 · 21 de octubre de 2026
+Versión 0.12 · 21 de octubre de 2026
 
 Este documento recoge todas las decisiones de diseño tomadas antes de escribir código. Es la referencia para construir el proyecto fase a fase. Lo que aparece marcado como **verificar** depende de APIs o normativa externa que cambian con el tiempo y debe comprobarse en la documentación oficial antes de implementarlo.
 
@@ -137,6 +137,7 @@ Por cambios desde la 0.19 (D-125):
   - `changes/<época>/<equipo>-<n>.bin` (paquetes);
   - `files/` y `thumbs/`.
   - El formato 1 (la base de datos entera en cada sincronización) solo se lee para pasar al 2.
+- **Mismo comportamiento en el móvil (D-127):** el móvil lleva un SQLite más antiguo (3.49) que el escritorio. El CI pasa los tests unitarios también con él, y la autoprueba de cada instalación sincroniza una bóveda de prueba.
 - Al suspender el equipo no hay tiempo de subir: se sube la próxima vez (normalmente ya se subió a los pocos segundos del cambio).
 - **Copias:** cada 3 días por defecto, local y en el destino. Retención por defecto: las 10 últimas más la última de cada mes, solo para las automáticas. Las «antes de sincronizar» se quedan en las 3 últimas (D-125); las demás (antes de actualizar, de restaurar…) no se borran solas.
 - **Restaurar:** desde Ajustes, con fecha, motivo, tamaño y dónde está la copia. Si es de una contraseña anterior, la bóveda queda bloqueada para entrar con aquella contraseña. Lo restaurado empieza una época nueva en la próxima sincronización y los demás equipos lo reciben.

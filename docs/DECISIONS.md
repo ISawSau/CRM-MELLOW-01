@@ -1167,3 +1167,26 @@ Con la 0.19.0, tras media hora leyendo en el móvil y sincronizar con Drive, el 
   - ponerse al día en la misma época no resucita lo borrado;
   - del formato 1 con cambios sin subir: se juntan sin preguntar y llegan al otro equipo;
   - restaurar una copia sigue mandando.
+
+### D-127 · El móvil usa un SQLite más antiguo: se prueba con él (v0.19.2)
+
+Al sincronizar en el móvil con la 0.19.x salía: «qualified table names are not allowed on INSERT, UPDATE, and DELETE statements within triggers».
+
+- **La causa:**
+  - El móvil lleva SQLite 3.49.2, el de better-sqlite3-multiple-ciphers 11.10.0, la última versión que admite el Node 18 de nodejs-mobile (D-101). El escritorio lleva la 3.53.4.
+  - La 3.49 no admite nombres con esquema (`main.sync_outbox`) dentro de un disparador, aunque sea temporal. Los disparadores del registro de cambios (D-125) los usaban, así que en el móvil no se instalaban y la sincronización fallaba siempre.
+  - Los tests no lo vieron porque corren con el SQLite del escritorio. La autoprueba del APK en el emulador no sincronizaba.
+- **El arreglo:**
+  - Los disparadores escriben en `sync_outbox` y `sync_rows` sin calificar. Un disparador temporal busca primero en `temp` y luego en `main`, y en `temp` no hay tablas con esos nombres. La tabla vigilada sigue calificada (`ON main.tabla`), que sí se admite.
+- **Otro fallo que salió al probar con la 3.49:**
+  - Rotar la clave maestra en el móvil daba «Rekeying is not supported in WAL journal mode».
+  - Ahora `rekeyDb` vuelca el WAL, pasa al modo normal, cambia la clave y vuelve al WAL.
+- **Para que no vuelva a pasar:**
+  - **Trabajo nuevo en el CI, «Tests con el SQLite del móvil»:** pasa todos los tests unitarios con el módulo que lleva la app de Android. La versión se lee de `mobile/package.json`, y Vitest lo usa en lugar del de escritorio con `CRM_SQLITE_MOVIL`. El APK no se compila si falla.
+    - Corre con Node 22: Vitest ya no funciona con el 18 y ese módulo no tiene binario para el 24.
+  - **La autoprueba** (escritorio y APK en el emulador) sincroniza ahora una bóveda de prueba con una carpeta, apunta un cambio y lo sube como paquete (`src/main/sync/self-check.ts`). Así se prueba con el SQLite real de cada plataforma.
+  - **Test nuevo** de esa comprobación. Falla con el código anterior y el SQLite del móvil.
+- **Al actualizar:**
+  - El móvil no había llegado a sincronizar con el formato 2. Su primera sincronización baja la nube y junta lo suyo (D-126), así que lo hecho en él desde la 0.19.0 no se pierde.
+  - Lo hecho en el móvil mientras fallaba no quedó apuntado como cambio. Igualmente llega: al juntar entra lo que falta y, si está en los dos, gana lo editado más tarde.
+
