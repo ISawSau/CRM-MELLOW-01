@@ -203,7 +203,8 @@ describe('avisos del sistema (fase 14)', () => {
       { title: 'Hoy' },
     )
     vault.data.create('tarea', { [f('fecha_limite')]: '2026-10-01' }, { title: 'Atrasada' })
-    vault.data.create('tarea', { [f('fecha_limite')]: '2026-10-09' }, { title: 'Luego' })
+    // Muy en el futuro: dueTaskCount mira la fecha de hoy de verdad.
+    vault.data.create('tarea', { [f('fecha_limite')]: '2099-10-09' }, { title: 'Luego' })
     vault.data.create(
       'tarea',
       { [f('fecha_limite')]: '2026-10-02', [f('estado')]: 'hecha' },

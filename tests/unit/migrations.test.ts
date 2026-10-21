@@ -40,7 +40,10 @@ describe('migración 0007: se quitan X y LinkedIn', () => {
     for (const key of ['linkedin.config', 'linkedin.enabled', 'platforms.mappings', 'meta.x'])
       setting.run(key, '{}', now)
 
-    expect(runMigrations(db, MIGRATIONS).applied).toEqual(['0007_quitar_x_linkedin'])
+    expect(runMigrations(db, MIGRATIONS).applied).toEqual([
+      '0007_quitar_x_linkedin',
+      '0008_biblioteca',
+    ])
 
     const ids = (sql: string) => (db.prepare(sql).all() as { id: string }[]).map((r) => r.id)
     expect(ids('SELECT id FROM ad_accounts')).toEqual(['act_1'])
