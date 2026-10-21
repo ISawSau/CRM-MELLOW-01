@@ -224,6 +224,12 @@ public class MainActivity extends Activity implements NativeChannel.Handler {
                     setReading(req.optBoolean("on"), req.optBoolean("volumeKeys"));
                     background(() -> NativeChannel.reply(id, true));
                     break;
+                case "awake":
+                    // Sincronizando con la nube (D-124): que el móvil no se bloquee a mitad.
+                    awake = req.optBoolean("on");
+                    updateKeepScreenOn();
+                    background(() -> NativeChannel.reply(id, true));
+                    break;
                 case "busy":
                     // Conectar con Google: la app no se congela ni pierde la red al pasar
                     // al navegador (D-118).
@@ -375,6 +381,15 @@ public class MainActivity extends Activity implements NativeChannel.Handler {
         return uri.getLastPathSegment();
     }
 
+    /** La pantalla sigue encendida mientras se lee o se sincroniza (D-123, D-124). */
+    private boolean reading = false;
+    private boolean awake = false;
+
+    private void updateKeepScreenOn() {
+        if (reading || awake) getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        else getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+    }
+
     /**
      * Leyendo un libro (D-123): la pantalla no se apaga sola, las barras del sistema se
      * ocultan (vuelven deslizando desde el borde) y, si se pide, los botones de volumen
@@ -382,8 +397,8 @@ public class MainActivity extends Activity implements NativeChannel.Handler {
      */
     private void setReading(boolean on, boolean volume) {
         volumeKeys = on && volume;
-        if (on) getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-        else getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        reading = on;
+        updateKeepScreenOn();
         if (Build.VERSION.SDK_INT >= 30) {
             WindowInsetsController c = getWindow().getInsetsController();
             if (c != null) {

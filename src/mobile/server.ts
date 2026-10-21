@@ -78,7 +78,7 @@ export function mobileCsp(readerOrigin: string): string {
 }
 
 export interface NativeRequest {
-  kind: 'save' | 'clipboard' | 'open' | 'notify' | 'busy' | 'installApk' | 'reading'
+  kind: 'save' | 'clipboard' | 'open' | 'notify' | 'busy' | 'installApk' | 'reading' | 'awake'
   [key: string]: unknown
 }
 

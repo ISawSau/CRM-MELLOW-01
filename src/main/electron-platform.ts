@@ -20,8 +20,23 @@ export function electronPlatform(getWindow: () => BrowserWindow | null): Platfor
   }
   // Leyendo un libro (D-123): que la pantalla no se apague sola.
   let reading: number | null = null
+  // Sincronizando (D-124): que el equipo no se suspenda a mitad de una subida.
+  let awake = 0
+  let awakeId: number | null = null
   return {
     name: 'desktop',
+    keepAwake() {
+      if (awake++ === 0) awakeId = powerSaveBlocker.start('prevent-app-suspension')
+      let released = false
+      return () => {
+        if (released) return
+        released = true
+        if (--awake === 0 && awakeId !== null) {
+          powerSaveBlocker.stop(awakeId)
+          awakeId = null
+        }
+      }
+    },
     readingMode({ on }) {
       if (on && reading === null) reading = powerSaveBlocker.start('prevent-display-sleep')
       else if (!on && reading !== null) {

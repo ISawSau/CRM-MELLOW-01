@@ -29,6 +29,7 @@ export function androidPlatform(o: AndroidPlatformOptions): Platform {
   const exportsDir = join(o.cacheDir, 'exportar')
   // Servicio en primer plano mientras haya algo que lo necesite (pueden solaparse).
   let holders = 0
+  let awake = 0
   return {
     name: 'android',
     version: () => o.version,
@@ -65,6 +66,16 @@ export function androidPlatform(o: AndroidPlatformOptions): Platform {
         if (released) return
         released = true
         if (--holders === 0) void o.native({ kind: 'busy', on: false })
+      }
+    },
+    // Sincronizando (D-124): la pantalla no se apaga sola hasta que termine.
+    keepAwake() {
+      if (awake++ === 0) void o.native({ kind: 'awake', on: true })
+      let released = false
+      return () => {
+        if (released) return
+        released = true
+        if (--awake === 0) void o.native({ kind: 'awake', on: false })
       }
     },
     // Lector (D-123): pantalla encendida, pantalla completa y, si se pide, los botones de

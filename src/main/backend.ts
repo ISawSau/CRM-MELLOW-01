@@ -118,6 +118,15 @@ export function createBackend(o: BackendOptions): Backend {
     openBrowser: (url) => platform.openExternal(url),
     logins,
     ...google,
+    // Mientras sincroniza: en Android, servicio en primer plano y pantalla encendida (D-124).
+    hold: (text) => {
+      const running = platform.keepRunning?.(text)
+      const awake = platform.keepAwake?.()
+      return () => {
+        running?.()
+        awake?.()
+      }
+    },
     onChange: (status) => emit('sync:changed', status),
   })
   const meta: MetaService = new MetaService(vault, {

@@ -52,6 +52,11 @@ export interface Platform {
    */
   keepRunning?(text: string): () => void
   /**
+   * Algo largo en marcha que el usuario está mirando (sincronizar, D-124): el equipo no se
+   * suspende y, en Android, la pantalla no se apaga sola. Devuelve la función que lo suelta.
+   */
+  keepAwake?(): () => void
+  /**
    * Leyendo un libro (D-123): la pantalla no se apaga sola y, en Android, la app ocupa la
    * pantalla entera y los botones de volumen pasan página si se pide.
    */
