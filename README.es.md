@@ -17,7 +17,7 @@ La interfaz está en español de España y en inglés británico; el idioma se e
 - **Herramientas de archivos** (escritorio): comprimir y convertir imágenes, vídeo (FFmpeg) y PDF.
 - **Gmail en solo lectura:** los hilos de correo de cada cliente y contacto.
 - **Biblioteca y lector de libros:** PDF, EPUB, MOBI, AZW3, FB2 y CBZ (sin DRM), cifrados y sincronizados con el móvil. Lector a pantalla completa pensado para el móvil (toques o deslizar, botones de volumen, temas, letras legibles hasta el 400 %, PDF escaneados más nítidos), vuelves donde lo dejaste en cualquier equipo, racha y objetivo anual. Los ebooks se abren en un marco aislado que no puede ejecutar los scripts del libro ni llegar a la app.
-- **Sincronización entre equipos** con tu propio Google Drive o cualquier carpeta sincronizada, con copias de seguridad automáticas.
+- **Sincronización entre equipos** con tu propio Google Drive o cualquier carpeta sincronizada: solo viajan los cambios (paquetes pequeños y cifrados), lo que cambias en dos equipos a la vez se junta y se sincroniza sola a los pocos segundos de cada cambio. Con copias de seguridad automáticas.
 - **Personalización:** editor de temas, tarjetas de Inicio configurables, iconos de las secciones y colecciones propias.
 
 ## Privacidad y seguridad

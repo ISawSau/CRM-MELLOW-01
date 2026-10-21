@@ -1,3 +1,28 @@
+## Novedades de la 0.19.0 · Sincronización por cambios: rápida, sola y sin conflictos
+
+- **Solo viaja lo que cambia.**
+  - Antes, cada sincronización subía y bajaba la base de datos entera.
+  - Ahora cada equipo sube sus cambios en paquetes pequeños y cifrados, y los demás bajan solo los nuevos. Pasar una página del libro, crear una tarea o editar un cliente son unos pocos KB.
+  - La base de datos entera solo se sube de vez en cuando, desde el ordenador.
+- **Sin avisos de conflicto.**
+  - Si cambias cosas en el móvil y en el ordenador a la vez, se juntan solas.
+  - Si es exactamente el mismo dato, gana el último cambio.
+  - Un equipo que lleva días sin conectarse se pone al día sin perder lo que tenía sin subir.
+- **Sola y sin que se note:**
+  - unos segundos después de cada cambio;
+  - al abrir la app o volver a ella;
+  - cada minuto mientras está abierta;
+  - al cerrarla o pasarla a segundo plano.
+  - No enseña «sincronizando» ni da error sin red. Solo verás la barra de progreso si mueve algo grande, como un libro nuevo.
+- **Libros y progreso en los dos sitios:**
+  - un libro que añades en el ordenador aparece en el móvil (también con datos móviles) y al revés;
+  - por dónde vas, en el otro equipo a los pocos segundos.
+- **Menos espacio en el móvil:** de las copias «antes de sincronizar» se guardan solo las 3 últimas (antes se guardaban todas).
+- **Al actualizar:**
+  - La primera sincronización pasa la nube al formato nuevo: una última subida completa y luego ya solo cambios.
+  - Actualiza el móvil y el ordenador, porque la versión anterior no entiende el formato nuevo.
+  - Si un equipo tenía cambios sin subir de la versión anterior, te pregunta una única vez con cuál te quedas.
+
 ## Novedades de la 0.18.1 · La sincronización ya no se queda pillada y letra a tu gusto en el lector
 
 - **Sincronizar con Google Drive desde el móvil:**
