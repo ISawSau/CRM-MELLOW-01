@@ -172,9 +172,26 @@ export function Reader({ book, onClose }: { book: ReaderBook; onClose: () => voi
     const tr = new ReadingTracker(book.id)
     tracker.current = tr
     const onResize = () => setWide(window.innerWidth >= 900)
+    // Cerrar la app o pasarla a segundo plano guarda ya la página (y el rato de lectura):
+    // si no, lo último leído se quedaba sin guardar ni sincronizar (D-126).
+    const flush = () => {
+      if (saveTimer.current && lastLoc.current) {
+        clearTimeout(saveTimer.current)
+        saveTimer.current = null
+        void saveProgress(lastLoc.current)
+      }
+      void tr.save()
+    }
+    const onHidden = () => {
+      if (document.visibilityState === 'hidden') flush()
+    }
     window.addEventListener('resize', onResize)
+    window.addEventListener('pagehide', flush)
+    document.addEventListener('visibilitychange', onHidden)
     return () => {
       window.removeEventListener('resize', onResize)
+      window.removeEventListener('pagehide', flush)
+      document.removeEventListener('visibilitychange', onHidden)
       if (saveTimer.current) clearTimeout(saveTimer.current)
       if (lastLoc.current) void saveProgress(lastLoc.current)
       void tr.stop().then(() => qc.invalidateQueries({ queryKey: ['books'] }))
@@ -247,7 +264,10 @@ export function Reader({ book, onClose }: { book: ReaderBook; onClose: () => voi
       lastLoc.current = l
       tracker.current?.moved(l.fraction)
       if (saveTimer.current) clearTimeout(saveTimer.current)
-      saveTimer.current = setTimeout(() => void saveProgress(l), 1500)
+      saveTimer.current = setTimeout(() => {
+        saveTimer.current = null
+        void saveProgress(l)
+      }, 500)
     },
     onTap: (zone) => {
       tracker.current?.touch()
