@@ -450,6 +450,13 @@ public class MainActivity extends Activity implements NativeChannel.Handler {
     }
 
     @Override
+    protected void onStart() {
+        super.onStart();
+        // De vuelta a la vista: el motor trae lo nuevo de los otros equipos (D-125).
+        NativeChannel.notifyAsync("/native/foreground");
+    }
+
+    @Override
     protected void onStop() {
         super.onStop();
         NativeChannel.notifyAsync("/native/background");

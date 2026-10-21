@@ -287,7 +287,7 @@ export function SyncSettings() {
         <h2>{t('Sincronización y copias')}</h2>
         <p className="desc">
           {t(
-            'Para usar la bóveda en varios equipos. Todo se sube ya cifrado: ni Google ni nadie ve tus datos. Se sincroniza al abrir, al bloquear o cerrar, cada media hora si hay cambios y con el botón de la barra de estado.',
+            'Para usar la bóveda en varios equipos. Todo se sube ya cifrado: ni Google ni nadie ve tus datos. Se sincroniza sola, sin que lo notes: unos segundos después de cada cambio, al abrir y al volver a la app, cada minuto mientras está abierta y al cerrarla. Solo viaja lo que ha cambiado, y si cambias cosas en dos equipos a la vez se juntan.',
           )}
         </p>
       </div>

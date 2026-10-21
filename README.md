@@ -17,7 +17,7 @@ The interface is in Spanish (Spain) and English (UK); you pick the language on t
 - **File tools** (desktop): compress and convert images, video (FFmpeg) and PDFs.
 - **Gmail, read-only:** email threads per client and contact.
 - **Book library and reader:** PDF, EPUB, MOBI, AZW3, FB2 and CBZ (DRM-free), stored encrypted and synced to your phone; a full-screen reader built for mobile (tap or swipe, volume keys, themes, reading-friendly fonts up to 400 %, sharper scanned PDFs), your place kept across devices, reading streak and a yearly goal. Ebooks render in an isolated frame that cannot run the book's scripts or reach the app.
-- **Sync between devices** through your own Google Drive or any synced folder, with automatic backups.
+- **Sync between devices** through your own Google Drive or any synced folder: only the changes travel (small encrypted packs), edits made on two devices at once are merged, and it syncs on its own a few seconds after each change. Automatic backups included.
 - **Personalisation:** theme editor, configurable home cards, section icons and custom collections.
 
 ## Privacy and security

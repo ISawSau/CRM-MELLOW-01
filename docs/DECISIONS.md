@@ -1065,3 +1065,73 @@ El usuario veía en el móvil «sincronizando» sin fin al sincronizar con Drive
     - El tamaño hasta el 400 %.
     - PDF realzado y recortado.
 
+### D-125 · Sincronización por cambios, sin conflictos y casi al momento (v0.19.0)
+
+El usuario veía que cada sincronización bajaba todo de cero. Pidió que solo bajara lo nuevo, que los libros y el progreso estuvieran a la vez en el ordenador y el móvil, y que se sincronizara solo al cerrar, rápido y sin notarse. Eligió: solo los cambios (con fusión automática), casi al momento, los libros también con datos móviles y los datos de Meta sincronizados.
+
+- **El problema:**
+  - El formato 1 trataba `crm.db` como un solo archivo: cualquier cambio (pasar una página) subía y bajaba la base de datos entera, con todas las métricas de Meta.
+  - Cada bajada dejaba además una copia completa «antes de sincronizar» que nunca se borraba.
+  - Dos equipos con cambios a la vez daban un conflicto que había que resolver a mano.
+- **Registro de cambios por fila (`src/main/sync/changes.ts`):**
+  - **Captura:** disparadores TEMP sobre cada tabla.
+    - Viven solo en la conexión abierta: no van dentro de la base de datos (ni en las instantáneas) y no ven las migraciones ni la siembra de serie, que cada equipo hace igual.
+    - Cada escritura deja la identidad de la fila en `sync_outbox` (lo que falta por subir) y su reloj en `sync_rows`, quién la cambió por última vez (migración 0009, que solo crea tablas).
+    - Usan funciones en JavaScript (`db.function`) para el reloj y para saber si se está capturando.
+    - Dentro del disparador no hay «OR REPLACE» ni «ON CONFLICT»: los sustituiría el de la sentencia que lo dispara.
+  - **Reloj híbrido:** milisegundos que nunca retroceden y avanzan con lo que llega de otros equipos. Si dos cambios empatan, decide el id del equipo.
+  - **Qué no viaja:**
+    - `ad_jobs` (la cola de Meta de cada equipo) y el índice de búsqueda, que se rehace al aplicar;
+    - los ajustes `sync.*` y `backups.last`, que son de cada equipo.
+  - **Identidad natural:** `history`, `versions` y `alert_events` tienen id autonumérico (dos equipos darían el mismo número a filas distintas), así que se identifican por sus columnas naturales.
+  - **Al aplicar:** gana el cambio más reciente de cada fila, y un cambio local pendiente que pierde sale de la cola. Una fila que choca con una regla de unicidad del equipo se salta.
+  - **Rendimiento:** las sentencias se preparan una vez y el aviso de «hay cambios» es uno por tanda, no uno por fila. 20.000 filas viajan en unos 5 paquetes y en torno a un segundo.
+  - **Sin destino configurado no se apunta nada**, para que la cola no crezca sin fin.
+- **Paquetes (`packs.ts`):**
+  - JSON comprimido y cifrado con AES-256-GCM. El nombre del paquete va como datos asociados: un paquete no se puede hacer pasar por otro.
+  - La clave sale de la de los archivos de la bóveda: es la misma en todos los equipos y no cambia al rotar la clave maestra.
+  - Hasta 4.000 filas o 4 MB por paquete (si no caben, se parten). Así va siempre por la subida simple de Drive.
+  - Un paquete puede llevar el `vault.json` nuevo cuando cambia la contraseña. Se adopta solo si es de la misma generación de clave, y se conserva el número de migraciones de cada equipo.
+- **Formato 2 en la nube:**
+  - `sync.json`: época, instantánea actual y la anterior, con qué paquetes de cada equipo incluyen.
+  - `snapshots/<id>/` y `changes/<época>/<equipo>-<n>.bin`.
+  - Cada instantánea lleva dentro `sync.snapshot` (qué es). Así un equipo nuevo (traído de Drive, o una carpeta copiada) empieza en ella sin volver a bajarla. Aplicar otra vez paquetes que ya tenía no cambia nada.
+  - **Id de cada equipo:** `.equipo.json` en la carpeta de la bóveda, con el nombre del equipo y la ruta. Una copia de la carpeta en otro sitio es otro equipo.
+- **Ciclo de una sincronización:**
+  1. Sube primero lo propio: los archivos que faltan y luego los paquetes.
+  2. Baja los paquetes nuevos de cada equipo, en orden.
+  3. Si es el ordenador y hay 150 paquetes o la instantánea tiene más de una semana, sube una instantánea nueva. Antes comprueba que nadie se ha adelantado. Luego borra los paquetes que ya cubría la anterior: siempre queda un intervalo de margen. El móvil no hace instantáneas hasta los 2.000 paquetes: subir la base de datos entera con datos móviles es justo lo que se quería evitar.
+  - **Equipo atrasado:** si faltan paquetes que ya se borraron, baja la instantánea y vuelve a aplicar encima lo que tenía sin subir, con su hora.
+  - Eso se guarda antes cifrado en la bóveda (`.cambios-pendientes.bin`, junto con sus ajustes propios). Si la instantánea pide otra contraseña (rotación de clave), espera ahí a que se desbloquee.
+- **Épocas:**
+  - Una época empieza al pasar del formato 1, al rotar la clave maestra o al restaurar una copia.
+  - **Rotar la clave:** primero se traen los paquetes de los demás, que no dependen de la clave maestra, y luego se sube la base de datos recifrada.
+  - **Paso del formato 1:** si la nube es más nueva y aquí no hay cambios, se baja como antes; luego la época nueva sale de lo de aquí y se borran `crm.db` y `vault.json` de la raíz.
+  - **El único aviso que queda:** un equipo que llega del formato 1 con cambios sin subir, cuando la nube ya está en el 2. Ahí se pregunta como antes, y la otra versión queda como copia.
+- **Casi al momento y sin que se note:**
+  - unos segundos (4 s) después de cada cambio;
+  - cada minuto con la app a la vista;
+  - al volver a la ventana (escritorio, como mucho cada 15 s) o a primer plano (Android, aviso nativo nuevo `/native/foreground`);
+  - al cerrar, bloquear o pasar a segundo plano.
+  - **Las automáticas** no cambian el estado a «sincronizando» ni avisan a la interfaz, salvo que muevan algo grande (más de 256 KB o más de 5 paquetes) o traigan cambios. Sin red no dan error.
+  - **El servicio en primer plano y la pantalla encendida** se piden siempre a mano y al pasar a segundo plano. En las automáticas, solo si resultan grandes.
+- **Interfaz y motor al día:** al aplicar, la búsqueda se reindexa (todo si cambian campos o colecciones; si no, solo los registros tocados), se vacían las cachés del motor de datos y se avisa a la interfaz: datos, biblioteca, análisis y Meta.
+- **Siembra con ids deterministas:** los campos y vistas de serie tienen id derivado de la entidad y la clave (SHA-256 con forma de UUID). Si dos equipos se actualizan a la vez, no crean el mismo campo con ids distintos.
+- **Copias «antes de sincronizar»:** se quedan las 3 últimas.
+- **Tests:**
+  - **Unidad, con tres equipos sobre una carpeta compartida:**
+    - cambios a la vez que se juntan, y solo paquetes pequeños;
+    - última escritura y borrados;
+    - libros, archivos, progreso de lectura y campos nuevos;
+    - lo de cada equipo no viaja;
+    - un equipo atrasado tras dos instantáneas;
+    - contraseña nueva y rotación de clave con cambios pendientes;
+    - restaurar una copia;
+    - paso del formato 1;
+    - paquete manipulado;
+    - ids de serie;
+    - sin destino no se apunta nada;
+    - subida automática sin que se vea;
+    - 20.000 filas.
+  - **Interfaz:** escritorio con carpeta y móvil con el Google falso, incluido traer la bóveda de Drive.
+

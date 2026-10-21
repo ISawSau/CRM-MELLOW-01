@@ -181,8 +181,8 @@ export const shell: Record<string, string> = {
   'Copia restaurada.': 'Backup restored.',
   'Copia restaurada: entra con su contraseña.': 'Backup restored: sign in with its password.',
   'Sincronización y copias': 'Sync and backups',
-  'Para usar la bóveda en varios equipos. Todo se sube ya cifrado: ni Google ni nadie ve tus datos. Se sincroniza al abrir, al bloquear o cerrar, cada media hora si hay cambios y con el botón de la barra de estado.':
-    'To use the vault on several computers. Everything is uploaded already encrypted: neither Google nor anyone else can see your data. It syncs when opening, locking or closing, every half hour if there are changes, and with the status bar button.',
+  'Para usar la bóveda en varios equipos. Todo se sube ya cifrado: ni Google ni nadie ve tus datos. Se sincroniza sola, sin que lo notes: unos segundos después de cada cambio, al abrir y al volver a la app, cada minuto mientras está abierta y al cerrarla. Solo viaja lo que ha cambiado, y si cambias cosas en dos equipos a la vez se juntan.':
+    'For using the vault on several devices. Everything is encrypted before upload: neither Google nor anyone else sees your data. It syncs on its own without you noticing: a few seconds after each change, when you open or return to the app, every minute while it is open and when you close it. Only what has changed travels, and changes made on two devices at the same time are merged.',
   'Sin destino': 'No destination',
   'Sincronizar ahora': 'Sync now',
   Desconectar: 'Disconnect',

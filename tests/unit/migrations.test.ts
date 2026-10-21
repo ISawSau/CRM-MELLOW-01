@@ -43,6 +43,7 @@ describe('migración 0007: se quitan X y LinkedIn', () => {
     expect(runMigrations(db, MIGRATIONS).applied).toEqual([
       '0007_quitar_x_linkedin',
       '0008_biblioteca',
+      '0009_sincronizacion',
     ])
 
     const ids = (sql: string) => (db.prepare(sql).all() as { id: string }[]).map((r) => r.id)

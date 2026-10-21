@@ -48,6 +48,8 @@ export interface BackendOptions {
   updateTarget?: UpdateTarget | null
   /** Móvil: hasta qué tamaño se bajan solos los archivos de la nube (D-101). */
   maxAutoDownloadBytes?: number
+  /** Paquetes de cambios a partir de los que este equipo hace una instantánea (D-125). */
+  compactPacks?: number
   /** Dirección del marco aislado que pinta los ebooks (D-123). */
   readerUrl: () => string
 }
@@ -113,6 +115,16 @@ export function createBackend(o: BackendOptions): Backend {
   const sync = new SyncService(vault, {
     hostname: o.hostname,
     ...(o.maxAutoDownloadBytes ? { maxAutoDownloadBytes: o.maxAutoDownloadBytes } : {}),
+    ...(o.compactPacks ? { compactPacks: o.compactPacks } : {}),
+    // Un cambio aquí se sube a los pocos segundos; lo que llega de otro equipo se enseña.
+    onLocalChange: () => sync.notifyLocalChange(),
+    onApplied: (changes) => {
+      emit('data:changed', { entity: null, undo: vault.data.undoState() })
+      emit('books:changed', null)
+      emit('analysis:changed', null)
+      if ([...changes.tables].some((t) => t.startsWith('ad_') || t === 'fx_rates'))
+        emit('meta:changed', meta.status())
+    },
     // Los libros se bajan siempre, aunque pasen del límite: son para leerlos en el móvil.
     alwaysDownload: () => books.bookFileIds(),
     openBrowser: (url) => platform.openExternal(url),

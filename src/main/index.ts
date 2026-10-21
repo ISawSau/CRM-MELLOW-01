@@ -140,6 +140,14 @@ if (process.argv.includes('--autoprueba')) {
     mainWindow.on('closed', () => {
       mainWindow = null
     })
+    // Al volver a la ventana, lo nuevo de los otros equipos (D-125), sin repetir seguido.
+    let lastFocusSync = 0
+    mainWindow.on('focus', () => {
+      if (vault.status().state !== 'unlocked' || !sync.status().kind) return
+      if (Date.now() - lastFocusSync < 15_000) return
+      lastFocusSync = Date.now()
+      void sync.sync('auto').catch(() => {})
+    })
   })
 
   // Al salir: checkpoint del WAL, cierre de crm.db y borrado del .lock.

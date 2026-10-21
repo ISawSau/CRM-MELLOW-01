@@ -156,11 +156,12 @@ describe('SyncService con Drive (D-124)', () => {
     for (let i = 0; i < 3; i++) vault.data.importBuffer(`a${i}.bin`, randomBytes(200_000))
     await sync.sync()
     expect(sync.status()).toMatchObject({ phase: 'idle', progress: null })
-    const up = statuses.filter((s) => s.progress?.step === 'subiendo')
+    const up = statuses.filter((s) => s.progress?.step === 'subiendo').map((s) => s.progress!)
     expect(up.length).toBeGreaterThan(0)
-    const last = up.at(-1)!.progress!
-    expect(last.done).toBe(last.total)
-    expect(last.total).toBe(4) // tres archivos y la base de datos
+    // Primero los tres archivos, luego la base de datos entera (la primera vez, D-125).
+    expect(up.some((p) => p.total === 3 && p.done === 3 && p.bytes === p.totalBytes)).toBe(true)
+    const last = up.at(-1)!
+    expect(last).toMatchObject({ done: 1, total: 1 })
     expect(last.bytes).toBe(last.totalBytes)
     expect(holds).toEqual(['+Sincronizando la bóveda…', '-'])
   })

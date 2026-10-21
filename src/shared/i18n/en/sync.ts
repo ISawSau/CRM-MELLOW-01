@@ -13,4 +13,9 @@ export const sync: Record<string, string> = {
   '{bytes} de {total}': '{bytes} of {total}',
   'Progreso de la sincronización': 'Sync progress',
   'sincronizando: {what}': 'syncing: {what}',
+  // Sincronización por cambios (D-125)
+  'La nube usa un formato más nuevo: actualiza la app en este equipo para sincronizar.':
+    'The cloud uses a newer format: update the app on this device to sync.',
+  'Otro equipo usa una versión más nueva de la app: actualiza esta para sincronizar.':
+    'Another device uses a newer version of the app: update this one to sync.',
 }

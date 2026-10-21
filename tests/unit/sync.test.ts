@@ -71,38 +71,35 @@ describe('sincronización entre dos equipos (carpeta compartida)', () => {
     expect(titles(b.vault)).toEqual(['Acme', 'Beta'])
     expect(b.vault.data.files.read(file.id).toString()).toBe('imagen del logo')
 
-    // Conflicto: los dos cambian sin sincronizar entre medias.
+    // Los dos cambian sin sincronizar entre medias: se juntan, sin conflicto (D-125).
     a.vault.data.create('cliente', { [nombre(a.vault).id]: 'Desde A' })
     await a.sync.sync()
     b.vault.data.create('cliente', { [nombre(b.vault).id]: 'Desde B' })
     await b.sync.sync()
-    expect(b.sync.status()).toMatchObject({
-      phase: 'conflict',
-      conflict: { device: 'portatil' },
-    })
-    // B se queda con lo suyo; la versión de la nube queda como copia en B.
-    await b.sync.resolve('local')
-    expect(b.sync.status().phase).toBe('idle')
-    const backups = readdirSync(join(b.vault.currentPath!, 'backups'))
-    expect(backups.some((n) => n.endsWith('conflicto-nube'))).toBe(true)
-
-    // A no tiene cambios: descarga la versión de B.
+    expect(b.sync.status()).toMatchObject({ phase: 'idle', conflict: null })
     await a.sync.sync()
-    expect(titles(a.vault)).toEqual(['Acme', 'Beta', 'Desde B'])
+    expect(titles(a.vault)).toEqual(['Acme', 'Beta', 'Desde A', 'Desde B'])
+    expect(titles(b.vault)).toEqual(['Acme', 'Beta', 'Desde A', 'Desde B'])
     a.vault.dispose()
     b.vault.dispose()
   })
 
-  it('elegir la versión de la nube guarda la de este equipo como copia', async () => {
+  it('al pasar del formato anterior con cambios sin subir, pregunta; la nube deja copia de lo local', async () => {
     const { a, b, remote } = await twoDevices()
     a.sync.configureFolder(remote)
-    await a.sync.sync()
-    b.sync.configureFolder(remote)
-    await b.sync.sync()
     a.vault.data.create('cliente', { [nombre(a.vault).id]: 'Nube' })
     await a.sync.sync()
+    // B venía del formato 1 con cambios sin subir.
+    b.sync.configureFolder(remote)
     b.vault.data.create('cliente', { [nombre(b.vault).id]: 'Local' })
+    b.vault.sqlite
+      .prepare(
+        "INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES ('sync.state', ?, '')",
+      )
+      .run(JSON.stringify({ generation: 1, changeMark: 0, lastSyncAt: null }))
+    b.vault.sqlite.prepare('DELETE FROM sync_outbox').run()
     await b.sync.sync()
+    expect(b.sync.status()).toMatchObject({ phase: 'conflict', conflict: { device: 'portatil' } })
     await b.sync.resolve('remote')
     expect(titles(b.vault)).toEqual(['Nube'])
     const backups = readdirSync(join(b.vault.currentPath!, 'backups'))
