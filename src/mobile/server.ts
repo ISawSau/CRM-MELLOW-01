@@ -27,6 +27,7 @@ import { isReaderPath, readerContentSecurityPolicy } from '../main/reader-csp'
  *   /native/reply      respuesta del lado nativo a una de esas peticiones
  *   /native/lock       pantalla apagada: se sube lo pendiente y se bloquea
  *   /native/background la app pasa a segundo plano: se sube lo pendiente
+ *   /native/foreground la app vuelve a la vista: se trae lo nuevo (D-125)
  *
  * El lector de ebooks (D-123) se sirve en otro puerto (otro origen) con su propia CSP: solo
  * su página y los scripts y estilos compilados, sin secreto (son los del APK, sin datos).
@@ -92,7 +93,7 @@ export interface MobileServerOptions {
   /** 0 = cualquiera libre (tests). */
   port: number
   /** El lado nativo avisa: pantalla apagada (`lock`) o la app pasa a segundo plano. */
-  onNative: (what: 'lock' | 'background') => void
+  onNative: (what: 'lock' | 'background' | 'foreground') => void
 }
 
 export interface MobileServer {
@@ -245,8 +246,14 @@ export function startMobileServer(o: MobileServerOptions): Promise<MobileServer>
     if (!(req.headers['content-type'] ?? '').startsWith('application/json'))
       return send(res, 415, '', 'text/plain')
 
-    if (path === '/native/lock' || path === '/native/background') {
-      o.onNative(path === '/native/lock' ? 'lock' : 'background')
+    if (path === '/native/lock' || path === '/native/background' || path === '/native/foreground') {
+      o.onNative(
+        path === '/native/lock'
+          ? 'lock'
+          : path === '/native/background'
+            ? 'background'
+            : 'foreground',
+      )
       return send(res, 200, '{}', 'application/json')
     }
     if (path === '/native/reply') {

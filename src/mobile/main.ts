@@ -56,6 +56,8 @@ async function main(): Promise<void> {
     emit: (event, payload) => server?.emit(event, payload),
     // Fotos y documentos sí; los vídeos grandes se quedan en la nube (se ven sus miniaturas).
     maxAutoDownloadBytes: 25 * 1024 * 1024,
+    // Las instantáneas (la base de datos entera) mejor desde el ordenador (D-125).
+    compactPacks: 2000,
     readerUrl: () => server?.readerUrl ?? '',
     updateTarget: androidUpdateTarget({
       cacheDir: arg('cache'),
@@ -91,8 +93,16 @@ async function main(): Promise<void> {
     onNative: (what) => {
       if (backend.vault.status().state !== 'unlocked') return
       if (what === 'lock') void backend.lockWithSync()
-      else if (backend.sync.status().kind && backend.sync.status().pending)
-        void backend.sync.sync().catch(() => {})
+      else if (what === 'foreground') {
+        // De vuelta: lo nuevo de los demás equipos, enseguida y sin que se note (D-125).
+        backend.sync.setActive(true)
+        if (backend.sync.status().kind) void backend.sync.sync('auto').catch(() => {})
+      } else {
+        // A segundo plano: sube lo pendiente (el servicio en primer plano lo mantiene vivo).
+        backend.sync.setActive(false)
+        if (backend.sync.status().kind && backend.sync.status().pending)
+          void backend.sync.sync('background').catch(() => {})
+      }
     },
   })
   trace(`motor listo en 127.0.0.1:${server.port}`)
