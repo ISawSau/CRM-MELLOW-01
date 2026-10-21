@@ -1,4 +1,12 @@
-import { app, clipboard, dialog, Notification, shell, type BrowserWindow } from 'electron'
+import {
+  app,
+  clipboard,
+  dialog,
+  Notification,
+  powerSaveBlocker,
+  shell,
+  type BrowserWindow,
+} from 'electron'
 import { join } from 'node:path'
 import { externalUrl, type Platform } from './platform'
 
@@ -10,8 +18,17 @@ export function electronPlatform(getWindow: () => BrowserWindow | null): Platfor
     const win = getWindow()
     return win ? dialog.showOpenDialog(win, options) : dialog.showOpenDialog(options)
   }
+  // Leyendo un libro (D-123): que la pantalla no se apague sola.
+  let reading: number | null = null
   return {
     name: 'desktop',
+    readingMode({ on }) {
+      if (on && reading === null) reading = powerSaveBlocker.start('prevent-display-sleep')
+      else if (!on && reading !== null) {
+        powerSaveBlocker.stop(reading)
+        reading = null
+      }
+    },
     version: () => app.getVersion(),
     isPackaged: () => app.isPackaged,
     async pickFolder({ title, buttonLabel }) {
