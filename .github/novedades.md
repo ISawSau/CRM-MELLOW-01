@@ -1,3 +1,22 @@
+## Novedades de la 0.18.0 · Biblioteca: lee tus libros en la app (sobre todo en el móvil)
+
+- **Biblioteca nueva** (en el menú, grupo «personal»): añade libros en PDF, EPUB, MOBI, AZW3, FB2 o CBZ, sin DRM. Se guardan cifrados en la bóveda y se sincronizan con tus otros equipos, también el móvil, aunque sean grandes. El título, el autor y la portada salen del propio libro.
+- **Lector a pantalla completa:**
+  - En el móvil: toca a la derecha o a la izquierda para pasar página (o desliza). El centro muestra u oculta los controles. Opcionalmente pasas página con los botones de volumen, y la pantalla no se apaga mientras lees.
+  - En el ordenador: flechas, y dos páginas si caben.
+- **A tu gusto:**
+  - temas (como la app, papel, sepia, noche y negro);
+  - tipo y tamaño de letra, interlineado, márgenes, justificado, atenuar;
+  - página a página o continuo;
+  - el móvil y el ordenador guardan cada uno su apariencia.
+  - En PDF: ajuste a la pantalla, pellizco para ampliar y colores invertidos con los temas oscuros.
+- **Seguimiento:**
+  - vuelves donde lo dejaste, también en otro equipo;
+  - página o posición, porcentaje y cuánto te queda del capítulo y del libro con tu ritmo;
+  - racha de días, tiempo de hoy y de la semana, objetivo de libros al año;
+  - tarjeta «Lectura» en Inicio para seguir con un toque.
+- **Seguro:** el libro se abre aislado de la app, sin poder ejecutar código ni conectarse a internet.
+
 ## Novedades de la 0.17.1 · El móvil, sin cosas montadas ni cortadas
 
 - **Perfil:** al desplazarte, la foto y tus datos se mueven con la página, sin montarse sobre las cifras. La foto ocupa menos.

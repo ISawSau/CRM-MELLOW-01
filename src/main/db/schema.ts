@@ -408,3 +408,38 @@ export const alertEvents = sqliteTable(
   },
   (t) => [uniqueIndex('alert_events_period').on(t.alertId, t.until)],
 )
+
+// --- Biblioteca (fase 15, D-123) -------------------------------------------------------
+
+/** Por dónde va cada libro (uno por registro de la entidad `libro`). */
+export const bookProgress = sqliteTable('book_progress', {
+  recordId: text('record_id').primaryKey(),
+  /** CFI del ebook o número de página del PDF. */
+  location: text('location').notNull(),
+  fraction: real('fraction').notNull(),
+  page: integer('page'),
+  pages: integer('pages'),
+  chapter: text('chapter'),
+  updatedAt: text('updated_at').notNull(),
+})
+
+/** Ratos de lectura: tiempo leyendo de verdad y páginas pasadas. */
+export const readingSessions = sqliteTable(
+  'reading_sessions',
+  {
+    id: text('id').primaryKey(),
+    recordId: text('record_id').notNull(),
+    /** AAAA-MM-DD en la zona horaria del perfil (día en que empezó el rato). */
+    day: text('day').notNull(),
+    startedAt: text('started_at').notNull(),
+    endedAt: text('ended_at').notNull(),
+    seconds: integer('seconds').notNull(),
+    fromFraction: real('from_fraction').notNull(),
+    toFraction: real('to_fraction').notNull(),
+    pages: integer('pages').notNull(),
+  },
+  (t) => [
+    index('reading_sessions_day_idx').on(t.day),
+    index('reading_sessions_record_idx').on(t.recordId),
+  ],
+)

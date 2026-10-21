@@ -24,6 +24,13 @@ export default defineConfig({
       minify: true,
       assetsInlineLimit: 0,
       modulePreload: { polyfill: false },
+      // La app y el lector de ebooks, que se sirve desde otro origen (D-123).
+      rollupOptions: {
+        input: {
+          index: resolve(__dirname, 'src/renderer/index.html'),
+          reader: resolve(__dirname, 'src/renderer/reader.html'),
+        },
+      },
     },
   },
 })

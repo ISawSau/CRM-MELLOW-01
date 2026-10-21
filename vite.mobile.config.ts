@@ -52,6 +52,12 @@ export default defineConfig(({ mode }) =>
           minify: true,
           assetsInlineLimit: 0,
           modulePreload: { polyfill: false },
+          rollupOptions: {
+            input: {
+              index: resolve(__dirname, 'src/renderer/index.html'),
+              reader: resolve(__dirname, 'src/renderer/reader.html'),
+            },
+          },
         },
       },
 )

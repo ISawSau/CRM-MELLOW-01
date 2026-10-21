@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { request } from 'node:http'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -29,6 +29,9 @@ describe('servidor local de Android', () => {
   beforeAll(async () => {
     dir = mkdtempSync(join(tmpdir(), 'crm-movil-'))
     writeFileSync(join(dir, 'index.html'), '<!doctype html><title>CRM</title>')
+    writeFileSync(join(dir, 'reader.html'), '<!doctype html><title>Lector</title>')
+    mkdirSync(join(dir, 'assets'))
+    writeFileSync(join(dir, 'assets', 'reader-a1.js'), 'console.log(1)')
     const handlers = {
       'app:info': () => ({ version: '1', platform: 'android', hostname: 'x', isPackaged: true }),
       'files:upload': ({ data }: { data: Uint8Array }) => ({ size: data.byteLength }),
@@ -84,6 +87,25 @@ describe('servidor local de Android', () => {
     expect(res.status).toBe(200)
     expect(res.headers.get('content-security-policy')).toContain("script-src 'self'")
     expect((await fetch(`${base}/..%2f..%2fetc%2fpasswd`, { headers })).status).toBe(404)
+  })
+
+  it('el lector de ebooks va en otro puerto, sin secreto ni API, con su CSP (D-123)', async () => {
+    const reader = new URL(srv.readerUrl)
+    expect(reader.port).not.toBe(String(srv.port))
+    expect(reader.pathname).toBe('/reader.html')
+    const page = await fetch(srv.readerUrl)
+    expect(page.status).toBe(200)
+    const csp = page.headers.get('content-security-policy')!
+    expect(csp).toContain(`frame-ancestors http://127.0.0.1:${srv.port}`)
+    expect(csp).toContain("script-src 'self';")
+    expect((await fetch(`${reader.origin}/assets/reader-a1.js`)).status).toBe(200)
+    // Ni la app, ni el motor, ni la bóveda por ese puerto.
+    for (const p of ['/', '/index.html', '/api/app:info', '/vault/file/x', '/native/events'])
+      expect((await fetch(`${reader.origin}${p}`, { headers })).status).toBe(404)
+    expect((await fetch(`${reader.origin}/reader.html`, { method: 'POST' })).status).toBe(404)
+    // La app solo puede enmarcar ese origen.
+    const app = await fetch(`${base}/`, { headers })
+    expect(app.headers.get('content-security-policy')).toContain(`frame-src ${reader.origin}`)
   })
 
   it('llama a los canales y valida la entrada', async () => {

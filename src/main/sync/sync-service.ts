@@ -136,6 +136,8 @@ export interface SyncServiceOptions {
    * no llenarlo de vídeos, D-101). Las miniaturas se bajan siempre. Sin límite si no se da.
    */
   maxAutoDownloadBytes?: number
+  /** Archivos que se bajan aunque pasen de `maxAutoDownloadBytes` (los libros, D-123). */
+  alwaysDownload?: () => Set<string>
   openBrowser: (url: string) => void
   /** Inicio de sesión con Google en curso (pegar la dirección, cancelar, D-118). */
   logins?: GoogleLogins
@@ -521,10 +523,12 @@ export class SyncService {
       has_thumb: number
     }[]
     const limit = this.opts.maxAutoDownloadBytes ?? Infinity
+    const always =
+      limit === Infinity ? new Set<string>() : (this.opts.alwaysDownload?.() ?? new Set())
     for (const r of rows) {
       for (const kind of ['files', 'thumbs'] as const) {
         if (kind === 'thumbs' && !r.has_thumb) continue
-        if (kind === 'files' && r.size > limit) continue
+        if (kind === 'files' && r.size > limit && !always.has(r.id)) continue
         const dest = join(vaultPath, kind, r.id.slice(0, 2), `${r.id}.bin`)
         if (!existsSync(dest)) await remote.get(`${kind}/${r.id}.bin`, dest)
       }

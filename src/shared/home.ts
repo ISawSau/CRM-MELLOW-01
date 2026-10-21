@@ -13,6 +13,7 @@ export const HOME_CARDS = [
   'ritmo',
   'tareas',
   'alertas',
+  'lectura',
 ] as const
 /** Las que había antes de la fase 14: las nuevas se añaden solas a un Inicio ya personalizado. */
 export const LEGACY_HOME_CARDS: readonly HomeCard[] = [
@@ -32,6 +33,7 @@ export const HOME_CARD_LABELS: Record<HomeCard, string> = {
   ritmo: 'Ritmo de gasto del mes',
   tareas: 'Tareas de hoy y atrasadas',
   alertas: 'Alertas',
+  lectura: 'Lectura (el libro que estás leyendo y tu racha)',
 }
 
 export const homeItemSchema = z.discriminatedUnion('kind', [

@@ -56,6 +56,7 @@ async function main(): Promise<void> {
     emit: (event, payload) => server?.emit(event, payload),
     // Fotos y documentos sí; los vídeos grandes se quedan en la nube (se ven sus miniaturas).
     maxAutoDownloadBytes: 25 * 1024 * 1024,
+    readerUrl: () => server?.readerUrl ?? '',
     updateTarget: androidUpdateTarget({
       cacheDir: arg('cache'),
       native: (request) => server?.native(request) ?? Promise.resolve(null),

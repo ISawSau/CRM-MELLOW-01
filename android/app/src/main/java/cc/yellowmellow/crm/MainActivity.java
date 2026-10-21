@@ -26,8 +26,10 @@ import android.os.PersistableBundle;
 import android.provider.OpenableColumns;
 import android.provider.Settings;
 import android.util.Log;
+import android.view.KeyEvent;
 import android.view.View;
 import android.view.WindowInsets;
+import android.view.WindowInsetsController;
 import android.view.WindowManager;
 import android.webkit.CookieManager;
 import android.webkit.MimeTypeMap;
@@ -66,6 +68,8 @@ public class MainActivity extends Activity implements NativeChannel.Handler {
     /** Respuesta del instalador de paquetes al instalar una versión nueva (D-120). */
     private static final String ACTION_INSTALL_STATUS = "cc.yellowmellow.crm.INSTALL_STATUS";
     private boolean askedNotify = false;
+    /** Leyendo un libro (D-123): los botones de volumen pasan página. */
+    private boolean volumeKeys = false;
     private int nextNotifyId = 1;
 
     private final Handler ui = new Handler(Looper.getMainLooper());
@@ -162,6 +166,7 @@ public class MainActivity extends Activity implements NativeChannel.Handler {
                 root.removeView(web);
                 web.destroy();
                 web = null;
+                setReading(false, false);
                 showWebView();
                 return true;
             }
@@ -213,6 +218,11 @@ public class MainActivity extends Activity implements NativeChannel.Handler {
                     break;
                 case "installApk":
                     installApk(id, req.optString("path"));
+                    break;
+                case "reading":
+                    // Lector de la biblioteca (D-123).
+                    setReading(req.optBoolean("on"), req.optBoolean("volumeKeys"));
+                    background(() -> NativeChannel.reply(id, true));
                     break;
                 case "busy":
                     // Conectar con Google: la app no se congela ni pierde la red al pasar
@@ -363,6 +373,51 @@ public class MainActivity extends Activity implements NativeChannel.Handler {
             // Sin nombre: se usa la dirección.
         }
         return uri.getLastPathSegment();
+    }
+
+    /**
+     * Leyendo un libro (D-123): la pantalla no se apaga sola, las barras del sistema se
+     * ocultan (vuelven deslizando desde el borde) y, si se pide, los botones de volumen
+     * pasan página.
+     */
+    private void setReading(boolean on, boolean volume) {
+        volumeKeys = on && volume;
+        if (on) getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        else getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        if (Build.VERSION.SDK_INT >= 30) {
+            WindowInsetsController c = getWindow().getInsetsController();
+            if (c != null) {
+                if (on) {
+                    c.setSystemBarsBehavior(
+                            WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
+                    c.hide(WindowInsets.Type.systemBars());
+                } else {
+                    c.show(WindowInsets.Type.systemBars());
+                }
+            }
+        }
+    }
+
+    private static boolean isVolumeKey(int keyCode) {
+        return keyCode == KeyEvent.KEYCODE_VOLUME_DOWN || keyCode == KeyEvent.KEYCODE_VOLUME_UP;
+    }
+
+    @Override
+    public boolean onKeyDown(int keyCode, KeyEvent event) {
+        if (volumeKeys && web != null && isVolumeKey(keyCode)) {
+            String key = keyCode == KeyEvent.KEYCODE_VOLUME_DOWN ? "down" : "up";
+            web.evaluateJavascript(
+                    "window.__crmVolume ? String(window.__crmVolume('" + key + "')) : 'false'",
+                    null);
+            return true;
+        }
+        return super.onKeyDown(keyCode, event);
+    }
+
+    @Override
+    public boolean onKeyUp(int keyCode, KeyEvent event) {
+        if (volumeKeys && isVolumeKey(keyCode)) return true;
+        return super.onKeyUp(keyCode, event);
     }
 
     @Override

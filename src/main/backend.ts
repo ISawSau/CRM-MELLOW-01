@@ -19,6 +19,7 @@ import { SyncService } from './sync/sync-service'
 import { ToolsService } from './tools/tools-service'
 import { isVaultFolder } from './vault/vault-file'
 import { VaultService } from './vault/vault-service'
+import { BooksService } from './books/books-service'
 
 export interface BackendOptions {
   platform: Platform
@@ -47,6 +48,8 @@ export interface BackendOptions {
   updateTarget?: UpdateTarget | null
   /** Móvil: hasta qué tamaño se bajan solos los archivos de la nube (D-101). */
   maxAutoDownloadBytes?: number
+  /** Dirección del marco aislado que pinta los ebooks (D-123). */
+  readerUrl: () => string
 }
 
 export interface Backend {
@@ -106,9 +109,12 @@ export function createBackend(o: BackendOptions): Backend {
     },
     data: { onChange: (change) => emit('data:changed', change) },
   })
+  const books = new BooksService(vault, { onChange: () => emit('books:changed', null) })
   const sync = new SyncService(vault, {
     hostname: o.hostname,
     ...(o.maxAutoDownloadBytes ? { maxAutoDownloadBytes: o.maxAutoDownloadBytes } : {}),
+    // Los libros se bajan siempre, aunque pasen del límite: son para leerlos en el móvil.
+    alwaysDownload: () => books.bookFileIds(),
     openBrowser: (url) => platform.openExternal(url),
     logins,
     ...google,
@@ -210,6 +216,8 @@ export function createBackend(o: BackendOptions): Backend {
     reports,
     gmail,
     updates,
+    books,
+    readerUrl: o.readerUrl,
     lockWithSync,
     platform,
     logins,

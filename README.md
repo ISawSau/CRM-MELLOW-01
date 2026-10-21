@@ -16,6 +16,7 @@ The interface is in Spanish (Spain) and English (UK); you pick the language on t
 - **Billing:** invoices, payments, revenue and profit per hour, PDF reports for clients.
 - **File tools** (desktop): compress and convert images, video (FFmpeg) and PDFs.
 - **Gmail, read-only:** email threads per client and contact.
+- **Book library and reader:** PDF, EPUB, MOBI, AZW3, FB2 and CBZ (DRM-free), stored encrypted and synced to your phone; a full-screen reader built for mobile (tap or swipe, volume keys, themes and fonts), your place kept across devices, reading streak and a yearly goal. Ebooks render in an isolated frame that cannot run the book's scripts or reach the app.
 - **Sync between devices** through your own Google Drive or any synced folder, with automatic backups.
 - **Personalisation:** theme editor, configurable home cards, section icons and custom collections.
 

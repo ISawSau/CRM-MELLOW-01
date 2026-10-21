@@ -47,18 +47,20 @@ export async function splitPdf(data: Uint8Array, groups: number[][]): Promise<Ui
   return result
 }
 
-type PdfJs = typeof import('pdfjs-dist')
+type PdfJs = typeof import('pdfjs-dist/legacy/build/pdf.mjs')
 let pdfjs: Promise<PdfJs> | null = null
 
 /**
  * pdf.js en el hilo principal: la CSP no permite workers (worker-src 'none'), así que se
- * le da el «worker» como módulo ya cargado. pdf.js 6 no usa eval.
+ * le da el «worker» como módulo ya cargado. pdf.js 6 no usa eval. Es la compilación
+ * «legacy», con polyfills: la normal usa funciones de JavaScript tan nuevas
+ * (Map.getOrInsertComputed) que no están en todas las WebView de Android (D-123).
  */
-function loadPdfJs(): Promise<PdfJs> {
+export function loadPdfJs(): Promise<PdfJs> {
   pdfjs ??= (async () => {
     const [lib, worker] = await Promise.all([
-      import('pdfjs-dist'),
-      import('pdfjs-dist/build/pdf.worker.mjs'),
+      import('pdfjs-dist/legacy/build/pdf.mjs'),
+      import('pdfjs-dist/legacy/build/pdf.worker.mjs'),
     ])
     ;(globalThis as { pdfjsWorker?: unknown }).pdfjsWorker = worker
     return lib

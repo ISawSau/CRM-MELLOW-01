@@ -1,4 +1,5 @@
 import { useNarrow } from '../lib/use-narrow'
+import { LibraryPage } from '../books/LibraryPage'
 import { MobileTabBar, MobileTopBar } from './MobileBars'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { DEFAULT_APPEARANCE, type Density } from '@shared/appearance'
@@ -242,7 +243,9 @@ function ShellInner({ status }: { status: VaultStatus }) {
         )}
         <main className="main">
           <UpdateBanner />
-          {current.entity ? (
+          {current.id === 'biblioteca' ? (
+            <LibraryPage openRecordId={openRecord} onOpenRecord={setOpenRecord} />
+          ) : current.entity ? (
             <DataPage
               key={current.entity}
               entity={current.entity}

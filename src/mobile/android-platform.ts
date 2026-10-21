@@ -67,6 +67,11 @@ export function androidPlatform(o: AndroidPlatformOptions): Platform {
         if (--holders === 0) void o.native({ kind: 'busy', on: false })
       }
     },
+    // Lector (D-123): pantalla encendida, pantalla completa y, si se pide, los botones de
+    // volumen para pasar página (los recoge MainActivity).
+    readingMode({ on, volumeKeys }) {
+      void o.native({ kind: 'reading', on, volumeKeys })
+    },
     returnToAppUrl: RETURN_TO_APP_URL,
   }
 }

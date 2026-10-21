@@ -14,7 +14,9 @@ import {
   isAppUrl,
   refuseDebugSwitches,
   registerAppProtocol,
+  readerUrl,
   registerPrivilegedScheme,
+  registerReaderProtocol,
 } from './security'
 import { registerVaultProtocol } from './files/vault-protocol'
 import { ffmpegPath } from './tools/dialogs'
@@ -81,6 +83,7 @@ if (process.argv.includes('--autoprueba')) {
     decodeHeic,
     print: htmlToPdf,
     fonts: () => reportFonts(join(__dirname, '..')),
+    readerUrl: () => readerUrl(devServerUrl),
   })
   const { vault, sync, meta, tools } = backend
 
@@ -105,6 +108,7 @@ if (process.argv.includes('--autoprueba')) {
     const ses = session.fromPartition('crm', { cache: false })
     hardenSession(ses, devServerUrl)
     registerAppProtocol(ses, join(__dirname, '../renderer'))
+    registerReaderProtocol(ses, join(__dirname, '../renderer'))
     registerVaultProtocol(
       ses,
       () => {

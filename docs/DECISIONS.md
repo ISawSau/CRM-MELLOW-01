@@ -969,3 +969,50 @@ El usuario no quiere escribir comandos de desarrollo para usar la app. Los insta
   - nada fijo se monta encima de otra cosa;
   - los widgets no se pisan.
 
+### D-123 · Biblioteca y lector de libros, pensado para el móvil (fase 15, v0.18.0)
+
+- **Petición del usuario:** un lector de PDF y ebooks dentro del CRM, con interfaz a su gusto y seguimiento de páginas, sobre todo para el móvil. Para leer, no para estudiar: sin subrayados, notas, búsqueda ni repaso (los descartó).
+- **Librerías:**
+  - EPUB, MOBI, AZW3 (KF8), FB2 y CBZ: con **foliate-js 1.0.1** (MIT; trae zip.js, BSD-3, y fflate, MIT). Es la librería del lector Foliate, en JavaScript puro, sin dependencias y sin cargar el libro entero. epub.js se descartó porque solo lee EPUB y lleva sin publicarse desde 2023.
+  - PDF: con **pdf.js**, que ya se usaba, en su compilación «legacy». La normal usa `Map.getOrInsertComputed`, que aún no está en todas las WebView de Android (falló en Chromium 141). pdf.js no ejecuta el JavaScript de los PDF.
+  - Las dos son dependencias de desarrollo: Vite las mete en la interfaz.
+- **Seguridad del ebook:** un EPUB puede traer scripts, y foliate-js necesita estilos inline y marcos `blob:`, que la CSP de la app prohíbe. En lugar de relajarla, el ebook se pinta en un **marco con otro origen y su propia CSP** (`src/main/reader-csp.ts`):
+  - **Escritorio:** `crm-reader://reader`, esquema propio que solo sirve `reader.html` y los scripts y estilos compilados. En desarrollo, el mismo servidor de Vite con el otro nombre del equipo local (localhost ↔ 127.0.0.1).
+  - **Android:** otro puerto del servidor local, sin secreto, porque solo sirve el código del APK, sin API ni bóveda.
+  - **La CSP del lector:**
+    - `script-src 'self'`: los scripts del libro no se ejecutan, porque cada capítulo es un marco `blob:` que hereda esta política;
+    - estilos inline y `blob:` permitidos;
+    - `connect-src blob:` (sin red);
+    - `frame-ancestors` solo la app.
+  - Además, antes de pintar cada capítulo se quitan del contenido scripts, marcos, objetos, formularios, `meta http-equiv` y manejadores `on*`.
+  - **Comunicación:** el marco no ve `window.api` (otro origen, y el preload solo va en el marco principal), ni el DOM de la app. Recibe los bytes del libro por `postMessage` y contesta lo mismo, comprobando origen y ventana.
+  - **Cambios en la CSP de la app:** solo `frame-src` (el origen del lector) y, en escritorio, `connect-src vault:` para leer el libro de la bóveda. Los marcos solo pueden navegar al lector y a sus `blob:` (`will-frame-navigate`); un enlace de un libro se abre fuera si es https.
+  - Se probó antes un marco `sandbox` sin origen (opaco). foliate-js no puede entrar en sus propios marcos `blob:` y no funciona.
+- **Los PDF se leen por trozos:** `PDFDataRangeTransport` con peticiones Range al almacén cifrado, que ya descifraba por trozos de 1 MiB. Un PDF de cientos de MB no entra entero en la memoria del móvil. Los ebooks se pasan enteros: suelen ocupar pocos MB.
+- **Datos:**
+  - **Ficha del libro:** cada libro es un registro de la entidad de serie `libro` (sección «Biblioteca», grupo 04 personal; las colecciones pasan al 05). Así tiene vistas, filtros, papelera y búsqueda.
+  - **Portada:** la miniatura cifrada del archivo (`files:setMeta`).
+  - **Posición y ratos de lectura:** van en tablas propias (`book_progress` y `reading_sessions`, migración 0008, que solo crea tablas), no en el historial de cambios: cada página pasada no es un cambio que deshacer.
+  - **Apariencia y objetivo anual:** en los ajustes cifrados de la bóveda. La apariencia es una por tipo de equipo (`books.prefs.movil` y `books.prefs.escritorio`).
+  - Todo cuenta como cambio para la sincronización.
+- **Móvil:**
+  - En Android los libros se bajan de la nube aunque pasen del límite de 25 MB de descarga automática (`alwaysDownload`): son para leerlos allí.
+  - Mientras se lee, `MainActivity` (petición nativa `reading`):
+    - deja la pantalla encendida (`FLAG_KEEP_SCREEN_ON`);
+    - oculta las barras del sistema, que vuelven deslizando;
+    - si se pide, pasa página con los botones de volumen.
+  - En escritorio, `powerSaveBlocker` evita que se apague la pantalla.
+  - «Atrás» cierra el lector.
+- **Ratos de lectura:**
+  - Cuenta el tiempo con el libro a la vista y pasando páginas. Más de 3 minutos sin pasar página o la app en segundo plano no cuentan.
+  - Se guarda cada 30 s y al cerrar, con el mismo id (sin duplicados); un rato de menos de 20 s no se guarda.
+  - El día es el de la zona horaria del perfil. La racha cuenta los días con al menos un minuto.
+  - El tiempo que queda sale de tu ritmo en ese libro, con al menos 5 minutos leídos; antes, uno de serie.
+- **Formatos:**
+  - El selector del móvil no filtra por tipo: con filtro, Android esconde los MOBI y AZW3, que no tienen un tipo reconocido.
+  - Lo que no es un libro se avisa y no se añade.
+  - Un archivo que ya estaba (misma huella) no se repite.
+- **Tests:**
+  - **Unidad:** el servicio, la descarga en el móvil, las CSP y el puerto del lector.
+  - **Interfaz, en escritorio y en el móvil:** con un EPUB (portada, índice y contenido hostil) y un PDF hechos en el propio test. Comprueban añadir, leer pasando página, el índice, la apariencia, volver donde se estaba, terminar, que nada del libro llega a la app y que el marco no ve `window.api`.
+

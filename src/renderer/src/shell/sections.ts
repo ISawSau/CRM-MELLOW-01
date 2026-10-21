@@ -108,6 +108,21 @@ export const SECTION_GROUPS: SectionGroup[] = [
       { id: 'herramientas', label: 'Herramientas', letter: 'H', phase: null, summary: '' },
     ],
   },
+  {
+    num: '04',
+    title: 'personal',
+    sections: [
+      // Biblioteca y lector (fase 15, D-123): página propia sobre la entidad `libro`.
+      {
+        id: 'biblioteca',
+        label: 'Biblioteca',
+        letter: 'L',
+        phase: null,
+        summary: '',
+        entity: 'libro',
+      },
+    ],
+  },
 ]
 
 export const SETTINGS_SECTION: Section = {
@@ -155,7 +170,7 @@ export function withCollections(
     ? [
         ...base,
         {
-          num: '04',
+          num: '05',
           title: 'colecciones',
           sections: custom.map((e) => ({
             id: e.id,
