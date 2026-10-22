@@ -131,7 +131,12 @@ describe('bloquear y desbloquear', () => {
 describe('apariencia', () => {
   it('por defecto: tema Mellow y densidad compacta', async () => {
     const { svc } = await newVault()
-    expect(svc.status().appearance).toEqual({ theme: 'mellow', density: 'compacta', icons: {} })
+    expect(svc.status().appearance).toEqual({
+      theme: 'mellow',
+      density: 'compacta',
+      icons: {},
+      tabs: [],
+    })
     svc.dispose()
   })
 
@@ -140,12 +145,14 @@ describe('apariencia', () => {
     svc.setAppearance({ theme: 'claro', density: 'comoda' })
     // Un cambio parcial (los iconos) no pisa el tema ni la densidad.
     svc.setAppearance({ icons: { clientes: 'briefcase' } })
+    svc.setAppearance({ tabs: ['inicio', 'biblioteca'] })
     svc.lock()
     expect(svc.status().appearance).toBeNull()
     expect((await svc.unlock(PASSWORD)).appearance).toEqual({
       theme: 'claro',
       density: 'comoda',
       icons: { clientes: 'briefcase' },
+      tabs: ['inicio', 'biblioteca'],
     })
     svc.dispose()
   })

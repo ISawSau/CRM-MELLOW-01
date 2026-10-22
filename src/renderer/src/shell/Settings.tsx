@@ -10,6 +10,8 @@ import { BUILT_IN_THEMES, findTheme, type Theme } from '@shared/themes'
 import { CollectionsSettings } from '../data/CollectionsSettings'
 import { MailTemplatesSettings } from '../gmail/MailTemplatesSettings'
 import { SectionIconsSettings } from './SectionIconsSettings'
+import { MobileTabsSettings } from './MobileTabsSettings'
+import { useNarrow } from '../lib/use-narrow'
 import { DataSettings } from '../data/FieldsSettings'
 import { SyncSettings } from './SyncSettings'
 import { UPDATES_KEY, UpdateProgress, useUpdateStatus } from './UpdateBanner'
@@ -420,6 +422,8 @@ function VaultBlock({ status }: { status: VaultStatus }) {
 }
 
 export function Settings({ status }: { status: VaultStatus }) {
+  // La barra inferior solo existe con la pantalla estrecha (móvil).
+  const narrow = useNarrow()
   return (
     <div className="page" data-testid="page-ajustes">
       <div className="section-head">
@@ -430,6 +434,7 @@ export function Settings({ status }: { status: VaultStatus }) {
       </div>
       <div>
         <Appearance status={status} />
+        {narrow && <MobileTabsSettings status={status} />}
         <SectionIconsSettings status={status} />
         <CollectionsSettings />
         <MailTemplatesSettings />
