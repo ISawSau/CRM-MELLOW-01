@@ -5,7 +5,9 @@ import { defineConfig, devices } from '@playwright/test'
  * el mismo motor y servidor local que lleva el APK (compilado para el Node del PC).
  * En el emulador de Android solo se comprueba que el APK arranca (CI).
  */
-const PORT = 47200
+// Puertos fijos de los tests por debajo de 32768: los de más arriba los usa Linux para las
+// conexiones salientes y alguna podía ocupar el del motor (EADDRINUSE en el CI).
+const PORT = 17200
 export default defineConfig({
   testDir: 'tests/e2e-mobile',
   workers: 1,

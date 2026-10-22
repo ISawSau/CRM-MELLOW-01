@@ -421,4 +421,4 @@ jobs:
               sed "s/{{VERSION}}/$VERSION/g" .github/notas-android.md
             fi
           } > notas.md
-          gh release edit "v$VERSION" --notes-file notas.md --draft=false --latest
+          gh release edit "v$VERSION" --notes-file notas.md --draft=false --latest --target "$GITHUB_SHA"

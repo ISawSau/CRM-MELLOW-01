@@ -1189,4 +1189,7 @@ Al sincronizar en el móvil con la 0.19.x salía: «qualified table names are no
 - **Al actualizar:**
   - El móvil no había llegado a sincronizar con el formato 2. Su primera sincronización baja la nube y junta lo suyo (D-126), así que lo hecho en él desde la 0.19.0 no se pierde.
   - Lo hecho en el móvil mientras fallaba no quedó apuntado como cambio. Igualmente llega: al juntar entra lo que falta y, si está en los dos, gana lo editado más tarde.
+- **CI de la versión:**
+  - Los tests de la interfaz móvil usaban puertos fijos (472xx). Ese rango es el que Linux reparte a las conexiones salientes (32768–60999), y en main una conexión del runner ocupó el del motor (EADDRINUSE). Ahora usan 172xx, fuera de ese rango.
+  - Al publicar, la etiqueta apunta al commit que se ha compilado (`--target`), no al del primer intento, que es el que guardaba el borrador.
 

@@ -8,7 +8,7 @@ import { makeEpub, makePdf } from '../support/books'
  * donde se estaba, y que el contenido hostil del EPUB no llegue a la app.
  * E2E_SHOTS=<carpeta> guarda capturas.
  */
-const PORT = 47240
+const PORT = 17240
 const BASE = `http://127.0.0.1:${PORT}`
 const PASSWORD = 'contraseña de prueba'
 const SHOTS = process.env['E2E_SHOTS']
