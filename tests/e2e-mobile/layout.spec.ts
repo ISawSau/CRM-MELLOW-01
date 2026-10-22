@@ -11,7 +11,7 @@ import { GOOD_TOKEN } from '../unit/meta-fake'
  * Usa su propio motor (otro puerto y otra carpeta de datos) para no mezclarse con
  * movil.spec.ts.
  */
-const PORT = 47230
+const PORT = 17230
 const BASE = `http://127.0.0.1:${PORT}`
 const PASSWORD = 'contraseña de prueba'
 const SHOTS = process.env['E2E_SHOTS']

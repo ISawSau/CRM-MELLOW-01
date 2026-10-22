@@ -14,7 +14,7 @@ process.argv = [
   process.argv[0],
   'main.js',
   '--port',
-  process.env.CRM_MOBILE_PORT ?? '47200',
+  process.env.CRM_MOBILE_PORT ?? '17200',
   '--token',
   'e2e-secreto',
   '--data',

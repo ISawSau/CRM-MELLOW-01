@@ -10,7 +10,7 @@ import { startFakeGoogle, type FakeGoogle } from '../support/fake-google-server'
  * Usa su propio motor (otro puerto y otra carpeta de datos) para no mezclarse con
  * movil.spec.ts.
  */
-const PORT = 47210
+const PORT = 17210
 const BASE = `http://127.0.0.1:${PORT}`
 const PASSWORD = 'contraseña de prueba'
 const CLIENT_ID = '1234-abc.apps.googleusercontent.com'
