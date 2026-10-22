@@ -16,5 +16,8 @@ export default defineConfig({
     include: ['tests/unit/**/*.test.ts'],
     environment: 'node',
     testTimeout: 30_000,
+    // Cerrar una bóveda grande (volcar el WAL con synchronous=FULL) tarda en el ejecutor de
+    // Windows del CI más de los 10 s por defecto de los afterEach.
+    hookTimeout: 30_000,
   },
 })
