@@ -43,6 +43,7 @@ La especificación completa está en `docs/SPEC.md`. Léela antes de cualquier t
 | Desarrollo | `npm run dev` |
 | Lint, tipos, formato | `npm run lint` · `npm run typecheck` · `npx prettier --check .` |
 | Tests unitarios | `npm test` |
+| Tests de Java (app de Android) | `npm run test:android` (necesita un JDK) |
 | Tests de interfaz | `npm run test:e2e` (en un Linux sin pantalla: `xvfb-run -a npm run test:e2e`) |
 | Tests de interfaz móvil | `npm run test:e2e:movil` (Chromium con pantalla de móvil, D-101) |
 | Generar migración | `npm run db:generate` (tras cambiar `src/main/db/schema.ts`) |

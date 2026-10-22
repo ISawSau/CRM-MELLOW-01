@@ -154,10 +154,16 @@ public class MainActivity extends Activity implements NativeChannel.Handler {
         web.setWebViewClient(new WebViewClient() {
             @Override
             public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
-                Uri url = request.getUrl();
-                if (url.toString().startsWith(origin + "/")) return false;
-                openExternal(url.toString());
-                return true;
+                String url = request.getUrl().toString();
+                switch (Navigation.decide(url, origin, request.isForMainFrame())) {
+                    case LOAD:
+                        return false;
+                    case EXTERNAL:
+                        openExternal(url);
+                        return true;
+                    default:
+                        return true;
+                }
             }
 
             @Override

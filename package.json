@@ -78,6 +78,7 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "test": "vitest run",
+    "test:android": "javac -d out/java-tests android/app/src/main/java/cc/yellowmellow/crm/Navigation.java tests/android/NavigationTest.java && java -cp out/java-tests cc.yellowmellow.crm.NavigationTest",
     "test:watch": "vitest",
     "test:e2e": "npm run build && playwright test",
     "db:generate": "drizzle-kit generate",

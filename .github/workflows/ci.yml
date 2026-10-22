@@ -51,6 +51,9 @@ jobs:
       - name: Tests unitarios
         run: npm test
 
+      - name: Tests de Java (WebView de Android)
+        run: npm run test:android
+
       # Ubuntu 24.04 restringe los user namespaces con AppArmor, y el sandbox de
       # Chromium los necesita. Se permiten en el runner en lugar de usar --no-sandbox,
       # para que los tests comprueben la app con el sandbox activado.
