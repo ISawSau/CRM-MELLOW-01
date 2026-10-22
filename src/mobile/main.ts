@@ -3,7 +3,9 @@ import './intl'
 import { trace } from './trace'
 import { hostname } from 'node:os'
 import { join } from 'node:path'
-import { setLocale } from '@shared/i18n'
+import { setLocale, t, tn } from '@shared/i18n'
+import type { VaultStatus } from '@shared/ipc'
+import { AwayLock } from '../main/away-lock'
 import { createBackend } from '../main/backend'
 import { ConfigStore } from '../main/config'
 import { useNativeSqlite } from '../main/db/connection'
@@ -51,11 +53,43 @@ async function main(): Promise<void> {
     cacheDir: arg('cache'),
     native: (request) => server?.native(request) ?? Promise.resolve(null),
   })
+  // Al salir de la app o apagar la pantalla no se bloquea enseguida (D-130).
+  const away = new AwayLock({
+    minutes: () => backend.vault.status().awayMinutes ?? 0,
+    unlocked: () => backend.vault.status().state === 'unlocked',
+    lock: () => void backend.lockWithSync(),
+    // Mientras está fuera manda este plazo, no el de inactividad.
+    onAway: (isAway) => (isAway ? backend.autoLock.stop() : backend.autoLock.start()),
+  })
+  // Lo que el lado nativo necesita saber para tener la app viva tras salir (D-130).
+  let guard = ''
+  const tellGuard = (s: VaultStatus) => {
+    const minutes = s.state === 'unlocked' ? (s.awayMinutes ?? 0) : 0
+    const text =
+      minutes > 0
+        ? tn(
+            minutes,
+            'Sigue desbloqueada {n} minuto después de salir',
+            'Sigue desbloqueada {n} minutos después de salir',
+          )
+        : ''
+    const key = `${minutes}|${text}`
+    if (key === guard) return
+    guard = key
+    void server?.native({ kind: 'guard', minutes, text, lock: t('Bloquear') })
+  }
   const backend = createBackend({
     platform,
     config,
     hostname: `Android (${hostname()})`,
-    emit: (event, payload) => server?.emit(event, payload),
+    emit: (event, payload) => {
+      if (event === 'vault:changed') {
+        const s = payload as VaultStatus
+        if (s.state !== 'unlocked') away.reset()
+        tellGuard(s)
+      }
+      server?.emit(event, payload)
+    },
     // Fotos y documentos sí; los vídeos grandes se quedan en la nube (se ven sus miniaturas).
     maxAutoDownloadBytes: 25 * 1024 * 1024,
     // Las instantáneas (la base de datos entera) mejor desde el ordenador (D-125).
@@ -94,9 +128,24 @@ async function main(): Promise<void> {
     port: Number(arg('port')),
     onNative: (what) => {
       if (what === 'foreground' || what === 'background') foreground = what === 'foreground'
+      // De vuelta (o la actividad se ha vuelto a crear): el lado nativo vuelve a saber el plazo.
+      if (what === 'foreground') {
+        guard = ''
+        tellGuard(backend.vault.status())
+      }
+      if (what === 'lockNow') {
+        // Botón «Bloquear» del aviso de Android: se bloquea ya.
+        if (backend.vault.status().state === 'unlocked') void backend.lockWithSync()
+        return
+      }
       if (backend.vault.status().state !== 'unlocked') return
-      if (what === 'lock') void backend.lockWithSync()
-      else if (what === 'foreground') {
+      if (what === 'lock') {
+        // Pantalla apagada: sube lo pendiente y empieza el plazo (o bloquea, si es 0).
+        if (backend.sync.status().kind && backend.sync.status().pending)
+          void backend.sync.sync('background').catch(() => {})
+        away.leave()
+      } else if (what === 'foreground') {
+        if (away.back()) return
         // De vuelta: lo nuevo de los demás equipos, enseguida y sin que se note (D-125).
         backend.sync.setActive(true)
         if (backend.sync.status().kind) void backend.sync.sync('auto').catch(() => {})
@@ -105,6 +154,7 @@ async function main(): Promise<void> {
         backend.sync.setActive(false)
         if (backend.sync.status().kind && backend.sync.status().pending)
           void backend.sync.sync('background').catch(() => {})
+        away.leave()
       }
     },
   })

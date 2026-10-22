@@ -120,6 +120,8 @@ export interface VaultStatus {
   name: string | null
   /** Minutos de inactividad antes del bloqueo automático (solo si está desbloqueada). */
   autoLockMinutes: number | null
+  /** Móvil: minutos que sigue abierta tras salir de la app (D-130; solo si está desbloqueada). */
+  awayMinutes: number | null
   /** Apariencia guardada en la bóveda (solo si está desbloqueada). */
   appearance: Appearance | null
   /** Temas propios del usuario (solo si está desbloqueada). */
@@ -253,6 +255,7 @@ export const ipcSchemas = {
   'vault:close': z.void(),
   'vault:changePassword': z.object({ currentPassword: anyPassword, newPassword: password }),
   'vault:rotateKey': z.object({ password: anyPassword }),
+  'settings:setAwayLock': z.object({ minutes: z.number().int().min(0).max(60) }),
   'settings:setAutoLock': z.object({
     minutes: z
       .number()
@@ -498,6 +501,7 @@ export interface IpcOutputs {
   'vault:changePassword': void
   'vault:rotateKey': { recoveryKey: string }
   'settings:setAutoLock': VaultStatus
+  'settings:setAwayLock': VaultStatus
   'settings:setAppearance': VaultStatus
   'settings:setThemes': VaultStatus
   'settings:exportTheme': boolean

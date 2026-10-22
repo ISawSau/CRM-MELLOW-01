@@ -308,4 +308,24 @@ export const shell: Record<string, string> = {
   'Avisar cuando haya una versión nueva': 'Tell me when a new version is available',
   'Versión instalada: {current}.': 'Installed version: {current}.',
   'Ver las versiones publicadas': 'See published versions',
+  // Barra inferior del móvil (D-129)
+  'Barra inferior': 'Bottom bar',
+  'Las secciones que tienes a mano abajo, en el orden que quieras (hasta {n}). Las demás siguen en «Más».':
+    'The sections you keep at hand at the bottom, in the order you like (up to {n}). The rest stay under “More”.',
+  'Subir {section}': 'Move {section} up',
+  'Bajar {section}': 'Move {section} down',
+  'Quitar {section} de la barra': 'Remove {section} from the bar',
+  'Añadir a la barra': 'Add to the bar',
+  'La barra está llena: quita una para añadir otra': 'The bar is full: remove one to add another',
+  'Elige una sección…': 'Choose a section…',
+  'Volver a las de serie': 'Back to the defaults',
+  // Bloqueo al salir de la app en el móvil (D-130)
+  'Al salir de la app o apagar la pantalla, la bóveda sigue abierta el tiempo que elijas y luego se bloquea. Mientras, Android enseña un aviso con un botón para bloquearla ya.':
+    'When you leave the app or turn off the screen, the vault stays open for the time you choose and then locks. Meanwhile, Android shows a notification with a button to lock it now.',
+  'Al salir de la app o apagar la pantalla': 'When leaving the app or turning off the screen',
+  'Bloquear al momento': 'Lock straight away',
+  'Seguir desbloqueada {n} minuto': 'Stay unlocked for {n} minute',
+  'Seguir desbloqueada {n} minutos': 'Stay unlocked for {n} minutes',
+  'Sigue desbloqueada {n} minuto después de salir': 'Stays unlocked for {n} minute after leaving',
+  'Sigue desbloqueada {n} minutos después de salir': 'Stays unlocked for {n} minutes after leaving',
 }

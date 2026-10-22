@@ -118,9 +118,64 @@ test('las demás pantallas caben a lo ancho', async () => {
   await expect(page.getByTestId('sync-folder')).toHaveCount(0)
 })
 
+test('barra inferior a tu gusto (D-129)', async () => {
+  // Seguimos en Ajustes: la barra inferior solo sale con la pantalla estrecha.
+  const block = page.getByTestId('mobile-tabs-settings')
+  await expect(block).toBeVisible()
+  const tabs = page.getByTestId('mobile-tabbar').locator('.m-tab')
+  await expect(tabs).toHaveText(['Inicio', 'Clientes', 'Tareas', 'Campañas', 'Más'])
+  await page.getByTestId('tab-remove-campanas').click()
+  await expect(page.getByTestId('tab-campanas')).toHaveCount(0)
+  await page.getByTestId('tab-add').selectOption('facturacion')
+  await expect(tabs).toHaveText(['Inicio', 'Clientes', 'Tareas', 'Facturación', 'Más'])
+  await block.getByRole('button', { name: 'Subir Facturación' }).click()
+  await expect(tabs).toHaveText(['Inicio', 'Clientes', 'Facturación', 'Tareas', 'Más'])
+  await block.scrollIntoViewIfNeeded()
+  await shot('10-barra-inferior')
+  await noHorizontalScroll()
+  await page.getByTestId('tab-facturacion').click()
+  await expect(page.getByTestId('mobile-topbar')).toContainText('Facturación')
+  await expect(page.getByTestId('tab-facturacion')).toHaveAttribute('aria-current', 'page')
+  // Y de vuelta a las de serie.
+  await page.getByTestId('mobile-menu').click()
+  await page.getByTestId('nav-ajustes').click()
+  await page.getByRole('button', { name: 'Volver a las de serie' }).click()
+  await expect(tabs).toHaveText(['Inicio', 'Clientes', 'Tareas', 'Campañas', 'Más'])
+})
+
+test('salir de la app no la bloquea: sigue abierta el tiempo elegido (D-130)', async () => {
+  // Lo que avisa el lado nativo de Android al apagar la pantalla o salir de la app.
+  const notice = (path: string) =>
+    page.evaluate(
+      (p) =>
+        fetch(p, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' }),
+      path,
+    )
+  const away = page.getByTestId('away-lock')
+  await expect(away).toHaveValue('15')
+  await notice('/native/lock')
+  await notice('/native/background')
+  await page.waitForTimeout(500)
+  await notice('/native/foreground')
+  await page.waitForTimeout(300)
+  await expect(page.getByTestId('shell')).toBeVisible()
+  await expect(page.getByTestId('unlock-password')).toHaveCount(0)
+  // «Bloquear al momento»: como antes, al salir se bloquea.
+  await away.selectOption('0')
+  await notice('/native/background')
+  await expect(page.getByTestId('unlock-password')).toBeVisible()
+  await page.getByTestId('unlock-password').fill('contraseña de prueba')
+  await page.getByTestId('unlock-submit').click()
+  await expect(page.getByTestId('shell')).toBeVisible({ timeout: 30_000 })
+  await page.getByTestId('mobile-menu').click()
+  await page.getByTestId('nav-ajustes').click()
+  await page.getByTestId('away-lock').selectOption('15')
+  await expect(page.getByTestId('away-lock')).toHaveValue('15')
+})
+
 test('bloquea desde la barra superior', async () => {
   await page.getByTestId('mobile-lock').click()
   await expect(page.getByTestId('unlock-password')).toBeVisible()
-  await shot('10-bloqueada')
+  await shot('11-bloqueada')
   expect(errors).toEqual([])
 })

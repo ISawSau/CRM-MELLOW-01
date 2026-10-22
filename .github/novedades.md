@@ -1,3 +1,13 @@
+## Novedades de la 0.20.0 · Libros EPUB en el móvil, barra inferior a tu gusto y menos contraseñas
+
+- **Arreglado: los EPUB se veían en blanco en el móvil.** Android bloqueaba las páginas internas del lector. Los PDF ya funcionaban; ahora también los EPUB, MOBI, AZW3, FB2 y CBZ.
+- **Barra inferior a tu gusto (móvil):** en Ajustes → Barra inferior eliges qué secciones van abajo (hasta 5) y en qué orden. «Más» sigue al final con el menú completo.
+- **Menos contraseñas en el móvil:**
+  - Al apagar la pantalla o salir de la app, la bóveda sigue desbloqueada 15 minutos (también si quitas la app de Recientes).
+  - Mientras tanto, Android enseña un aviso «Sigue desbloqueada…» con un botón **Bloquear** para cerrarla ya.
+  - Lo cambias en Ajustes → Bloqueo automático: al momento, 1, 5, 15, 30 o 60 minutos.
+  - Si el móvil cierra la app por falta de memoria o lo reinicias, te pedirá la contraseña: la clave solo vive en memoria, nunca se guarda.
+
 ## Novedades de la 0.19.2 · La sincronización vuelve a funcionar en el móvil
 
 - **Arreglado: en el móvil, sincronizar daba «qualified table names are not allowed…».** El móvil usa una versión de la base de datos algo más antigua que el ordenador y no aceptaba la forma en que la 0.19 apunta los cambios. Ya funciona.

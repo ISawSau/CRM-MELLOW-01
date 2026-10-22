@@ -278,6 +278,7 @@ function ShellInner({ status }: { status: VaultStatus }) {
         {narrow ? (
           <MobileTabBar
             sections={sections.all}
+            tabs={appearance.tabs}
             current={section}
             onSelect={navigate}
             onMore={() => setDrawer(true)}

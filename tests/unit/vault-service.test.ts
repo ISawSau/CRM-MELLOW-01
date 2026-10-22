@@ -128,10 +128,27 @@ describe('bloquear y desbloquear', () => {
   })
 })
 
+describe('bloqueo al salir de la app en el móvil (D-130)', () => {
+  it('por defecto 15 minutos; se guarda en la bóveda (0: al momento)', async () => {
+    const { svc } = await newVault()
+    expect(svc.status().awayMinutes).toBe(15)
+    svc.setAwayMinutes(0)
+    svc.lock()
+    expect(svc.status().awayMinutes).toBeNull()
+    expect((await svc.unlock(PASSWORD)).awayMinutes).toBe(0)
+    svc.dispose()
+  })
+})
+
 describe('apariencia', () => {
   it('por defecto: tema Mellow y densidad compacta', async () => {
     const { svc } = await newVault()
-    expect(svc.status().appearance).toEqual({ theme: 'mellow', density: 'compacta', icons: {} })
+    expect(svc.status().appearance).toEqual({
+      theme: 'mellow',
+      density: 'compacta',
+      icons: {},
+      tabs: [],
+    })
     svc.dispose()
   })
 
@@ -140,12 +157,14 @@ describe('apariencia', () => {
     svc.setAppearance({ theme: 'claro', density: 'comoda' })
     // Un cambio parcial (los iconos) no pisa el tema ni la densidad.
     svc.setAppearance({ icons: { clientes: 'briefcase' } })
+    svc.setAppearance({ tabs: ['inicio', 'biblioteca'] })
     svc.lock()
     expect(svc.status().appearance).toBeNull()
     expect((await svc.unlock(PASSWORD)).appearance).toEqual({
       theme: 'claro',
       density: 'comoda',
       icons: { clientes: 'briefcase' },
+      tabs: ['inicio', 'biblioteca'],
     })
     svc.dispose()
   })

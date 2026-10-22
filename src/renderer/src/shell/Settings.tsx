@@ -10,6 +10,9 @@ import { BUILT_IN_THEMES, findTheme, type Theme } from '@shared/themes'
 import { CollectionsSettings } from '../data/CollectionsSettings'
 import { MailTemplatesSettings } from '../gmail/MailTemplatesSettings'
 import { SectionIconsSettings } from './SectionIconsSettings'
+import { MobileTabsSettings } from './MobileTabsSettings'
+import { useNarrow } from '../lib/use-narrow'
+import { isMobile } from '../lib/platform'
 import { DataSettings } from '../data/FieldsSettings'
 import { SyncSettings } from './SyncSettings'
 import { UPDATES_KEY, UpdateProgress, useUpdateStatus } from './UpdateBanner'
@@ -22,6 +25,8 @@ import { LanguageSwitch } from '../ui/LanguageSwitch'
 import { t, tn } from '@shared/i18n'
 
 const AUTO_LOCK_OPTIONS = [5, 10, 15, 30, 60, 120]
+/** Móvil (D-130): minutos que sigue abierta tras salir de la app; 0, al momento. */
+const AWAY_OPTIONS = [0, 1, 5, 15, 30, 60]
 
 function Block({
   title,
@@ -180,12 +185,40 @@ function LockAnimationField() {
 
 function AutoLock({ status }: { status: VaultStatus }) {
   const save = useAction((minutes: number) => call('settings:setAutoLock', { minutes }))
+  const saveAway = useAction((minutes: number) => call('settings:setAwayLock', { minutes }))
   const lock = useAction(() => call('vault:lock'))
+  const mobile = isMobile()
   return (
     <Block
       title={t('Bloqueo automático')}
-      desc={t('La bóveda también se bloquea al suspender el equipo o bloquear la sesión.')}
+      desc={
+        mobile
+          ? t(
+              'Al salir de la app o apagar la pantalla, la bóveda sigue abierta el tiempo que elijas y luego se bloquea. Mientras, Android enseña un aviso con un botón para bloquearla ya.',
+            )
+          : t('La bóveda también se bloquea al suspender el equipo o bloquear la sesión.')
+      }
     >
+      {mobile && (
+        <div className="field">
+          <label htmlFor="awaylock">{t('Al salir de la app o apagar la pantalla')}</label>
+          <select
+            id="awaylock"
+            className="input"
+            value={status.awayMinutes ?? 15}
+            onChange={(e) => void saveAway.run(Number(e.target.value))}
+            data-testid="away-lock"
+          >
+            {AWAY_OPTIONS.map((m) => (
+              <option key={m} value={m}>
+                {m === 0
+                  ? t('Bloquear al momento')
+                  : tn(m, 'Seguir desbloqueada {n} minuto', 'Seguir desbloqueada {n} minutos')}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
       <div className="field">
         <label htmlFor="autolock">{t('Bloquear tras este tiempo sin usar la app')}</label>
         <select
@@ -420,6 +453,8 @@ function VaultBlock({ status }: { status: VaultStatus }) {
 }
 
 export function Settings({ status }: { status: VaultStatus }) {
+  // La barra inferior solo existe con la pantalla estrecha (móvil).
+  const narrow = useNarrow()
   return (
     <div className="page" data-testid="page-ajustes">
       <div className="section-head">
@@ -430,6 +465,7 @@ export function Settings({ status }: { status: VaultStatus }) {
       </div>
       <div>
         <Appearance status={status} />
+        {narrow && <MobileTabsSettings status={status} />}
         <SectionIconsSettings status={status} />
         <CollectionsSettings />
         <MailTemplatesSettings />

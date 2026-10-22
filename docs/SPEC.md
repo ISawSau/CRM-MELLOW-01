@@ -1,6 +1,6 @@
 # Especificación del CRM personal
 
-Versión 0.12 · 21 de octubre de 2026
+Versión 0.13 · 22 de octubre de 2026
 
 Este documento recoge todas las decisiones de diseño tomadas antes de escribir código. Es la referencia para construir el proyecto fase a fase. Lo que aparece marcado como **verificar** depende de APIs o normativa externa que cambian con el tiempo y debe comprobarse en la documentación oficial antes de implementarlo.
 
@@ -423,11 +423,11 @@ Para leer libros dentro de la app, sobre todo en el móvil (D-123). Es para leer
   - racha de días, tiempo de hoy, últimos 7 días y objetivo de libros al año;
   - tarjeta «Lectura» en Inicio;
   - al llegar al final, «¿Lo has terminado?» marca el libro como leído.
-- **Seguridad:** el ebook se pinta en un marco con otro origen y su propia CSP, sin acceso a la app ni a la red (D-123). Los PDF, con pdf.js, que no ejecuta su JavaScript.
+- **Seguridad:** el ebook se pinta en un marco con otro origen y su propia CSP, sin acceso a la app ni a la red (D-123). Los PDF, con pdf.js, que no ejecuta su JavaScript. En Android la WebView deja cargar esos marcos internos (el del lector y los `blob:` de cada capítulo); cualquier otra navegación se abre fuera o no se carga (D-128).
 
 ### 7.14 Ajustes
 
-Perfil · bóveda · seguridad (contraseña, autobloqueo, clave de recuperación) · sincronización y copias · conexiones (Meta, Google) · monedas y zonas horarias · formato regional · apariencia (selector de temas con los predefinidos claro y oscuro, temas propios creados y editados desde la app, densidad compacta o cómoda) · campos, etiquetas, estados y pipelines · presets de columnas · atajos de teclado · versiones nuevas: aviso al abrir la bóveda y cada hora, «Buscar ahora» y «Actualizar» desde la app con la huella SHA-256 comprobada (Windows, AppImage, .pacman con su comando y Android; D-114, D-120).
+Perfil · bóveda · seguridad (contraseña, autobloqueo, clave de recuperación; en el móvil, cuánto sigue desbloqueada tras salir de la app, D-130) · barra inferior del móvil (qué secciones y en qué orden, D-129) · sincronización y copias · conexiones (Meta, Google) · monedas y zonas horarias · formato regional · apariencia (selector de temas con los predefinidos claro y oscuro, temas propios creados y editados desde la app, densidad compacta o cómoda) · campos, etiquetas, estados y pipelines · presets de columnas · atajos de teclado · versiones nuevas: aviso al abrir la bóveda y cada hora, «Buscar ahora» y «Actualizar» desde la app con la huella SHA-256 comprobada (Windows, AppImage, .pacman con su comando y Android; D-114, D-120).
 
 ---
 
@@ -466,7 +466,7 @@ Cada fase termina con algo que funciona, tests y build verificado en Windows y L
 | 10. Gmail | Hilos por cliente y contacto. |
 | 11. X y LinkedIn | Conectores por API si son gratuitos; si no, importación de CSV con mapeo guardado. Retirado en la 0.13.3 (D-091). |
 | 12. Personalización avanzada | Colecciones personalizadas, plantillas de brief definitivas, widgets de inicio configurables, editor de temas (crear y modificar temas desde la app). |
-| 13. Móvil | App de Android con el mismo motor e interfaz adaptada a pantalla táctil; la bóveda se trae y sincroniza con Google Drive (D-101). Todo cabe a lo ancho: menús y diálogos como hojas que suben desde abajo, tablas sin columnas fijas y estadísticas de dos en dos (D-122). |
+| 13. Móvil | App de Android con el mismo motor e interfaz adaptada a pantalla táctil; la bóveda se trae y sincroniza con Google Drive (D-101). Todo cabe a lo ancho: menús y diálogos como hojas que suben desde abajo, tablas sin columnas fijas y estadísticas de dos en dos (D-122). Barra inferior a tu gusto (D-129). Al salir de la app sigue desbloqueada el tiempo elegido, 15 minutos por defecto (D-130). |
 | 14. Rendimiento y negocio | Objetivos por cliente con colores de verde a rojo en Campañas, lista de arranque, ritmo de gasto del mes, fatiga creativa, avisos del sistema, registro de tests A/B, beneficio por hora y resumen semanal (D-104 a D-109). |
 | 15. Biblioteca y lector | Libros en PDF y ebook cifrados en la bóveda, lector pensado para el móvil con apariencia a tu gusto, posición sincronizada, ratos de lectura, racha y objetivo anual (D-123). |
 

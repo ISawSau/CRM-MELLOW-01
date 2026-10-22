@@ -62,6 +62,9 @@ import { t } from '@shared/i18n'
 
 export const DEFAULT_AUTO_LOCK_MINUTES = 15
 const AUTO_LOCK_KEY = 'security.autoLockMinutes'
+/** Móvil (D-130): minutos que sigue abierta tras apagar la pantalla o salir de la app. */
+export const DEFAULT_AWAY_MINUTES = 15
+const AWAY_KEY = 'security.awayMinutes'
 const APPEARANCE_KEY = 'appearance'
 const THEMES_KEY = 'appearance.themes'
 const DB_KEY_PURPOSE = 'db/v1'
@@ -127,6 +130,7 @@ export class VaultService {
       path: this.path,
       name: this.path ? basename(this.path) : null,
       autoLockMinutes: this.unlocked ? this.getAutoLockMinutes() : null,
+      awayMinutes: this.unlocked ? this.getAwayMinutes() : null,
       appearance: this.unlocked ? this.getAppearance() : null,
       themes: this.unlocked ? this.getThemes() : null,
     }
@@ -553,6 +557,18 @@ export class VaultService {
   getAutoLockMinutes(): number {
     const v = this.getSetting(AUTO_LOCK_KEY)
     return typeof v === 'number' && Number.isInteger(v) && v >= 1 ? v : DEFAULT_AUTO_LOCK_MINUTES
+  }
+
+  getAwayMinutes(): number {
+    const v = this.getSetting(AWAY_KEY)
+    return typeof v === 'number' && Number.isInteger(v) && v >= 0 && v <= 60
+      ? v
+      : DEFAULT_AWAY_MINUTES
+  }
+
+  setAwayMinutes(minutes: number): VaultStatus {
+    this.putSetting(AWAY_KEY, minutes)
+    return this.emit()
   }
 
   setAutoLockMinutes(minutes: number): VaultStatus {

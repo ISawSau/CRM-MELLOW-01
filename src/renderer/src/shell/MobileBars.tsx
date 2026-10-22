@@ -5,8 +5,16 @@ import type { Section } from './sections'
 import { SyncProgressBar, useSyncStatus } from './sync'
 import { TimerItem } from './TimerItem'
 
-/** Secciones de la barra inferior en el móvil; el resto, en el menú. */
+/** Secciones de serie de la barra inferior en el móvil; el resto, en el menú. */
 export const TAB_SECTIONS = ['inicio', 'clientes', 'tareas', 'campanas'] as const
+
+/** Las que se ven: las elegidas en Ajustes (D-129) o las de serie; sin las que ya no existen. */
+export function tabSections(sections: Section[], chosen: readonly string[]): Section[] {
+  const ids = chosen.length ? chosen : TAB_SECTIONS
+  return ids
+    .map((id) => sections.find((s) => s.id === id))
+    .filter((s): s is Section => s !== undefined)
+}
 
 /**
  * Barra superior del móvil (D-101): menú, sección actual, búsqueda (la paleta de comandos),
@@ -64,20 +72,20 @@ export function MobileTopBar({
 /** Barra inferior del móvil con las secciones más usadas y «Más» (el menú completo). */
 export function MobileTabBar({
   sections,
+  tabs: chosen,
   current,
   onSelect,
   onMore,
   icons,
 }: {
   sections: Section[]
+  tabs: readonly string[]
   current: string
   onSelect: (id: string) => void
   onMore: () => void
   icons: (id: string) => string
 }) {
-  const tabs = TAB_SECTIONS.map((id) => sections.find((s) => s.id === id)).filter(
-    (s): s is Section => s !== undefined,
-  )
+  const tabs = tabSections(sections, chosen)
   const inMore = !tabs.some((s) => s.id === current)
   return (
     <nav className="m-tabbar" aria-label={t('Secciones principales')} data-testid="mobile-tabbar">
