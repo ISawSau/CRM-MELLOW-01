@@ -1193,3 +1193,48 @@ Al sincronizar en el móvil con la 0.19.x salía: «qualified table names are no
   - Los tests de la interfaz móvil usaban puertos fijos (472xx). Ese rango es el que Linux reparte a las conexiones salientes (32768–60999), y en main una conexión del runner ocupó el del motor (EADDRINUSE). Ahora usan 172xx, fuera de ese rango.
   - Al publicar, la etiqueta apunta al commit que se ha compilado (`--target`), no al del primer intento, que es el que guardaba el borrador.
 
+### D-128 · Android: la WebView deja cargar los marcos del lector (v0.20.0)
+
+En el móvil los EPUB se abrían en blanco.
+
+- **La causa:**
+  - La app de Android decide en `shouldOverrideUrlLoading` qué carga la WebView: la propia app sí; todo lo demás se mandaba al navegador del sistema (solo https y mailto) y no se cargaba.
+  - La documentación de Android lo avisa: «This method may be called for subframes and with non-HTTP(S) schemes». El lector de ebooks (D-123) pinta cada capítulo en un marco `blob:` dentro de su propio marco, en otro puerto local. Esos marcos se bloqueaban y el libro quedaba en blanco.
+  - El PDF se pinta en un lienzo, sin marcos, y por eso sí se veía. Los tests del móvil corren en Chromium, sin esta capa de Android, y no lo veían.
+- **El arreglo:**
+  - La decisión pasa a `Navigation.decide(url, origen de la app, ¿ventana principal?)`, en Java sin Android:
+    - la app se carga;
+    - en la ventana principal, lo demás se abre fuera;
+    - en un marco se cargan las direcciones locales (`http://127.0.0.1:…`, `blob:http://127.0.0.1:…`, `about:blank`) y nada más.
+  - Lo que puede ir en cada marco ya lo limitan la CSP de la app (`frame-src` solo el origen del lector) y la del lector (`frame-src blob:`).
+- **Test:** `tests/android/NavigationTest.java`, sin dependencias. Se pasa con `npm run test:android` y en el CI, en «Lint, tipos y tests».
+
+### D-129 · Barra inferior del móvil a tu gusto (v0.20.0)
+
+- En Ajustes → Barra inferior, que solo sale con la pantalla estrecha, se eligen hasta 5 secciones y su orden; «Más» (el menú completo) va siempre al final.
+- Vale cualquier sección, también las colecciones propias, la Papelera y Ajustes.
+- Se guarda con la apariencia (`appearance.tabs`), así que viaja con la bóveda. Vacía, son las de serie: Inicio, Clientes, Tareas y Campañas. Una sección que ya no existe (una colección borrada) simplemente no sale.
+
+### D-130 · El móvil sigue desbloqueado un rato tras salir de la app (v0.20.0)
+
+El usuario no quiere escribir la contraseña cada vez que abre la app en el móvil. Pidió que siga desbloqueada unos 15 minutos aunque cierre la app.
+
+- **Antes:** al apagar la pantalla se bloqueaba al momento. Al quitar la app de Recientes, Android cerraba el proceso y la clave, que solo está en memoria, se perdía.
+- **Ahora:** al apagar la pantalla o salir de la app (otra app, Recientes, quitarla de Recientes), la bóveda sigue abierta los minutos elegidos y luego se bloquea.
+  - Opciones: al momento, 1, 5, 15, 30 o 60 minutos; por defecto 15. Se elige en Ajustes → Bloqueo automático, solo en el móvil, y se guarda en la bóveda (`security.awayMinutes`).
+  - **El motor** (`src/main/away-lock.ts`) cuenta desde que sales.
+    - Si vuelves antes, sigue abierta.
+    - Si el temporizador no llegó a saltar (móvil dormido) y vuelves tarde, se bloquea antes de enseñar nada.
+    - Mientras estás fuera manda este plazo, no el de inactividad, que vuelve a empezar al volver.
+  - **El lado nativo** pide, al salir (`onPause`, aún con la app a la vista, que es cuando Android deja hacerlo), el servicio en primer plano.
+    - Con él el proceso sigue vivo aunque se quite la app de Recientes.
+    - Su aviso dice que sigue desbloqueada y trae un botón **Bloquear**.
+    - Se suelta al volver, al bloquear o, por si acaso, al minuto de acabar el plazo.
+  - **El servicio** es el de la conexión con Google (D-118), que ahora lleva la cuenta de quién lo necesita (trabajo o «fuera»). Si se suelta antes de arrancar del todo, se para él solo después de `startForeground`, para que Android no cierre la app.
+- **Lo que no se hace:** la clave nunca sale de la memoria del motor. No se guarda envuelta con el Keystore de Android: sería una credencial fuera de la base de datos cifrada, contra las reglas del proyecto. Por eso, si Android cierra el proceso (falta de memoria, forzar detención, reiniciar), hay que volver a escribir la contraseña.
+- **Riesgo aceptado:** quien tenga el móvil desbloqueado en esos minutos entra sin contraseña. El bloqueo del propio móvil sigue protegiendo, y con «Bloquear al momento» se vuelve al comportamiento anterior.
+- **Tests:**
+  - unidad del plazo (volver a tiempo, caducar, móvil dormido, 0 minutos, dos salidas seguidas, bloqueo por otro motivo);
+  - el ajuste se guarda en la bóveda;
+  - interfaz del móvil: apagar la pantalla y salir no bloquean; con «al momento», salir bloquea.
+
