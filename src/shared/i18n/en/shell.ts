@@ -319,4 +319,13 @@ export const shell: Record<string, string> = {
   'La barra está llena: quita una para añadir otra': 'The bar is full: remove one to add another',
   'Elige una sección…': 'Choose a section…',
   'Volver a las de serie': 'Back to the defaults',
+  // Bloqueo al salir de la app en el móvil (D-130)
+  'Al salir de la app o apagar la pantalla, la bóveda sigue abierta el tiempo que elijas y luego se bloquea. Mientras, Android enseña un aviso con un botón para bloquearla ya.':
+    'When you leave the app or turn off the screen, the vault stays open for the time you choose and then locks. Meanwhile, Android shows a notification with a button to lock it now.',
+  'Al salir de la app o apagar la pantalla': 'When leaving the app or turning off the screen',
+  'Bloquear al momento': 'Lock straight away',
+  'Seguir desbloqueada {n} minuto': 'Stay unlocked for {n} minute',
+  'Seguir desbloqueada {n} minutos': 'Stay unlocked for {n} minutes',
+  'Sigue desbloqueada {n} minuto después de salir': 'Stays unlocked for {n} minute after leaving',
+  'Sigue desbloqueada {n} minutos después de salir': 'Stays unlocked for {n} minutes after leaving',
 }

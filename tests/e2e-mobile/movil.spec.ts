@@ -143,6 +143,36 @@ test('barra inferior a tu gusto (D-129)', async () => {
   await expect(tabs).toHaveText(['Inicio', 'Clientes', 'Tareas', 'Campañas', 'Más'])
 })
 
+test('salir de la app no la bloquea: sigue abierta el tiempo elegido (D-130)', async () => {
+  // Lo que avisa el lado nativo de Android al apagar la pantalla o salir de la app.
+  const notice = (path: string) =>
+    page.evaluate(
+      (p) =>
+        fetch(p, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' }),
+      path,
+    )
+  const away = page.getByTestId('away-lock')
+  await expect(away).toHaveValue('15')
+  await notice('/native/lock')
+  await notice('/native/background')
+  await page.waitForTimeout(500)
+  await notice('/native/foreground')
+  await page.waitForTimeout(300)
+  await expect(page.getByTestId('shell')).toBeVisible()
+  await expect(page.getByTestId('unlock-password')).toHaveCount(0)
+  // «Bloquear al momento»: como antes, al salir se bloquea.
+  await away.selectOption('0')
+  await notice('/native/background')
+  await expect(page.getByTestId('unlock-password')).toBeVisible()
+  await page.getByTestId('unlock-password').fill('contraseña de prueba')
+  await page.getByTestId('unlock-submit').click()
+  await expect(page.getByTestId('shell')).toBeVisible({ timeout: 30_000 })
+  await page.getByTestId('mobile-menu').click()
+  await page.getByTestId('nav-ajustes').click()
+  await page.getByTestId('away-lock').selectOption('15')
+  await expect(page.getByTestId('away-lock')).toHaveValue('15')
+})
+
 test('bloquea desde la barra superior', async () => {
   await page.getByTestId('mobile-lock').click()
   await expect(page.getByTestId('unlock-password')).toBeVisible()

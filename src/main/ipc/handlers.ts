@@ -231,6 +231,7 @@ export function createHandlers({
     'vault:rotateKey': ({ password }) => vault.rotateKey(password),
 
     'settings:setAutoLock': ({ minutes }) => vault.setAutoLockMinutes(minutes),
+    'settings:setAwayLock': ({ minutes }) => vault.setAwayMinutes(minutes),
 
     'settings:setAppearance': (appearance) => vault.setAppearance(appearance),
     'settings:setThemes': ({ themes }) => vault.setThemes(themes),

@@ -28,6 +28,7 @@ import { isReaderPath, readerContentSecurityPolicy } from '../main/reader-csp'
  *   /native/lock       pantalla apagada: se sube lo pendiente y se bloquea
  *   /native/background la app pasa a segundo plano: se sube lo pendiente
  *   /native/foreground la app vuelve a la vista: se trae lo nuevo (D-125)
+ *   /native/lock-now   botón «Bloquear» del aviso de Android (D-130)
  *
  * El lector de ebooks (D-123) se sirve en otro puerto (otro origen) con su propia CSP: solo
  * su página y los scripts y estilos compilados, sin secreto (son los del APK, sin datos).
@@ -79,8 +80,17 @@ export function mobileCsp(readerOrigin: string): string {
 }
 
 export interface NativeRequest {
-  kind: 'save' | 'clipboard' | 'open' | 'notify' | 'busy' | 'installApk' | 'reading' | 'awake'
+  kind:
+    'save' | 'clipboard' | 'open' | 'notify' | 'busy' | 'installApk' | 'reading' | 'awake' | 'guard'
   [key: string]: unknown
+}
+
+/** Avisos del lado nativo al motor. */
+const NATIVE_NOTICES: Record<string, 'lock' | 'background' | 'foreground' | 'lockNow'> = {
+  '/native/lock': 'lock',
+  '/native/background': 'background',
+  '/native/foreground': 'foreground',
+  '/native/lock-now': 'lockNow',
 }
 
 export interface MobileServerOptions {
@@ -93,7 +103,7 @@ export interface MobileServerOptions {
   /** 0 = cualquiera libre (tests). */
   port: number
   /** El lado nativo avisa: pantalla apagada (`lock`) o la app pasa a segundo plano. */
-  onNative: (what: 'lock' | 'background' | 'foreground') => void
+  onNative: (what: 'lock' | 'background' | 'foreground' | 'lockNow') => void
 }
 
 export interface MobileServer {
@@ -246,14 +256,9 @@ export function startMobileServer(o: MobileServerOptions): Promise<MobileServer>
     if (!(req.headers['content-type'] ?? '').startsWith('application/json'))
       return send(res, 415, '', 'text/plain')
 
-    if (path === '/native/lock' || path === '/native/background' || path === '/native/foreground') {
-      o.onNative(
-        path === '/native/lock'
-          ? 'lock'
-          : path === '/native/background'
-            ? 'background'
-            : 'foreground',
-      )
+    const what = NATIVE_NOTICES[path]
+    if (what) {
+      o.onNative(what)
       return send(res, 200, '{}', 'application/json')
     }
     if (path === '/native/reply') {

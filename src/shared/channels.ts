@@ -28,6 +28,7 @@ export const IPC_CHANNELS = [
   'vault:changePassword',
   'vault:rotateKey',
   'settings:setAutoLock',
+  'settings:setAwayLock',
   'settings:setAppearance',
   'settings:setThemes',
   'settings:exportTheme',

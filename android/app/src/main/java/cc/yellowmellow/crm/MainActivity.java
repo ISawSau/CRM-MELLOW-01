@@ -71,6 +71,9 @@ public class MainActivity extends Activity implements NativeChannel.Handler {
     /** Leyendo un libro (D-123): los botones de volumen pasan página. */
     private boolean volumeKeys = false;
     private int nextNotifyId = 1;
+    /** Minutos que sigue desbloqueada tras salir y el texto del aviso (los da el motor). */
+    private static int awayMinutes = 0;
+    private static String awayText = "";
 
     private final Handler ui = new Handler(Looper.getMainLooper());
     private FrameLayout root;
@@ -239,8 +242,17 @@ public class MainActivity extends Activity implements NativeChannel.Handler {
                 case "busy":
                     // Conectar con Google: la app no se congela ni pierde la red al pasar
                     // al navegador (D-118).
-                    if (req.optBoolean("on")) BusyService.start(this, req.optString("text"));
-                    else BusyService.stop(this);
+                    if (req.optBoolean("on"))
+                        BusyService.hold(this, BusyService.WORK, req.optString("text"), 0);
+                    else BusyService.release(this, BusyService.WORK);
+                    background(() -> NativeChannel.reply(id, true));
+                    break;
+                case "guard":
+                    // Cuánto sigue desbloqueada tras salir (D-130); 0: se bloquea al salir.
+                    awayMinutes = req.optInt("minutes");
+                    awayText = req.optString("text");
+                    BusyService.setLockLabel(req.optString("lock"));
+                    if (awayMinutes <= 0) BusyService.release(this, BusyService.AWAY);
                     background(() -> NativeChannel.reply(id, true));
                     break;
                 default:
@@ -460,6 +472,24 @@ public class MainActivity extends Activity implements NativeChannel.Handler {
         super.onStart();
         // De vuelta a la vista: el motor trae lo nuevo de los otros equipos (D-125).
         NativeChannel.notifyAsync("/native/foreground");
+    }
+
+    /**
+     * Al salir (Recientes, otra app, pantalla apagada) con la bóveda abierta: el servicio en
+     * primer plano mantiene vivo el motor durante el plazo (D-130). Se pide aquí, con la app
+     * aún a la vista, porque Android no deja empezarlo desde segundo plano.
+     */
+    @Override
+    protected void onPause() {
+        super.onPause();
+        if (awayMinutes > 0)
+            BusyService.hold(this, BusyService.AWAY, awayText, (awayMinutes + 1) * 60_000L);
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        BusyService.release(this, BusyService.AWAY);
     }
 
     @Override

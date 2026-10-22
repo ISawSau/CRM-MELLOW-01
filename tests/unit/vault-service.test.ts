@@ -128,6 +128,18 @@ describe('bloquear y desbloquear', () => {
   })
 })
 
+describe('bloqueo al salir de la app en el móvil (D-130)', () => {
+  it('por defecto 15 minutos; se guarda en la bóveda (0: al momento)', async () => {
+    const { svc } = await newVault()
+    expect(svc.status().awayMinutes).toBe(15)
+    svc.setAwayMinutes(0)
+    svc.lock()
+    expect(svc.status().awayMinutes).toBeNull()
+    expect((await svc.unlock(PASSWORD)).awayMinutes).toBe(0)
+    svc.dispose()
+  })
+})
+
 describe('apariencia', () => {
   it('por defecto: tema Mellow y densidad compacta', async () => {
     const { svc } = await newVault()
