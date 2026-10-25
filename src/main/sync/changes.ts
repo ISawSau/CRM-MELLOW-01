@@ -63,6 +63,12 @@ const NATURAL_IDENTITY: Record<string, string[]> = {
 const LOCAL_SETTING = (ref: 'NEW' | 'OLD') =>
   `${ref}."key" NOT LIKE 'sync.%' AND ${ref}."key" <> 'backups.last'`
 const isLocalSetting = (key: string) => key.startsWith('sync.') || key === 'backups.last'
+/**
+ * Columnas que solo dicen cuándo se escribió la fila (D-131). Si una actualización solo
+ * cambia estas, el contenido es el mismo y no se apunta para subir: así volver a bajar de
+ * Meta los mismos datos (o guardar la misma página del libro) no gasta red.
+ */
+const VOLATILE = new Set(['fetched_at', 'synced_at', 'updated_at'])
 /** Tablas que no se juntan al cambiar de instantánea: lo de Meta se vuelve a bajar. */
 const MERGE_SKIP = ['ad_', 'fx_rates']
 
@@ -189,6 +195,11 @@ export class ChangeLog {
       const when = (ref: 'NEW' | 'OLD') =>
         `crm_sync_on()${t.name === 'settings' ? ` AND ${LOCAL_SETTING(ref)}` : ''}`
       const base = `sync_${t.name}`
+      // Solo si cambia algo más que la hora de escritura (D-131).
+      const content = t.cols.filter((c) => !VOLATILE.has(c))
+      const changed = content.length
+        ? content.map((c) => `OLD.${q(c)} IS NOT NEW.${q(c)}`).join(' OR ')
+        : '1'
       db.exec(`
         DROP TRIGGER IF EXISTS temp.${q(`${base}_i`)};
         DROP TRIGGER IF EXISTS temp.${q(`${base}_u`)};
@@ -196,7 +207,7 @@ export class ChangeLog {
         CREATE TEMP TRIGGER ${q(`${base}_i`)} AFTER INSERT ON main.${q(t.name)}
           WHEN ${when('NEW')} BEGIN ${mark('NEW')} END;
         CREATE TEMP TRIGGER ${q(`${base}_u`)} AFTER UPDATE ON main.${q(t.name)}
-          WHEN ${when('NEW')} BEGIN ${mark('NEW')} ${mark('OLD', `${key('OLD')} <> ${key('NEW')}`)} END;
+          WHEN ${when('NEW')} AND (${changed}) BEGIN ${mark('NEW')} ${mark('OLD', `${key('OLD')} <> ${key('NEW')}`)} END;
         CREATE TEMP TRIGGER ${q(`${base}_d`)} AFTER DELETE ON main.${q(t.name)}
           WHEN ${when('OLD')} BEGIN ${mark('OLD')} END;
       `)
