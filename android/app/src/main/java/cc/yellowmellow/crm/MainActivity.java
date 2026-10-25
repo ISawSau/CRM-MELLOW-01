@@ -17,6 +17,8 @@ import android.content.pm.PackageInstaller;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.graphics.Color;
+import android.net.ConnectivityManager;
+import android.net.NetworkCapabilities;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -247,6 +249,10 @@ public class MainActivity extends Activity implements NativeChannel.Handler {
                     else BusyService.release(this, BusyService.WORK);
                     background(() -> NativeChannel.reply(id, true));
                     break;
+                case "network":
+                    // ¿Datos móviles (red de pago por uso)? Entonces solo viajan los cambios (D-131).
+                    background(() -> NativeChannel.reply(id, isMetered()));
+                    break;
                 case "guard":
                     // Cuánto sigue desbloqueada tras salir (D-130); 0: se bloquea al salir.
                     awayMinutes = req.optInt("minutes");
@@ -295,6 +301,19 @@ public class MainActivity extends Activity implements NativeChannel.Handler {
 
     private static void background(Runnable r) {
         new Thread(r, "respuesta").start();
+    }
+
+    /** La red activa es de pago por uso (datos móviles o un punto de acceso, D-131). */
+    private boolean isMetered() {
+        try {
+            ConnectivityManager cm = (ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE);
+            NetworkCapabilities caps = cm.getNetworkCapabilities(cm.getActiveNetwork());
+            return caps == null
+                    || !caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED);
+        } catch (Exception e) {
+            // Sin poder saberlo, como si fueran datos móviles: mejor no gastar.
+            return true;
+        }
     }
 
     /** Solo https y mailto, en la app que el sistema tenga para ello. */

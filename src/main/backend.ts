@@ -127,6 +127,8 @@ export function createBackend(o: BackendOptions): Backend {
     },
     // Los libros se bajan siempre, aunque pasen del límite: son para leerlos en el móvil.
     alwaysDownload: () => books.bookFileIds(),
+    // Con datos móviles solo viajan los cambios (D-131).
+    ...(platform.isMetered ? { metered: () => platform.isMetered!() } : {}),
     openBrowser: (url) => platform.openExternal(url),
     logins,
     ...google,
@@ -148,6 +150,8 @@ export function createBackend(o: BackendOptions): Backend {
     ...(urls.graph ? { graphUrl: urls.graph } : {}),
     ...(urls.ecb ? { ecbUrl: urls.ecb } : {}),
     ...(urls.metaPollMs ? { pollMs: Number(urls.metaPollMs) } : {}),
+    // Con datos móviles, Meta no se actualiza sola (a mano, sí; D-131).
+    ...(platform.isMetered ? { metered: () => platform.isMetered!() } : {}),
   })
   const analysis = new AnalysisService(vault, {
     currency: () => meta.settings().displayCurrency,

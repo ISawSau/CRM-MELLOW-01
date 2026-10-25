@@ -108,4 +108,7 @@ export const books: Record<string, string> = {
   'Recortar márgenes': 'Trim margins',
   'Sin recortar': 'No trim',
   'Un poco': 'A little',
+  'Bajando el libro…': 'Downloading the book…',
+  'Aún no está en este equipo y no se ha podido bajar. Prueba con conexión.':
+    'It is not on this device yet and could not be downloaded. Try again with a connection.',
 }

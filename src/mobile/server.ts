@@ -81,7 +81,16 @@ export function mobileCsp(readerOrigin: string): string {
 
 export interface NativeRequest {
   kind:
-    'save' | 'clipboard' | 'open' | 'notify' | 'busy' | 'installApk' | 'reading' | 'awake' | 'guard'
+    | 'save'
+    | 'clipboard'
+    | 'open'
+    | 'notify'
+    | 'busy'
+    | 'installApk'
+    | 'reading'
+    | 'awake'
+    | 'guard'
+    | 'network'
   [key: string]: unknown
 }
 
@@ -104,6 +113,11 @@ export interface MobileServerOptions {
   port: number
   /** El lado nativo avisa: pantalla apagada (`lock`) o la app pasa a segundo plano. */
   onNative: (what: 'lock' | 'background' | 'foreground' | 'lockNow') => void
+  /**
+   * Un archivo que aún no está en el móvil: se baja de la nube al abrirlo (D-131). Con datos
+   * móviles, los archivos no se bajan solos.
+   */
+  fetchMissing?: (id: string) => Promise<unknown>
 }
 
 export interface MobileServer {
@@ -213,6 +227,10 @@ export function startMobileServer(o: MobileServerOptions): Promise<MobileServer>
   const serveVault = async (req: IncomingMessage, res: ServerResponse, path: string) => {
     const m = /^\/vault\/(file|thumb)\/([^/]+)$/.exec(path)
     if (!m) return notFound(res)
+    if (m[1] === 'file' && o.fetchMissing && /^[0-9a-f]{64}$/.test(m[2]!)) {
+      const data = o.getData()
+      if (data && !data.files.exists(m[2]!)) await o.fetchMissing(m[2]!).catch(() => false)
+    }
     const response = vaultFileResponse(
       o.getData(),
       m[1] === 'thumb' ? 'thumbs' : 'files',

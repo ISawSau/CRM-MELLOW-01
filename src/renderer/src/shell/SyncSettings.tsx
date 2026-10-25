@@ -287,7 +287,7 @@ export function SyncSettings() {
         <h2>{t('Sincronización y copias')}</h2>
         <p className="desc">
           {t(
-            'Para usar la bóveda en varios equipos. Todo se sube ya cifrado: ni Google ni nadie ve tus datos. Se sincroniza sola, sin que lo notes: unos segundos después de cada cambio, al abrir y al volver a la app, cada minuto mientras está abierta y al cerrarla. Solo viaja lo que ha cambiado, y si cambias cosas en dos equipos a la vez se juntan.',
+            'Para usar la bóveda en varios equipos. Todo se sube ya cifrado: ni Google ni nadie ve tus datos. Se sincroniza sola, sin que lo notes: al poco de cada cambio (los seguidos se juntan en una sola subida cada dos minutos), al abrir y al volver a la app, cada minuto mientras está abierta y al cerrarla. Solo viaja lo que ha cambiado, y si cambias cosas en dos equipos a la vez se juntan.',
           )}
         </p>
       </div>
@@ -341,6 +341,24 @@ export function SyncSettings() {
             </>
           )}
         </div>
+        {s?.kind && isMobile() && (
+          <>
+            <label className="check">
+              <input
+                type="checkbox"
+                data-testid="sync-mobile-files"
+                checked={s.mobileFiles}
+                onChange={(e) => run(call('sync:setMobileFiles', { on: e.target.checked }))}
+              />
+              <span>{t('Con datos móviles, bajar también libros y archivos')}</span>
+            </label>
+            <p className="hint">
+              {t(
+                'Con datos móviles solo viajan los cambios, las miniaturas y el archivo o libro que abras; lo demás se baja con wifi. Meta tampoco se actualiza sola con datos móviles (sí con el botón).',
+              )}
+            </p>
+          </>
+        )}
         {!s?.kind && !isMobile() && (
           <p className="hint">
             {t(

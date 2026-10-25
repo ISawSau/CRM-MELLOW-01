@@ -4,6 +4,8 @@
     <!-- Red: Meta, Google y el motor local (127.0.0.1). Y avisos del sistema (fase 14): solo
          cuántos avisos o tareas hay, nunca nombres de clientes ni anuncios. -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Saber si la red es de datos móviles para no gastarlos (D-131). Permiso normal: no se pide. -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <!-- Servicio en primer plano mientras se conecta con Google y se trae la bóveda (D-118):
          sin él Android congela la app al pasar al navegador y le corta la red. -->

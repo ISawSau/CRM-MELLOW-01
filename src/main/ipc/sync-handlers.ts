@@ -38,6 +38,9 @@ export function createSyncHandlers(sync: SyncService, platform: Platform): SyncH
       await sync.resolve(keep)
       return sync.status()
     },
+    'sync:setMobileFiles': ({ on }) => sync.setMobileFiles(on),
+    // Un libro o archivo que aún no está en este equipo: se baja al abrirlo (D-131).
+    'sync:fetchFile': ({ id }) => sync.fetchFile(id),
     'backups:list': () => sync.listBackups(),
     'backups:create': () => sync.createBackup('manual'),
     'backups:restore': ({ name }) => sync.restoreBackup(name),

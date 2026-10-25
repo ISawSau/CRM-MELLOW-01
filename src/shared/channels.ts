@@ -67,6 +67,8 @@ export const IPC_CHANNELS = [
   'sync:disconnect',
   'sync:now',
   'sync:resolve',
+  'sync:setMobileFiles',
+  'sync:fetchFile',
   'backups:list',
   'backups:create',
   'backups:restore',
