@@ -1,6 +1,6 @@
 # Especificación del CRM personal
 
-Versión 0.13 · 22 de octubre de 2026
+Versión 0.14 · 25 de octubre de 2026
 
 Este documento recoge todas las decisiones de diseño tomadas antes de escribir código. Es la referencia para construir el proyecto fase a fase. Lo que aparece marcado como **verificar** depende de APIs o normativa externa que cambian con el tiempo y debe comprobarse en la documentación oficial antes de implementarlo.
 
@@ -108,13 +108,17 @@ Por cambios desde la 0.19 (D-125):
 - **Solo viaja lo que cambia.** Cada equipo apunta las filas que cambia y las sube en paquetes pequeños, comprimidos y cifrados. Los demás equipos bajan solo los paquetes que aún no tienen. La base de datos entera solo se sube como instantánea de vez en cuando, desde el ordenador, para poder borrar los paquetes viejos.
 - **Sin conflictos.** Si dos equipos cambian cosas a la vez, se juntan. Si cambian la misma fila, gana el cambio más reciente: reloj híbrido, con el id del equipo para desempatar. Un equipo que lleva tiempo sin sincronizar se pone al día desde la última instantánea sin perder lo que tenía sin subir.
 - **Sola y sin que se note:**
-  - unos segundos después de cada cambio;
+  - al poco de cada cambio, con como mucho una subida automática cada 2 minutos: los cambios seguidos (pasar páginas leyendo) van juntos en un paquete (D-131);
   - al abrir y al volver a la app (ventana a la vista, móvil en primer plano);
   - cada minuto mientras está abierta;
   - al cerrar, bloquear o pasar el móvil a segundo plano.
   - Las automáticas no enseñan nada, salvo que muevan algo grande (más de 256 KB o más de 5 paquetes), ni dan error si no hay red.
 - **Botón manual** «Sincronizar ahora» en la barra de estado y en Ajustes.
-- **Archivos y libros:** solo los que faltan (por su HMAC). Los libros, en todos los equipos, también con datos móviles.
+- **Archivos y libros:** solo los que faltan (por su HMAC). Los libros, en todos los equipos.
+- **Ligera (D-131):**
+  - Lo que no cambia no viaja: volver a bajar de Meta los mismos datos no apunta nada para subir (Meta escribe solo lo distinto y los disparadores ignoran `fetched_at`, `synced_at` y `updated_at` si no cambia nada más).
+  - El móvil baja hasta 6 paquetes a la vez y recuerda los ids de Drive entre sincronizaciones: mirar si hay algo nuevo son 2 peticiones.
+  - **Con datos móviles** (red de pago por uso, la decide Android) solo viajan los cambios y las miniaturas; libros y archivos se bajan con wifi o al abrirlos. Ajuste del móvil «Con datos móviles, bajar también libros y archivos» (`sync.mobileFiles`, no viaja). Meta tampoco se actualiza sola con datos móviles; con el botón, sí.
 - **Época nueva:** al pasar del formato anterior, al rotar la clave maestra y al restaurar una copia. Los demás equipos se ponen al día desde su instantánea.
 - **Nunca se descarta nada (D-126):** un equipo que se encuentra una época que no es la suya guarda antes, cifrado, todo lo suyo y luego lo junta con la nueva. Entra lo que falta y, si está en los dos, gana lo editado más tarde. Lo único que manda sin juntarse es una copia restaurada a propósito.
 - **Contraseña:** el cambio de contraseña viaja en un paquete.

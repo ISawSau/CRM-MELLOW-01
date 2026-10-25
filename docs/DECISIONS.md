@@ -1238,3 +1238,24 @@ El usuario no quiere escribir la contraseña cada vez que abre la app en el móv
   - el ajuste se guarda en la bóveda;
   - interfaz del móvil: apagar la pantalla y salir no bloquean; con «al momento», salir bloquea.
 
+### D-131 · Sincronización ligera: menos datos y menos esperas en el móvil (v0.20.1)
+
+El usuario vio que el móvil había bajado unos 600 MB y que, tras leer en el ordenador, al abrir el móvil tardaba mucho («sincronizando … de 72») y gastaba datos móviles sin avisar.
+
+- **Causas encontradas (medidas con un Drive simulado):**
+  1. Meta se vuelve a bajar cada hora en los dos equipos. Se borraba y reinsertaba la ventana de 7 días con un `fetched_at` nuevo, así que miles de filas iguales viajaban cada hora (en el test, 144 filas de una cuenta pequeña).
+  2. Cada página leída era un cambio, y cada cambio, a los 4 s, un paquete: 50 páginas, 50 paquetes. El otro equipo los bajaba de uno en uno.
+  3. El móvil bajaba solo todos los archivos de hasta 25 MB y todos los libros, también con datos móviles.
+  4. Cada comprobación (una por minuto) volvía a buscar en Drive las carpetas: 6 peticiones para no traer nada. Y un archivo que faltaba en la nube se buscaba cada minuto.
+- **Arreglos:**
+  - Meta escribe solo lo distinto (`writeChanged`: `INSERT … ON CONFLICT DO UPDATE` y borra solo lo que ya no está), y los disparadores de `UPDATE` no apuntan nada si solo cambian `fetched_at`, `synced_at` o `updated_at`. Volver a bajar lo mismo: 0 filas.
+  - Las subidas automáticas, como mucho una cada 2 minutos (`MIN_PUSH_GAP_MS`); lo que llega mientras se sube espera al siguiente hueco. Al cerrar, bloquear, pasar a segundo plano o a mano se sube al momento, como antes. 50 páginas: de 50 paquetes a 6 en el test (con el hueco reducido); en la vida real, como mucho 30 por hora leyendo.
+  - El móvil baja hasta 6 paquetes a la vez (`PULL_PARALLEL`) y los aplica en orden.
+  - El destino de Drive se reutiliza 15 minutos con los ids ya encontrados; si un id recordado ya no vale (404), se busca otra vez. A mano o tras un error se olvida todo. Mirar si hay algo nuevo: 2 peticiones y menos de 1 KB.
+  - Un archivo que no está en la nube no se vuelve a buscar hasta pasados 30 minutos (a mano, sí).
+  - **Datos móviles:** Android dice si la red es de pago por uso (`NetworkCapabilities.NET_CAPABILITY_NOT_METERED`, permiso `ACCESS_NETWORK_STATE`; ante la duda, se considera de pago). Con ella:
+    - solo viajan los cambios y las miniaturas;
+    - un archivo o libro se baja al abrirlo (el servidor local lo pide antes de servir `/vault/file/<id>`; el lector enseña «Bajando el libro…»);
+    - Meta no se actualiza sola (con el botón, sí);
+    - el ajuste del móvil «Con datos móviles, bajar también libros y archivos» (`sync.mobileFiles`, de este equipo, no viaja) vuelve al comportamiento anterior.
+- **Tests:** `tests/unit/sync-light.test.ts` (Meta repetida no apunta nada; un cambio real sí viaja) y `tests/unit/sync-measure.test.ts` (paquetes al leer, peticiones a la vez al bajar, peticiones y bytes al mirar, datos móviles, bajar al abrir, el ajuste, archivo perdido, Meta con datos móviles), más el servidor móvil pidiendo un archivo que falta.
