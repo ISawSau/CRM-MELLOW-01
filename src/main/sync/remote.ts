@@ -400,7 +400,9 @@ export class DriveRemote implements Remote {
     if (seen) return seen
     const { dir, name } = this.split(path)
     const parent = await this.folder(dir, false)
-    return parent ? this.find(name, parent, false) : null
+    const id = parent ? await this.find(name, parent, false) : null
+    if (id) this.known.set(path, id)
+    return id
   }
 
   async list(dir: string): Promise<string[]> {
@@ -435,6 +437,7 @@ export class DriveRemote implements Remote {
     dest: string,
     onProgress?: (received: number, total: number | null) => void,
   ): Promise<boolean> {
+    const cached = this.known.has(path)
     const id = await this.fileId(path)
     if (!id) return false
     mkdirSync(dirname(dest), { recursive: true })
@@ -446,7 +449,12 @@ export class DriveRemote implements Remote {
       const have = existsSync(tmp) ? statSync(tmp).size : 0
       try {
         const done = await this.download(id, tmp, have, onProgress)
-        if (!done) return false
+        if (!done) {
+          this.known.delete(path)
+          rmSync(tmp, { force: true })
+          // Un id recordado que ya no vale: se busca otra vez.
+          return cached ? this.get(path, dest, onProgress) : false
+        }
         break
       } catch (e) {
         if (!isNetworkError(e) || attempt >= delays.length) {
@@ -677,10 +685,8 @@ export class DriveRemote implements Remote {
   }
 
   async readText(path: string): Promise<string | null> {
-    const id = await this.fileId(path)
-    if (!id) return null
-    const res = await this.call(`${this.urls.api}/files/${id}?alt=media`)
-    return res.status === 404 ? null : res.text()
+    const data = await this.readBytes(path)
+    return data === null ? null : data.toString('utf8')
   }
 
   async writeText(path: string, text: string): Promise<void> {
@@ -688,12 +694,14 @@ export class DriveRemote implements Remote {
   }
 
   async readBytes(path: string): Promise<Buffer | null> {
+    const cached = this.known.has(path)
     const id = await this.fileId(path)
     if (!id) return null
     const res = await this.call(`${this.urls.api}/files/${id}?alt=media`)
     if (res.status === 404) {
       this.known.delete(path)
-      return null
+      // Un id recordado que ya no vale (lo ha sustituido otro equipo): se busca otra vez.
+      return cached ? this.readBytes(path) : null
     }
     return Buffer.from(await res.arrayBuffer())
   }

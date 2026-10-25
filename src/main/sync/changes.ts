@@ -215,6 +215,13 @@ export class ChangeLog {
   }
 
   /** Cambios de este equipo sin subir. */
+  /** El último cambio apuntado (0 si no hay ninguno). */
+  lastQueued(): number {
+    return (
+      (this.db.prepare('SELECT MAX(id) AS m FROM sync_outbox').get() as { m: number | null }).m ?? 0
+    )
+  }
+
   pending(): number {
     return (this.db.prepare('SELECT COUNT(*) AS n FROM sync_outbox').get() as { n: number }).n
   }
@@ -224,10 +231,10 @@ export class ChangeLog {
   }
 
   /** Las filas cambiadas, con sus valores de ahora (o borradas), para un paquete. */
-  collect(limit = 4000): { rows: PackRow[]; maxId: number } {
+  collect(limit = 4000, upTo = Number.MAX_SAFE_INTEGER): { rows: PackRow[]; maxId: number } {
     const queue = this.db
-      .prepare('SELECT id, tbl, key, ts FROM sync_outbox ORDER BY id LIMIT ?')
-      .all(limit) as { id: number; tbl: string; key: string; ts: number }[]
+      .prepare('SELECT id, tbl, key, ts FROM sync_outbox WHERE id <= ? ORDER BY id LIMIT ?')
+      .all(upTo, limit) as { id: number; tbl: string; key: string; ts: number }[]
     const device = this.o.device()
     const rows: PackRow[] = []
     let maxId = 0

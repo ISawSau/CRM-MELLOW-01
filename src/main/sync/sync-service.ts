@@ -78,6 +78,8 @@ const BACKUP_LAST_KEY = 'backups.last'
 export const CHANGES_KEY = 'sync.changes'
 /** Tras restaurar una copia: lo restaurado empieza una época nueva. */
 const FORCE_PUSH_KEY = 'sync.forcePush'
+/** Este equipo: con datos móviles, bajar también libros y archivos (D-131; `sync.*` no viaja). */
+const MOBILE_FILES_KEY = 'sync.mobileFiles'
 const AUTO_REASON = 'automatica'
 const SYNC_BACKUP_REASON = 'antes-de-sincronizar'
 /** Copias «antes de sincronizar» que se guardan (antes se guardaban todas). */
@@ -271,6 +273,13 @@ export interface SyncServiceOptions {
   compactPacks?: number
   /** Espera tras un cambio antes de subirlo (tests). */
   changeDelayMs?: number
+  /** Mínimo entre subidas automáticas (tests, D-131). */
+  minPushGapMs?: number
+  /**
+   * ¿La red es de pago por uso (datos móviles, D-131)? Entonces solo viajan los cambios:
+   * los archivos y libros se bajan con wifi o al abrirlos.
+   */
+  metered?: () => Promise<boolean>
   http?: FetchLike
   /** Tiempos de Drive (tests). */
   driveTiming?: Partial<DriveTiming>
@@ -281,6 +290,18 @@ export interface SyncServiceOptions {
 const PROGRESS_EMIT_MS = 400
 /** Tras un cambio, se sube a los pocos segundos (se juntan los que vienen seguidos). */
 const CHANGE_DELAY_MS = 4_000
+/**
+ * Las subidas automáticas, como mucho una cada tanto (D-131): leyendo, cada página es un
+ * cambio y cada subida un paquete que el otro equipo baja. Al cerrar, bloquear, pasar a
+ * segundo plano o a mano se sube al momento.
+ */
+const MIN_PUSH_GAP_MS = 2 * 60_000
+/** Cuánto se reutilizan los ids de Drive ya buscados. */
+const REMOTE_TTL_MS = 15 * 60_000
+/** Un archivo que no estaba en la nube no se vuelve a buscar hasta pasado esto. */
+const ABSENT_RETRY_MS = 30 * 60_000
+/** Paquetes que se bajan a la vez (cada uno es una petición a Drive, D-131). */
+const PULL_PARALLEL = 6
 /** Con la app abierta, se mira si hay algo nuevo cada minuto. */
 const LIVE_MS = 60_000
 /** Una sincronización automática se enseña si mueve más que esto. */
@@ -295,6 +316,15 @@ export type SyncMode = 'manual' | 'auto' | 'background'
 
 export class SyncService {
   private phase: SyncStatus['phase'] = 'idle'
+  /** Cómo se lanzó la sincronización en curso. */
+  private mode: SyncMode = 'manual'
+  /** Cuándo se subió el último paquete (para no subir uno por página leída, D-131). */
+  private lastPushAt = 0
+  private cachedRemote: { key: string; remote: Remote; at: number } | null = null
+  /** Archivos que no estaban en la nube la última vez que se buscaron, y cuándo. */
+  private readonly absent = new Map<string, number>()
+  /** Archivos que se están bajando al abrirlos (D-131). */
+  private readonly fetching = new Map<string, Promise<boolean>>()
   private error: string | null = null
   private conflict: SyncStatus['conflict'] = null
   private running: Promise<void> | null = null
@@ -499,6 +529,75 @@ export class SyncService {
       pending,
       lastBackupAt: last,
       progress: this.phase === 'syncing' ? this.progress : null,
+      mobileFiles: this.mobileFiles(),
+    }
+  }
+
+  private mobileFiles(): boolean {
+    try {
+      return readSetting(this.db(), MOBILE_FILES_KEY) === true
+    } catch {
+      return false
+    }
+  }
+
+  /** Con datos móviles, bajar también libros y archivos (D-131). */
+  setMobileFiles(on: boolean): SyncStatus {
+    writeSetting(this.db(), MOBILE_FILES_KEY, on)
+    if (on && this.configured) void this.sync('auto').catch(() => {})
+    return this.emit()
+  }
+
+  /** ¿Solo viajan los cambios? Con datos móviles, salvo que se haya pedido lo contrario. */
+  private async light(): Promise<boolean> {
+    if (!this.opts.metered || this.mobileFiles()) return false
+    return this.opts.metered().catch(() => false)
+  }
+
+  /**
+   * Un archivo (un libro) que aún no está en este equipo: se baja ahora, al abrirlo, aunque
+   * sea con datos móviles (D-131). True si ya está aquí.
+   */
+  async fetchFile(id: string): Promise<boolean> {
+    if (!/^[0-9a-f]{64}$/.test(id)) return false
+    const dest = join(this.vaultPath(), 'files', id.slice(0, 2), `${id}.bin`)
+    if (existsSync(dest)) return true
+    // Si ya se está bajando (el visor pide el mismo archivo varias veces), se espera a esa.
+    const busy = this.fetching.get(id)
+    if (busy) return busy
+    const run = this.fetchNow(id, dest).finally(() => this.fetching.delete(id))
+    this.fetching.set(id, run)
+    return run
+  }
+
+  private async fetchNow(id: string, dest: string): Promise<boolean> {
+    const remote = this.remote()
+    if (!remote) return false
+    const size = (
+      this.db().prepare('SELECT size FROM files WHERE id = ?').get(id) as
+        { size: number } | undefined
+    )?.size
+    if (size === undefined) return false
+    // Con una sincronización en marcha, su progreso manda; si no, se enseña esta bajada.
+    const shown = !this.running
+    const report = (bytes: number, force = false) => {
+      if (!shown || this.running) return
+      this.phase = 'syncing'
+      this.visible = true
+      this.report({ step: 'bajando', done: 0, total: 1, bytes, totalBytes: size }, force)
+    }
+    report(0, true)
+    try {
+      const got = await remote.get(`files/${id}.bin`, dest, (bytes) => report(bytes))
+      return got && existsSync(dest)
+    } catch {
+      return false
+    } finally {
+      if (shown && !this.running) {
+        this.phase = this.error ? 'error' : 'idle'
+        this.progress = null
+        this.emit()
+      }
     }
   }
 
@@ -527,9 +626,21 @@ export class SyncService {
     )
   }
 
+  /**
+   * El destino se reutiliza entre sincronizaciones (D-131): recuerda los ids de Drive de sus
+   * carpetas y archivos, y la comprobación de cada minuto no los vuelve a buscar. Se olvida
+   * a mano, tras un error y cada rato, por si alguien toca la carpeta en Drive.
+   */
   private remote(): Remote | null {
     const cfg = this.config()
-    return cfg ? this.remoteFor(cfg) : null
+    if (!cfg) return null
+    const key = JSON.stringify(cfg)
+    const now = this.now().getTime()
+    const c = this.cachedRemote
+    if (c && c.key === key && now - c.at < REMOTE_TTL_MS) return c.remote
+    const remote = this.remoteFor(cfg)
+    this.cachedRemote = { key, remote, at: now }
+    return remote
   }
 
   // --- Configuración -------------------------------------------------------------
@@ -670,6 +781,9 @@ export class SyncService {
    * en las automáticas, solo si resulta que hay mucho que mover.
    */
   private async held<T>(mode: SyncMode, run: () => Promise<T>): Promise<T> {
+    this.mode = mode
+    // A mano, todo se vuelve a buscar en Drive (por si se ha tocado algo allí).
+    if (mode === 'manual') this.cachedRemote = null
     this.quiet = mode !== 'manual'
     this.visible = !this.quiet
     this.appliedSomething = false
@@ -696,12 +810,17 @@ export class SyncService {
     if (this.changeTimer) clearTimeout(this.changeTimer)
     // En segundo plano (la app se acaba de cerrar): enseguida y con la app viva hasta subir.
     const background = !this.active
+    // A la vista, como mucho una subida cada MIN_PUSH_GAP_MS: los cambios seguidos se juntan.
+    const wait = Math.max(
+      this.opts.changeDelayMs ?? CHANGE_DELAY_MS,
+      this.lastPushAt + this.pushGap() - this.now().getTime(),
+    )
     this.changeTimer = setTimeout(
       () => {
         this.changeTimer = null
         void this.sync(background ? 'background' : 'auto').catch(() => {})
       },
-      background ? 300 : (this.opts.changeDelayMs ?? CHANGE_DELAY_MS),
+      background ? 300 : wait,
     )
     this.changeTimer.unref?.()
   }
@@ -747,6 +866,7 @@ export class SyncService {
   }
 
   private fail(e: unknown): void {
+    this.cachedRemote = null
     this.progress = null
     if (this.quiet && !this.visible && isNetworkError(e)) {
       // Sin red en una automática: no es un error que enseñar; se reintenta luego.
@@ -833,9 +953,17 @@ export class SyncService {
     }
   }
 
+  private pushGap(): number {
+    return this.opts.minPushGapMs ?? MIN_PUSH_GAP_MS
+  }
+
   /** Lo de aquí sube, lo de los demás baja y, si toca, instantánea nueva. */
   private async exchange(remote: Remote, m: ManifestV2): Promise<void> {
-    await this.pushChanges(remote)
+    // La comprobación de cada minuto solo baja; lo de aquí sube cuando toca (D-131).
+    const early = this.mode === 'auto' && this.now().getTime() - this.lastPushAt < this.pushGap()
+    if (early) {
+      if (this.hasPending()) this.notifyLocalChange()
+    } else await this.pushChanges(remote)
     let pulled = await this.pullChanges(remote, m)
     if (pulled.gap) {
       // Sus paquetes ya no están: se pone al día desde la instantánea, con lo suyo.
@@ -1198,14 +1326,18 @@ export class SyncService {
           ? readFileSync(join(this.vaultPath(), VAULT_FILES.manifest), 'utf8')
           : undefined
       let sent = 0
+      // En las automáticas, solo lo que había al empezar: lo que llega mientras sube (otra
+      // página leída) espera al siguiente hueco en lugar de ir en otro paquete (D-131).
+      const upTo = this.mode === 'auto' ? log.lastQueued() : undefined
       for (;;) {
-        const { rows, maxId } = log.collect(PACK_ROWS)
+        const { rows, maxId } = log.collect(PACK_ROWS, upTo)
         if (!rows.length && !manifest) {
           if (maxId) log.ack(maxId)
           if (maxId) continue
           break
         }
         await this.writePacks(remote, st, key, rows, manifest)
+        this.lastPushAt = this.now().getTime()
         sent += rows.length
         this.report({
           step: 'subiendo',
@@ -1307,13 +1439,27 @@ export class SyncService {
       skipped: 0,
     }
     let newer = false
+    // Se bajan varios a la vez y se aplican en orden (D-131): con datos móviles, cada
+    // paquete es una espera de Drive, y uno detrás de otro tardaba mucho.
+    const pathOf = (i: number) => `changes/${m.epoch}/${todo[i]!.device}-${pad(todo[i]!.seq)}.bin`
+    const loads = new Map<number, Promise<Buffer | null>>()
+    const load = (i: number) => {
+      if (i >= todo.length) return
+      if (!loads.has(i)) {
+        const p = remote.readBytes(pathOf(i))
+        p.catch(() => {})
+        loads.set(i, p)
+      }
+    }
     try {
       const stopped = new Set<string>()
       for (const [i, p] of todo.entries()) {
+        for (let j = i; j < i + PULL_PARALLEL; j++) load(j)
         if (stopped.has(p.device)) continue
         this.report({ step: 'bajando', done: i, total: todo.length, bytes: 0, totalBytes: 0 })
-        const path = `changes/${m.epoch}/${p.device}-${pad(p.seq)}.bin`
-        const data = await remote.readBytes(path)
+        const path = pathOf(i)
+        const data = await loads.get(i)!
+        loads.delete(i)
         if (!data) {
           stopped.add(p.device)
           continue
@@ -1423,14 +1569,21 @@ export class SyncService {
     const limit = this.opts.maxAutoDownloadBytes ?? Infinity
     const always =
       limit === Infinity ? new Set<string>() : (this.opts.alwaysDownload?.() ?? new Set())
+    // Con datos móviles, solo las miniaturas: los archivos esperan al wifi o a abrirlos.
+    const light = await this.light()
+    const now = this.now().getTime()
     const todo: { path: string; dest: string; size: number }[] = []
     for (const r of rows) {
       for (const kind of ['files', 'thumbs'] as const) {
         if (kind === 'thumbs' && !r.has_thumb) continue
+        if (kind === 'files' && light) continue
         if (kind === 'files' && r.size > limit && !always.has(r.id)) continue
         const dest = join(vaultPath, kind, r.id.slice(0, 2), `${r.id}.bin`)
-        if (!existsSync(dest))
-          todo.push({ path: `${kind}/${r.id}.bin`, dest, size: kind === 'files' ? r.size : 0 })
+        const path = `${kind}/${r.id}.bin`
+        // Lo que aún no está en la nube no se busca cada minuto (D-131); a mano, sí.
+        const missed = this.absent.get(path)
+        if (missed && this.mode !== 'manual' && now - missed < ABSENT_RETRY_MS) continue
+        if (!existsSync(dest)) todo.push({ path, dest, size: kind === 'files' ? r.size : 0 })
       }
     }
     if (!todo.length) return
@@ -1445,7 +1598,7 @@ export class SyncService {
     this.report({ step: 'bajando', done, total, bytes: 0, totalBytes }, true)
     for (const f of todo) {
       try {
-        await remote.get(f.path, f.dest, (received) =>
+        const got = await remote.get(f.path, f.dest, (received) =>
           this.report({
             step: 'bajando',
             done,
@@ -1454,6 +1607,8 @@ export class SyncService {
             totalBytes,
           }),
         )
+        if (got) this.absent.delete(f.path)
+        else this.absent.set(f.path, now)
       } catch (e) {
         firstError ??= e
         failed++
