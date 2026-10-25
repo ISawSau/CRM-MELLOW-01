@@ -1,11 +1,13 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { request } from 'node:http'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { decodeWire, encodeWire } from '@shared/wire'
 import type { IpcHandlers } from '../../src/main/ipc/run'
 import { COOKIE, startMobileServer, type MobileServer } from '../../src/mobile/server'
+import { VaultService } from '../../src/main/vault/vault-service'
+import { TEST_KDF, tempDir } from './helpers'
 
 const TOKEN = 'a'.repeat(64)
 
@@ -153,5 +155,51 @@ describe('servidor local de Android', () => {
     await reader.cancel()
     await post('/native/lock', {})
     expect(lastNative).toBe('lock')
+  })
+})
+
+describe('servidor local de Android: archivos que aún no están (D-131)', () => {
+  it('un archivo que falta se baja de la nube al abrirlo, y solo ese', async () => {
+    const vault = new VaultService({ kdf: TEST_KDF, hostname: 'movil' })
+    await vault.create(tempDir(), 'Boveda', 'contraseña de prueba')
+    const data = Buffer.from('contenido del libro')
+    const f = vault.data.importBuffer('libro.epub', data)
+    const path = join(vault.currentPath!, 'files', f.id.slice(0, 2), `${f.id}.bin`)
+    const stored = readFileSync(path)
+    rmSync(path)
+    const asked: string[] = []
+    const dir = mkdtempSync(join(tmpdir(), 'crm-movil-'))
+    const srv = await startMobileServer({
+      handlers: {} as IpcHandlers,
+      getData: () => vault.data,
+      staticDir: dir,
+      token: TOKEN,
+      port: 0,
+      onNative: () => {},
+      // Como SyncService.fetchFile: deja el archivo cifrado en su sitio.
+      fetchMissing: async (id) => {
+        asked.push(id)
+        mkdirSync(dirname(path), { recursive: true })
+        writeFileSync(path, stored)
+        return true
+      },
+    })
+    try {
+      const get = (id: string) =>
+        fetch(`http://127.0.0.1:${srv.port}/vault/file/${id}`, {
+          headers: { Cookie: `${COOKIE}=${TOKEN}` },
+        })
+      const res = await get(f.id)
+      expect(res.status).toBe(200)
+      expect(Buffer.from(await res.arrayBuffer()).equals(data)).toBe(true)
+      // Ya está: no se vuelve a pedir; un id raro ni se pide.
+      expect((await get(f.id)).status).toBe(200)
+      expect((await get('x'.repeat(64))).status).toBe(404)
+      expect(asked).toEqual([f.id])
+    } finally {
+      await srv.close()
+      vault.dispose()
+      rmSync(dir, { recursive: true, force: true })
+    }
   })
 })
