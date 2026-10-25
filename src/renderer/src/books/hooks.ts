@@ -23,6 +23,19 @@ export function useReaderUrl() {
   })
 }
 
+/**
+ * El archivo del libro en este equipo: si aún no está (con datos móviles no se bajan solos),
+ * se baja ahora (D-131). True cuando ya se puede abrir.
+ */
+export function useBookFile(id: string) {
+  return useQuery({
+    queryKey: ['bookFile', id],
+    queryFn: () => call('sync:fetchFile', { id }),
+    staleTime: Infinity,
+    retry: false,
+  })
+}
+
 export function useBookProgress() {
   return useQuery({ queryKey: ['books', 'progress'], queryFn: () => call('books:progressAll') })
 }

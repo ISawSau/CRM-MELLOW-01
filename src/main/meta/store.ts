@@ -2,7 +2,8 @@ import type { SqliteDb } from '../db/connection'
 
 /**
  * Escritura de los datos de Meta en la base de datos de la bóveda. Todo en
- * transacciones: un trozo de métricas se sustituye entero o no se toca.
+ * transacciones: un trozo de métricas se sustituye entero o no se toca, cambiando solo las
+ * filas que de verdad cambian (D-131).
  */
 
 export type InsightLevel = 'account' | 'campaign' | 'adset' | 'ad'
@@ -67,6 +68,43 @@ const int = (v: unknown): number | null => {
 }
 const str = (v: unknown): string | null => (typeof v === 'string' && v ? v : null)
 
+/**
+ * Guarda un lote de filas tocando solo lo que cambia (D-131). Antes se borraba el trozo y se
+ * volvía a insertar entero: cada hora todas las métricas de la ventana parecían nuevas y la
+ * sincronización entre equipos las volvía a subir y bajar. Ahora:
+ * - se inserta o se actualiza (una actualización que solo cambia `fetched_at` no se apunta
+ *   para sincronizar, ver `VOLATILE` en sync/changes.ts);
+ * - con `scope`, las filas de ese trozo que ya no vienen se borran, como antes.
+ * `cols` va en el orden de cada fila e incluye las columnas de la clave.
+ */
+function writeChanged(
+  db: SqliteDb,
+  table: string,
+  keys: readonly string[],
+  cols: readonly string[],
+  rows: readonly unknown[][],
+  scope?: { where: string; params: unknown[] },
+): void {
+  const rest = cols.filter((c) => !keys.includes(c))
+  const upsert = db.prepare(
+    `INSERT INTO ${table} (${cols.join(', ')}) VALUES (${cols.map(() => '?').join(', ')})
+     ON CONFLICT(${keys.join(', ')}) DO UPDATE SET ${rest.map((c) => `${c} = excluded.${c}`).join(', ')}`,
+  )
+  const keyIdx = keys.map((k) => cols.indexOf(k))
+  const seen = new Set<string>()
+  for (const r of rows) {
+    upsert.run(...r)
+    seen.add(JSON.stringify(keyIdx.map((i) => r[i])))
+  }
+  if (!scope) return
+  const del = db.prepare(`DELETE FROM ${table} WHERE ${keys.map((k) => `${k} = ?`).join(' AND ')}`)
+  const existing = db
+    .prepare(`SELECT ${keys.join(', ')} FROM ${table} WHERE ${scope.where}`)
+    .raw()
+    .all(...scope.params) as unknown[][]
+  for (const k of existing) if (!seen.has(JSON.stringify(k))) del.run(...k)
+}
+
 export function actId(id: string): string {
   return id.startsWith('act_') ? id : `act_${id}`
 }
@@ -98,82 +136,116 @@ export function replaceInsights(
   rows: InsightRow[],
   now: string,
 ): number {
-  const ins = db.prepare(`INSERT OR REPLACE INTO ad_insights_daily
-    (level, entity_id, date, account_id, campaign_id, adset_id, spend, impressions, reach,
-     frequency, clicks, link_clicks, unique_link_clicks, link_ctr, unique_link_ctr, cpm, cpc,
-     quality_ranking, engagement_ranking, conversion_ranking, actions, action_values, extra,
-     fetched_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-  const insAction = db.prepare(`INSERT INTO ad_actions
-    (level, entity_id, date, action_type, account_id, count, value) VALUES (?, ?, ?, ?, ?, ?, ?)
-    ON CONFLICT(level, entity_id, date, action_type) DO UPDATE SET
-      count = COALESCE(excluded.count, count), value = COALESCE(excluded.value, value)`)
   const insType = db.prepare(
     'INSERT OR IGNORE INTO ad_action_types (action_type, first_seen) VALUES (?, ?)',
   )
   const insName = db.prepare(`INSERT OR IGNORE INTO ad_objects
     (id, level, account_id, campaign_id, adset_id, name, raw, synced_at)
     VALUES (?, ?, ?, ?, ?, ?, '{}', ?)`)
-  let n = 0
+  const insights: unknown[][] = []
+  // Acciones por entidad, día y tipo: el recuento y el valor vienen en listas distintas.
+  const actions = new Map<string, unknown[]>()
+  for (const r of rows) {
+    const entity = entityOf(level, accountId, r)
+    const date = str(r.date_start)
+    if (!entity || !date) continue
+    const extra: Record<string, unknown> = {}
+    for (const [k, v] of Object.entries(r)) if (!KNOWN.has(k)) extra[k] = v
+    insights.push([
+      level,
+      entity,
+      date,
+      accountId,
+      str(r.campaign_id),
+      str(r.adset_id),
+      num(r['spend']) ?? 0,
+      int(r['impressions']) ?? 0,
+      int(r['reach']),
+      num(r['frequency']),
+      int(r['clicks']),
+      int(r['inline_link_clicks']),
+      int(r['unique_inline_link_clicks']),
+      num(r['inline_link_click_ctr']),
+      num(r['unique_inline_link_click_ctr']),
+      num(r['cpm']),
+      num(r['cpc']),
+      str(r['quality_ranking']),
+      str(r['engagement_rate_ranking']),
+      str(r['conversion_rate_ranking']),
+      r.actions ? JSON.stringify(r.actions) : null,
+      r.action_values ? JSON.stringify(r.action_values) : null,
+      Object.keys(extra).length ? JSON.stringify(extra) : null,
+      now,
+    ])
+    for (const [list, isValue] of [
+      [r.actions, false],
+      [r.action_values, true],
+    ] as const) {
+      for (const a of list ?? []) {
+        const type = str(a.action_type)
+        if (!type) continue
+        const k = JSON.stringify([entity, date, type])
+        const row = actions.get(k) ?? [level, entity, date, type, accountId, null, null]
+        const v = num(a.value)
+        // Como antes (COALESCE): lo que llega sin valor no borra lo que ya había.
+        if (isValue) row[6] = v ?? row[6]
+        else row[5] = v ?? row[5]
+        actions.set(k, row)
+      }
+    }
+  }
   db.transaction(() => {
-    db.prepare(
-      'DELETE FROM ad_insights_daily WHERE account_id = ? AND level = ? AND date BETWEEN ? AND ?',
-    ).run(accountId, level, since, until)
-    db.prepare(
-      'DELETE FROM ad_actions WHERE account_id = ? AND level = ? AND date BETWEEN ? AND ?',
-    ).run(accountId, level, since, until)
+    writeChanged(
+      db,
+      'ad_insights_daily',
+      ['level', 'entity_id', 'date'],
+      [
+        'level',
+        'entity_id',
+        'date',
+        'account_id',
+        'campaign_id',
+        'adset_id',
+        'spend',
+        'impressions',
+        'reach',
+        'frequency',
+        'clicks',
+        'link_clicks',
+        'unique_link_clicks',
+        'link_ctr',
+        'unique_link_ctr',
+        'cpm',
+        'cpc',
+        'quality_ranking',
+        'engagement_ranking',
+        'conversion_ranking',
+        'actions',
+        'action_values',
+        'extra',
+        'fetched_at',
+      ],
+      insights,
+      {
+        where: 'account_id = ? AND level = ? AND date BETWEEN ? AND ?',
+        params: [accountId, level, since, until],
+      },
+    )
+    writeChanged(
+      db,
+      'ad_actions',
+      ['level', 'entity_id', 'date', 'action_type'],
+      ['level', 'entity_id', 'date', 'action_type', 'account_id', 'count', 'value'],
+      [...actions.values()],
+      {
+        where: 'account_id = ? AND level = ? AND date BETWEEN ? AND ?',
+        params: [accountId, level, since, until],
+      },
+    )
+    for (const row of actions.values()) insType.run(row[3], now)
     for (const r of rows) {
       const entity = entityOf(level, accountId, r)
-      const date = str(r.date_start)
-      if (!entity || !date) continue
-      const extra: Record<string, unknown> = {}
-      for (const [k, v] of Object.entries(r)) if (!KNOWN.has(k)) extra[k] = v
-      ins.run(
-        level,
-        entity,
-        date,
-        accountId,
-        str(r.campaign_id),
-        str(r.adset_id),
-        num(r['spend']) ?? 0,
-        int(r['impressions']) ?? 0,
-        int(r['reach']),
-        num(r['frequency']),
-        int(r['clicks']),
-        int(r['inline_link_clicks']),
-        int(r['unique_inline_link_clicks']),
-        num(r['inline_link_click_ctr']),
-        num(r['unique_inline_link_click_ctr']),
-        num(r['cpm']),
-        num(r['cpc']),
-        str(r['quality_ranking']),
-        str(r['engagement_rate_ranking']),
-        str(r['conversion_rate_ranking']),
-        r.actions ? JSON.stringify(r.actions) : null,
-        r.action_values ? JSON.stringify(r.action_values) : null,
-        Object.keys(extra).length ? JSON.stringify(extra) : null,
-        now,
-      )
-      for (const [list, isValue] of [
-        [r.actions, false],
-        [r.action_values, true],
-      ] as const) {
-        for (const a of list ?? []) {
-          const type = str(a.action_type)
-          if (!type) continue
-          const v = num(a.value)
-          insAction.run(
-            level,
-            entity,
-            date,
-            type,
-            accountId,
-            isValue ? null : v,
-            isValue ? v : null,
-          )
-          insType.run(type, now)
-        }
-      }
+      if (!entity || !str(r.date_start)) continue
       // Nombre de entidades que ya no salen en la estructura (archivadas o borradas).
       if (level === 'campaign' && r.campaign_name)
         insName.run(entity, 'campaign', accountId, null, null, r.campaign_name, now)
@@ -181,10 +253,9 @@ export function replaceInsights(
         insName.run(entity, 'adset', accountId, str(r.campaign_id), null, r.adset_name, now)
       if (level === 'ad' && r.ad_name)
         insName.run(entity, 'ad', accountId, str(r.campaign_id), str(r.adset_id), r.ad_name, now)
-      n++
     }
   })()
-  return n
+  return insights.length
 }
 
 export type StructureLevel = 'campaign' | 'adset' | 'ad'
@@ -345,39 +416,56 @@ export function replaceBreakdowns(
   rows: InsightRow[],
   now: string,
 ): number {
-  const ins = db.prepare(`INSERT OR REPLACE INTO ad_breakdowns
-    (level, entity_id, date, breakdown, value, account_id, spend, impressions, clicks, link_clicks,
-     actions, action_values, fetched_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-  let n = 0
-  db.transaction(() => {
-    db.prepare(
-      'DELETE FROM ad_breakdowns WHERE account_id = ? AND level = ? AND breakdown = ? AND date BETWEEN ? AND ?',
-    ).run(accountId, level, breakdown, since, until)
-    for (const r of rows) {
-      const entity = entityOf(level, accountId, r)
-      const date = str(r.date_start)
-      const value = breakdownValue(r, api)
-      if (!entity || !date || !value) continue
-      ins.run(
-        level,
-        entity,
-        date,
-        breakdown,
-        value,
-        accountId,
-        num(r['spend']) ?? 0,
-        int(r['impressions']) ?? 0,
-        int(r['clicks']),
-        int(r['inline_link_clicks']),
-        r.actions ? JSON.stringify(r.actions) : null,
-        r.action_values ? JSON.stringify(r.action_values) : null,
-        now,
-      )
-      n++
-    }
-  })()
-  return n
+  const out: unknown[][] = []
+  for (const r of rows) {
+    const entity = entityOf(level, accountId, r)
+    const date = str(r.date_start)
+    const value = breakdownValue(r, api)
+    if (!entity || !date || !value) continue
+    out.push([
+      level,
+      entity,
+      date,
+      breakdown,
+      value,
+      accountId,
+      num(r['spend']) ?? 0,
+      int(r['impressions']) ?? 0,
+      int(r['clicks']),
+      int(r['inline_link_clicks']),
+      r.actions ? JSON.stringify(r.actions) : null,
+      r.action_values ? JSON.stringify(r.action_values) : null,
+      now,
+    ])
+  }
+  db.transaction(() =>
+    writeChanged(
+      db,
+      'ad_breakdowns',
+      ['level', 'entity_id', 'date', 'breakdown', 'value'],
+      [
+        'level',
+        'entity_id',
+        'date',
+        'breakdown',
+        'value',
+        'account_id',
+        'spend',
+        'impressions',
+        'clicks',
+        'link_clicks',
+        'actions',
+        'action_values',
+        'fetched_at',
+      ],
+      out,
+      {
+        where: 'account_id = ? AND level = ? AND breakdown = ? AND date BETWEEN ? AND ?',
+        params: [accountId, level, breakdown, since, until],
+      },
+    ),
+  )()
+  return out.length
 }
 
 /** Guarda alcance, frecuencia y únicos de un periodo para cada entidad. */
@@ -390,25 +478,41 @@ export function storeRangeStats(
   rows: InsightRow[],
   now: string,
 ): void {
-  const ins = db.prepare(`INSERT OR REPLACE INTO ad_range_stats
-    (level, entity_id, since, until, account_id, reach, frequency, unique_link_clicks,
-     unique_link_ctr, fetched_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-  db.transaction(() => {
-    for (const r of rows) {
-      const entity = entityOf(level, accountId, r)
-      if (!entity) continue
-      ins.run(
-        level,
-        entity,
-        since,
-        until,
-        accountId,
-        int(r['reach']),
-        num(r['frequency']),
-        int(r['unique_inline_link_clicks']),
-        num(r['unique_inline_link_click_ctr']),
-        now,
-      )
-    }
-  })()
+  const out: unknown[][] = []
+  for (const r of rows) {
+    const entity = entityOf(level, accountId, r)
+    if (!entity) continue
+    out.push([
+      level,
+      entity,
+      since,
+      until,
+      accountId,
+      int(r['reach']),
+      num(r['frequency']),
+      int(r['unique_inline_link_clicks']),
+      num(r['unique_inline_link_click_ctr']),
+      now,
+    ])
+  }
+  db.transaction(() =>
+    writeChanged(
+      db,
+      'ad_range_stats',
+      ['level', 'entity_id', 'since', 'until'],
+      [
+        'level',
+        'entity_id',
+        'since',
+        'until',
+        'account_id',
+        'reach',
+        'frequency',
+        'unique_link_clicks',
+        'unique_link_ctr',
+        'fetched_at',
+      ],
+      out,
+    ),
+  )()
 }

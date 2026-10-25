@@ -84,6 +84,11 @@ export function androidPlatform(o: AndroidPlatformOptions): Platform {
       void o.native({ kind: 'reading', on, volumeKeys })
     },
     returnToAppUrl: RETURN_TO_APP_URL,
+    // Datos móviles (D-131): lo pregunta al sistema cada vez (puede cambiar de red).
+    async isMetered() {
+      const r = await o.native({ kind: 'network' })
+      return r === null ? false : r === true || (r as { metered?: unknown }).metered === true
+    },
   }
 }
 

@@ -1,3 +1,15 @@
+## Novedades de la 0.20.1 · Sincronización mucho más ligera (y sin gastar tus datos móviles)
+
+- **Mucho menos que mover:**
+  - Meta ya no vuelve a subir cada hora miles de métricas que no han cambiado: solo viaja lo distinto.
+  - Leyendo, ya no se sube un paquete por página: los cambios seguidos van juntos, como mucho una subida cada 2 minutos (al cerrar la app o bloquear se sube al momento, como antes).
+  - Al ponerse al día, el móvil baja varios paquetes a la vez en lugar de uno detrás de otro.
+  - Mirar si hay algo nuevo cada minuto pide a Drive 2 cosas en lugar de 6.
+- **Con datos móviles, solo lo imprescindible:**
+  - Viajan los cambios y las miniaturas; los libros y archivos se bajan con wifi o cuando los abres («Bajando el libro…»).
+  - Meta no se actualiza sola con datos móviles (con el botón, sí).
+  - Si prefieres lo de antes: Ajustes → Sincronización → «Con datos móviles, bajar también libros y archivos».
+
 ## Novedades de la 0.20.0 · Libros EPUB en el móvil, barra inferior a tu gusto y menos contraseñas
 
 - **Arreglado: los EPUB se veían en blanco en el móvil.** Android bloqueaba las páginas internas del lector. Los PDF ya funcionaban; ahora también los EPUB, MOBI, AZW3, FB2 y CBZ.

@@ -123,6 +123,8 @@ async function main(): Promise<void> {
         return null
       }
     },
+    // Con datos móviles los archivos esperan: el que se abre se baja en ese momento (D-131).
+    fetchMissing: (id) => backend.sync.fetchFile(id),
     staticDir: join(__dirname, '..', 'www'),
     token: arg('token'),
     port: Number(arg('port')),

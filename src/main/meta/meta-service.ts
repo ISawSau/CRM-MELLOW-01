@@ -223,6 +223,8 @@ export interface MetaServiceOptions {
   sleep?: (ms: number) => Promise<void>
   /** Espera entre consultas del estado de un informe asíncrono. */
   pollMs?: number
+  /** ¿Datos móviles? Entonces no se sincroniza sola, solo a mano (D-131). */
+  metered?: () => Promise<boolean>
 }
 
 interface JobRow {
@@ -712,15 +714,20 @@ export class MetaService {
   start(): void {
     if (!this.unlocked) return
     this.schedule()
-    if (this.config()) void this.syncNow().catch(() => {})
+    void this.autoSync()
+  }
+
+  /** La sincronización sola (al abrir y cada rato): con datos móviles, no (D-131). */
+  private async autoSync(): Promise<void> {
+    if (!this.unlocked || !this.config()) return
+    if (await (this.opts.metered?.() ?? Promise.resolve(false)).catch(() => false)) return
+    await this.syncNow().catch(() => {})
   }
 
   private schedule(): void {
     if (this.timer) clearInterval(this.timer)
     const minutes = this.settings().intervalMinutes
-    this.timer = setInterval(() => {
-      if (this.unlocked && this.config()) void this.syncNow().catch(() => {})
-    }, minutes * 60_000)
+    this.timer = setInterval(() => void this.autoSync(), minutes * 60_000)
     this.timer.unref?.()
   }
 

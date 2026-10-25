@@ -185,6 +185,8 @@ export interface SyncStatus {
   lastBackupAt: string | null
   /** Qué está haciendo ahora mismo (D-124): null si no está sincronizando. */
   progress: SyncProgress | null
+  /** Con datos móviles, bajar también libros y archivos (este equipo, D-131). */
+  mobileFiles: boolean
 }
 
 export interface SyncProgress {
@@ -352,6 +354,8 @@ export const ipcSchemas = {
   'sync:disconnect': z.void(),
   'sync:now': z.void(),
   'sync:resolve': z.object({ keep: z.enum(['local', 'remote']) }),
+  'sync:setMobileFiles': z.object({ on: z.boolean() }),
+  'sync:fetchFile': z.object({ id: z.string().regex(/^[0-9a-f]{64}$/) }),
   'backups:list': z.void(),
   'backups:create': z.void(),
   'backups:restore': z.object({ name: z.string().regex(/^\d{8}-\d{6}-[a-z0-9-]{1,60}$/i) }),
@@ -540,6 +544,8 @@ export interface IpcOutputs {
   'sync:disconnect': SyncStatus
   'sync:now': SyncStatus
   'sync:resolve': SyncStatus
+  'sync:setMobileFiles': SyncStatus
+  'sync:fetchFile': boolean
   'backups:list': BackupEntry[]
   'backups:create': string
   'backups:restore': 'reopened' | 'locked'

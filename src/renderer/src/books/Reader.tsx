@@ -20,7 +20,7 @@ import { isMobile } from '../lib/platform'
 import { useToast } from '../ui/Toast'
 import { EbookPane } from './EbookPane'
 import { durationLabel, percentLabel } from './format'
-import { useReaderPrefs, useReaderUrl, useReadingStats } from './hooks'
+import { useBookFile, useReaderPrefs, useReaderUrl, useReadingStats } from './hooks'
 import type { PaneEvents, PaneHandle } from './panes'
 import { PdfPane } from './PdfPane'
 import { ReadingTracker } from './session'
@@ -133,6 +133,7 @@ export function Reader({ book, onClose }: { book: ReaderBook; onClose: () => voi
   const qc = useQueryClient()
   const toast = useToast()
   const readerUrl = useReaderUrl()
+  const local = useBookFile(book.file.id)
   const stats = useReadingStats()
   const [prefs, setPrefs] = useReaderPrefs()
   const format = bookFormat(book.file.name)
@@ -347,13 +348,20 @@ export function Reader({ book, onClose }: { book: ReaderBook; onClose: () => voi
       style={{ background: colors.bg, color: colors.fg }}
     >
       <div className="reader-body">
-        {error ? (
+        {error || local.data === false || local.isError ? (
           <div className="reader-error" role="alert">
             <p>{t('No se ha podido abrir el libro.')}</p>
-            <p className="faint">{error}</p>
+            <p className="faint">
+              {error ??
+                t('Aún no está en este equipo y no se ha podido bajar. Prueba con conexión.')}
+            </p>
             <button type="button" className="btn" onClick={onClose}>
               {t('Volver a la biblioteca')}
             </button>
+          </div>
+        ) : !local.data ? (
+          <div className="reader-error" role="status" data-testid="reader-fetching">
+            <p>{t('Bajando el libro…')}</p>
           </div>
         ) : format === 'pdf' ? (
           <PdfPane

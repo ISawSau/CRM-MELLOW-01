@@ -18,4 +18,8 @@ export const sync: Record<string, string> = {
     'The cloud uses a newer format: update the app on this device to sync.',
   'Otro equipo usa una versión más nueva de la app: actualiza esta para sincronizar.':
     'Another device uses a newer version of the app: update this one to sync.',
+  'Con datos móviles, bajar también libros y archivos':
+    'On mobile data, also download books and files',
+  'Con datos móviles solo viajan los cambios, las miniaturas y el archivo o libro que abras; lo demás se baja con wifi. Meta tampoco se actualiza sola con datos móviles (sí con el botón).':
+    'On mobile data only changes, thumbnails and the file or book you open are transferred; everything else downloads on Wi-Fi. Meta does not update on its own on mobile data either (the button still works).',
 }
