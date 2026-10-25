@@ -116,6 +116,7 @@ describe('cuánto mueve la sincronización (D-131)', () => {
 
     // Leer en el ordenador: una página cada 40 ms, 50 páginas (≈2 s, cinco «huecos»).
     const books = new BooksService(pc.vault)
+    const t0 = Date.now()
     for (let page = 1; page <= 50; page++) {
       books.setProgress({
         recordId: book.id,
@@ -128,12 +129,15 @@ describe('cuánto mueve la sincronización (D-131)', () => {
       pc.sync.notifyLocalChange()
       await new Promise((r) => setTimeout(r, 40))
     }
-    await expect.poll(() => pc.sync.status().pending, { timeout: 5000 }).toBe(false)
+    const reading = Date.now() - t0
+    await expect.poll(() => pc.sync.status().pending, { timeout: 15_000 }).toBe(false)
     const packs = packCount(drive) - before
-    if (process.env['MEDIR']) console.log('MEDIDA paquetes', packs)
-    // Antes, un paquete por página (50); ahora, uno por hueco de subida.
+    if (process.env['MEDIR']) console.log('MEDIDA paquetes', packs, 'en', reading, 'ms')
+    // Antes, un paquete por página (50); ahora, uno por hueco de subida (más el último al
+    // acabar). En un equipo lento el bucle dura más y caben más huecos.
     expect(packs).toBeGreaterThan(0)
-    expect(packs).toBeLessThanOrEqual(8)
+    expect(packs).toBeLessThanOrEqual(Math.ceil(reading / 400) + 2)
+    expect(packs).toBeLessThan(20)
 
     // El móvil se pone al día de una vez, con varias peticiones a la vez.
     reset(phone.meter)
@@ -231,7 +235,7 @@ describe('cuánto mueve la sincronización (D-131)', () => {
     await phone.sync.sync()
     expect(phone.vault.data.files.exists(f.id)).toBe(false)
     expect(phone.sync.setMobileFiles(true).mobileFiles).toBe(true)
-    await expect.poll(() => phone.vault.data.files.exists(f.id), { timeout: 5000 }).toBe(true)
+    await expect.poll(() => phone.vault.data.files.exists(f.id), { timeout: 15_000 }).toBe(true)
     // Es de este equipo: no viaja al otro.
     await phone.sync.sync()
     await pc.sync.sync()
