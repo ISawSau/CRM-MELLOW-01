@@ -1259,3 +1259,21 @@ El usuario vio que el móvil había bajado unos 600 MB y que, tras leer en el or
     - Meta no se actualiza sola (con el botón, sí);
     - el ajuste del móvil «Con datos móviles, bajar también libros y archivos» (`sync.mobileFiles`, de este equipo, no viaja) vuelve al comportamiento anterior.
 - **Tests:** `tests/unit/sync-light.test.ts` (Meta repetida no apunta nada; un cambio real sí viaja) y `tests/unit/sync-measure.test.ts` (paquetes al leer, peticiones a la vez al bajar, peticiones y bytes al mirar, datos móviles, bajar al abrir, el ajuste, archivo perdido, Meta con datos móviles), más el servidor móvil pidiendo un archivo que falta.
+
+### D-132 · El tamaño de letra vale para todos los libros y las páginas son de pantalla (v0.20.2)
+
+El usuario abrió un EPUB con la letra muy pequeña, pidió una opción de tamaño y vio que la app contaba unas 5 «páginas» en lo que en pantalla eran 2.
+
+- **Por qué el tamaño no hacía nada:** el ajuste (del 60 al 400 %) cambiaba solo la letra base (`html { font-size: X% }`). Muchos libros fijan la suya en píxeles (`p { font-size: 11px }`) y esa no cambiaba.
+- **Arreglo:** al cargar cada capítulo (antes de paginarlo), el marco del lector:
+  - mide los tamaños del propio libro con la base a 16 px;
+  - toma como letra normal la que lleva más texto;
+  - pone a cada elemento su tamaño en `rem` en proporción, de 0,5 a 4 veces, con `!important` en línea.
+  - Así, el texto normal es exactamente el tamaño elegido (al 100 %, 16 px), los títulos siguen más grandes y las notas más pequeñas. Los libros de maquetación fija (cómics, `pre-paginated`) no se tocan.
+- **A− y A+** en la barra de arriba del lector de ebooks, para no tener que entrar en Apariencia. Avisan del tamaño con un mensaje breve («Letra al 110 %»).
+- **Páginas de pantalla:** antes se enseñaban las «posiciones» de foliate (trozos de 1.500 caracteres, como las de Kindle), que no se parecen a lo que se ve. Ahora:
+  - con las pantallas que ocupan los capítulos ya abiertos (con la letra y el tamaño de ventana de ahora) se calcula cuántos caracteres caben en una;
+  - de ahí sale el total del libro y la página actual («Página 12 de 340»);
+  - con otra letra o al cambiar la ventana se vuelve a medir.
+  - Es una estimación que afina a medida que se abren capítulos. Si aún no se puede (sin capítulo medido), se enseña la posición, como antes.
+- **Tests:** el EPUB de prueba fija la letra en píxeles (11 px y títulos de 22 px). La interfaz de escritorio y la del móvil comprueban que el texto sale a 16 px y los títulos a 32 px, que A+ y A− lo cambian y que se cuentan páginas de pantalla.
