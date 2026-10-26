@@ -98,7 +98,7 @@ function chapter(i: number): string {
   ).join('')
   return `<?xml version="1.0" encoding="utf-8"?>
 <html xmlns="http://www.w3.org/1999/xhtml"><head><title>Capítulo ${i}</title>
-<style>h1 { color: blue }</style>
+<style>h1 { color: blue; font-size: 22px } p { font-size: 11px }</style>
 <script>try { parent.parent.postMessage({ type: 'pwned' }, '*') } catch (e) {}</script>
 </head><body><h1>Capítulo ${i}</h1>
 <p><a href="https://example.com/autora">Web de la autora</a></p>
