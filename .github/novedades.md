@@ -1,3 +1,9 @@
+## Novedades de la 0.20.2 · Letra a tu tamaño en todos los libros y páginas de verdad
+
+- **El tamaño de la letra ya funciona con todos los libros.** Algunos EPUB fijan su letra (a menudo muy pequeña) y el ajuste de tamaño no les hacía nada. Ahora el texto normal del libro sale siempre al tamaño que elijas, y los títulos y las notas, en proporción.
+- **A− y A+ en la barra de arriba del lector**, para cambiar el tamaño de un toque sin abrir Apariencia.
+- **Páginas de verdad:** abajo pone «Página X de Y» contando pantallas, con tu tamaño de letra. Antes contaba trozos de texto («Posición»), y dos páginas en pantalla podían ser unas cinco. Al cambiar la letra, el total se recalcula.
+
 ## Novedades de la 0.20.1 · Sincronización mucho más ligera (y sin gastar tus datos móviles)
 
 - **Mucho menos que mover:**
