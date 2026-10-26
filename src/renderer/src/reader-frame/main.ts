@@ -21,6 +21,7 @@ interface Contributor {
 }
 interface FoliateBook {
   metadata?: { title?: unknown; author?: unknown; language?: unknown }
+  sections?: { size?: number; linear?: string }[]
   toc?: ReaderTocItem[]
   dir?: string
   rendition?: { layout?: string }
@@ -36,6 +37,7 @@ interface Paginator extends HTMLElement {
 interface RelocateDetail {
   fraction: number
   cfi: string
+  section?: { current: number; total: number }
   tocItem?: { label?: string } | null
   location?: { current: number; next: number; total: number }
 }
@@ -165,6 +167,96 @@ function css(s: FrameStyle): string {
 let view: FoliateView | null = null
 let lastStyle: FrameStyle | null = null
 
+/**
+ * Tamaños del libro relativos a su letra normal (D-132). Muchos libros fijan la letra en
+ * píxeles (`p { font-size: 11px }`) y entonces el tamaño elegido no hacía nada. Al cargar
+ * cada capítulo, el tamaño de texto más usado pasa a ser 1rem (el que elige el lector) y el
+ * resto, en proporción: los títulos siguen más grandes y las notas más pequeñas.
+ */
+function normalizeSizes(doc: Document): void {
+  const win = doc.defaultView
+  const body = doc.body
+  if (!win || !body) return
+  const root = doc.documentElement
+  // Los tamaños del propio libro, sin el nuestro (a 16 px, como un navegador).
+  const before = root.style.getPropertyValue('font-size')
+  const priority = root.style.getPropertyPriority('font-size')
+  root.style.setProperty('font-size', '16px', 'important')
+  const sizes = new Map<Element, number>()
+  const sizeOf = (el: Element) => {
+    let n = sizes.get(el)
+    if (n === undefined) {
+      n = parseFloat(win.getComputedStyle(el).fontSize) || 0
+      sizes.set(el, n)
+    }
+    return n
+  }
+  // La letra normal: la que lleva más texto.
+  const weight = new Map<number, number>()
+  const walker = doc.createTreeWalker(body, NodeFilter.SHOW_TEXT)
+  for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+    const len = n.nodeValue?.trim().length ?? 0
+    const el = n.parentElement
+    if (!len || !el) continue
+    const size = Math.round(sizeOf(el) * 2) / 2
+    if (size > 0) weight.set(size, (weight.get(size) ?? 0) + len)
+  }
+  let base = 0
+  let most = 0
+  for (const [size, w] of weight)
+    if (w > most) {
+      most = w
+      base = size
+    }
+  base ||= sizeOf(body) || 16
+  // Primero se leen todos y luego se escriben (escribir obliga a recalcular estilos).
+  const all = [body, ...body.querySelectorAll('*')]
+  const read = all.map(sizeOf)
+  all.forEach((el, i) => {
+    const size = read[i]!
+    if (!size) return
+    const ratio = Math.min(4, Math.max(0.5, size / base))
+    ;(el as HTMLElement).style?.setProperty('font-size', `${+ratio.toFixed(3)}rem`, 'important')
+  })
+  if (before) root.style.setProperty('font-size', before, priority)
+  else root.style.removeProperty('font-size')
+}
+
+/**
+ * Páginas de verdad, de pantalla (D-132): las «posiciones» de foliate son trozos de 1.500
+ * caracteres y no se parecen a lo que se ve. Con lo que ocupa cada pantalla en los capítulos
+ * ya abiertos (con la letra de ahora) se calcula cuántas tiene el libro entero.
+ */
+const measured = new Map<number, number>()
+let measuredFor = ''
+function screenPages(
+  v: FoliateView,
+  d: RelocateDetail,
+  sectionPages: number | null,
+): { page: number; pages: number } | null {
+  const sizes = (v.book.sections ?? []).map((x) =>
+    x.linear !== 'no' && (x.size ?? 0) > 0 ? x.size! : 0,
+  )
+  const total = sizes.reduce((a, b) => a + b, 0)
+  const index = d.section?.current
+  // Con otra letra u otro tamaño de ventana, otra pantalla: se vuelve a medir.
+  const key = `${innerWidth}x${innerHeight} ${lastStyle ? css(lastStyle) : ''}`
+  if (key !== measuredFor) {
+    measured.clear()
+    measuredFor = key
+  }
+  if (index !== undefined && sectionPages && sizes[index]) measured.set(index, sectionPages)
+  let size = 0
+  let pages = 0
+  for (const [i, n] of measured) {
+    size += sizes[i] ?? 0
+    pages += n
+  }
+  if (!total || !size || !pages) return null
+  const count = Math.max(1, Math.round((total * pages) / size))
+  return { page: Math.min(count, Math.max(1, Math.ceil(d.fraction * count))), pages: count }
+}
+
 function applyStyle(s: FrameStyle): void {
   lastStyle = s
   const bundled =
@@ -253,21 +345,35 @@ async function makeView(name: string, data: ArrayBuffer): Promise<FoliateView> {
 
 async function open(msg: Extract<ToFrame, { type: 'open' }>): Promise<void> {
   const v = await makeView(msg.name, msg.data)
-  v.addEventListener('load', (e) => watchTaps((e as CustomEvent<{ doc: Document }>).detail.doc))
+  const fixed = () => v.book.rendition?.layout === 'pre-paginated'
+  v.addEventListener('load', (e) => {
+    const doc = (e as CustomEvent<{ doc: Document }>).detail.doc
+    if (!fixed()) {
+      try {
+        normalizeSizes(doc)
+      } catch {
+        // Un capítulo raro se ve con sus tamaños; nunca deja de abrirse.
+      }
+    }
+    watchTaps(doc)
+  })
   v.addEventListener('relocate', (e) => {
     const d = (e as CustomEvent<RelocateDetail>).detail
     const page = v.renderer.page
     const pages = v.renderer.pages
+    // El paginador cuenta una página de relleno a cada lado.
+    const sectionPages = typeof pages === 'number' && pages > 2 ? pages - 2 : null
+    const screen = fixed() ? null : screenPages(v, d, sectionPages)
     send({
       type: 'relocate',
       cfi: d.cfi,
       fraction: Math.min(1, Math.max(0, d.fraction ?? 0)),
       chapter: d.tocItem?.label?.trim() || null,
-      page: (d.location?.current ?? 0) + 1,
-      pages: d.location?.total ?? 0,
-      // El paginador cuenta una página de relleno a cada lado.
-      sectionPage: typeof page === 'number' && typeof pages === 'number' && pages > 2 ? page : null,
-      sectionPages: typeof pages === 'number' && pages > 2 ? pages - 2 : null,
+      page: screen?.page ?? (d.location?.current ?? 0) + 1,
+      pages: screen?.pages ?? d.location?.total ?? 0,
+      screen: !!screen,
+      sectionPage: typeof page === 'number' && sectionPages ? page : null,
+      sectionPages,
     })
   })
   // Enlaces a webs: los abre la app fuera (si son https); los internos, el lector.
