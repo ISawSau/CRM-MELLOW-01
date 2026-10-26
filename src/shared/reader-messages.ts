@@ -54,9 +54,14 @@ export interface FrameLocation {
   /** Del libro entero (0…1). */
   fraction: number
   chapter: string | null
-  /** Posición estable del libro (unos 1.500 caracteres cada una, como las de Kindle). */
+  /**
+   * Página de pantalla del libro entero, calculada con la letra de ahora (D-132); si aún no
+   * se puede, la posición estable (unos 1.500 caracteres cada una, como las de Kindle).
+   */
   page: number
   pages: number
+  /** true: `page`/`pages` son páginas de pantalla; false: posiciones. */
+  screen: boolean
   /** Página dentro del capítulo (con el tamaño de letra de ahora). */
   sectionPage: number | null
   sectionPages: number | null

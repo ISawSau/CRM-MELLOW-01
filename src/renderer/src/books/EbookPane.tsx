@@ -53,6 +53,7 @@ export function EbookPane({
           chapter: m.chapter,
           page: m.page,
           pages: m.pages,
+          screen: m.screen,
           sectionPage: m.sectionPage,
           sectionPages: m.sectionPages,
         })
