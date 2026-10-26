@@ -100,6 +100,7 @@ export function PdfPane({
       chapter,
       page,
       pages: numPages,
+      screen: true,
       sectionPage: null,
       sectionPages: null,
     })

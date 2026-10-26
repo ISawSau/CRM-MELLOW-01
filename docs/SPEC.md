@@ -1,6 +1,6 @@
 # Especificación del CRM personal
 
-Versión 0.14 · 25 de octubre de 2026
+Versión 0.15 · 26 de octubre de 2026
 
 Este documento recoge todas las decisiones de diseño tomadas antes de escribir código. Es la referencia para construir el proyecto fase a fase. Lo que aparece marcado como **verificar** depende de APIs o normativa externa que cambian con el tiempo y debe comprobarse en la documentación oficial antes de implementarlo.
 
@@ -417,9 +417,9 @@ Para leer libros dentro de la app, sobre todo en el móvil (D-123). Es para leer
 - **Lector:** a pantalla completa.
   - En el móvil: toques a los lados o deslizar para pasar página, centro para ver u ocultar los controles, botones de volumen (opcional), pantalla siempre encendida y sin barras del sistema mientras se lee.
   - En el ordenador: flechas y dos páginas si caben.
-  - Índice, barra de avance, página o posición, porcentaje y tiempo que queda del capítulo y del libro con tu ritmo.
+  - Índice, barra de avance, página, porcentaje y tiempo que queda del capítulo y del libro con tu ritmo. En los ebooks, la página es de pantalla, calculada con la letra de ahora (D-132); las posiciones de 1.500 caracteres solo salen si aún no se puede calcular.
 - **Apariencia:** temas (como la app, papel, sepia, noche, negro), letra, tamaño, interlineado, márgenes, justificado, página a página o continuo y atenuar. Se guarda por tipo de equipo (móvil u ordenador).
-  - **Letra (D-124):** la del libro, con o sin remates del sistema, o una de las que van con la app (Literata, Atkinson Hyperlegible y OpenDyslexic, licencia OFL). Tamaño del 60 al 400 %, grosor (normal, más gruesa, negrita) y espacio entre letras y palabras.
+  - **Letra (D-124):** la del libro, con o sin remates del sistema, o una de las que van con la app (Literata, Atkinson Hyperlegible y OpenDyslexic, licencia OFL). Tamaño del 60 al 400 %, también con los botones A− y A+ de la barra de arriba, y vale para todos los libros, aunque fijen la letra en píxeles: el texto normal del libro pasa a ser el tamaño elegido y lo demás va en proporción (D-132). Grosor (normal, más gruesa, negrita) y espacio entre letras y palabras.
   - **PDF:** ajuste a la pantalla, pellizco para ampliar, inversión de colores en temas oscuros y, para escaneados antiguos, realzar el texto (gris y más contraste) y recortar márgenes.
 - **Seguimiento:**
   - por dónde va cada libro, sincronizado entre equipos;

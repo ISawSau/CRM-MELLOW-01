@@ -316,7 +316,14 @@ export function Reader({ book, onClose }: { book: ReaderBook; onClose: () => voi
   const sizeStep = (dir: 1 | -1) => {
     const n = prefs.fontSize
     const step = dir > 0 ? (n >= 200 ? 25 : 10) : n > 200 ? 25 : 10
-    setPrefs({ fontSize: Math.min(FONT_SIZE_MAX, Math.max(FONT_SIZE_MIN, n + dir * step)) })
+    const next = Math.min(FONT_SIZE_MAX, Math.max(FONT_SIZE_MIN, n + dir * step))
+    setPrefs({ fontSize: next })
+    return next
+  }
+  // Los botones A− y A+ de arriba: dicen a qué tamaño se queda.
+  const quickSize = (dir: 1 | -1) => {
+    tracker.current?.touch()
+    toast.show(t('Letra al {n} %', { n: sizeStep(dir) }))
   }
   // Las letras que van con la app, para verlas en sus botones al abrir la apariencia.
   useEffect(() => {
@@ -329,7 +336,7 @@ export function Reader({ book, onClose }: { book: ReaderBook; onClose: () => voi
     })
 
   const pageText = loc
-    ? format === 'pdf'
+    ? format === 'pdf' || (loc.screen && loc.pages)
       ? t('Página {page} de {pages}', { page: loc.page, pages: loc.pages })
       : loc.pages
         ? t('Posición {page} de {pages}', { page: loc.page, pages: loc.pages })
@@ -413,6 +420,30 @@ export function Reader({ book, onClose }: { book: ReaderBook; onClose: () => voi
           >
             ☰
           </button>
+        )}
+        {format === 'ebook' && (
+          <span className="reader-size" role="group" aria-label={t('Tamaño de la letra')}>
+            <button
+              type="button"
+              className="icon-btn reader-aa reader-aa-small"
+              aria-label={t('Letra más pequeña')}
+              data-testid="reader-size-down"
+              disabled={prefs.fontSize <= FONT_SIZE_MIN}
+              onClick={() => quickSize(-1)}
+            >
+              A−
+            </button>
+            <button
+              type="button"
+              className="icon-btn reader-aa"
+              aria-label={t('Letra más grande')}
+              data-testid="reader-size-up"
+              disabled={prefs.fontSize >= FONT_SIZE_MAX}
+              onClick={() => quickSize(1)}
+            >
+              A+
+            </button>
+          </span>
         )}
         <button
           type="button"

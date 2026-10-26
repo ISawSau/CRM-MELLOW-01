@@ -111,4 +111,8 @@ export const books: Record<string, string> = {
   'Bajando el libro…': 'Downloading the book…',
   'Aún no está en este equipo y no se ha podido bajar. Prueba con conexión.':
     'It is not on this device yet and could not be downloaded. Try again with a connection.',
+  'Tamaño de la letra': 'Text size',
+  'Letra más pequeña': 'Smaller text',
+  'Letra más grande': 'Larger text',
+  'Letra al {n} %': 'Text at {n}%',
 }

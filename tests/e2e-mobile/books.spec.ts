@@ -135,6 +135,21 @@ test('leer el EPUB: toques a los lados pasan página, el centro muestra los cont
   expect(await chapter.locator('script').count()).toBe(0)
   expect(await chapter.locator('[onclick]').count()).toBe(0)
   await expect(page.getByTestId('reader-percent')).not.toHaveText('')
+  // La letra del libro va en píxeles (11 px): manda la elegida, y A+ la agranda (D-132).
+  const size = () =>
+    chapter
+      .locator('p')
+      .first()
+      .evaluate((el) => parseFloat(getComputedStyle(el).fontSize))
+  await expect.poll(size).toBe(16)
+  await page.getByTestId('reader-size-up').click()
+  await expect.poll(size).toBeCloseTo(17.6, 1)
+  await page.getByTestId('reader-size-down').click()
+  await expect.poll(size).toBe(16)
+  // Páginas de pantalla: el capítulo de 40 párrafos ocupa varias en el móvil.
+  await expect(page.getByTestId('reader-page')).toHaveText(/^Página 1 de \d+$/)
+  const total = Number(/de (\d+)/.exec((await page.getByTestId('reader-page').textContent())!)![1])
+  expect(total).toBeGreaterThan(5)
   await shot('42-lector-epub')
   const before = await page.getByTestId('reader-page').textContent()
 

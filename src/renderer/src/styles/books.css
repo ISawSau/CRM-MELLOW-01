@@ -382,6 +382,16 @@
   font-weight: 700;
 }
 
+/* A− y A+: el tamaño de la letra a un toque (D-132). */
+.reader-size {
+  display: inline-flex;
+  gap: 2px;
+}
+
+.reader-aa-small {
+  font-size: 0.85em;
+}
+
 .reader-slider {
   width: 100%;
   accent-color: var(--accent);

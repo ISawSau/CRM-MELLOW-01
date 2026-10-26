@@ -89,6 +89,23 @@ test('el lector de ebooks va aislado y se lee con las flechas', async () => {
   await expect(chapter.locator('h1')).toHaveText('Capítulo 1', { timeout: 20_000 })
   expect(await chapter.locator('script').count()).toBe(0)
 
+  // El libro fija la letra en píxeles (p 11 px, h1 22 px): aun así manda el tamaño elegido
+  // (al 100 %, 16 px) y los títulos siguen el doble de grandes (D-132).
+  const size = (sel: string) =>
+    chapter
+      .locator(sel)
+      .first()
+      .evaluate((el) => parseFloat(getComputedStyle(el).fontSize))
+  await expect.poll(() => size('p')).toBe(16)
+  expect(await size('h1')).toBe(32)
+  await page.getByTestId('reader-size-up').click()
+  await expect.poll(() => size('p')).toBeCloseTo(17.6, 1)
+  expect(await size('h1')).toBeCloseTo(35.2, 1)
+  await page.getByTestId('reader-size-down').click()
+  await expect.poll(() => size('p')).toBe(16)
+  // Páginas de pantalla, no posiciones de 1.500 caracteres.
+  await expect(page.getByTestId('reader-page')).toHaveText(/^Página \d+ de \d+$/)
+
   // Otro origen: sin la API de la app y sin acceso a su DOM.
   const frame = readerFrame()!
   expect(
