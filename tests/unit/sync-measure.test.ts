@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto'
-import { cpSync } from 'node:fs'
+import { cpSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { BOOK_ENTITY } from '@shared/books'
@@ -28,6 +28,8 @@ afterEach(() => {
 interface Meter {
   calls: number
   down: number
+  /** Bytes subidos (cuerpos de las peticiones). */
+  up: number
   inFlight: number
   maxInFlight: number
 }
@@ -44,13 +46,16 @@ async function devices(names: string[], opts: (name: string) => Partial<SyncServ
     const vault = new VaultService({ kdf: TEST_KDF, hostname: name })
     vault.open(path)
     await vault.unlock(PASSWORD)
-    const meter: Meter = { calls: 0, down: 0, inFlight: 0, maxInFlight: 0 }
+    const meter: Meter = { calls: 0, down: 0, up: 0, inFlight: 0, maxInFlight: 0 }
     const http: FetchLike = async (input, init) => {
       if (String(input) === 'https://oauth2.googleapis.com/token')
         return new Response(
           JSON.stringify({ access_token: 'tok', refresh_token: 'renovar', expires_in: 3600 }),
         )
       meter.calls++
+      const sent = init?.body
+      if (typeof sent === 'string') meter.up += Buffer.byteLength(sent)
+      else if (sent instanceof Uint8Array) meter.up += sent.byteLength
       meter.maxInFlight = Math.max(meter.maxInFlight, ++meter.inFlight)
       try {
         // Un poco de espera, como la red de un móvil.
@@ -89,7 +94,7 @@ async function devices(names: string[], opts: (name: string) => Partial<SyncServ
   return { drive, devs: out }
 }
 
-const reset = (m: Meter) => Object.assign(m, { calls: 0, down: 0, maxInFlight: 0 })
+const reset = (m: Meter) => Object.assign(m, { calls: 0, down: 0, up: 0, maxInFlight: 0 })
 const packCount = (drive: ReturnType<typeof fakeDrive>) =>
   [...drive.files.values()].filter((f) => /^[\w.-]+-\d+\.bin$/.test(f.name)).length
 const bookField = (v: VaultService) =>
@@ -298,5 +303,127 @@ describe('cuánto mueve la sincronización (D-131)', () => {
     await new Promise((r) => setTimeout(r, 50))
     await meta.idle()
     expect(requests).toBeGreaterThan(0)
+  })
+})
+
+/** La instantánea que dice `sync.json` de la nube (id y tamaño). */
+function snapshotOf(drive: ReturnType<typeof fakeDrive>): { id: string; size?: number } {
+  const f = [...drive.files.values()].find((x) => x.name === 'sync.json')!
+  return (JSON.parse(f.data.toString()) as { snapshot: { id: string; size?: number } }).snapshot
+}
+
+describe('la base de datos entera, solo cuando compensa (D-133)', () => {
+  const day = 86_400_000
+
+  it('leer unas páginas una semana después no sube la base de datos entera', async () => {
+    let now = Date.now()
+    const { drive, devs } = await devices(['portatil', 'movil'], () => ({
+      changeDelayMs: 10,
+      minPushGapMs: 0,
+      now: () => new Date(now),
+    }))
+    const [pc, phone] = devs as [(typeof devs)[0], (typeof devs)[0]]
+    // Algo de peso en la base de datos (como las métricas de Meta).
+    const insert = pc.vault.sqlite.prepare(
+      'INSERT INTO fx_rates (date, currency, rate) VALUES (?, ?, ?)',
+    )
+    pc.vault.sqlite.transaction(() => {
+      for (let i = 0; i < 20_000; i++) insert.run('2026-01-01', `C${i}`, i)
+    })()
+    await pc.sync.sync()
+    await phone.sync.sync()
+    const first = snapshotOf(drive)
+    expect(first.size).toBeGreaterThan(500_000)
+
+    // Diez días después, unas cuantas páginas en cada equipo.
+    now += 10 * day
+    const book = pc.vault.data.create(BOOK_ENTITY, {}, { title: 'Libro' })
+    for (const [i, d] of [
+      pc,
+      phone,
+      pc,
+      phone,
+      pc,
+      phone,
+      pc,
+      phone,
+      pc,
+      phone,
+      pc,
+      phone,
+    ].entries()) {
+      if (i === 1) await d.sync.sync()
+      new BooksService(d.vault).setProgress({
+        recordId: book.id,
+        location: String(i),
+        fraction: i / 100,
+        page: i,
+        pages: 100,
+        chapter: null,
+      })
+      reset(d.meter)
+      await d.sync.sync('auto')
+      // Cada subida, unos pocos KB: nada de la base de datos entera.
+      expect(d.meter.up).toBeLessThan(50_000)
+    }
+    expect(packCount(drive)).toBeGreaterThanOrEqual(10)
+    expect(snapshotOf(drive).id).toBe(first.id)
+  })
+
+  it('cuando compensa, el ordenador sube una instantánea compacta y cifrada; el móvil, nunca', async () => {
+    let metered = false
+    const { drive, devs } = await devices(['portatil', 'movil'], (name) => ({
+      compactMinBytes: 1,
+      ...(name === 'movil' ? { compact: false } : { metered: () => Promise.resolve(metered) }),
+    }))
+    const [pc, phone] = devs as [(typeof devs)[0], (typeof devs)[0]]
+    const db = pc.vault.sqlite
+    const insert = db.prepare('INSERT INTO fx_rates (date, currency, rate) VALUES (?, ?, ?)')
+    db.transaction(() => {
+      for (let i = 0; i < 30_000; i++) insert.run('2026-01-01', `C${i}`, i)
+    })()
+    await pc.sync.sync()
+    await phone.sync.sync()
+    const first = snapshotOf(drive)
+    // Datos nuevos (que no se comprimen) y fuera los anteriores: los paquetes ya pesan más
+    // que media instantánea y en el archivo queda el hueco de lo borrado.
+    db.transaction(() => {
+      for (let i = 0; i < 120_000; i++)
+        insert.run('2026-02-01', randomBytes(12).toString('hex'), Math.random())
+    })()
+    db.prepare("DELETE FROM fx_rates WHERE date = '2026-01-01'").run()
+
+    // El ordenador con datos móviles (un portátil con el móvil de punto de acceso): sube
+    // sus cambios, pero no la base de datos entera.
+    metered = true
+    await pc.sync.sync()
+    expect(packCount(drive)).toBeGreaterThan(0)
+    expect(snapshotOf(drive).id).toBe(first.id)
+    // El móvil se pone al día y sube lo suyo, pero nunca la base de datos entera.
+    phone.vault.data.create('cliente', {}, { title: 'Del móvil' })
+    await phone.sync.sync()
+    await phone.sync.sync()
+    expect(snapshotOf(drive).id).toBe(first.id)
+
+    // Con wifi, sí: compacta (sin el hueco de lo borrado) y cifrada.
+    metered = false
+    await pc.sync.sync()
+    const next = snapshotOf(drive)
+    expect(next.id).not.toBe(first.id)
+    const local = statSync(join(pc.vault.currentPath!, 'crm.db')).size
+    expect(next.size).toBeLessThan(local * 0.8)
+    const data = [...drive.files.values()].find(
+      (f) => f.name === 'crm.db' && f.data.length === next.size,
+    )!.data
+    expect(data.subarray(0, 15).toString('latin1')).not.toBe('SQLite format 3')
+
+    // Un equipo nuevo se pone al día desde ella, con todo.
+    const { devs: more } = await devices([], () => ({}))
+    expect(more).toEqual([])
+    await phone.sync.sync()
+    const n = (
+      phone.vault.sqlite.prepare('SELECT COUNT(*) AS n FROM fx_rates').get() as { n: number }
+    ).n
+    expect(n).toBe(120_000)
   })
 })

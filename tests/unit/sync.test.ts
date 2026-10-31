@@ -128,7 +128,7 @@ describe('sincronización entre dos equipos (carpeta compartida)', () => {
 })
 
 describe('copias de seguridad', () => {
-  it('crea la copia automática cada N días, también en el destino, y la restaura', async () => {
+  it('crea la copia automática cada N días (en la nube, solo si se pide) y la restaura', async () => {
     const { a, b, remote } = await twoDevices()
     b.vault.dispose()
     let now = new Date('2026-10-01T10:00:00Z')
@@ -141,6 +141,9 @@ describe('copias de seguridad', () => {
     const first = await sync.maybeBackup()
     expect(first).toMatch(/automatica$/)
     expect(await sync.maybeBackup()).toBeNull()
+    // De serie se queda en este equipo: es la base de datos entera (D-133).
+    expect(existsSync(join(remote, 'backups', first!))).toBe(false)
+    sync.setBackupConfig({ ...sync.backupConfig(), cloud: true })
     now = new Date('2026-10-04T10:00:01Z')
     const name = (await sync.maybeBackup())!
     expect(existsSync(join(remote, 'backups', name, 'crm.db'))).toBe(true)
