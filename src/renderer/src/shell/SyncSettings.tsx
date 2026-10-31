@@ -189,6 +189,24 @@ function Backups() {
           <span>{t('Y además una por mes')}</span>
         </label>
       )}
+      {cfg.data && (
+        <>
+          <label className="check">
+            <input
+              type="checkbox"
+              data-testid="backup-cloud"
+              checked={cfg.data.cloud}
+              onChange={(e) => setCfg({ cloud: e.target.checked })}
+            />
+            <span>{t('Subir también las copias a la nube')}</span>
+          </label>
+          <p className="hint">
+            {t(
+              'Cada copia es la base de datos entera. La nube ya guarda tu bóveda al sincronizar, así que de serie las copias se quedan solo en este equipo. Si lo activas, nunca se suben con datos móviles.',
+            )}
+          </p>
+        </>
+      )}
       <div className="form-actions">
         <button
           type="button"
