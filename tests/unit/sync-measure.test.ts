@@ -328,7 +328,7 @@ describe('la base de datos entera, solo cuando compensa (D-133)', () => {
       'INSERT INTO fx_rates (date, currency, rate) VALUES (?, ?, ?)',
     )
     pc.vault.sqlite.transaction(() => {
-      for (let i = 0; i < 20_000; i++) insert.run('2026-01-01', `C${i}`, i)
+      for (let i = 0; i < 24_000; i++) insert.run('2026-01-01', `C${i}`, i)
     })()
     await pc.sync.sync()
     await phone.sync.sync()
@@ -380,18 +380,18 @@ describe('la base de datos entera, solo cuando compensa (D-133)', () => {
     const db = pc.vault.sqlite
     const insert = db.prepare('INSERT INTO fx_rates (date, currency, rate) VALUES (?, ?, ?)')
     db.transaction(() => {
-      for (let i = 0; i < 30_000; i++) insert.run('2026-01-01', `C${i}`, i)
+      for (let i = 0; i < 2000; i++) insert.run('2026-01-01', `C${i}`, i)
     })()
     await pc.sync.sync()
     await phone.sync.sync()
     const first = snapshotOf(drive)
-    // Datos nuevos (que no se comprimen) y fuera los anteriores: los paquetes ya pesan más
-    // que media instantánea y en el archivo queda el hueco de lo borrado.
+    // Muchos datos nuevos (que no se comprimen), casi todos borrados después: los paquetes
+    // ya pesan más que media instantánea y en el archivo queda el hueco de lo borrado.
     db.transaction(() => {
-      for (let i = 0; i < 120_000; i++)
+      for (let i = 0; i < 24_000; i++)
         insert.run('2026-02-01', randomBytes(12).toString('hex'), Math.random())
     })()
-    db.prepare("DELETE FROM fx_rates WHERE date = '2026-01-01'").run()
+    db.prepare("DELETE FROM fx_rates WHERE date = '2026-02-01' AND rowid % 4 <> 0").run()
 
     // El ordenador con datos móviles (un portátil con el móvil de punto de acceso): sube
     // sus cambios, pero no la base de datos entera.
@@ -424,6 +424,6 @@ describe('la base de datos entera, solo cuando compensa (D-133)', () => {
     const n = (
       phone.vault.sqlite.prepare('SELECT COUNT(*) AS n FROM fx_rates').get() as { n: number }
     ).n
-    expect(n).toBe(120_000)
+    expect(n).toBe(8000)
   })
 })
