@@ -141,7 +141,14 @@ export function fakeDrive(uploadOrigin = 'https://upload.fake') {
           (!wantFolder || f.mimeType === FOLDER) &&
           (!noFolder || f.mimeType !== FOLDER),
       )
-      return json({ files: list.map((f) => ({ id: f.id, name: f.name })) })
+      // Como Drive: `size` como texto y solo en los archivos (no en las carpetas).
+      return json({
+        files: list.map((f) => ({
+          id: f.id,
+          name: f.name,
+          ...(f.mimeType === FOLDER ? {} : { size: String(f.data.length) }),
+        })),
+      })
     }
     if (url.pathname === '/drive/v3/files' && method === 'POST') {
       const meta = JSON.parse(body.toString()) as {

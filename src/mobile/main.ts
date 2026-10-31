@@ -92,8 +92,8 @@ async function main(): Promise<void> {
     },
     // Fotos y documentos sí; los vídeos grandes se quedan en la nube (se ven sus miniaturas).
     maxAutoDownloadBytes: 25 * 1024 * 1024,
-    // Las instantáneas (la base de datos entera) mejor desde el ordenador (D-125).
-    compactPacks: 2000,
+    // Las instantáneas (la base de datos entera) solo desde el ordenador (D-133).
+    compact: false,
     readerUrl: () => server?.readerUrl ?? '',
     updateTarget: androidUpdateTarget({
       cacheDir: arg('cache'),

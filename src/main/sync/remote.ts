@@ -32,6 +32,8 @@ export interface Remote {
   readonly label: string
   /** Nombres de los elementos de una carpeta remota ('' = raíz). */
   list(dir: string): Promise<string[]>
+  /** Igual que `list`, con el tamaño de cada archivo en bytes (D-133). */
+  sizes(dir: string): Promise<Map<string, number>>
   /** Descarga a `dest`; false si no existe. `onProgress`: bytes bajados y total. */
   get(
     path: string,
@@ -79,6 +81,13 @@ export class FolderRemote implements Remote {
     const p = dir ? this.abs(dir) : this.root
     if (!existsSync(p)) return []
     return readdirSync(p).filter((n) => !n.startsWith('.tmp-'))
+  }
+
+  async sizes(dir: string): Promise<Map<string, number>> {
+    const p = dir ? this.abs(dir) : this.root
+    const out = new Map<string, number>()
+    for (const n of await this.list(dir)) out.set(n, statSync(join(p, n)).size)
+    return out
   }
 
   async get(path: string, dest: string): Promise<boolean> {
@@ -406,25 +415,30 @@ export class DriveRemote implements Remote {
   }
 
   async list(dir: string): Promise<string[]> {
+    return [...(await this.sizes(dir)).keys()]
+  }
+
+  /** En la misma petición que los nombres: `size` (bytes, como texto) de cada archivo. */
+  async sizes(dir: string): Promise<Map<string, number>> {
     const parent = await this.folder(dir, false)
-    if (!parent) return []
-    const names: string[] = []
+    const names = new Map<string, number>()
+    if (!parent) return names
     let pageToken: string | undefined
     do {
       const params = new URLSearchParams({
         q: `'${parent}' in parents and trashed = false`,
-        fields: 'nextPageToken, files(id, name)',
+        fields: 'nextPageToken, files(id, name, size)',
         pageSize: '1000',
         spaces: 'drive',
       })
       if (pageToken) params.set('pageToken', pageToken)
       const res = await this.call(`${this.urls.api}/files?${params}`)
       const json = (await res.json()) as {
-        files?: { id: string; name: string }[]
+        files?: { id: string; name: string; size?: string }[]
         nextPageToken?: string
       }
       for (const f of json.files ?? []) {
-        names.push(f.name)
+        names.set(f.name, Number(f.size) || 0)
         this.known.set(dir ? `${dir}/${f.name}` : f.name, f.id)
       }
       pageToken = json.nextPageToken

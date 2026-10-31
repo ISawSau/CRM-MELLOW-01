@@ -86,9 +86,17 @@ test('copia de seguridad manual y restaurarla', async () => {
   await page.getByTestId('backup-now').click()
   const list = page.getByTestId('backup-list')
   await expect(list).toContainText('Manual')
-  await expect(list.locator('li').filter({ hasText: 'Manual' })).toContainText(
-    'aquí y en el destino',
-  )
+  // De serie, solo en este equipo: es la base de datos entera (D-133).
+  const manual = list.locator('li').filter({ hasText: 'Manual' })
+  await expect(manual).toHaveCount(1)
+  await expect(manual).not.toContainText('en el destino')
+  // Pidiéndolo, también en la nube.
+  await page.getByTestId('backup-cloud').click()
+  await expect(page.getByTestId('backup-cloud')).toBeChecked()
+  await page.waitForTimeout(1100)
+  await page.getByTestId('backup-now').click()
+  await expect(manual).toHaveCount(2)
+  await expect(manual.filter({ hasText: 'aquí y en el destino' })).toHaveCount(1)
 
   // Una nota posterior a la copia desaparece al restaurarla.
   await page.getByTestId('nav-notas').click()
@@ -97,9 +105,8 @@ test('copia de seguridad manual y restaurarla', async () => {
   await page.getByTestId('record-panel').locator('#panel-title').press('Enter')
   await expect(page.getByTestId('table-row')).toHaveCount(2)
   await page.getByTestId('nav-ajustes').click()
-  await list
-    .locator('li')
-    .filter({ hasText: 'Manual' })
+  await manual
+    .filter({ hasText: 'aquí y en el destino' })
     .getByRole('button', { name: 'Restaurar' })
     .click()
   await page.getByTestId('confirm-restore').click()

@@ -22,4 +22,9 @@ export const sync: Record<string, string> = {
     'On mobile data, also download books and files',
   'Con datos móviles solo viajan los cambios, las miniaturas y el archivo o libro que abras; lo demás se baja con wifi. Meta tampoco se actualiza sola con datos móviles (sí con el botón).':
     'On mobile data only changes, thumbnails and the file or book you open are transferred; everything else downloads on Wi-Fi. Meta does not update on its own on mobile data either (the button still works).',
+  'la base de datos entera': 'the whole database',
+  'un archivo': 'a file',
+  'Subir también las copias a la nube': 'Also upload backups to the cloud',
+  'Cada copia es la base de datos entera. La nube ya guarda tu bóveda al sincronizar, así que de serie las copias se quedan solo en este equipo. Si lo activas, nunca se suben con datos móviles.':
+    'Each backup is the whole database. The cloud already keeps your vault when syncing, so by default backups stay on this device only. If you turn this on, they are never uploaded on mobile data.',
 }

@@ -36,6 +36,9 @@ function ago(iso: string | null): string {
 export function progressText(p: SyncProgress): string {
   if (p.step === 'comprobando') return t('comprobando la nube…')
   const parts = [p.step === 'subiendo' ? t('subiendo') : t('bajando')]
+  // Qué se mueve (D-133): que se vea si es la base de datos entera o un archivo grande.
+  if (p.what === 'base') parts.push(t('la base de datos entera'))
+  else if (p.what === 'archivos' && p.total <= 1) parts.push(t('un archivo'))
   if (p.total > 1) parts.push(t('{done} de {total} archivos', { done: p.done, total: p.total }))
   if (p.totalBytes > 0)
     parts.push(

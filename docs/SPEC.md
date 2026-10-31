@@ -1,6 +1,6 @@
 # Especificación del CRM personal
 
-Versión 0.15 · 26 de octubre de 2026
+Versión 0.16 · 31 de octubre de 2026
 
 Este documento recoge todas las decisiones de diseño tomadas antes de escribir código. Es la referencia para construir el proyecto fase a fase. Lo que aparece marcado como **verificar** depende de APIs o normativa externa que cambian con el tiempo y debe comprobarse en la documentación oficial antes de implementarlo.
 
@@ -105,7 +105,7 @@ Google no ofrece cliente oficial de Google Drive para escritorio en Linux, así 
 
 Por cambios desde la 0.19 (D-125):
 
-- **Solo viaja lo que cambia.** Cada equipo apunta las filas que cambia y las sube en paquetes pequeños, comprimidos y cifrados. Los demás equipos bajan solo los paquetes que aún no tienen. La base de datos entera solo se sube como instantánea de vez en cuando, desde el ordenador, para poder borrar los paquetes viejos.
+- **Solo viaja lo que cambia.** Cada equipo apunta las filas que cambia y las sube en paquetes pequeños, comprimidos y cifrados. Los demás equipos bajan solo los paquetes que aún no tienen. La base de datos entera (instantánea) solo se sube cuando compensa (D-133): si los paquetes ya pesan la mitad que la última instantánea (y al menos 32 MB) o pasan de 2.000; nunca por antigüedad, nunca desde el móvil y nunca con datos móviles. Se sube compacta (`VACUUM INTO`, cifrada con la misma clave, sin el hueco de lo borrado) y `sync.json` apunta su tamaño.
 - **Sin conflictos.** Si dos equipos cambian cosas a la vez, se juntan. Si cambian la misma fila, gana el cambio más reciente: reloj híbrido, con el id del equipo para desempatar. Un equipo que lleva tiempo sin sincronizar se pone al día desde la última instantánea sin perder lo que tenía sin subir.
 - **Sola y sin que se note:**
   - al poco de cada cambio, con como mucho una subida automática cada 2 minutos: los cambios seguidos (pasar páginas leyendo) van juntos en un paquete (D-131);
@@ -143,10 +143,10 @@ Por cambios desde la 0.19 (D-125):
   - El formato 1 (la base de datos entera en cada sincronización) solo se lee para pasar al 2.
 - **Mismo comportamiento en el móvil (D-127):** el móvil lleva un SQLite más antiguo (3.49) que el escritorio. El CI pasa los tests unitarios también con él, y la autoprueba de cada instalación sincroniza una bóveda de prueba.
 - Al suspender el equipo no hay tiempo de subir: se sube la próxima vez (normalmente ya se subió a los pocos segundos del cambio).
-- **Copias:** cada 3 días por defecto, local y en el destino. Retención por defecto: las 10 últimas más la última de cada mes, solo para las automáticas. Las «antes de sincronizar» se quedan en las 3 últimas (D-125); las demás (antes de actualizar, de restaurar…) no se borran solas.
+- **Copias:** cada 3 días por defecto, en el propio equipo. A la nube solo si se activa «Subir también las copias a la nube» (y nunca con datos móviles), porque cada copia es la base de datos entera y la nube ya guarda la bóveda (D-133). Retención por defecto: las 10 últimas más la última de cada mes, solo para las automáticas. Las «antes de sincronizar» se quedan en las 3 últimas (D-125); las demás (antes de actualizar, de restaurar…) no se borran solas.
 - **Restaurar:** desde Ajustes, con fecha, motivo, tamaño y dónde está la copia. Si es de una contraseña anterior, la bóveda queda bloqueada para entrar con aquella contraseña. Lo restaurado empieza una época nueva en la próxima sincronización y los demás equipos lo reciben.
 - **Redes que fallan (D-124):** cada llamada a Drive tiene límite de tiempo y se repite ante fallos de red, 429 y 5xx. Una subida grande sigue desde lo que Drive ya ha recibido y una descarga cortada sigue con Range. Un archivo que no baja no impide bajar los demás; al final se avisa. Nunca se queda en «sincronizando» sin terminar.
-- **Progreso:** qué hace (comprobar, subir o bajar), cuántos archivos y cuántos MB, en Ajustes, en Perfil, en la barra de estado y, en el móvil, como una línea bajo la barra superior.
+- **Progreso:** qué hace (comprobar, subir o bajar; si es la base de datos entera o un archivo, D-133), cuántos archivos y cuántos MB, en Ajustes, en Perfil, en la barra de estado y, en el móvil, como una línea bajo la barra superior.
 - **Mientras sincroniza:** en Android, servicio en primer plano y pantalla encendida (no se bloquea por inactividad); en el escritorio, el equipo no se suspende.
 
 ### Riesgos a verificar
