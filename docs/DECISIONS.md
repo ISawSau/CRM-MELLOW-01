@@ -1277,3 +1277,29 @@ El usuario abrió un EPUB con la letra muy pequeña, pidió una opción de tama�
   - con otra letra o al cambiar la ventana se vuelve a medir.
   - Es una estimación que afina a medida que se abren capítulos. Si aún no se puede (sin capítulo medido), se enseña la posición, como antes.
 - **Tests:** el EPUB de prueba fija la letra en píxeles (11 px y títulos de 22 px). La interfaz de escritorio y la del móvil comprueban que el texto sale a 16 px y los títulos a 32 px, que A+ y A− lo cambian y que se cuentan páginas de pantalla.
+
+### D-133 · La base de datos entera, solo cuando compensa (v0.20.3)
+
+Tras leer unas páginas, el usuario vio «subiendo · 288 MB de 301 MB». Con la 0.20.1 los cambios ya eran pequeños, pero la base de datos entera (301 MB en su bóveda, sobre todo por el histórico de Meta) se seguía subiendo por dos caminos:
+
+1. **Instantánea por antigüedad.** `maybeCompact` hacía una instantánea nueva si la última tenía más de 7 días y había 10 paquetes. La de la bóveda era del paso a la 0.19 (más de una semana), así que unas pocas páginas leídas la disparaban. Podía hacerlo cualquier equipo, también el móvil y con datos móviles.
+2. **Copias automáticas en la nube.** Cada 3 días, cada equipo (la fecha de la última es de cada uno) subía su copia, que es la base de datos entera. También el móvil, con datos o sin ellos.
+
+Reproducido en `tests/unit/sync-measure.test.ts`: con el código anterior, leer una página 10 días después subía la base de datos entera (5,4 MB en el test); ahora, menos de 50 KB.
+
+- **Instantáneas solo cuando compensan:**
+  - Los paquetes de la época tienen que pesar ya la mitad que la última instantánea (y al menos 32 MB), o ser más de 2.000.
+  - Nunca por antigüedad. Con paquetes pequeños, rehacerla no ahorra nada a nadie: un equipo nuevo baja la instantánea más unos pocos paquetes.
+  - Solo el ordenador (`compact: false` en el móvil) y nunca con datos móviles (el portátil con el móvil de punto de acceso; si no se sabe, se supone que sí).
+  - El tamaño de los paquetes sale del mismo listado de Drive (campo `size`, comprobado en la documentación de Drive API v3: «Size in bytes of blobs», como texto). El de la instantánea va en `sync.json` (`snapshot.size`, opcional para las anteriores); si falta, se lista su carpeta.
+- **Instantánea compacta:** se hace con `VACUUM INTO` en la carpeta temporal de la bóveda. Sale cifrada con la misma clave (comprobado con SQLite3MultipleCiphers del ordenador y del móvil: sin clave no se abre) y sin el hueco de lo borrado, que antes también se subía.
+- **Copias de seguridad:**
+  - Las automáticas y las manuales se quedan en el equipo.
+  - A la nube, solo con «Subir también las copias a la nube» (`backups.config.cloud`, desactivado de serie) y nunca con datos móviles.
+  - La nube ya guarda la bóveda entera (instantánea y cambios) y se puede traer a un equipo nuevo. Las copias que ya estaban en la nube siguen ahí y se pueden restaurar.
+- **El progreso dice qué sube:** «subiendo · la base de datos entera · …» o «subiendo · un archivo · …», para distinguir una instantánea de un libro grande.
+- **Tests:**
+  - una semana después, leer en los dos equipos no sube la base de datos;
+  - cuando compensa, el ordenador sube una instantánea compacta y cifrada, pero no con datos móviles, y el móvil nunca;
+  - un equipo se pone al día desde ella;
+  - las copias no van a la nube salvo que se pida (unidad y e2e).
