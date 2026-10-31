@@ -1,3 +1,13 @@
+## Novedades de la 0.20.3 · Nunca más cientos de MB por leer unas páginas
+
+- **Arreglado: tras leer unas páginas se subía la base de datos entera** (con mucho histórico de Meta, cientos de MB). Pasaba por dos motivos:
+  - cada semana se rehacía la copia completa de la nube, aunque solo hubiera cuatro cambios;
+  - cada 3 días, cada equipo subía también su copia de seguridad, que es la base de datos entera, incluso el móvil con datos móviles.
+- **Ahora:**
+  - La copia completa de la nube solo se rehace cuando de verdad compensa (cuando los cambios ya pesan tanto como media copia), solo desde el ordenador y nunca con datos móviles. Y sale más pequeña: sin el espacio vacío que deja lo borrado.
+  - Las copias de seguridad se quedan en cada equipo. Si las quieres también en la nube, actívalo en Ajustes → Sincronización → «Subir también las copias a la nube» (nunca con datos móviles).
+  - Cuando sube algo grande, el aviso dice qué es: «la base de datos entera» o «un archivo».
+
 ## Novedades de la 0.20.2 · Letra a tu tamaño en todos los libros y páginas de verdad
 
 - **El tamaño de la letra ya funciona con todos los libros.** Algunos EPUB fijan su letra (a menudo muy pequeña) y el ajuste de tamaño no les hacía nada. Ahora el texto normal del libro sale siempre al tamaño que elijas, y los títulos y las notas, en proporción.
