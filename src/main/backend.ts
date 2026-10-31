@@ -48,8 +48,8 @@ export interface BackendOptions {
   updateTarget?: UpdateTarget | null
   /** Móvil: hasta qué tamaño se bajan solos los archivos de la nube (D-101). */
   maxAutoDownloadBytes?: number
-  /** Paquetes de cambios a partir de los que este equipo hace una instantánea (D-125). */
-  compactPacks?: number
+  /** ¿Sube este equipo instantáneas (la base de datos entera)? El móvil no (D-133). */
+  compact?: boolean
   /** Dirección del marco aislado que pinta los ebooks (D-123). */
   readerUrl: () => string
 }
@@ -115,7 +115,7 @@ export function createBackend(o: BackendOptions): Backend {
   const sync = new SyncService(vault, {
     hostname: o.hostname,
     ...(o.maxAutoDownloadBytes ? { maxAutoDownloadBytes: o.maxAutoDownloadBytes } : {}),
-    ...(o.compactPacks ? { compactPacks: o.compactPacks } : {}),
+    ...(o.compact === false ? { compact: false } : {}),
     // Un cambio aquí se sube a los pocos segundos; lo que llega de otro equipo se enseña.
     onLocalChange: () => sync.notifyLocalChange(),
     onApplied: (changes) => {

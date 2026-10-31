@@ -14,7 +14,7 @@ import { z } from 'zod'
 import { AppError } from '@shared/errors'
 import type { BackupEntry, SyncProgress, SyncStatus } from '@shared/ipc'
 import { backupVault } from '../db/backup'
-import { checkpoint, type SqliteDb } from '../db/connection'
+import type { SqliteDb } from '../db/connection'
 import { SCHEMA_VERSION } from '../db/migrations'
 import { loadOrCreateFilesKey } from '../files/file-store'
 import { deriveSubkey, zeroize } from '../vault/crypto'
@@ -95,9 +95,13 @@ const STASH_FILE = '.cambios-pendientes.bin'
 /** Filas por paquete y tamaño máximo (la subida simple de Drive admite hasta 5 MB). */
 const PACK_ROWS = 4000
 const PACK_MAX_BYTES = 4 * 1024 * 1024
-/** Instantánea nueva al pasar de estos paquetes o de esta antigüedad. */
-const COMPACT_PACKS = 150
-const COMPACT_AGE_MS = 7 * 86_400_000
+/**
+ * Instantánea nueva (la base de datos entera) solo cuando compensa (D-133): si los paquetes
+ * ya pesan la mitad que la última instantánea (y al menos esto), o si son muchísimos. Nunca
+ * por antigüedad: con paquetes pequeños, subir cientos de MB no ahorra nada a nadie.
+ */
+const COMPACT_PACKS = 2000
+const COMPACT_MIN_BYTES = 32 * 1024 * 1024
 const PACK_NAME = /^([a-f0-9]{12})-(\d{8})\.bin$/
 
 const configSchema = z.discriminatedUnion('kind', [
@@ -140,6 +144,11 @@ export const backupConfigSchema = z.object({
   intervalDays: z.number().int().min(1).max(60).default(3),
   keepLast: z.number().int().min(1).max(100).default(10),
   keepMonthly: z.boolean().default(true),
+  /**
+   * Subir también cada copia a la nube (D-133). Cada una es la base de datos entera y la
+   * nube ya guarda la bóveda (instantánea y cambios): por defecto, solo en este equipo.
+   */
+  cloud: z.boolean().default(false),
 })
 export type BackupConfig = z.infer<typeof backupConfigSchema>
 
@@ -158,6 +167,8 @@ const snapshotSchema = z.object({
   id: z.string().regex(/^[a-f0-9]{16}$/),
   device: z.string(),
   createdAt: z.string(),
+  /** Bytes de su crm.db (D-133; falta en las anteriores). */
+  size: z.number().int().min(0).optional(),
   /** Último paquete de cada equipo que ya va dentro. */
   covers: z.record(z.string(), z.number().int().min(0)),
 })
@@ -266,11 +277,15 @@ export interface SyncServiceOptions {
    * para que el sistema no congele la app ni le corte la red a mitad. Devuelve cómo soltarlo.
    */
   hold?: (text: string) => () => void
-  /**
-   * Paquetes a partir de los que este equipo hace una instantánea nueva. En el móvil, más:
-   * subir la base de datos entera con datos móviles es lo que se quiere evitar.
-   */
+  /** Paquetes a partir de los que se hace una instantánea nueva (tests). */
   compactPacks?: number
+  /** Bytes de paquetes a partir de los que compensa una instantánea (tests, D-133). */
+  compactMinBytes?: number
+  /**
+   * ¿Puede este equipo subir instantáneas (la base de datos entera) para resumir los
+   * paquetes? El móvil no (D-133): lo hace el ordenador, y nunca con datos móviles.
+   */
+  compact?: boolean
   /** Espera tras un cambio antes de subirlo (tests). */
   changeDelayMs?: number
   /** Mínimo entre subidas automáticas (tests, D-131). */
@@ -546,6 +561,11 @@ export class SyncService {
     writeSetting(this.db(), MOBILE_FILES_KEY, on)
     if (on && this.configured) void this.sync('auto').catch(() => {})
     return this.emit()
+  }
+
+  /** ¿Red de pago por uso? Si no se sabe, se supone que sí (D-133). */
+  private async onMetered(): Promise<boolean> {
+    return this.opts.metered ? this.opts.metered().catch(() => true) : false
   }
 
   /** ¿Solo viajan los cambios? Con datos móviles, salvo que se haya pedido lo contrario. */
@@ -971,7 +991,7 @@ export class SyncService {
       await this.pushChanges(remote)
       pulled = await this.pullChanges(remote, m)
     }
-    await this.maybeCompact(remote, m, pulled.names)
+    await this.maybeCompact(remote, m, pulled.names, pulled.bytes)
   }
 
   private tmpDir(): string {
@@ -1065,21 +1085,24 @@ export class SyncService {
     id: string,
     epoch: string,
     covers: Record<string, number>,
-  ): Promise<void> {
+  ): Promise<number> {
     const vaultPath = this.vaultPath()
     const dir = this.tmpDir()
     try {
       writeSetting(this.db(), SNAPSHOT_KEY, { epoch, id, covers })
-      checkpoint(this.db())
-      copyFileSync(join(vaultPath, VAULT_FILES.db), join(dir, VAULT_FILES.db))
+      // Una copia compacta (D-133): sin el hueco que deja lo borrado y cifrada con la misma
+      // clave. Una copia del archivo tal cual subía también todo ese espacio vacío.
+      this.db().prepare('VACUUM INTO ?').run(join(dir, VAULT_FILES.db))
       copyFileSync(join(vaultPath, VAULT_FILES.manifest), join(dir, VAULT_FILES.manifest))
       const total = statSync(join(dir, VAULT_FILES.db)).size
-      this.report({ step: 'subiendo', done: 0, total: 1, bytes: 0, totalBytes: total }, true)
+      const step = { step: 'subiendo' as const, what: 'base' as const, total: 1 }
+      this.report({ ...step, done: 0, bytes: 0, totalBytes: total }, true)
       await remote.put(`snapshots/${id}/crm.db`, join(dir, VAULT_FILES.db), (sent) =>
-        this.report({ step: 'subiendo', done: 0, total: 1, bytes: sent, totalBytes: total }),
+        this.report({ ...step, done: 0, bytes: sent, totalBytes: total }),
       )
       await remote.put(`snapshots/${id}/vault.json`, join(dir, VAULT_FILES.manifest))
-      this.report({ step: 'subiendo', done: 1, total: 1, bytes: total, totalBytes: total }, true)
+      this.report({ ...step, done: 1, bytes: total, totalBytes: total }, true)
+      return total
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }
@@ -1116,11 +1139,11 @@ export class SyncService {
     const epoch = randomId()
     const sid = randomId()
     await this.uploadBlobs(remote)
-    await this.uploadSnapshot(remote, sid, epoch, {})
+    const size = await this.uploadSnapshot(remote, sid, epoch, {})
     const at = this.now().toISOString()
     const m = this.manifestFor(
       epoch,
-      { id: sid, device, createdAt: at, covers: {} },
+      { id: sid, device, createdAt: at, covers: {}, size },
       null,
       authoritative,
     )
@@ -1267,13 +1290,32 @@ export class SyncService {
     rmSync(file, { force: true })
   }
 
-  /** Instantánea nueva si hay muchos paquetes o la última es vieja. */
-  private async maybeCompact(remote: Remote, m: ManifestV2, names: string[]): Promise<void> {
+  /**
+   * Instantánea nueva solo si compensa (D-133): los paquetes ya pesan la mitad que la última
+   * (y al menos COMPACT_MIN_BYTES) o son muchísimos. Solo el ordenador y nunca con datos
+   * móviles: es subir la base de datos entera.
+   */
+  private async maybeCompact(
+    remote: Remote,
+    m: ManifestV2,
+    names: string[],
+    bytes: number,
+  ): Promise<void> {
+    if (this.opts.compact === false) return
     const st = this.v2()
     if (!st || st.epoch !== m.epoch) return
-    const limit = this.opts.compactPacks ?? COMPACT_PACKS
-    const age = this.now().getTime() - Date.parse(m.snapshot.createdAt)
-    if (names.length < limit && !(age > COMPACT_AGE_MS && names.length >= 10)) return
+    const many = names.length >= (this.opts.compactPacks ?? COMPACT_PACKS)
+    const minBytes = this.opts.compactMinBytes ?? COMPACT_MIN_BYTES
+    if (!many && bytes < minBytes) return
+    if (!many) {
+      // Lo que pesa la instantánea de ahora (las anteriores a D-133 no lo apuntan).
+      const snap =
+        m.snapshot.size ??
+        (await remote.sizes(`snapshots/${m.snapshot.id}`)).get(VAULT_FILES.db) ??
+        0
+      if (bytes < snap / 2) return
+    }
+    if (await this.onMetered()) return
     // Solo quien tiene todo aplicado: la instantánea tiene que incluir lo que dice.
     for (const n of names) {
       const p = PACK_NAME.exec(n)
@@ -1281,7 +1323,7 @@ export class SyncService {
     }
     const sid = randomId()
     const covers = { ...st.applied, [st.device]: st.seq }
-    await this.uploadSnapshot(remote, sid, m.epoch, covers)
+    const size = await this.uploadSnapshot(remote, sid, m.epoch, covers)
     const latest = await this.readRemote(remote)
     if (!latest?.v2 || latest.v2.epoch !== m.epoch || latest.v2.snapshot.id !== m.snapshot.id) {
       // Otro equipo se ha adelantado: vale la suya.
@@ -1290,7 +1332,7 @@ export class SyncService {
     }
     const next = this.manifestFor(
       m.epoch,
-      { id: sid, device: st.device, createdAt: this.now().toISOString(), covers },
+      { id: sid, device: st.device, createdAt: this.now().toISOString(), covers, size },
       m.snapshot,
     )
     await remote.writeText('sync.json', JSON.stringify(next, null, 2))
@@ -1399,11 +1441,14 @@ export class SyncService {
   private async pullChanges(
     remote: Remote,
     m: ManifestV2,
-  ): Promise<{ gap: boolean; names: string[] }> {
+  ): Promise<{ gap: boolean; names: string[]; bytes: number }> {
     const st = this.v2()
-    if (!st) return { gap: false, names: [] }
+    if (!st) return { gap: false, names: [], bytes: 0 }
     const log = this.attach()
-    const names = await remote.list(`changes/${m.epoch}`)
+    // Con su tamaño, en la misma petición: para saber si compensa una instantánea (D-133).
+    const listing = await remote.sizes(`changes/${m.epoch}`)
+    const names = [...listing.keys()]
+    const bytes = [...listing.values()].reduce((a, b) => a + b, 0)
     const byDevice = new Map<string, number[]>()
     for (const n of names) {
       const p = PACK_NAME.exec(n)
@@ -1421,7 +1466,7 @@ export class SyncService {
       const next = sorted.filter((s) => s > have)
       if (!next.length) continue
       if (next[0] !== have + 1) {
-        if ((m.snapshot.covers[device] ?? 0) > have) return { gap: true, names }
+        if ((m.snapshot.covers[device] ?? 0) > have) return { gap: true, names, bytes }
         // El siguiente aún no se ve (se está subiendo): la próxima vez.
         continue
       }
@@ -1500,7 +1545,7 @@ export class SyncService {
       throw new Error(
         t('Otro equipo usa una versión más nueva de la app: actualiza esta para sincronizar.'),
       )
-    return { gap: false, names }
+    return { gap: false, names, bytes }
   }
 
   /** vault.json de otro equipo (contraseña o clave de recuperación nuevas). */
@@ -1536,11 +1581,21 @@ export class SyncService {
     let done = 0
     for (const f of missing) {
       await remote.put(f.path, f.src, (sent) =>
-        this.report({ step: 'subiendo', done, total, bytes: doneBytes + sent, totalBytes }),
+        this.report({
+          step: 'subiendo',
+          what: 'archivos',
+          done,
+          total,
+          bytes: doneBytes + sent,
+          totalBytes,
+        }),
       )
       doneBytes += f.size
       done++
-      this.report({ step: 'subiendo', done, total, bytes: doneBytes, totalBytes }, true)
+      this.report(
+        { step: 'subiendo', what: 'archivos', done, total, bytes: doneBytes, totalBytes },
+        true,
+      )
     }
     this.blobsChecked = true
   }
@@ -1705,7 +1760,9 @@ export class SyncService {
     const localDir = join(vaultPath, VAULT_FILES.backups)
     for (const n of backupsToPrune(readdirSync(localDir), cfg))
       rmSync(join(localDir, n), { recursive: true, force: true })
-    if (remote) {
+    // A la nube solo si se ha pedido y nunca con datos móviles: es la base de datos entera
+    // (D-133). La nube ya guarda la bóveda; la copia de cada equipo se queda en él.
+    if (remote && cfg.cloud && !(await this.onMetered())) {
       try {
         await remote.put(`backups/${name}/crm.db`, join(dir, VAULT_FILES.db))
         await remote.put(`backups/${name}/vault.json`, join(dir, VAULT_FILES.manifest))

@@ -191,6 +191,11 @@ export interface SyncStatus {
 
 export interface SyncProgress {
   step: 'comprobando' | 'subiendo' | 'bajando'
+  /**
+   * Qué se mueve (D-133): `base`, la base de datos entera (instantánea, pasa pocas veces);
+   * `archivos`, libros y archivos. Sin indicar, cambios.
+   */
+  what?: 'base' | 'archivos'
   /** Archivos terminados y total (en «comprobando», 0 de 0). */
   done: number
   total: number
@@ -364,6 +369,7 @@ export const ipcSchemas = {
     intervalDays: z.number().int().min(1).max(60),
     keepLast: z.number().int().min(1).max(100),
     keepMonthly: z.boolean(),
+    cloud: z.boolean(),
   }),
   'tasks:summary': z.void(),
   'home:layout': z.void(),
@@ -549,7 +555,12 @@ export interface IpcOutputs {
   'backups:list': BackupEntry[]
   'backups:create': string
   'backups:restore': 'reopened' | 'locked'
-  'backups:config': { intervalDays: number; keepLast: number; keepMonthly: boolean }
+  'backups:config': {
+    intervalDays: number
+    keepLast: number
+    keepMonthly: boolean
+    cloud: boolean
+  }
   'backups:setConfig': SyncStatus
   'tasks:summary': { today: number; overdue: number }
   'home:layout': HomeLayout
